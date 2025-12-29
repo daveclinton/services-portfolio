@@ -11,15 +11,17 @@ import { baseUrl } from './sitemap'
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: 'Next.js Portfolio Starter',
-    template: '%s | Next.js Portfolio Starter',
+    default: 'David Clinton',
+    template: '%s | David Clinton',
   },
-  description: 'This is my portfolio.',
+  description:
+    'Developer and writer focused on Kotlin, FastAPI, TypeScript, React Native, and Next.js. Building thoughtful software and clear developer experiences.',
   openGraph: {
-    title: 'My Portfolio',
-    description: 'This is my portfolio.',
+    title: 'David Clinton',
+    description:
+      'Developer and writer building Android, backend, and frontend systems with a focus on clean abstractions and great developer experience.',
     url: baseUrl,
-    siteName: 'My Portfolio',
+    siteName: 'David Clinton',
     locale: 'en_US',
     type: 'website',
   },
@@ -36,7 +38,7 @@ export const metadata: Metadata = {
   },
 }
 
-const cx = (...classes) => classes.filter(Boolean).join(' ')
+const cx = (...classes: string[]) => classes.filter(Boolean).join(' ')
 
 export default function RootLayout({
   children,
