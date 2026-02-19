@@ -234,6 +234,7 @@ export default async function BlogPost({
           <aside className="post-rail">
             <h1>{post.metadata.title}</h1>
             <p>{formatDate(post.metadata.publishedAt)}</p>
+            <p className="post-subheading">{post.metadata.summary}</p>
             <ShareDialog
               title={post.metadata.title}
               summary={post.metadata.summary}
