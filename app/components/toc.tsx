@@ -75,7 +75,7 @@ export function TableOfContents({ headings }: { headings: TocHeading[] }) {
         aria-expanded={open}
       >
         <span className="toc-scroll-indicator" aria-hidden="true">
-          ↓
+          scroll
         </span>
         <span>{open ? 'Hide table of contents' : 'Show table of contents'}</span>
         <span className={`toc-chevron ${open ? 'open' : ''}`} aria-hidden="true">

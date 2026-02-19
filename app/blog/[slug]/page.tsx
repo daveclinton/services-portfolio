@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { ThemeToggle } from 'app/components/theme-toggle'
 import { CustomMDX } from 'app/components/mdx'
 import { TableOfContents } from 'app/components/toc'
+import { ShareDialog } from 'app/components/share-dialog'
 import {
   formatDate,
   getPublishedBlogPosts,
@@ -101,6 +102,10 @@ export default async function BlogPost({
     audioSrc: post.metadata.audioSrc || '/audio/designing-systems.mp3',
     substackUrl: post.metadata.substackUrl,
   }
+  const postUrl = absoluteUrl(`/blog/${post.slug}`)
+  const previewImageUrl = post.metadata.image
+    ? absoluteUrl(post.metadata.image)
+    : absoluteUrl(`/og?title=${encodeURIComponent(post.metadata.title)}`)
 
   const recentArticles = allPosts
     .filter((entry) => entry.slug !== post.slug)
@@ -141,6 +146,12 @@ export default async function BlogPost({
           <aside className="post-rail">
             <h1>{post.metadata.title}</h1>
             <p>{formatDate(post.metadata.publishedAt)}</p>
+            <ShareDialog
+              title={post.metadata.title}
+              summary={post.metadata.summary}
+              url={postUrl}
+              imageUrl={previewImageUrl}
+            />
             <TableOfContents headings={tocHeadings} />
           </aside>
 
