@@ -98,6 +98,9 @@ export default function RootLayout({
       className={cx(anton.variable, inter.variable, ebGaramond.variable)}
     >
       <body>
+        <a href="#main-content" className="skip-link">
+          Skip to main content
+        </a>
         <Script id="theme-init" strategy="beforeInteractive">
           {`(() => {
             try {
@@ -107,6 +110,15 @@ export default function RootLayout({
                 ? saved
                 : (prefersLight ? 'light' : 'dark');
               document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {}
+          })();`}
+        </Script>
+        <Script id="reader-mode-init" strategy="beforeInteractive">
+          {`(() => {
+            try {
+              const saved = localStorage.getItem('reader-mode');
+              const mode = saved === 'on' ? 'on' : 'off';
+              document.documentElement.setAttribute('data-reader-mode', mode);
             } catch (e) {}
           })();`}
         </Script>

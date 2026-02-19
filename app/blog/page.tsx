@@ -63,7 +63,7 @@ export default function BlogIndexPage() {
             <span className="site-name">daveclintonn</span>
           </Link>
           <nav className="top-nav" aria-label="Primary">
-            <Link href="/blog">blog</Link>
+            <Link href="/blog" aria-current="page">blog</Link>
             <Link href="/work">work</Link>
             <Link href="/contact">contact</Link>
             <ThemeToggle />
@@ -77,7 +77,7 @@ export default function BlogIndexPage() {
           </p>
         </section>
 
-        <main className="main-layout">
+        <main className="main-layout" id="main-content">
           <section className="hero" aria-label="Blog intro">
             <h1>
               <span>PUBLISHED</span>
@@ -114,4 +114,3 @@ export default function BlogIndexPage() {
     </div>
   )
 }
-

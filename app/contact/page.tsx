@@ -52,7 +52,7 @@ export default function ContactPage() {
           <nav className="top-nav" aria-label="Primary">
             <Link href="/blog">blog</Link>
             <Link href="/work">work</Link>
-            <Link href="/contact">contact</Link>
+            <Link href="/contact" aria-current="page">contact</Link>
             <ThemeToggle />
           </nav>
         </header>
@@ -64,7 +64,7 @@ export default function ContactPage() {
           </p>
         </section>
 
-        <main className="contact-layout">
+        <main className="contact-layout" id="main-content">
           <aside className="contact-rail">
             <h1>CONTACT</h1>
             <p>Reach out directly or follow my work.</p>

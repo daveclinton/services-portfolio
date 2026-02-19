@@ -4,6 +4,7 @@ import { ThemeToggle } from 'app/components/theme-toggle'
 import { CustomMDX } from 'app/components/mdx'
 import { TableOfContents } from 'app/components/toc'
 import { ShareDialog } from 'app/components/share-dialog'
+import { ReaderModeToggle } from 'app/components/reader-mode-toggle'
 import { PostCta } from 'app/components/post-cta'
 import { ExternalLinkIcon } from 'app/components/icons/external-link-icon'
 import {
@@ -229,9 +230,10 @@ export default async function BlogPost({
             <span className="site-name">daveclintonn</span>
           </Link>
           <nav className="top-nav" aria-label="Primary">
-            <Link href="/blog">blog</Link>
+            <Link href="/blog" aria-current="page">blog</Link>
             <Link href="/work">work</Link>
             <Link href="/contact">contact</Link>
+            <ReaderModeToggle iconOnly />
             <ThemeToggle />
           </nav>
         </header>
@@ -243,7 +245,7 @@ export default async function BlogPost({
           </p>
         </section>
 
-        <main className="post-layout">
+        <main className="post-layout" id="main-content">
           <aside className="post-rail">
             <h1>{post.metadata.title}</h1>
             <p>{formatDate(post.metadata.publishedAt)}</p>

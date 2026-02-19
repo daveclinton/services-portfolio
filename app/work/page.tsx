@@ -167,7 +167,7 @@ export default function WorkPage() {
           </Link>
           <nav className="top-nav" aria-label="Primary">
             <Link href="/blog">blog</Link>
-            <Link href="/work">work</Link>
+            <Link href="/work" aria-current="page">work</Link>
             <Link href="/contact">contact</Link>
             <ThemeToggle />
           </nav>
@@ -180,7 +180,7 @@ export default function WorkPage() {
           </p>
         </section>
 
-        <main className="work-layout">
+        <main className="work-layout" id="main-content">
           <aside className="work-rail">
             <img src="/my-picture.jpg" alt="David Clinton" className="work-avatar" />
             <h1>WORK EXPERIENCE</h1>

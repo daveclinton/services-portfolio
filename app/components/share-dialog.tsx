@@ -112,7 +112,13 @@ export function ShareDialog({
 
   return (
     <>
-      <button type="button" className="share-trigger" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="share-trigger"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+      >
         Share
       </button>
 
@@ -128,15 +134,16 @@ export function ShareDialog({
                 onClick={(event) => event.stopPropagation()}
                 role="dialog"
                 aria-modal="true"
-                aria-label="Share this article"
+                aria-labelledby="share-dialog-title"
               >
                 <header className="share-header">
-                  <h3>Share this article</h3>
+                  <h3 id="share-dialog-title">Share this article</h3>
                   <button
                     type="button"
                     className="share-close"
                     onClick={() => setOpen(false)}
                     aria-label="Close share dialog"
+                    autoFocus={open}
                   >
                     ✕
                   </button>
@@ -167,6 +174,10 @@ export function ShareDialog({
                 <p className="share-story-note">
                   Download the story card, then add it to your Instagram Story and attach
                   the post link.
+                </p>
+                <p className="sr-only" aria-live="polite">
+                  {copied ? 'Link copied to clipboard' : ''}
+                  {storyReady ? ' Instagram story card is ready' : ''}
                 </p>
               </section>
             </div>,

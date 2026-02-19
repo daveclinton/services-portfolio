@@ -79,7 +79,7 @@ export default function Page() {
           </p>
         </section>
 
-        <main className="main-layout">
+        <main className="main-layout" id="main-content">
           <section className="hero" aria-label="Hero">
             <h1>
               <span>PLATFORM, MOBILE &amp;</span>

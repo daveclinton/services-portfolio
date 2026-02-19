@@ -41,6 +41,39 @@ body {
     sans-serif;
 }
 
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 10001;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.45rem;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.skip-link:focus-visible {
+  top: 0.75rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--brand) 80%, white);
+  outline-offset: 2px;
+}
+
 a {
   color: inherit;
   text-decoration: none;
@@ -295,6 +328,41 @@ a {
 .share-trigger:hover {
   color: var(--brand-soft);
   border-color: color-mix(in srgb, var(--brand) 45%, var(--rule));
+}
+
+.reader-toggle {
+  margin-top: 0.55rem;
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 0.34rem 0.7rem;
+  font-family: var(--font-ui), Inter, system-ui, sans-serif;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+}
+
+.reader-toggle:hover {
+  color: var(--brand-soft);
+  border-color: color-mix(in srgb, var(--brand) 45%, var(--rule));
+}
+
+.reader-toggle-icon {
+  margin-top: 0;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  font-family: var(--font-serif), 'EB Garamond', Georgia, serif;
+  font-size: 0.92rem;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1;
 }
 
 .share-overlay {
@@ -561,6 +629,28 @@ a {
 
 .post-article {
   font-family: var(--font-serif), 'EB Garamond', Georgia, serif;
+  font-kerning: normal;
+  font-feature-settings: 'kern' 1, 'liga' 1, 'clig' 1, 'calt' 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  hanging-punctuation: first last;
+}
+
+.post-article > :where(
+    p,
+    ul,
+    ol,
+    blockquote,
+    pre,
+    figure,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6
+  ) {
+  max-width: 72ch;
 }
 
 .post-audio {
@@ -594,8 +684,47 @@ a {
   margin: 0 0 1.2rem;
   font-size: clamp(1rem, 1.5vw, 1.125rem);
   line-height: 1.8;
+  letter-spacing: normal;
+  word-spacing: 0.01em;
+  text-wrap: pretty;
   color: var(--text);
   overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+[data-reader-mode='on'] .post-article > :where(
+    p,
+    ul,
+    ol,
+    blockquote,
+    pre,
+    figure,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6
+  ) {
+  max-width: 66ch;
+}
+
+[data-reader-mode='on'] .post-article p,
+[data-reader-mode='on'] .post-article li {
+  font-size: clamp(1.06rem, 1.6vw, 1.2rem);
+  line-height: 1.9;
+}
+
+[data-reader-mode='on'] .post-article h2 {
+  font-size: clamp(1.72rem, 2.9vw, 2.16rem);
+}
+
+[data-reader-mode='on'] .post-article h3 {
+  font-size: clamp(1.4rem, 2.25vw, 1.72rem);
+}
+
+[data-reader-mode='on'] .post-article h4 {
+  font-size: clamp(1.18rem, 1.85vw, 1.4rem);
 }
 
 .post-article pre {
@@ -652,9 +781,11 @@ a {
 .post-article h2,
 .post-article h3,
 .post-article h4 {
-  margin: 2rem 0 0.85rem;
+  margin: 2.15rem 0 0.9rem;
   font-family: var(--font-serif), 'EB Garamond', Georgia, serif;
-  line-height: 1.2;
+  line-height: 1.24;
+  letter-spacing: 0.005em;
+  text-wrap: balance;
   color: var(--text);
   font-weight: 650;
   position: relative;
@@ -688,6 +819,8 @@ a {
   margin-bottom: 0.5rem;
   font-size: clamp(1rem, 1.5vw, 1.125rem);
   line-height: 1.8;
+  word-spacing: 0.01em;
+  hyphens: auto;
 }
 
 .post-article a {
@@ -742,6 +875,7 @@ a {
   border-left: 2px solid var(--brand);
   color: color-mix(in srgb, var(--brand-soft) 75%, var(--text));
   font-style: italic;
+  max-width: 68ch;
 }
 
 .post-article blockquote p {
@@ -1241,5 +1375,39 @@ a {
 
   .recent-articles-grid {
     grid-template-columns: 1fr;
+  }
+
+  .post-article > :where(
+      p,
+      ul,
+      ol,
+      blockquote,
+      pre,
+      figure,
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6
+    ) {
+    max-width: 100%;
+  }
+
+  [data-reader-mode='on'] .post-article > :where(
+      p,
+      ul,
+      ol,
+      blockquote,
+      pre,
+      figure,
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6
+    ) {
+    max-width: 100%;
   }
 }
