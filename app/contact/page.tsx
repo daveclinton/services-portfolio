@@ -1,5 +1,7 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import { ThemeToggle } from 'app/components/theme-toggle'
+import { absoluteUrl } from 'app/seo'
 
 const contact = {
   phone: '+254701176923',
@@ -10,9 +12,32 @@ const contact = {
   topSkills: ['Platform Engineering', 'Android Development', 'Backend Systems'],
 }
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Contact',
   description: 'Get in touch with David Clinton.',
+  alternates: {
+    canonical: '/contact',
+  },
+  openGraph: {
+    title: 'Contact | daveclintonn',
+    description: 'Get in touch with David Clinton.',
+    url: absoluteUrl('/contact'),
+    type: 'profile',
+    images: [
+      {
+        url: absoluteUrl('/og?title=Contact'),
+        width: 1200,
+        height: 630,
+        alt: 'daveclintonn contact preview',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Contact | daveclintonn',
+    description: 'Get in touch with David Clinton.',
+    images: [absoluteUrl('/og?title=Contact')],
+  },
 }
 
 export default function ContactPage() {

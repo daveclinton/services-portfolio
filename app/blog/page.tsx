@@ -1,5 +1,7 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import { ThemeToggle } from 'app/components/theme-toggle'
+import { absoluteUrl } from 'app/seo'
 
 const post = {
   title: 'DESIGNING SYSTEMS THAT SCALE WITH PEOPLE',
@@ -47,9 +49,32 @@ const recentArticles = [
   },
 ]
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Blog',
   description: 'Editorial writing on engineering, systems, and execution.',
+  alternates: {
+    canonical: '/blog',
+  },
+  openGraph: {
+    title: 'Blog | daveclintonn',
+    description: 'Editorial writing on engineering, systems, and execution.',
+    url: absoluteUrl('/blog'),
+    type: 'website',
+    images: [
+      {
+        url: absoluteUrl('/og?title=Blog'),
+        width: 1200,
+        height: 630,
+        alt: 'daveclintonn blog preview',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Blog | daveclintonn',
+    description: 'Editorial writing on engineering, systems, and execution.',
+    images: [absoluteUrl('/og?title=Blog')],
+  },
 }
 
 export default function Page() {

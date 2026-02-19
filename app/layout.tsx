@@ -4,7 +4,7 @@ import { Anton, EB_Garamond, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import Script from 'next/script'
-import { baseUrl } from './sitemap'
+import { absoluteUrl, siteConfig } from './seo'
 
 const anton = Anton({
   subsets: ['latin'],
@@ -25,21 +25,63 @@ const ebGaramond = EB_Garamond({
 })
 
 export const metadata: Metadata = {
-  metadataBase: new URL(baseUrl),
+  metadataBase: new URL(siteConfig.url),
+  applicationName: siteConfig.name,
   title: {
-    default: 'daveclintonn',
-    template: '%s | daveclintonn',
+    default: siteConfig.title,
+    template: `%s | ${siteConfig.name}`,
   },
-  description:
-    'Engineering, systems, and general postulations on accomplishing amazing things with other people.',
+  description: siteConfig.description,
+  keywords: [
+    'David Clinton',
+    'Software Engineer',
+    'Platform Engineering',
+    'Mobile Engineering',
+    'Infrastructure',
+    'FastAPI',
+    'Next.js',
+    'Android',
+  ],
+  authors: [{ name: siteConfig.owner }],
+  creator: siteConfig.owner,
+  publisher: siteConfig.owner,
+  category: 'technology',
+  alternates: {
+    canonical: '/',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
   openGraph: {
-    title: 'daveclintonn',
-    description:
-      'Engineering, systems, and general postulations on accomplishing amazing things with other people.',
-    url: baseUrl,
-    siteName: 'daveclintonn',
-    locale: 'en_US',
+    title: siteConfig.title,
+    description: siteConfig.description,
+    url: siteConfig.url,
+    siteName: siteConfig.name,
+    locale: siteConfig.locale,
     type: 'website',
+    images: [
+      {
+        url: absoluteUrl(`/og?title=${encodeURIComponent(siteConfig.title)}`),
+        width: 1200,
+        height: 630,
+        alt: `${siteConfig.name} social preview`,
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: siteConfig.title,
+    description: siteConfig.description,
+    creator: siteConfig.twitterHandle,
+    images: [absoluteUrl(`/og?title=${encodeURIComponent(siteConfig.title)}`)],
   },
 }
 

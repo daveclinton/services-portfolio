@@ -1,5 +1,7 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import { ThemeToggle } from 'app/components/theme-toggle'
+import { absoluteUrl } from 'app/seo'
 
 const profile = {
   name: 'David Clinton',
@@ -75,10 +77,35 @@ const experiences = [
   },
 ]
 
-export const metadata = {
+export const metadata: Metadata = {
   title: 'Work',
   description:
     'Professional experience across infrastructure, developer tooling, and applied machine learning systems.',
+  alternates: {
+    canonical: '/work',
+  },
+  openGraph: {
+    title: 'Work | daveclintonn',
+    description:
+      'Professional experience across infrastructure, developer tooling, and applied machine learning systems.',
+    url: absoluteUrl('/work'),
+    type: 'profile',
+    images: [
+      {
+        url: absoluteUrl('/og?title=Work'),
+        width: 1200,
+        height: 630,
+        alt: 'daveclintonn work preview',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Work | daveclintonn',
+    description:
+      'Professional experience across infrastructure, developer tooling, and applied machine learning systems.',
+    images: [absoluteUrl('/og?title=Work')],
+  },
 }
 
 export default function WorkPage() {

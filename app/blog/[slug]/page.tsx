@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { ThemeToggle } from 'app/components/theme-toggle'
 import { CustomMDX } from 'app/components/mdx'
 import { formatDate, getBlogPosts, type BlogPost } from 'app/blog/utils'
-import { baseUrl } from 'app/sitemap'
+import { absoluteUrl, siteConfig } from 'app/seo'
 
 const quote = {
   text: 'Indeed the business of the universe is to make such a fool out of you that you will know yourself for one, and begin to be wise.',
@@ -40,15 +40,40 @@ export async function generateMetadata({
     return
   }
 
+  const pageUrl = absoluteUrl(`/blog/${post.slug}`)
+  const ogImage = post.metadata.image
+    ? absoluteUrl(post.metadata.image)
+    : absoluteUrl(`/og?title=${encodeURIComponent(post.metadata.title)}`)
+
   return {
     title: post.metadata.title,
     description: post.metadata.summary,
+    alternates: {
+      canonical: `/blog/${post.slug}`,
+    },
+    authors: [{ name: siteConfig.owner }],
     openGraph: {
       title: post.metadata.title,
       description: post.metadata.summary,
       type: 'article',
       publishedTime: post.metadata.publishedAt,
-      url: `${baseUrl}/blog/${post.slug}`,
+      url: pageUrl,
+      authors: [siteConfig.owner],
+      images: [
+        {
+          url: ogImage,
+          width: 1200,
+          height: 630,
+          alt: `${post.metadata.title} social preview`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: post.metadata.title,
+      description: post.metadata.summary,
+      creator: siteConfig.twitterHandle,
+      images: [ogImage],
     },
   }
 }
