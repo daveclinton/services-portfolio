@@ -13,7 +13,6 @@ type ShareDialogProps = {
 export function ShareDialog({ title, summary, url, imageUrl }: ShareDialogProps) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [downloading, setDownloading] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   const options = useMemo(
@@ -71,33 +70,6 @@ export function ShareDialog({ title, summary, url, imageUrl }: ShareDialogProps)
     }
   }
 
-  async function downloadPreviewPng() {
-    try {
-      setDownloading(true)
-      const response = await fetch(imageUrl)
-      const blob = await response.blob()
-      const objectUrl = URL.createObjectURL(blob)
-
-      const safeName = title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/(^-|-$)/g, '')
-      const fileName = `${safeName || 'article-preview'}.png`
-
-      const link = document.createElement('a')
-      link.href = objectUrl
-      link.download = fileName
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      URL.revokeObjectURL(objectUrl)
-    } catch (_error) {
-      window.open(imageUrl, '_blank', 'noopener,noreferrer')
-    } finally {
-      setDownloading(false)
-    }
-  }
-
   return (
     <>
       <button type="button" className="share-trigger" onClick={() => setOpen(true)}>
@@ -145,9 +117,6 @@ export function ShareDialog({ title, summary, url, imageUrl }: ShareDialogProps)
                       {option.label}
                     </a>
                   ))}
-                  <button type="button" onClick={downloadPreviewPng}>
-                    {downloading ? 'Preparing...' : 'Download PNG'}
-                  </button>
                   <button type="button" onClick={copyLink}>
                     {copied ? 'Copied' : 'Copy link'}
                   </button>
