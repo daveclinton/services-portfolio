@@ -1,19 +1,76 @@
+import Link from 'next/link'
+import { ThemeToggle } from 'app/components/theme-toggle'
+import { getBlogPosts } from './blog/utils'
+
+function getReadTime(content: string) {
+  const words = content.trim().split(/\s+/).filter(Boolean).length
+  const minutes = Math.max(1, Math.ceil(words / 200))
+  return `${minutes} min read`
+}
+
+const articles = getBlogPosts()
+  .sort((a, b) => {
+    if (new Date(a.metadata.publishedAt) > new Date(b.metadata.publishedAt)) {
+      return -1
+    }
+    return 1
+  })
+  .map((post) => ({
+    title: post.metadata.title,
+    description: post.metadata.summary,
+    readTime: getReadTime(post.content),
+    href: `/blog/${post.slug}`,
+  }))
+
 export default function Page() {
   return (
-    <section>
-      <h1 className="mb-8 text-2xl font-semibold tracking-tighter">
-        David Clinton
-      </h1>
-      <p className="mb-4">
-        {`I’m a developer and writer working across Android, backend, and frontend
-        systems using Kotlin, FastAPI, TypeScript, React Native, Next.js, and
-        PostgreSQL. I care deeply about building practical software, clean
-        abstractions, and developer experiences that make complex technology easy
-        to understand and enjoyable to learn. I’m naturally curious, creative in
-        problem-solving, and focused on teaching as much as shipping. I spend my
-        time building, writing, sharing what I learn, and collaborating with
-        people who care about thoughtful, well-crafted software.`}
-      </p>
-    </section>
+    <div className="portfolio-shell">
+      <div className="portfolio-container">
+        <header className="topbar" aria-label="Top navigation">
+          <Link href="/" className="site-identity">
+            <img src="/my-picture.jpg" alt="David Clinton" className="site-avatar" />
+            <span className="site-name">daveclintonn</span>
+          </Link>
+          <nav className="top-nav" aria-label="Primary">
+            <Link href="/blog">blog</Link>
+            <Link href="/work">work</Link>
+            <Link href="/contact">contact</Link>
+            <ThemeToggle />
+          </nav>
+        </header>
+
+        <section className="quote-strip" aria-label="Quote">
+          <p>
+            &ldquo;Build systems that survive contact with reality.&rdquo;
+            <span> - David Clinton</span>
+          </p>
+        </section>
+
+        <main className="main-layout">
+          <section className="hero" aria-label="Hero">
+            <h1>
+              <span>PLATFORM, MOBILE &amp;</span>
+              <span>INFRASTRUCTURE ENGINEERING</span>
+            </h1>
+            <p>
+              I build infrastructure, developer tooling, and high-performance
+              systems where software meets real-world constraints.
+            </p>
+          </section>
+
+          <section className="article-grid" aria-label="Articles">
+            {articles.map((article) => (
+              <article key={article.title} className="article-item">
+                <Link href={article.href}>
+                  <h2>{article.title}</h2>
+                </Link>
+                <p>{article.description}</p>
+                <small>{article.readTime}</small>
+              </article>
+            ))}
+          </section>
+        </main>
+      </div>
+    </div>
   )
 }

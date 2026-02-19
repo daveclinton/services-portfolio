@@ -1,0 +1,79 @@
+---
+title: "Things I learned writing GPU infrastructure tutorials at Paperspace (now DigitalOcean)"
+publishedAt: "2026-01-28"
+summary: "How I learned to stop guessing, start measuring, and actually earn performance."
+---
+
+How I learned to stop guessing, start measuring, and actually earn performance.
+
+[Read the original version on Substack](https://daveclintonn.substack.com/p/things-i-learned-writing-gpu-infrastructure).
+
+For a while, I had one of those jobs that makes you pause and think, "Wait... this counts as work?" I got paid to learn how GPUs behave under pressure, to benchmark them, to squeeze performance out of them, and to write about it in a way that developers could actually use. Not marketing. Not vibes. Real results.
+
+I worked on the Paperspace blog (Paperspace is now part of DigitalOcean). If you want proof that I actually worked there, my author page is still live: https://blog.paperspace.com/author/david-clinton/.
+
+That page is basically a timestamp of my life in that era: PyTorch computer vision tutorials, GPU memory bandwidth, mixed precision training benchmarks, GPU rendering workflows, and practical posts about GPU utilization, the kind of work that only matters when you're watching training burn money in real time.
+
+This post is my attempt to capture what that experience taught me, not as a list of tips, but as a fundamental mindset shift. Because the biggest lesson I learned is simple: GPUs are not "fast" by default. They're expensive by default. You earn the speed.
+
+## The moment you realize your GPU is bored
+
+Most people start deep learning with a clean and comforting mental model: you write the code, you train the model, the GPU does its thing, the loss goes down, and progress is made. Then comes the reality check. You rent a powerful GPU instance, launch your training job, check `nvidia-smi`, and see only 20% utilization.
+
+At first, you assume it's normal. But as the clock keeps ticking and your bill keeps growing, it dawns on you: your expensive GPU is mostly just waiting around. Nothing is broken. Nothing has crashed. Yet a quiet frustration sets in, knowing something is wrong even if you can't pinpoint what.
+
+That moment is where GPU infrastructure thinking truly begins, because it forces you to ask the one question that changes everything: "What exactly is the GPU waiting for?"
+
+## Most performance problems aren't GPU problems
+
+One of the earliest lessons I learned at Paperspace is that the GPU is rarely the villain. It's usually the victim. It's the component you pay for, yet it's also the one that gets starved when the rest of the system falls behind.
+
+If your data loading pipeline is slow, the GPU waits. If your CPU is maxed out or your disk can't keep up, the GPU waits. If your dataset lives across a network without accounting for latency, or if your training loop bogs down in Python overhead, the GPU simply waits.
+
+This reality is where typical beginner advice falls short. Most newcomers look for a GPU trick: a magic setting or a hidden flag to flip. But real performance tuning is rarely about "enabling" something. It's fundamentally about removing bottlenecks. Once you internalize that shift, you stop treating GPU utilization as a mysterious metric and start recognizing it for what it is: a symptom pointing directly to the weakest link in your system.
+
+## Batch size is where the theory ends and the real world begins
+
+If I had to pick one topic that consistently forced people to stop guessing and start thinking, it's batch size. Batch size looks like a simple knob: make it bigger, the GPU works harder, and training gets faster. Then you try it, hit CUDA out-of-memory, lower it until it runs, try to increase it again, and hit the wall once more.
+
+Suddenly, you're doing the real work: negotiating with VRAM limits, stability, throughput, convergence, and the messy reality of hardware constraints. This is why I loved writing about maximizing GPU utilization by finding the right batch size. It's one of the first GPU optimization problems where you can't survive on vague understanding. You have to test, measure, push until it breaks, and back off to something stable.
+
+## The best GPU content doesn't tell people what to do, it shows them what to measure
+
+When I look back at the articles I'm proudest of, they all have one thing in common: they don't rely on trust; they show evidence. It's easy to publish a tutorial where the code "works." The harder part is publishing a tutorial where the reader can prove it works.
+
+That means teaching measurement as a first-class concept, not as an afterthought. The more I wrote about GPUs, the more I realized that what developers really need isn't inspiration. It's visibility. They need to know if they're compute-bound or memory-bound, if the GPU is waiting on the dataloader, or if they're saturating hardware or wasting it.
+
+Once a developer can measure, they don't need you as much anymore. They can solve their own performance problems. That's what good infrastructure writing does: it gives people control.
+
+## Mixed precision taught me to hate hype
+
+Mixed precision training is one of those topics that attracts exaggeration: "Train faster," "Use less memory," "Free performance." And yes, it can deliver, but only if you treat it like engineering.
+
+The problem is that mixed precision becomes a disappointment factory when it's presented like a magic switch. People enable AMP, see no speedup, and assume the whole concept is fake. In reality, mixed precision is more like a tool with a personality. It behaves differently depending on hardware, model architecture, batch size, dataloader throughput, and whether you're bottlenecked somewhere else.
+
+When I wrote about mixed precision benchmarks, I learned to respect the reader's time. If you're going to claim performance improvements, you need to show what you measured, how you measured it, what GPU you used, and what "better" actually means. That's how you build trust: not by sounding confident, but by making it reproducible.
+
+## Memory bandwidth is the spec nobody respects until it punishes them
+
+One of the most satisfying topics I wrote about was GPU memory bandwidth. Not because it's trendy, but because it changes how you think. People love CUDA core counts. It feels like a simple scoreboard: bigger number means faster GPU. But deep learning workloads often don't care about core count as much as you think; they care about how fast you can move data through memory.
+
+Once you understand memory bandwidth, patterns that used to feel random start making sense. You stop asking "why is my GPU underutilized?" and start asking "am I memory-bound?" You stop blaming your model and start looking at data movement. You stop treating performance as luck and start treating it as physics.
+
+## The secret job of a technical author is to become uncomfortably precise
+
+The biggest shift Paperspace gave me wasn't technical. It was personal. I remember publishing one of my early GPU articles under my own name and feeling a different kind of pressure. Not the usual "hope people like it" pressure, but the sobering realization that someone would actually use this.
+
+A developer would spin up a GPU instance, paste my code, and expect the numbers I promised while the clock ticked on their bill. If my article was sloppy, I wouldn't just waste their time; I'd waste their money. That thought made it impossible to hand-wave. I stopped writing "should" and stopped making claims I couldn't prove.
+
+If I said mixed precision improved throughput, I had to show it. So I reran everything, then reran it again. I tested on clean environments because I didn't trust my own setup. I started noticing the hidden assumptions: CUDA versions, drivers, and the exact PyTorch build.
+
+I began writing for the silent reader, the one who doesn't comment or ask questions, who hits an error at step three and quietly decides the topic isn't for them. Once you imagine that reader, you don't write the same way anymore. You slow down, explain the step you were tempted to skip, include output, call out failure modes, and make the tutorial sturdy enough to survive outside your laptop.
+
+## The best part of GPU work is the moment you stop guessing
+
+I think that's why this area hooked me. At the beginning, GPUs feel like a gamble. You rent one, kick off a run, stare at graphs, and hope the numbers justify the bill.
+
+But after a while, something shifts. You run enough experiments. You change batch size and feel the difference. You learn to read the signals the hardware is giving you. And slowly, the hoping fades.
+
+You don't guess anymore; you recognize patterns. You know what "bad" looks like before the job even finishes. You can point at a slowdown and say exactly why it's happening. That kind of confidence isn't loud; it's quiet, almost boring. It comes from watching, measuring, and being right often enough to trust yourself. At that point, you're not just training models, you're driving the machine.

@@ -1,40 +1,45 @@
 import './global.css'
 import type { Metadata } from 'next'
-import { GeistSans } from 'geist/font/sans'
-import { GeistMono } from 'geist/font/mono'
-import { Navbar } from './components/nav'
+import { Anton, EB_Garamond, Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
-import Footer from './components/footer'
+import Script from 'next/script'
 import { baseUrl } from './sitemap'
+
+const anton = Anton({
+  subsets: ['latin'],
+  variable: '--font-headline',
+  weight: '400',
+})
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-ui',
+  display: 'swap',
+})
+
+const ebGaramond = EB_Garamond({
+  subsets: ['latin'],
+  variable: '--font-serif',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: 'David Clinton',
-    template: '%s | David Clinton',
+    default: 'daveclintonn',
+    template: '%s | daveclintonn',
   },
   description:
-    'Developer and writer focused on Kotlin, FastAPI, TypeScript, React Native, and Next.js. Building thoughtful software and clear developer experiences.',
+    'Engineering, systems, and general postulations on accomplishing amazing things with other people.',
   openGraph: {
-    title: 'David Clinton',
+    title: 'daveclintonn',
     description:
-      'Developer and writer building Android, backend, and frontend systems with a focus on clean abstractions and great developer experience.',
+      'Engineering, systems, and general postulations on accomplishing amazing things with other people.',
     url: baseUrl,
-    siteName: 'David Clinton',
+    siteName: 'daveclintonn',
     locale: 'en_US',
     type: 'website',
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
-    },
   },
 }
 
@@ -48,20 +53,24 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cx(
-        'text-black bg-white dark:text-white dark:bg-black',
-        GeistSans.variable,
-        GeistMono.variable
-      )}
+      className={cx(anton.variable, inter.variable, ebGaramond.variable)}
     >
-      <body className="antialiased max-w-xl mx-4 mt-8 lg:mx-auto">
-        <main className="flex-auto min-w-0 mt-6 flex flex-col px-2 md:px-0">
-          <Navbar />
-          {children}
-          <Footer />
-          <Analytics />
-          <SpeedInsights />
-        </main>
+      <body>
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`(() => {
+            try {
+              const saved = localStorage.getItem('theme');
+              const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+              const theme = saved === 'light' || saved === 'dark'
+                ? saved
+                : (prefersLight ? 'light' : 'dark');
+              document.documentElement.setAttribute('data-theme', theme);
+            } catch (e) {}
+          })();`}
+        </Script>
+        {children}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )
