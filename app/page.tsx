@@ -5,9 +5,9 @@ import { getBlogPosts } from './blog/utils'
 import { absoluteUrl } from './seo'
 
 export const metadata: Metadata = {
-  title: 'Home',
+  title: 'I Build Systems That Don’t Flinch',
   description:
-    'David Clinton builds infrastructure, developer tooling, and high-performance systems where software meets real-world constraints.',
+    'I build platform, mobile, and infrastructure systems that hold up under pressure, not just in perfect demos.',
   alternates: {
     canonical: '/',
   },
