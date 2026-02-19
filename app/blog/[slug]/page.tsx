@@ -107,6 +107,11 @@ export default async function BlogPost({
   const previewImageUrl = post.metadata.image
     ? absoluteUrl(post.metadata.image)
     : absoluteUrl(`/og?title=${encodeURIComponent(post.metadata.title)}`)
+  const storyImageUrl = absoluteUrl(
+    `/og/story?title=${encodeURIComponent(post.metadata.title)}&url=${encodeURIComponent(
+      postUrl
+    )}`
+  )
 
   const recentArticles = allPosts
     .filter((entry) => entry.slug !== post.slug)
@@ -153,6 +158,7 @@ export default async function BlogPost({
               summary={post.metadata.summary}
               url={postUrl}
               imageUrl={previewImageUrl}
+              storyImageUrl={storyImageUrl}
             />
             <TableOfContents headings={tocHeadings} />
           </aside>

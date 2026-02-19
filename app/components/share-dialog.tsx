@@ -8,11 +8,19 @@ type ShareDialogProps = {
   summary: string
   url: string
   imageUrl: string
+  storyImageUrl: string
 }
 
-export function ShareDialog({ title, summary, url, imageUrl }: ShareDialogProps) {
+export function ShareDialog({
+  title,
+  summary,
+  url,
+  imageUrl,
+  storyImageUrl,
+}: ShareDialogProps) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [storyReady, setStoryReady] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   const options = useMemo(
@@ -70,6 +78,38 @@ export function ShareDialog({ title, summary, url, imageUrl }: ShareDialogProps)
     }
   }
 
+  async function downloadStoryCard() {
+    try {
+      setStoryReady(true)
+      const response = await fetch(storyImageUrl)
+      const contentType = response.headers.get('content-type') || ''
+
+      if (!response.ok || !contentType.includes('image')) {
+        throw new Error('Story image response is not a valid image')
+      }
+
+      const blob = await response.blob()
+      const objectUrl = URL.createObjectURL(blob)
+      const safeName = title
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '')
+      const fileName = `${safeName || 'story-card'}-story.png`
+
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = fileName
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      URL.revokeObjectURL(objectUrl)
+    } catch (_error) {
+      window.open(storyImageUrl, '_blank', 'noopener,noreferrer')
+    } finally {
+      window.setTimeout(() => setStoryReady(false), 1400)
+    }
+  }
+
   return (
     <>
       <button type="button" className="share-trigger" onClick={() => setOpen(true)}>
@@ -120,7 +160,14 @@ export function ShareDialog({ title, summary, url, imageUrl }: ShareDialogProps)
                   <button type="button" onClick={copyLink}>
                     {copied ? 'Copied' : 'Copy link'}
                   </button>
+                  <button type="button" onClick={downloadStoryCard}>
+                    {storyReady ? 'Story ready' : 'Instagram Story Card'}
+                  </button>
                 </div>
+                <p className="share-story-note">
+                  Download the story card, then add it to your Instagram Story and attach
+                  the post link.
+                </p>
               </section>
             </div>,
             document.body

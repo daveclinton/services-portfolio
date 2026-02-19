@@ -426,6 +426,14 @@ a {
   border-color: color-mix(in srgb, var(--brand) 45%, var(--rule));
 }
 
+.share-story-note {
+  margin: 0.6rem 0 0;
+  font-family: var(--font-ui), Inter, system-ui, sans-serif;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--soft-muted);
+}
+
 .toc-toggle {
   appearance: none;
   border: 1px solid var(--rule);
