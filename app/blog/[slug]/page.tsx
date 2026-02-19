@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ThemeToggle } from 'app/components/theme-toggle'
 import { CustomMDX } from 'app/components/mdx'
-import { formatDate, getBlogPosts } from 'app/blog/utils'
+import { formatDate, getBlogPosts, type BlogPost } from 'app/blog/utils'
 import { baseUrl } from 'app/sitemap'
 
 const quote = {
@@ -10,36 +10,18 @@ const quote = {
   author: 'George MacDonald',
 }
 
-const postEnhancements: Record<
-  string,
-  { audioSrc: string; substackUrl?: string }
-> = {
-  'things-i-learned-writing-gpu-infrastructure': {
-    audioSrc: '/audio/things-i-learned-writing-gpu-infrastructure.mp3',
-    substackUrl:
-      'https://daveclintonn.substack.com/p/things-i-learned-writing-gpu-infrastructure',
-  },
-  'redo-plan': {
-    audioSrc: '/audio/designing-systems.mp3',
-  },
+function getReadTime(content: string) {
+  const words = content.trim().split(/\s+/).filter(Boolean).length
+  const minutes = Math.max(1, Math.ceil(words / 200))
+  return `${minutes} min read`
 }
 
-const recentArticles = [
-  {
-    title: 'What To Expect Here In 2026',
-    description:
-      'This space will hold articles on practical engineering and developer experience.',
-    readTime: '2 min read',
-    href: '/blog/redo-plan',
-  },
-  {
-    title: 'Things I Learned Writing GPU Infrastructure Tutorials',
-    description:
-      'How I learned to stop guessing, start measuring, and actually earn performance.',
-    readTime: '14 min read',
-    href: '/blog/things-i-learned-writing-gpu-infrastructure',
-  },
-]
+function byNewest(a: BlogPost, b: BlogPost) {
+  if (new Date(a.metadata.publishedAt) > new Date(b.metadata.publishedAt)) {
+    return -1
+  }
+  return 1
+}
 
 export function generateStaticParams() {
   const posts = getBlogPosts()
@@ -77,15 +59,27 @@ export default async function BlogPost({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const post = getBlogPosts().find((entry) => entry.slug === slug)
+  const allPosts = getBlogPosts().sort(byNewest)
+  const post = allPosts.find((entry) => entry.slug === slug)
 
   if (!post) {
     notFound()
   }
 
-  const enhancement = postEnhancements[post.slug] ?? {
-    audioSrc: '/audio/designing-systems.mp3',
+  const enhancement = {
+    audioSrc: post.metadata.audioSrc || '/audio/designing-systems.mp3',
+    substackUrl: post.metadata.substackUrl,
   }
+
+  const recentArticles = allPosts
+    .filter((entry) => entry.slug !== post.slug)
+    .slice(0, 4)
+    .map((entry) => ({
+      title: entry.metadata.title,
+      description: entry.metadata.summary,
+      readTime: getReadTime(entry.content),
+      href: `/blog/${entry.slug}`,
+    }))
 
   return (
     <div className="portfolio-shell">

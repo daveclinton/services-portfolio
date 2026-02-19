@@ -6,6 +6,8 @@ type Metadata = {
   publishedAt: string
   summary: string
   image?: string
+  audioSrc?: string
+  substackUrl?: string
 }
 
 function parseFrontmatter(fileContent: string) {
@@ -52,6 +54,8 @@ function getMDXData(dir) {
 export function getBlogPosts() {
   return getMDXData(path.join(process.cwd(), 'app', 'blog', 'posts'))
 }
+
+export type BlogPost = ReturnType<typeof getBlogPosts>[number]
 
 export function formatDate(date: string, includeRelative = false) {
   let currentDate = new Date()
