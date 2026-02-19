@@ -4,6 +4,7 @@ import { MDXRemote } from 'next-mdx-remote/rsc'
 import { highlight } from 'sugar-high'
 import React from 'react'
 import { slugifyHeading } from 'app/blog/heading-utils'
+import { ExternalLinkIcon } from 'app/components/icons/external-link-icon'
 
 function Table({ data }) {
   let headers = data.headers.map((header, index) => (
@@ -42,7 +43,17 @@ function CustomLink(props) {
     return <a {...props} />
   }
 
-  return <a target="_blank" rel="noopener noreferrer" {...props} />
+  return (
+    <a
+      target="_blank"
+      rel="noopener noreferrer"
+      {...props}
+      className={['external-link-inline', props.className].filter(Boolean).join(' ')}
+    >
+      <span>{props.children}</span>
+      <ExternalLinkIcon />
+    </a>
+  )
 }
 
 function RoundedImage(props) {

@@ -689,16 +689,22 @@ a {
   text-decoration-color: color-mix(in srgb, var(--brand) 70%, transparent);
 }
 
-.post-article a[href^='http']::after {
-  content: '↗';
-  margin-left: 0.25rem;
-  font-size: 0.76em;
-  color: var(--soft-muted);
-}
-
 .post-article a:hover {
   color: var(--brand-soft);
   text-decoration-color: var(--brand-soft);
+}
+
+.post-article a.external-link-inline {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28rem;
+}
+
+.post-article .external-link-icon {
+  width: 0.8em;
+  height: 0.8em;
+  color: var(--soft-muted);
+  transform: translateY(0.02em);
 }
 
 .post-article .anchor {
