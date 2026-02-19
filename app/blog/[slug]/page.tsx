@@ -30,6 +30,26 @@ function byNewest(a: BlogPost, b: BlogPost) {
   return 1
 }
 
+function resolveOriginalPlatformName(
+  originalUrl?: string,
+  originalPlatform?: string
+) {
+  if (originalPlatform) {
+    return originalPlatform
+  }
+
+  if (!originalUrl) {
+    return null
+  }
+
+  try {
+    const host = new URL(originalUrl).hostname.replace(/^www\./, '')
+    return host
+  } catch {
+    return 'external platform'
+  }
+}
+
 export function generateStaticParams() {
   const posts = getPublishedBlogPosts()
   return posts.map((post) => ({ slug: post.slug }))
@@ -99,8 +119,14 @@ export default async function BlogPost({
   }
 
   const enhancement = {
-    audioSrc: post.metadata.audioSrc || '/audio/designing-systems.mp3',
-    substackUrl: post.metadata.substackUrl,
+    audioSrc: post.metadata.audioSrc,
+    audioDuration: post.metadata.audioDuration,
+    transcriptUrl: post.metadata.transcriptUrl,
+    originalUrl: post.metadata.originalUrl || post.metadata.substackUrl,
+    originalPlatform: resolveOriginalPlatformName(
+      post.metadata.originalUrl || post.metadata.substackUrl,
+      post.metadata.originalPlatform
+    ),
   }
   const postUrl = absoluteUrl(`/blog/${post.slug}`)
   const previewImageUrl = post.metadata.image
@@ -156,16 +182,37 @@ export default async function BlogPost({
           </aside>
 
           <article className="post-article">
-            <audio controls preload="none" className="post-audio">
-              <source src={enhancement.audioSrc} type="audio/mpeg" />
-              Your browser does not support the audio element.
-            </audio>
+            {enhancement.audioSrc ? (
+              <>
+                <audio controls preload="none" className="post-audio">
+                  <source src={enhancement.audioSrc} type="audio/mpeg" />
+                  Your browser does not support the audio element.
+                </audio>
+                {enhancement.audioDuration || enhancement.transcriptUrl ? (
+                  <p className="post-audio-meta">
+                    {enhancement.audioDuration ? (
+                      <span>Duration: {enhancement.audioDuration}</span>
+                    ) : null}
+                    {enhancement.audioDuration && enhancement.transcriptUrl ? (
+                      <span> · </span>
+                    ) : null}
+                    {enhancement.transcriptUrl ? (
+                      <a href={enhancement.transcriptUrl} target="_blank" rel="noreferrer">
+                        Transcript
+                      </a>
+                    ) : null}
+                  </p>
+                ) : null}
+              </>
+            ) : (
+              <p className="post-audio-pending">Audio version coming soon.</p>
+            )}
 
-            {enhancement.substackUrl ? (
+            {enhancement.originalUrl ? (
               <p className="post-origin">
                 Originally published on{' '}
-                <a href={enhancement.substackUrl} target="_blank" rel="noreferrer">
-                  Substack
+                <a href={enhancement.originalUrl} target="_blank" rel="noreferrer">
+                  {enhancement.originalPlatform}
                 </a>
                 .
               </p>

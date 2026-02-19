@@ -8,6 +8,10 @@ type Metadata = {
   published?: boolean
   image?: string
   audioSrc?: string
+  audioDuration?: string
+  transcriptUrl?: string
+  originalUrl?: string
+  originalPlatform?: string
   substackUrl?: string
 }
 

@@ -554,6 +554,26 @@ a {
   filter: grayscale(1) contrast(1.02);
 }
 
+.post-audio-pending {
+  margin: 0 0 1.2rem;
+  font-family: var(--font-ui), Inter, system-ui, sans-serif;
+  font-size: 0.9rem;
+  color: var(--soft-muted);
+}
+
+.post-audio-meta {
+  margin: -0.8rem 0 1rem;
+  font-family: var(--font-ui), Inter, system-ui, sans-serif;
+  font-size: 0.8rem;
+  color: var(--soft-muted);
+}
+
+.post-audio-meta a {
+  color: var(--brand-soft);
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+}
+
 .post-article p {
   margin: 0 0 1.2rem;
   font-size: clamp(1rem, 1.5vw, 1.125rem);
