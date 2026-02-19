@@ -4,7 +4,7 @@ export const siteConfig = {
   title: 'daveclintonn',
   description:
     'Platform, mobile, and infrastructure engineering notes by David Clinton.',
-  url: process.env.NEXT_PUBLIC_SITE_URL || 'https://daveclintonn.com',
+  url: process.env.NEXT_PUBLIC_SITE_URL || 'https://daveclintonn.cc',
   locale: 'en_US',
   twitterHandle: '@daveclintonn',
 }
