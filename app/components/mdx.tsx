@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { MDXRemote } from 'next-mdx-remote/rsc'
 import { highlight } from 'sugar-high'
 import React from 'react'
+import { slugifyHeading } from 'app/blog/heading-utils'
 
 function Table({ data }) {
   let headers = data.headers.map((header, index) => (
@@ -53,20 +54,26 @@ function Code({ children, ...props }) {
   return <code dangerouslySetInnerHTML={{ __html: codeHTML }} {...props} />
 }
 
-function slugify(str) {
-  return str
-    .toString()
-    .toLowerCase()
-    .trim() // Remove whitespace from both ends of a string
-    .replace(/\s+/g, '-') // Replace spaces with -
-    .replace(/&/g, '-and-') // Replace & with 'and'
-    .replace(/[^\w\-]+/g, '') // Remove all non-word characters except for -
-    .replace(/\-\-+/g, '-') // Replace multiple - with single -
+function flattenText(value) {
+  if (typeof value === 'string' || typeof value === 'number') {
+    return `${value}`
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => flattenText(item)).join('')
+  }
+
+  if (React.isValidElement(value)) {
+    const element = value as React.ReactElement<{ children?: React.ReactNode }>
+    return flattenText(element.props?.children)
+  }
+
+  return ''
 }
 
 function createHeading(level) {
   const Heading = ({ children }) => {
-    let slug = slugify(children)
+    let slug = slugifyHeading(flattenText(children))
     return React.createElement(
       `h${level}`,
       { id: slug },
@@ -99,10 +106,37 @@ let components = {
   Table,
 }
 
+function autolinkBareUrls(source: string) {
+  const lines = source.split('\n')
+  let inFence = false
+
+  return lines
+    .map((line) => {
+      if (line.trim().startsWith('```')) {
+        inFence = !inFence
+        return line
+      }
+
+      if (inFence) {
+        return line
+      }
+
+      return line.replace(
+        /(?<!\]\()(https?:\/\/[^\s<]+[^<.,:;"')\]\s])/g,
+        '[$1]($1)'
+      )
+    })
+    .join('\n')
+}
+
 export function CustomMDX(props) {
+  const source =
+    typeof props.source === 'string' ? autolinkBareUrls(props.source) : props.source
+
   return (
     <MDXRemote
       {...props}
+      source={source}
       components={{ ...components, ...(props.components || {}) }}
     />
   )

@@ -1,0 +1,92 @@
+---
+title: "Rich Content Rendering Test: Code, Images, and Social Screens"
+publishedAt: "2026-02-19"
+summary: "A practical test post to validate how code snippets, illustrations, and social screenshots appear in the article layout."
+published: false
+audioSrc: "/audio/designing-systems.mp3"
+---
+
+This post is a rendering test so we can see exactly how mixed content appears inside your article template.
+
+## What this post tests
+
+We are testing four things in one place:
+
+1. Multi-language code snippets with syntax highlighting
+2. Illustration and diagram rendering in the content column
+3. Social screenshot presentation (Twitter/X style)
+4. Captions and spacing behavior for media blocks
+
+## JavaScript / TypeScript snippet
+
+```ts
+export async function deployService(serviceName: string) {
+  const result = await fetch(`/api/deploy/${serviceName}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  })
+
+  if (!result.ok) {
+    throw new Error(`Deploy failed for ${serviceName}`)
+  }
+
+  return result.json()
+}
+```
+
+Inline code like `pnpm -s tsc --noEmit` should also remain readable without overwhelming the paragraph.
+
+## Python snippet
+
+```python
+def recommend_batch_size(vram_gb: int, model_scale: str) -> int:
+    baseline = {"small": 64, "medium": 32, "large": 16}
+    factor = max(1, vram_gb // 8)
+    return baseline.get(model_scale, 16) * factor
+```
+
+## SQL snippet
+
+```sql
+SELECT outlet_code, COUNT(*) AS pending_tasks
+FROM wms_tasks
+WHERE status IN ('PENDING', 'BLOCKED')
+GROUP BY outlet_code
+ORDER BY pending_tasks DESC;
+```
+
+## Shell + Kotlin snippets
+
+```bash
+pm2 restart backend-api && pm2 logs backend-api --lines 50
+```
+
+```kotlin
+viewModelScope.launch {
+    repository.syncQueuedScans()
+    _uiState.update { it.copy(syncComplete = true) }
+}
+```
+
+## Illustration example
+
+<figure>
+  <img src="/media-architecture-illustration.svg" alt="Architecture illustration mock" />
+  <figcaption>Illustration block: architecture diagrams and process visuals should render cleanly in-column.</figcaption>
+</figure>
+
+## Twitter/X screenshot example
+
+<figure>
+  <img src="/media-twitter-screenshot-mock.svg" alt="Mock Twitter screenshot" />
+  <figcaption>Social screenshot block: use this format for tweet screenshots and commentary.</figcaption>
+</figure>
+
+## External links should look distinct
+
+Here are two external links for visual testing:
+
+- [Paperspace author page](https://blog.paperspace.com/author/david-clinton/)
+- https://daveclintonn.substack.com
+
+If this post looks right, you can safely publish mixed-format technical posts with code, diagrams, and social proof screenshots.

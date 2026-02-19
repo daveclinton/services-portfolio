@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" fill="none">
+  <rect width="1200" height="900" fill="#0B0B0B"/>
+  <rect x="120" y="80" width="960" height="740" rx="28" fill="#11151C" stroke="#2A2F3A"/>
+  <circle cx="210" cy="170" r="42" fill="#56D4FF"/>
+  <text x="280" y="165" fill="#F2F2F2" font-size="34" font-family="Inter, Arial, sans-serif">David Clinton</text>
+  <text x="280" y="205" fill="#9EA7B8" font-size="26" font-family="Inter, Arial, sans-serif">@daveclintonn</text>
+  <text x="180" y="300" fill="#E2E8F3" font-size="34" font-family="Inter, Arial, sans-serif">Training is expensive when the GPU is idle.</text>
+  <text x="180" y="350" fill="#E2E8F3" font-size="34" font-family="Inter, Arial, sans-serif">Measure first. Tune second.</text>
+  <rect x="180" y="420" width="840" height="280" rx="18" fill="#0E1320" stroke="#2D3A56"/>
+  <text x="220" y="510" fill="#8FE5FF" font-size="28" font-family="Inter, Arial, sans-serif">Screenshot placeholder for tweets/posts.</text>
+  <text x="220" y="560" fill="#B8C4D9" font-size="24" font-family="Inter, Arial, sans-serif">Replace with a real PNG/JPG capture from Twitter/X.</text>
+</svg>

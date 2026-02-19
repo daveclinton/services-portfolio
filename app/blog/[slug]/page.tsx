@@ -2,7 +2,13 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { ThemeToggle } from 'app/components/theme-toggle'
 import { CustomMDX } from 'app/components/mdx'
-import { formatDate, getBlogPosts, type BlogPost } from 'app/blog/utils'
+import { TableOfContents } from 'app/components/toc'
+import {
+  formatDate,
+  getPublishedBlogPosts,
+  type BlogPost,
+} from 'app/blog/utils'
+import { extractHeadingsFromMdx } from 'app/blog/heading-utils'
 import { absoluteUrl, siteConfig } from 'app/seo'
 
 const quote = {
@@ -24,7 +30,7 @@ function byNewest(a: BlogPost, b: BlogPost) {
 }
 
 export function generateStaticParams() {
-  const posts = getBlogPosts()
+  const posts = getPublishedBlogPosts()
   return posts.map((post) => ({ slug: post.slug }))
 }
 
@@ -34,7 +40,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const post = getBlogPosts().find((entry) => entry.slug === slug)
+  const post = getPublishedBlogPosts().find((entry) => entry.slug === slug)
 
   if (!post) {
     return
@@ -84,7 +90,7 @@ export default async function BlogPost({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const allPosts = getBlogPosts().sort(byNewest)
+  const allPosts = getPublishedBlogPosts().sort(byNewest)
   const post = allPosts.find((entry) => entry.slug === slug)
 
   if (!post) {
@@ -105,6 +111,8 @@ export default async function BlogPost({
       readTime: getReadTime(entry.content),
       href: `/blog/${entry.slug}`,
     }))
+
+  const tocHeadings = extractHeadingsFromMdx(post.content)
 
   return (
     <div className="portfolio-shell">
@@ -133,6 +141,7 @@ export default async function BlogPost({
           <aside className="post-rail">
             <h1>{post.metadata.title}</h1>
             <p>{formatDate(post.metadata.publishedAt)}</p>
+            <TableOfContents headings={tocHeadings} />
           </aside>
 
           <article className="post-article">

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { ThemeToggle } from 'app/components/theme-toggle'
-import { getBlogPosts } from './blog/utils'
+import { getPublishedBlogPosts } from './blog/utils'
 import { absoluteUrl } from './seo'
 
 export const metadata: Metadata = {
@@ -41,7 +41,7 @@ function getReadTime(content: string) {
   return `${minutes} min read`
 }
 
-const articles = getBlogPosts()
+const articles = getPublishedBlogPosts()
   .sort((a, b) => {
     if (new Date(a.metadata.publishedAt) > new Date(b.metadata.publishedAt)) {
       return -1

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="820" viewBox="0 0 1400 820" fill="none">
+  <rect width="1400" height="820" fill="#0F1115"/>
+  <rect x="92" y="86" width="1216" height="648" rx="28" fill="#141821" stroke="#2A3140"/>
+  <rect x="150" y="150" width="300" height="120" rx="14" fill="#1B2432" stroke="#3D4E6A"/>
+  <text x="182" y="220" fill="#CDE2FF" font-size="36" font-family="Inter, Arial, sans-serif">Next.js Dashboard</text>
+  <rect x="550" y="150" width="300" height="120" rx="14" fill="#1B2432" stroke="#3D4E6A"/>
+  <text x="608" y="220" fill="#CDE2FF" font-size="36" font-family="Inter, Arial, sans-serif">FastAPI API</text>
+  <rect x="950" y="150" width="300" height="120" rx="14" fill="#1B2432" stroke="#3D4E6A"/>
+  <text x="1040" y="220" fill="#CDE2FF" font-size="36" font-family="Inter, Arial, sans-serif">Postgres</text>
+  <line x1="450" y1="210" x2="550" y2="210" stroke="#56D4FF" stroke-width="6"/>
+  <line x1="850" y1="210" x2="950" y2="210" stroke="#56D4FF" stroke-width="6"/>
+  <rect x="150" y="350" width="1100" height="300" rx="18" fill="#121723" stroke="#2F3B53"/>
+  <text x="190" y="420" fill="#8FE5FF" font-size="34" font-family="Inter, Arial, sans-serif">Operational Flow Illustration</text>
+  <text x="190" y="478" fill="#B6C6E3" font-size="28" font-family="Inter, Arial, sans-serif">Use this area for architecture sketches, process diagrams, or KPI panels.</text>
+  <text x="190" y="530" fill="#B6C6E3" font-size="28" font-family="Inter, Arial, sans-serif">SVG/PNG/JPG images will render full-width in the article column with caption support.</text>
+</svg>

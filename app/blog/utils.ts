@@ -5,6 +5,7 @@ type Metadata = {
   title: string
   publishedAt: string
   summary: string
+  published?: boolean
   image?: string
   audioSrc?: string
   substackUrl?: string
@@ -22,7 +23,17 @@ function parseFrontmatter(fileContent: string) {
     let [key, ...valueArr] = line.split(': ')
     let value = valueArr.join(': ').trim()
     value = value.replace(/^['"](.*)['"]$/, '$1') // Remove quotes
-    metadata[key.trim() as keyof Metadata] = value
+    const normalizedKey = key.trim()
+    const metadataMap = metadata as Record<string, string | boolean>
+    if (value === 'true') {
+      metadataMap[normalizedKey] = true
+      return
+    }
+    if (value === 'false') {
+      metadataMap[normalizedKey] = false
+      return
+    }
+    metadataMap[normalizedKey] = value
   })
 
   return { metadata: metadata as Metadata, content }
@@ -53,6 +64,10 @@ function getMDXData(dir) {
 
 export function getBlogPosts() {
   return getMDXData(path.join(process.cwd(), 'app', 'blog', 'posts'))
+}
+
+export function getPublishedBlogPosts() {
+  return getBlogPosts().filter((post) => post.metadata.published === true)
 }
 
 export type BlogPost = ReturnType<typeof getBlogPosts>[number]

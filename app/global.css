@@ -29,6 +29,9 @@ body {
   margin: 0;
   padding: 0;
   min-width: 320px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
   background: var(--bg);
   color: var(--text);
 }
@@ -46,12 +49,15 @@ a {
 
 .portfolio-shell {
   width: 100%;
+  max-width: 100%;
   padding: 2rem 2rem 2.5rem;
 }
 
 .portfolio-container {
   max-width: 1280px;
+  width: 100%;
   margin: 0 auto;
+  overflow-x: clip;
 }
 
 .topbar {
@@ -87,6 +93,8 @@ a {
 .top-nav {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 1.25rem;
 }
 
@@ -147,6 +155,10 @@ a {
   grid-template-columns: minmax(0, 45%) minmax(0, 55%);
   gap: 3rem;
   margin-top: 2.4rem;
+}
+
+.main-layout > * {
+  min-width: 0;
 }
 
 .hero h1 {
@@ -222,6 +234,10 @@ a {
   margin-top: 2.4rem;
 }
 
+.post-layout > * {
+  min-width: 0;
+}
+
 .post-rail h1 {
   margin: 0;
   font-family: var(--font-headline), Anton, Impact, sans-serif;
@@ -236,6 +252,124 @@ a {
   font-family: var(--font-ui), Inter, system-ui, sans-serif;
   font-size: clamp(0.95rem, 1.25vw, 1rem);
   color: var(--muted);
+}
+
+.post-rail {
+  position: sticky;
+  top: 1rem;
+  align-self: start;
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding-right: 0.45rem;
+}
+
+.toc-wrap {
+  margin-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  padding-top: 0.9rem;
+}
+
+.toc-toggle {
+  appearance: none;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: transparent;
+  padding: 0.34rem 0.58rem;
+  margin: 0;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  font-family: var(--font-ui), Inter, system-ui, sans-serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.toc-scroll-indicator {
+  color: var(--soft-muted);
+}
+
+.toc-chevron {
+  transition: transform 220ms ease;
+}
+
+.toc-chevron.open {
+  transform: rotate(180deg);
+}
+
+.toc-panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition:
+    grid-template-rows 260ms ease,
+    opacity 240ms ease,
+    transform 240ms ease;
+  transform-origin: top;
+}
+
+.toc-panel.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toc-panel.closed {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.toc-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.toc-list {
+  margin: 0.8rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-left: 1px solid var(--rule);
+}
+
+.toc-item {
+  margin: 0;
+  padding: 0.2rem 0 0.2rem 0.75rem;
+  font-family: var(--font-ui), Inter, system-ui, sans-serif;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.toc-item a {
+  color: var(--soft-muted);
+  text-decoration: none;
+  transition: color 120ms ease;
+}
+
+.toc-item a:hover {
+  color: var(--brand-soft);
+  text-decoration: underline;
+  text-underline-offset: 0.14em;
+}
+
+.toc-item.active {
+  border-left: 2px solid var(--brand);
+  margin-left: -1px;
+  background: color-mix(in srgb, var(--brand) 8%, transparent);
+}
+
+.toc-item.active a {
+  color: var(--brand-soft);
+}
+
+.toc-item.level-3 {
+  padding-left: 0.7rem;
+}
+
+.toc-item.level-4 {
+  padding-left: 1.35rem;
 }
 
 .post-article {
@@ -254,20 +388,87 @@ a {
   font-size: clamp(1rem, 1.5vw, 1.125rem);
   line-height: 1.8;
   color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.post-article pre {
+  margin: 1rem 0 1.4rem;
+  padding: 0.95rem 1rem;
+  overflow-x: auto;
+  max-width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--rule) 42%, transparent);
+}
+
+.post-article pre code {
+  display: block;
+  max-width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  font-size: 0.86rem;
+  line-height: 1.65;
+}
+
+.post-article :not(pre) > code {
+  padding: 0.08rem 0.36rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--rule) 35%, transparent);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+    'Courier New', monospace;
+  font-size: 0.86em;
+}
+
+.post-article figure {
+  margin: 1.2rem 0 1.4rem;
+}
+
+.post-article img {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+}
+
+.post-article figcaption {
+  margin-top: 0.5rem;
+  font-family: var(--font-ui), Inter, system-ui, sans-serif;
+  font-size: 0.83rem;
+  line-height: 1.45;
+  color: var(--soft-muted);
 }
 
 .post-article h1,
 .post-article h2,
 .post-article h3,
 .post-article h4 {
-  margin: 1.4rem 0 0.7rem;
+  margin: 2rem 0 0.85rem;
   font-family: var(--font-serif), 'EB Garamond', Georgia, serif;
-  line-height: 1.25;
+  line-height: 1.2;
   color: var(--text);
+  font-weight: 650;
+  position: relative;
 }
 
 .post-article h2 {
-  font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+  font-size: clamp(1.6rem, 2.7vw, 2.05rem);
+}
+
+.post-article h3 {
+  font-size: clamp(1.3rem, 2.1vw, 1.62rem);
+}
+
+.post-article h4 {
+  font-size: clamp(1.14rem, 1.75vw, 1.34rem);
+}
+
+.post-article h2,
+.post-article h3,
+.post-article h4 {
+  scroll-margin-top: 5.8rem;
 }
 
 .post-article ul,
@@ -289,9 +490,31 @@ a {
   text-decoration-color: color-mix(in srgb, var(--brand) 70%, transparent);
 }
 
+.post-article a[href^='http']::after {
+  content: '↗';
+  margin-left: 0.25rem;
+  font-size: 0.76em;
+  color: var(--soft-muted);
+}
+
 .post-article a:hover {
   color: var(--brand-soft);
   text-decoration-color: var(--brand-soft);
+}
+
+.post-article .anchor {
+  position: absolute;
+  left: -0.95rem;
+  color: var(--soft-muted);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.post-article h2:hover .anchor,
+.post-article h3:hover .anchor,
+.post-article h4:hover .anchor {
+  opacity: 1;
 }
 
 .post-article strong,
@@ -343,6 +566,10 @@ a {
   margin-top: 2.4rem;
 }
 
+.work-layout > * {
+  min-width: 0;
+}
+
 .work-rail h1 {
   margin: 0;
   font-family: var(--font-headline), Anton, Impact, sans-serif;
@@ -379,6 +606,10 @@ a {
   grid-template-columns: minmax(0, 38%) minmax(0, 62%);
   gap: 3rem;
   margin-top: 2.4rem;
+}
+
+.contact-layout > * {
+  min-width: 0;
 }
 
 .contact-rail h1 {
@@ -464,6 +695,7 @@ a {
   font-size: clamp(1rem, 1.45vw, 1.08rem);
   line-height: 1.8;
   color: var(--text);
+  overflow-wrap: anywhere;
 }
 
 .work-item li::before {
@@ -487,6 +719,13 @@ a {
   .post-layout {
     grid-template-columns: 1fr;
     gap: 1.65rem;
+  }
+
+  .post-rail {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
   }
 
   .work-layout {
