@@ -2,6 +2,8 @@ import fs from 'fs'
 import path from 'path'
 
 type Metadata = {
+  relatedPosts?: string[]
+  tags?: string[]
   recommendedReads?: {
     title: string
     url: string
@@ -44,7 +46,7 @@ function parseFrontmatter(fileContent: string) {
       return
     }
     if (
-      normalizedKey === 'recommendedReads' &&
+      ['recommendedReads', 'relatedPosts', 'tags'].includes(normalizedKey) &&
       value.startsWith('[') &&
       value.endsWith(']')
     ) {

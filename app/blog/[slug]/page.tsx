@@ -32,26 +32,15 @@ function byNewest(a: BlogPost, b: BlogPost) {
   return 1
 }
 
-function tokens(input: string) {
-  return input
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, ' ')
-    .split(/\s+/)
-    .filter((word) => word.length > 3)
-}
-
-function relevanceScore(base: BlogPost, candidate: BlogPost) {
-  const baseSet = new Set(tokens(`${base.metadata.title} ${base.metadata.summary}`))
-  const candidateTokens = tokens(
-    `${candidate.metadata.title} ${candidate.metadata.summary}`
-  )
-  let score = 0
-  for (const token of candidateTokens) {
-    if (baseSet.has(token)) {
-      score += 1
-    }
+function getTagOverlapScore(baseTags: string[], candidateTags: string[]) {
+  if (!baseTags.length || !candidateTags.length) {
+    return 0
   }
-  return score
+
+  const baseSet = new Set(baseTags.map((tag) => tag.toLowerCase()))
+  return candidateTags.reduce((score, tag) => {
+    return baseSet.has(tag.toLowerCase()) ? score + 1 : score
+  }, 0)
 }
 
 export function generateStaticParams() {
@@ -147,23 +136,47 @@ export default async function BlogPost({
       href: `/blog/${entry.slug}`,
     }))
 
-  const relatedArticles = allPosts
-    .filter((entry) => entry.slug !== post.slug)
-    .map((entry) => ({
-      title: entry.metadata.title,
-      description: entry.metadata.summary,
-      href: `/blog/${entry.slug}`,
-      readTime: getReadTime(entry.content),
-      score: relevanceScore(post, entry),
-      publishedAt: entry.metadata.publishedAt,
-    }))
-    .sort((a, b) => {
-      if (b.score !== a.score) {
-        return b.score - a.score
-      }
-      return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-    })
-    .slice(0, 3)
+  const relatedBySlugOrder = (post.metadata.relatedPosts || [])
+    .map((relatedSlug) =>
+      allPosts.find((entry) => entry.slug !== post.slug && entry.slug === relatedSlug)
+    )
+    .filter((entry): entry is BlogPost => Boolean(entry))
+
+  const relatedArticles =
+    relatedBySlugOrder.length > 0
+      ? relatedBySlugOrder.slice(0, 3).map((entry) => ({
+          title: entry.metadata.title,
+          description: entry.metadata.summary,
+          href: `/blog/${entry.slug}`,
+          readTime: getReadTime(entry.content),
+        }))
+      : allPosts
+          .filter((entry) => entry.slug !== post.slug)
+          .map((entry) => {
+            const fallbackScore = getTagOverlapScore(
+              post.metadata.tags || [],
+              entry.metadata.tags || []
+            )
+
+            return {
+              title: entry.metadata.title,
+              description: entry.metadata.summary,
+              href: `/blog/${entry.slug}`,
+              readTime: getReadTime(entry.content),
+              score: fallbackScore,
+              publishedAt: entry.metadata.publishedAt,
+            }
+          })
+          .filter((entry) => entry.score > 0)
+          .sort((a, b) => {
+            if (b.score !== a.score) {
+              return b.score - a.score
+            }
+            return (
+              new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+            )
+          })
+          .slice(0, 3)
 
   const tocHeadings = extractHeadingsFromMdx(post.content)
   const recommendedReads = post.metadata.recommendedReads || []
