@@ -4,6 +4,7 @@ import { ThemeToggle } from 'app/components/theme-toggle'
 import { CustomMDX } from 'app/components/mdx'
 import { TableOfContents } from 'app/components/toc'
 import { ShareDialog } from 'app/components/share-dialog'
+import { PostCta } from 'app/components/post-cta'
 import {
   formatDate,
   getPublishedBlogPosts,
@@ -28,6 +29,28 @@ function byNewest(a: BlogPost, b: BlogPost) {
     return -1
   }
   return 1
+}
+
+function tokens(input: string) {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((word) => word.length > 3)
+}
+
+function relevanceScore(base: BlogPost, candidate: BlogPost) {
+  const baseSet = new Set(tokens(`${base.metadata.title} ${base.metadata.summary}`))
+  const candidateTokens = tokens(
+    `${candidate.metadata.title} ${candidate.metadata.summary}`
+  )
+  let score = 0
+  for (const token of candidateTokens) {
+    if (baseSet.has(token)) {
+      score += 1
+    }
+  }
+  return score
 }
 
 export function generateStaticParams() {
@@ -123,12 +146,69 @@ export default async function BlogPost({
       href: `/blog/${entry.slug}`,
     }))
 
+  const relatedArticles = allPosts
+    .filter((entry) => entry.slug !== post.slug)
+    .map((entry) => ({
+      title: entry.metadata.title,
+      description: entry.metadata.summary,
+      href: `/blog/${entry.slug}`,
+      readTime: getReadTime(entry.content),
+      score: relevanceScore(post, entry),
+      publishedAt: entry.metadata.publishedAt,
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score
+      }
+      return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+    })
+    .slice(0, 3)
+
   const tocHeadings = extractHeadingsFromMdx(post.content)
   const recommendedReads = post.metadata.recommendedReads || []
+  const wordCount = post.content.trim().split(/\s+/).filter(Boolean).length
+  const articleJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.metadata.title,
+    description: post.metadata.summary,
+    author: {
+      '@type': 'Person',
+      name: siteConfig.owner,
+      url: siteConfig.url,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: siteConfig.owner,
+      logo: {
+        '@type': 'ImageObject',
+        url: absoluteUrl('/my-picture.jpg'),
+      },
+    },
+    datePublished: post.metadata.publishedAt,
+    dateModified: post.metadata.publishedAt,
+    mainEntityOfPage: postUrl,
+    image: [previewImageUrl],
+    wordCount,
+    articleSection: 'Engineering',
+    inLanguage: 'en-US',
+    audio: enhancement.audioSrc
+      ? {
+          '@type': 'AudioObject',
+          contentUrl: enhancement.audioSrc,
+          duration: enhancement.audioDuration || undefined,
+          transcript: enhancement.transcriptUrl || undefined,
+        }
+      : undefined,
+  }
 
   return (
     <div className="portfolio-shell">
       <div className="portfolio-container">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+        />
         <header className="topbar" aria-label="Top navigation">
           <Link href="/" className="site-identity">
             <img src="/my-picture.jpg" alt="David Clinton" className="site-avatar" />
@@ -193,8 +273,8 @@ export default async function BlogPost({
             <CustomMDX source={post.content} />
 
             {recommendedReads.length ? (
-              <section className="recommended-reads" aria-label="Recommended reads">
-                <h3>Recommended Reads</h3>
+              <section className="recommended-reads" aria-label="Personal Reccomendations">
+                <h3>Personal Reccomendations</h3>
                 <div className="recommended-list">
                   {recommendedReads.map((item) => (
                     <article key={`${item.title}-${item.url}`} className="recommended-item">
@@ -208,6 +288,23 @@ export default async function BlogPost({
                 </div>
               </section>
             ) : null}
+
+            {relatedArticles.length ? (
+              <section className="related-posts" aria-label="Related posts">
+                <h3>Related Posts</h3>
+                <div className="related-post-list">
+                  {relatedArticles.map((item) => (
+                    <article key={item.href} className="related-post-item">
+                      <Link href={item.href}>{item.title}</Link>
+                      <p>{item.description}</p>
+                      <small>{item.readTime}</small>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            <PostCta />
           </article>
         </main>
 

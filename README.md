@@ -90,7 +90,7 @@ originalPlatform: "dev.to"
 - `audioDuration` and `transcriptUrl` are optional and render below the player.
 - `originalUrl` and `originalPlatform` are optional and render as `Originally published on ...`.
 
-### Optional: per-post recommended reads
+### Optional: per-post Personal Reccomendations
 
 You can add a lightweight recommended links block at the bottom of any post:
 
