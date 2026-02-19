@@ -726,7 +726,59 @@ a {
   margin: 0;
 }
 
-.post-origin {
+.recommended-reads {
+  margin-top: 1.6rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+}
+
+.recommended-reads h3 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-ui), Inter, system-ui, sans-serif;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.recommended-list {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.recommended-item {
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--rule) 26%, transparent);
+}
+
+.recommended-item a {
+  font-family: var(--font-serif), 'EB Garamond', Georgia, serif;
+  font-size: 1.03rem;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.recommended-item a:hover {
+  color: var(--brand-soft);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.recommended-item small {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: var(--font-ui), Inter, system-ui, sans-serif;
+  font-size: 0.75rem;
+  color: var(--soft-muted);
+}
+
+.recommended-item p {
+  margin: 0.25rem 0 0;
+  font-family: var(--font-ui), Inter, system-ui, sans-serif;
+  font-size: 0.82rem;
+  line-height: 1.45;
   color: var(--muted);
 }
 

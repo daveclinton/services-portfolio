@@ -89,3 +89,18 @@ originalPlatform: "dev.to"
 - Blob URLs can be used directly; no extra backend code is required.
 - `audioDuration` and `transcriptUrl` are optional and render below the player.
 - `originalUrl` and `originalPlatform` are optional and render as `Originally published on ...`.
+
+### Optional: per-post recommended reads
+
+You can add a lightweight recommended links block at the bottom of any post:
+
+```md
+recommendedReads: [{"title":"Article title","url":"https://example.com","source":"Site name","note":"Why you recommend it"}]
+```
+
+Fields:
+
+- `title` (required)
+- `url` (required)
+- `source` (optional)
+- `note` (optional)

@@ -30,26 +30,6 @@ function byNewest(a: BlogPost, b: BlogPost) {
   return 1
 }
 
-function resolveOriginalPlatformName(
-  originalUrl?: string,
-  originalPlatform?: string
-) {
-  if (originalPlatform) {
-    return originalPlatform
-  }
-
-  if (!originalUrl) {
-    return null
-  }
-
-  try {
-    const host = new URL(originalUrl).hostname.replace(/^www\./, '')
-    return host
-  } catch {
-    return 'external platform'
-  }
-}
-
 export function generateStaticParams() {
   const posts = getPublishedBlogPosts()
   return posts.map((post) => ({ slug: post.slug }))
@@ -122,11 +102,6 @@ export default async function BlogPost({
     audioSrc: post.metadata.audioSrc,
     audioDuration: post.metadata.audioDuration,
     transcriptUrl: post.metadata.transcriptUrl,
-    originalUrl: post.metadata.originalUrl || post.metadata.substackUrl,
-    originalPlatform: resolveOriginalPlatformName(
-      post.metadata.originalUrl || post.metadata.substackUrl,
-      post.metadata.originalPlatform
-    ),
   }
   const postUrl = absoluteUrl(`/blog/${post.slug}`)
   const previewImageUrl = post.metadata.image
@@ -144,6 +119,7 @@ export default async function BlogPost({
     }))
 
   const tocHeadings = extractHeadingsFromMdx(post.content)
+  const recommendedReads = post.metadata.recommendedReads || []
 
   return (
     <div className="portfolio-shell">
@@ -208,17 +184,24 @@ export default async function BlogPost({
               <p className="post-audio-pending">Audio version coming soon.</p>
             )}
 
-            {enhancement.originalUrl ? (
-              <p className="post-origin">
-                Originally published on{' '}
-                <a href={enhancement.originalUrl} target="_blank" rel="noreferrer">
-                  {enhancement.originalPlatform}
-                </a>
-                .
-              </p>
-            ) : null}
-
             <CustomMDX source={post.content} />
+
+            {recommendedReads.length ? (
+              <section className="recommended-reads" aria-label="Recommended reads">
+                <h3>Recommended Reads</h3>
+                <div className="recommended-list">
+                  {recommendedReads.map((item) => (
+                    <article key={`${item.title}-${item.url}`} className="recommended-item">
+                      <a href={item.url} target="_blank" rel="noreferrer">
+                        {item.title}
+                      </a>
+                      {item.source ? <small>{item.source}</small> : null}
+                      {item.note ? <p>{item.note}</p> : null}
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
           </article>
         </main>
 

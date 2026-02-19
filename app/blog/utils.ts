@@ -2,6 +2,12 @@ import fs from 'fs'
 import path from 'path'
 
 type Metadata = {
+  recommendedReads?: {
+    title: string
+    url: string
+    source?: string
+    note?: string
+  }[]
   title: string
   publishedAt: string
   summary: string
@@ -28,7 +34,7 @@ function parseFrontmatter(fileContent: string) {
     let value = valueArr.join(': ').trim()
     value = value.replace(/^['"](.*)['"]$/, '$1') // Remove quotes
     const normalizedKey = key.trim()
-    const metadataMap = metadata as Record<string, string | boolean>
+    const metadataMap = metadata as Record<string, unknown>
     if (value === 'true') {
       metadataMap[normalizedKey] = true
       return
@@ -36,6 +42,19 @@ function parseFrontmatter(fileContent: string) {
     if (value === 'false') {
       metadataMap[normalizedKey] = false
       return
+    }
+    if (
+      normalizedKey === 'recommendedReads' &&
+      value.startsWith('[') &&
+      value.endsWith(']')
+    ) {
+      try {
+        metadataMap[normalizedKey] = JSON.parse(value)
+        return
+      } catch {
+        metadataMap[normalizedKey] = []
+        return
+      }
     }
     metadataMap[normalizedKey] = value
   })
