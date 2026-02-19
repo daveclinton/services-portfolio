@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { ThemeToggle } from 'app/components/theme-toggle'
+import { WorkExperienceList } from 'app/components/work-experience-list'
 import { absoluteUrl } from 'app/seo'
 
 const profile = {
@@ -50,9 +51,9 @@ const experiences = [
   {
     company: 'Untapped Global',
     role: 'Frontend & Data Visualization Engineer',
-    start: 'May 2024',
+    start: 'April 2022',
     end: 'May 2024',
-    duration: '1 month',
+    duration: '2 years 2 months',
     location: 'Nairobi County, Kenya',
     highlights: [
       'Bridged data systems with lightweight automation workflows, reducing manual data entry for investment operations.',
@@ -76,6 +77,53 @@ const experiences = [
     ],
   },
 ]
+
+function parseMonthYear(value: string) {
+  const date = new Date(`${value} 1`)
+  if (Number.isNaN(date.getTime())) {
+    return null
+  }
+  return { year: date.getFullYear(), month: date.getMonth() }
+}
+
+function getTotalExperienceLabel() {
+  const monthSet = new Set<number>()
+  const now = new Date()
+  const nowYear = now.getFullYear()
+  const nowMonth = now.getMonth()
+
+  for (const item of experiences) {
+    const start = parseMonthYear(item.start)
+    if (!start) continue
+
+    const end =
+      item.end.toLowerCase() === 'present'
+        ? { year: nowYear, month: nowMonth }
+        : parseMonthYear(item.end)
+
+    if (!end) continue
+
+    let y = start.year
+    let m = start.month
+    while (y < end.year || (y === end.year && m <= end.month)) {
+      monthSet.add(y * 12 + m)
+      m += 1
+      if (m > 11) {
+        m = 0
+        y += 1
+      }
+    }
+  }
+
+  const totalMonths = monthSet.size
+  const years = Math.floor(totalMonths / 12)
+  const months = totalMonths % 12
+  return `${years} year${years === 1 ? '' : 's'} ${months} month${
+    months === 1 ? '' : 's'
+  }`
+}
+
+const totalExperience = getTotalExperienceLabel()
 
 export const metadata: Metadata = {
   title: 'Work',
@@ -138,26 +186,11 @@ export default function WorkPage() {
             <h1>WORK EXPERIENCE</h1>
             <p>{profile.role}</p>
             <p>{profile.location}</p>
+            <p>Total Experience: {totalExperience}</p>
             <p className="work-summary">{profile.summary}</p>
           </aside>
 
-          <section className="work-content" aria-label="Experience timeline">
-            {experiences.map((experience) => (
-              <article key={`${experience.company}-${experience.start}`} className="work-item">
-                <h2>{experience.role}</h2>
-                <p className="work-company">{experience.company}</p>
-                <p className="work-date">
-                  {experience.start} - {experience.end} ({experience.duration})
-                </p>
-                <p className="work-location">{experience.location}</p>
-                <ul>
-                  {experience.highlights.map((highlight) => (
-                    <li key={highlight}>{highlight}</li>
-                  ))}
-                </ul>
-              </article>
-            ))}
-          </section>
+          <WorkExperienceList experiences={experiences} />
         </main>
       </div>
     </div>

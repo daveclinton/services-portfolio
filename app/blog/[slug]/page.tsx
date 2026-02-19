@@ -5,6 +5,7 @@ import { CustomMDX } from 'app/components/mdx'
 import { TableOfContents } from 'app/components/toc'
 import { ShareDialog } from 'app/components/share-dialog'
 import { PostCta } from 'app/components/post-cta'
+import { ExternalLinkIcon } from 'app/components/icons/external-link-icon'
 import {
   formatDate,
   getPublishedBlogPosts,
@@ -277,13 +278,20 @@ export default async function BlogPost({
                 <h3>Personal Reccomendations</h3>
                 <div className="recommended-list">
                   {recommendedReads.map((item) => (
-                    <article key={`${item.title}-${item.url}`} className="recommended-item">
-                      <a href={item.url} target="_blank" rel="noreferrer">
-                        {item.title}
-                      </a>
+                    <a
+                      key={`${item.title}-${item.url}`}
+                      className="recommended-item"
+                      href={item.url}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <span className="recommended-item-title">
+                        <span>{item.title}</span>
+                        <ExternalLinkIcon />
+                      </span>
                       {item.source ? <small>{item.source}</small> : null}
                       {item.note ? <p>{item.note}</p> : null}
-                    </article>
+                    </a>
                   ))}
                 </div>
               </section>
