@@ -1,0 +1,62 @@
+---
+title: "What have you shipped?"
+publishedAt: "2026-02-22"
+summary: "A reflection on code generation, real delivery, and why shipped systems still separate signal from noise."
+published: true
+tags: ["software-engineering","ai","shipping","product","execution"]
+relatedPosts: []
+---
+
+If you are reading this as someone who builds software, you have probably felt this tension already. You open your feed and see post after post about how quickly code can be generated now, how a feature can appear in minutes, how an idea can move from prompt to prototype before your coffee gets cold. I understand that excitement because I use AI too, and I have seen how much leverage it gives when you are staring at a blank file and the clock is not on your side.
+
+What I want to talk about is not whether AI is useful. It is. What I want to talk about is the gap between something being generated and something being delivered, because those are not the same experience, and treating them like they are has started to blur our standards.
+
+## The Moment This Became Real For Me
+
+There is a kind of production night that changes the way you think forever. A workflow is blocked, people cannot complete tasks, data is disagreeing across systems that were never designed to speak the same language, and every minute you spend guessing carries a cost for someone else. It is not glamorous work, and it is definitely not the kind of problem that gets celebrated in screenshots, but it is real engineering in its purest form.
+
+When you are inside that moment, the conversation becomes very simple. Nobody cares whether the first draft came from a prompt, a template, or your own muscle memory. What matters is whether the system recovers, whether the behavior becomes predictable again, and whether the same incident will happen tomorrow morning when everyone logs back in.
+
+## Code Generation Is Not Product Delivery
+
+This is why I keep returning to one distinction: code generation is an event, but product delivery is a commitment. You can generate code in a burst of momentum, but delivery asks for endurance. It asks you to carry that code through integration boundaries, operational constraints, release risk, and user behavior that never follows your clean mental model.
+
+AI can absolutely accelerate the writing phase, and that matters. But after the code exists, someone still has to own what it does in production, how it fails, how it is monitored, and how it evolves without breaking everything around it.
+
+## Where AI Is Genuinely Excellent
+
+I want to be explicit here because nuance matters. AI has made me faster in practical ways: first drafts move quicker, repetitive sections are less draining, refactors become easier to start, and documentation no longer feels like a second project after the main project. That is real value, and pretending otherwise would be dishonest.
+
+At the same time, speed at the beginning of a pipeline does not automatically become reliability at the end of it. A fast draft can still produce a fragile system if nobody is responsible for the long tail of decisions that follow.
+
+## Where the Real Work Starts
+
+The hardest problems I have worked on were never about typing syntax. They were about enforcing business rules across multiple roles without introducing hidden failure paths, building workflows that stay resilient when devices go offline, synchronizing data across systems with very different constraints, making deployment routines repeatable enough to trust, and tracing bottlenecks quickly when users are waiting and response times start drifting.
+
+None of this is anti-AI. This is simply the part of engineering where generated code meets consequence, and where consequence always wins.
+
+## The Part People Don’t Like Saying Out Loud
+
+There is also a human layer to this conversation that we do not discuss enough. Many engineers learned this craft through long nights, failed releases, rollback drills, and the quiet pressure of fixing things while the rest of the world is asleep. So when you see software work reduced to "just prompt better," it can feel like years of hard-earned judgment are being dismissed.
+
+I understand that reaction, but I do not think resentment helps us, and denial definitely does not. The healthier move is to raise the standard and keep it clear: the question is not who can generate code the fastest; the question is who can deliver outcomes that hold under pressure.
+
+## A Better Test Than Hype
+
+Before I call anything "built," I run it through a simple test:
+
+1. Who uses this in production?
+2. What changed in their day because of it?
+3. What metric improved?
+4. What breaks when it fails?
+5. Who owns it after launch?
+
+When those answers are weak, the work may still be useful as a prototype, but it is not shipped software yet. That distinction is not meant to shame anyone. It is meant to protect clarity.
+
+## What I Believe Now
+
+I do not believe human software engineering is disappearing. I believe shallow software engineering is losing its hiding places. AI will keep raising the floor, and that is a good thing, because more people will be able to build more quickly. But the ceiling will still be defined by judgment, systems thinking, and the willingness to stay responsible when reality pushes back harder than the demo ever did.
+
+That part remains deeply human.
+
+If you want to verify the kind of shipped systems I am referring to, check my LinkedIn for project history and production context.

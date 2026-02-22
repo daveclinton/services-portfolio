@@ -760,6 +760,40 @@ a {
   margin: 1.2rem 0 1.4rem;
 }
 
+.post-article figure.redacted-media {
+  margin: 1.25rem 0 1.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.post-article .redacted-media-image {
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  display: block;
+  border: 1px solid var(--rule);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--rule) 58%, transparent);
+  transition: filter 180ms ease;
+}
+
+.post-article .redacted-media-masks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.post-article .redacted-media-mask {
+  position: absolute;
+  border: 1px solid color-mix(in srgb, var(--text) 22%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 58%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--rule) 40%, transparent);
+}
+
+.post-article .redacted-media-mask.is-block {
+  background: color-mix(in srgb, var(--text) 82%, transparent);
+  border-color: color-mix(in srgb, var(--text) 45%, transparent);
+}
+
 .post-article img {
   width: 100%;
   max-width: 100%;

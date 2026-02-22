@@ -82,6 +82,31 @@ viewModelScope.launch {
   <figcaption>Social screenshot block: use this format for tweet screenshots and commentary.</figcaption>
 </figure>
 
+## Blurred / private screenshot example
+
+<BlurImage
+  src="/media-twitter-screenshot-mock.svg"
+  alt="Blurred conversation preview"
+  blur={16}
+  grayscale={true}
+  dim={true}
+  caption="Private screenshot pattern: blur + grayscale + dimmed exposure."
+/>
+
+<BlurImage
+  src="/media-twitter-screenshot-mock.svg"
+  alt="Partially redacted conversation preview"
+  grayscale={false}
+  dim={false}
+  masks={[
+    { x: 12, y: 18, w: 38, h: 8, blur: 12 },
+    { x: 12, y: 30, w: 76, h: 10, blur: 14 },
+    { x: 12, y: 43, w: 68, h: 10, blur: 14 },
+    { x: 12, y: 56, w: 54, h: 10, block: true },
+  ]}
+  caption="Partial redaction pattern: only selected regions are hidden."
+/>
+
 ## External links should look distinct
 
 Here are two external links for visual testing:
