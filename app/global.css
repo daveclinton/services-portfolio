@@ -916,6 +916,41 @@ a {
   margin: 0;
 }
 
+.post-inline-related {
+  margin: 1.1rem 0 1.2rem;
+  padding: 0.8rem 0.85rem;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--rule) 20%, transparent);
+}
+
+.post-inline-related h3 {
+  margin: 0;
+  font-family: var(--font-ui), Inter, system-ui, sans-serif;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.post-inline-related-list {
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.post-inline-related-list a {
+  font-family: var(--font-serif), 'EB Garamond', Georgia, serif;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.post-inline-related-list a:hover {
+  color: var(--brand-soft);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
 .recommended-reads {
   margin-top: 1.6rem;
   padding-top: 1rem;

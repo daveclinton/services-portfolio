@@ -6,7 +6,8 @@ type Metadata = {
   tags?: string[]
   recommendedReads?: {
     title: string
-    url: string
+    href?: string
+    url?: string
     source?: string
     note?: string
   }[]

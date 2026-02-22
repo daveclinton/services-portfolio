@@ -44,6 +44,18 @@ function getTagOverlapScore(baseTags: string[], candidateTags: string[]) {
   }, 0)
 }
 
+function hasValue(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
+}
+
+type RecommendedRead = {
+  title: string
+  href: string
+  source?: string
+  note?: string
+  isInternal: boolean
+}
+
 export function generateStaticParams() {
   const posts = getPublishedBlogPosts()
   return posts.map((post) => ({ slug: post.slug }))
@@ -180,7 +192,18 @@ export default async function BlogPost({
           .slice(0, 3)
 
   const tocHeadings = extractHeadingsFromMdx(post.content)
-  const recommendedReads = post.metadata.recommendedReads || []
+  const recommendedReads: RecommendedRead[] = (post.metadata.recommendedReads || [])
+    .map((item) => {
+      const href = item.href || item.url
+      return {
+        ...item,
+        href,
+        isInternal: hasValue(href) && href.startsWith('/'),
+      }
+    })
+    .filter((item): item is RecommendedRead => hasValue(item.href))
+    .sort((a, b) => Number(b.isInternal) - Number(a.isInternal))
+  const inlineRelatedArticles = relatedArticles.slice(0, 2)
   const wordCount = post.content.trim().split(/\s+/).filter(Boolean).length
   const articleJsonLd = {
     '@context': 'https://schema.org',
@@ -210,9 +233,11 @@ export default async function BlogPost({
     audio: enhancement.audioSrc
       ? {
           '@type': 'AudioObject',
-          contentUrl: enhancement.audioSrc,
+          contentUrl: absoluteUrl(enhancement.audioSrc),
           duration: enhancement.audioDuration || undefined,
-          transcript: enhancement.transcriptUrl || undefined,
+          transcript: enhancement.transcriptUrl
+            ? absoluteUrl(enhancement.transcriptUrl)
+            : undefined,
         }
       : undefined,
   }
@@ -287,6 +312,19 @@ export default async function BlogPost({
               <p className="post-audio-pending">Audio version coming soon.</p>
             )}
 
+            {inlineRelatedArticles.length ? (
+              <section className="post-inline-related" aria-label="Continue reading">
+                <h3>Continue Reading</h3>
+                <div className="post-inline-related-list">
+                  {inlineRelatedArticles.map((item) => (
+                    <Link key={`inline-${item.href}`} href={item.href}>
+                      {item.title}
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
             <CustomMDX source={post.content} />
 
             {recommendedReads.length ? (
@@ -294,20 +332,34 @@ export default async function BlogPost({
                 <h3>Personal Reccomendations</h3>
                 <div className="recommended-list">
                   {recommendedReads.map((item) => (
-                    <a
-                      key={`${item.title}-${item.url}`}
-                      className="recommended-item"
-                      href={item.url}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <span className="recommended-item-title">
-                        <span>{item.title}</span>
-                        <ExternalLinkIcon />
-                      </span>
-                      {item.source ? <small>{item.source}</small> : null}
-                      {item.note ? <p>{item.note}</p> : null}
-                    </a>
+                    item.isInternal ? (
+                      <Link
+                        key={`${item.title}-${item.href}`}
+                        className="recommended-item"
+                        href={item.href}
+                      >
+                        <span className="recommended-item-title">
+                          <span>{item.title}</span>
+                        </span>
+                        {item.source ? <small>{item.source}</small> : null}
+                        {item.note ? <p>{item.note}</p> : null}
+                      </Link>
+                    ) : (
+                      <a
+                        key={`${item.title}-${item.href}`}
+                        className="recommended-item"
+                        href={item.href}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <span className="recommended-item-title">
+                          <span>{item.title}</span>
+                          <ExternalLinkIcon />
+                        </span>
+                        {item.source ? <small>{item.source}</small> : null}
+                        {item.note ? <p>{item.note}</p> : null}
+                      </a>
+                    )
                   ))}
                 </div>
               </section>

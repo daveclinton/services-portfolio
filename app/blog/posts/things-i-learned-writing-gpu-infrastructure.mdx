@@ -1,15 +1,15 @@
 ---
 title: "Things I learned writing GPU infrastructure tutorials at Paperspace (now DigitalOcean)"
 publishedAt: "2026-01-28"
-summary: "How I learned to stop guessing, start measuring, and actually earn performance."
+summary: "Lessons from writing GPU infrastructure tutorials at Paperspace: measure bottlenecks, tune batch size and memory bandwidth, and turn compute into reliable pace."
 published: true
 tags: ["gpu","infrastructure","performance","mlops","developer-tooling"]
-relatedPosts: []
+relatedPosts: ["ai-can-write-code-but-shipping-still-decides-everything","who-do-you-look-for-who-looks-for-you-and-what-does-silence-mean"]
 audioDuration: ""
 transcriptUrl: ""
 originalUrl: "https://daveclintonn.substack.com/p/things-i-learned-writing-gpu-infrastructure"
 originalPlatform: "Substack"
-recommendedReads: [{"title":"Understanding Memory Bandwidth Benchmarks","url":"https://blog.paperspace.com/understanding-memory-bandwidth-benchmarks/","source":"Paperspace"},{"title":"Mixed Precision Training Benchmark","url":"https://blog.paperspace.com/mixed-precision-training-benchmark/","source":"Paperspace"},{"title":"Find the Optimal Batch Size","url":"https://www.digitalocean.com/community/tutorials/find-optimal-batch-size","source":"DigitalOcean"}]
+recommendedReads: [{"title":"What have you shipped?","href":"/blog/ai-can-write-code-but-shipping-still-decides-everything","source":"daveclintonn"},{"title":"Understanding Memory Bandwidth Benchmarks","url":"https://blog.paperspace.com/understanding-memory-bandwidth-benchmarks/","source":"Paperspace"},{"title":"Mixed Precision Training Benchmark","url":"https://blog.paperspace.com/mixed-precision-training-benchmark/","source":"Paperspace"},{"title":"Find the Optimal Batch Size","url":"https://www.digitalocean.com/community/tutorials/find-optimal-batch-size","source":"DigitalOcean"}]
 ---
 
 [Read the original version on Substack](https://daveclintonn.substack.com/p/things-i-learned-writing-gpu-infrastructure).
@@ -83,3 +83,5 @@ I think that's why this area hooked me. At the beginning, GPUs feel like a gambl
 But after a while, something shifts. You run enough experiments. You change batch size and feel the difference. You learn to read the signals the hardware is giving you. And slowly, the hoping fades.
 
 You don't guess anymore; you recognize patterns. You know what "bad" looks like before the job even finishes. You can point at a slowdown and say exactly why it's happening. That kind of confidence isn't loud; it's quiet, almost boring. It comes from watching, measuring, and being right often enough to trust yourself. At that point, you're not just training models, you're driving the machine.
+
+If this connects with how you think about real delivery, read [What have you shipped?](/blog/ai-can-write-code-but-shipping-still-decides-everything). If you want a contrasting reflective piece on choice and attention, read [Who Do You Look For, Who Looks For You, and What Does Silence Mean](/blog/who-do-you-look-for-who-looks-for-you-and-what-does-silence-mean).
