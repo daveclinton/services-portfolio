@@ -63,7 +63,7 @@ const experiences = [
     ],
   },
   {
-    company: 'DigitalOcean',
+    company: 'Paperspace is now part of DigitalOcean',
     role: 'Software Engineer (MLOps & GPU Computing)',
     start: 'January 2021',
     end: 'February 2022',
