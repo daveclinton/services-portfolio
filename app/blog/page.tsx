@@ -70,40 +70,33 @@ export default function BlogIndexPage() {
           </nav>
         </header>
 
-        <section className="quote-strip quote-strip-centered" aria-label="Quote">
-          <p>
-            &ldquo;Build systems that survive contact with reality.&rdquo;
-            <span> - David Clinton</span>
-          </p>
-        </section>
-
-        <main className="main-layout" id="main-content">
-          <section className="hero" aria-label="Blog intro">
-            <h1>
-              <span>PUBLISHED</span>
-              <span>ARTICLES</span>
-            </h1>
+        <main className="blog-page" id="main-content">
+          <header className="blog-header">
+            <h1>Blog</h1>
             <p>
               Essays and practical notes on platform, mobile, and infrastructure
               engineering.
             </p>
-          </section>
+          </header>
 
-          <section className="article-grid" aria-label="Published posts">
+          <section className="blog-list" aria-label="Published posts">
             {posts.length ? (
               posts.map((post) => (
-                <article key={post.title} className="article-item">
-                  <Link href={post.href}>
-                    <h2>{post.title}</h2>
-                  </Link>
-                  <p>{post.summary}</p>
-                  <small>
-                    {post.date} · {post.readTime}
-                  </small>
+                <article key={post.title} className="blog-list-item">
+                  <div className="blog-list-meta">
+                    <time>{post.date}</time>
+                    <span>{post.readTime}</span>
+                  </div>
+                  <div>
+                    <Link href={post.href}>
+                      <h2>{post.title}</h2>
+                    </Link>
+                    <p>{post.summary}</p>
+                  </div>
                 </article>
               ))
             ) : (
-              <article className="article-item">
+              <article className="blog-list-item">
                 <h2>No published posts yet</h2>
                 <p>Mark a post with `published: true` in frontmatter to show it here.</p>
               </article>
