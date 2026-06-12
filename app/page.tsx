@@ -35,12 +35,6 @@ export const metadata: Metadata = {
   },
 }
 
-function getReadTime(content: string) {
-  const words = content.trim().split(/\s+/).filter(Boolean).length
-  const minutes = Math.max(1, Math.ceil(words / 200))
-  return `${minutes} min read`
-}
-
 const articles = getPublishedBlogPosts()
   .sort((a, b) => {
     if (new Date(a.metadata.publishedAt) > new Date(b.metadata.publishedAt)) {
@@ -50,8 +44,6 @@ const articles = getPublishedBlogPosts()
   })
   .map((post) => ({
     title: post.metadata.title,
-    description: post.metadata.summary,
-    readTime: getReadTime(post.content),
     href: `/blog/${post.slug}`,
   }))
 
@@ -72,35 +64,40 @@ export default function Page() {
           </nav>
         </header>
 
-        <section className="quote-strip" aria-label="Quote">
-          <p>
-            &ldquo;Build systems that survive contact with reality.&rdquo;
-            <span> - David Clinton</span>
-          </p>
-        </section>
-
-        <main className="main-layout" id="main-content">
-          <section className="hero" aria-label="Hero">
-            <h1>
-              <span>PLATFORM, MOBILE &amp;</span>
-              <span>INFRASTRUCTURE ENGINEERING</span>
-            </h1>
+        <main className="home-page" id="main-content">
+          <section aria-label="Introduction">
+            <h1>David Clinton</h1>
             <p>
-              I build infrastructure, developer tooling, and high-performance
-              systems where software meets real-world constraints.
+              I&apos;m a software engineer who builds platform, mobile, and
+              infrastructure systems. I care about practical architecture,
+              developer experience, and software that keeps working when real
+              users, real data, and real constraints show up.
+            </p>
+
+            <p>
+              This site is where I collect the things I&apos;m learning and
+              building across backend systems, Android, React Native, Next.js,
+              PostgreSQL, and AI-assisted engineering. I try to write in a way
+              that makes hard ideas feel easier to hold.
             </p>
           </section>
 
-          <section className="article-grid" aria-label="Articles">
-            {articles.map((article) => (
-              <article key={article.title} className="article-item">
-                <Link href={article.href}>
-                  <h2>{article.title}</h2>
-                </Link>
-                <p>{article.description}</p>
-                <small>{article.readTime}</small>
-              </article>
-            ))}
+          <section aria-label="Favorite writing">
+            <p>Some of my recent writing includes:</p>
+            <ul>
+              {articles.slice(0, 6).map((article) => (
+                <li key={article.title}>
+                  <Link href={article.href}>{article.title}</Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section aria-label="Site links">
+            <p>
+              You can <Link href="/blog">read my writing</Link>, see my{' '}
+              <Link href="/work">work</Link>, or <Link href="/contact">reach out</Link>.
+            </p>
           </section>
         </main>
       </div>

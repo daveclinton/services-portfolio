@@ -1,6 +1,6 @@
 import './global.css'
 import type { Metadata } from 'next'
-import { Anton, EB_Garamond, Inter } from 'next/font/google'
+import { Anton, Inter, STIX_Two_Text } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import Script from 'next/script'
@@ -18,10 +18,11 @@ const inter = Inter({
   display: 'swap',
 })
 
-const ebGaramond = EB_Garamond({
+const stixTwoText = STIX_Two_Text({
   subsets: ['latin'],
   variable: '--font-serif',
   display: 'swap',
+  weight: ['400', '500', '600', '700'],
 })
 
 export const metadata: Metadata = {
@@ -95,7 +96,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cx(anton.variable, inter.variable, ebGaramond.variable)}
+      className={cx(anton.variable, inter.variable, stixTwoText.variable)}
     >
       <body>
         <a href="#main-content" className="skip-link">
