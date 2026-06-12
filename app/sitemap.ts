@@ -9,7 +9,7 @@ export default async function sitemap() {
     lastModified: post.metadata.publishedAt,
   }))
 
-  let routes = ['', '/blog', '/work', '/contact'].map((route) => ({
+  let routes = ['', '/blog', '/work', '/contact', '/animations'].map((route) => ({
     url: `${baseUrl}${route}`,
     lastModified: new Date().toISOString().split('T')[0],
   }))

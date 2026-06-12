@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { Anton, Inter, STIX_Two_Text } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/react'
 import { SpeedInsights } from '@vercel/speed-insights/next'
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import Script from 'next/script'
 import { absoluteUrl, siteConfig } from './seo'
 
@@ -123,7 +124,7 @@ export default function RootLayout({
             } catch (e) {}
           })();`}
         </Script>
-        {children}
+        <NuqsAdapter>{children}</NuqsAdapter>
         <Analytics />
         <SpeedInsights />
       </body>
