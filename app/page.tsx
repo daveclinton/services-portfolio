@@ -76,8 +76,8 @@ export default function Page() {
 
             <p>
               This site is where I collect the things I&apos;m learning and
-              building across backend systems, Android, React Native, Next.js,
-              PostgreSQL, and AI-assisted engineering. I try to write in a way
+              building across Backend systems, Mobile Applications, UI libraries and frameworks, Automations,
+              Databases, and AI-assisted engineering. I try to write in a way
               that makes hard ideas feel easier to hold.
             </p>
           </section>

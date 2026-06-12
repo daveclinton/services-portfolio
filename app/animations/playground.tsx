@@ -157,7 +157,13 @@ ${selected.entry.implementation.keyframes
   .join('\n')}
 }
 
-.animate-${selected.entry.id} {
+.element {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  background-image: url('/ronaldo-trophy.jpeg');
+  background-size: cover;
+  background-position: center;
   animation: ${animationShorthand(name, options)};
 }`
 }
@@ -449,35 +455,21 @@ export function AnimationPlayground() {
         </div>
 
         <div className="animations-preview-wrap">
-          <article className="animations-registry-card">
-            <span className="animations-registry-kicker">{selected.category.name}</span>
-            <h1>{selected.entry.name}</h1>
-            <p>{selected.entry.description}</p>
-            <div className="animations-registry-status">
-              {isImplemented ? 'Implemented' : 'Ready to implement'}
-            </div>
-
-            <div className="animations-demo-shell" aria-label="Demo object">
-              <div
-                key={`${playKey}-card`}
-                className={cx('animations-demo-card', options.target === 'card' && 'is-targeted')}
-                style={options.target === 'card' ? animatedStyle : undefined}
-              >
-                <span
-                  key={`${playKey}-label`}
-                  className={cx('animations-demo-label', options.target === 'label' && 'is-targeted')}
-                  style={options.target === 'label' ? animatedStyle : undefined}
-                >
-                  Motion System
-                </span>
-                <span
-                  key={`${playKey}-dot`}
-                  className={cx('animations-demo-dot', options.target === 'dot' && 'is-targeted')}
-                  style={options.target === 'dot' ? animatedStyle : undefined}
-                />
-              </div>
-            </div>
-          </article>
+          <div className="animations-demo-shell" aria-label="Demo object" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+            <div
+              key={`${playKey}-demo`}
+              className="animations-demo-card"
+              style={{
+                backgroundImage: 'url(/ronaldo-trophy.jpeg)',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                width: '300px',
+                height: '300px',
+                borderRadius: '12px',
+                ...animatedStyle,
+              }}
+            />
+          </div>
         </div>
 
         <div
@@ -529,17 +521,6 @@ export function AnimationPlayground() {
         )}
 
         <form className="animations-control-list">
-          <label>
-            <span>Target</span>
-            <select value={options.target} onChange={(event) => updateOptions({ target: event.target.value as AnimationOptions['target'] })}>
-              {targets.map((target) => (
-                <option key={target} value={target}>
-                  {target}
-                </option>
-              ))}
-            </select>
-          </label>
-
           <div className="animations-field-row">
             <label>
               <span>Duration</span>
