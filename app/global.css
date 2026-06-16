@@ -423,6 +423,547 @@ a {
   color: var(--soft-muted);
 }
 
+.asset-generator-app {
+  --asset-panel: color-mix(in srgb, var(--bg) 93%, var(--text));
+  --asset-panel-strong: color-mix(in srgb, var(--bg) 88%, var(--text));
+  --asset-control: color-mix(in srgb, var(--bg) 96%, var(--text));
+  --asset-line: color-mix(in srgb, var(--rule) 86%, var(--text));
+  display: grid;
+  grid-template-rows: 3.5rem minmax(0, 1fr);
+  width: 100vw;
+  min-width: 320px;
+  height: 100vh;
+  min-height: 680px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui), Inter, system-ui, sans-serif;
+}
+
+.asset-generator-loading {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--muted);
+  font-family: var(--font-ui), Inter, system-ui, sans-serif;
+  font-size: 0.9rem;
+}
+
+.asset-generator-toolbar {
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-width: 0;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--asset-line);
+  background: var(--asset-panel);
+}
+
+.asset-generator-brand,
+.asset-generator-actions,
+.asset-generator-panel-heading,
+.asset-generator-color-field,
+.asset-generator-quality {
+  display: flex;
+  align-items: center;
+}
+
+.asset-generator-brand {
+  min-width: 0;
+  gap: 0.75rem;
+}
+
+.asset-generator-brand a {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.asset-generator-brand a:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+
+.asset-generator-brand span {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-generator-actions {
+  flex: 0 0 auto;
+  gap: 0.5rem;
+}
+
+.asset-generator-icon-button,
+.asset-generator-primary-button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.1rem;
+  border: 1px solid var(--asset-line);
+  border-radius: 0.45rem;
+  cursor: pointer;
+  font: inherit;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
+}
+
+.asset-generator-icon-button {
+  width: 2.1rem;
+  padding: 0;
+  background: var(--asset-control);
+  color: var(--muted);
+}
+
+.asset-generator-primary-button {
+  padding: 0 0.72rem;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.asset-generator-icon-button:hover,
+.asset-generator-primary-button:hover {
+  border-color: color-mix(in srgb, var(--brand) 55%, var(--asset-line));
+}
+
+.asset-generator-icon-button svg,
+.asset-generator-primary-button svg,
+.asset-generator-panel-heading svg {
+  width: 1rem;
+  height: 1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.asset-generator-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  min-height: 0;
+}
+
+.asset-generator-canvas-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  background:
+    radial-gradient(circle at center, color-mix(in srgb, var(--brand) 10%, transparent), transparent 34rem),
+    color-mix(in srgb, var(--bg) 97%, var(--text));
+}
+
+.asset-generator-canvas-header {
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3rem;
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid var(--asset-line);
+  background: color-mix(in srgb, var(--bg) 84%, transparent);
+}
+
+.asset-generator-canvas-header p,
+.asset-generator-canvas-header strong,
+.asset-generator-canvas-header span {
+  margin: 0;
+}
+
+.asset-generator-canvas-header p,
+.asset-generator-canvas-header span {
+  color: var(--soft-muted);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.asset-generator-canvas-header strong {
+  display: block;
+  margin-top: 0.08rem;
+  font-size: 0.9rem;
+  line-height: 1.25;
+}
+
+.asset-generator-canvas {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  overflow: auto;
+  padding: clamp(1rem, 3vw, 3rem);
+}
+
+.asset-generator-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.38;
+  background-image:
+    linear-gradient(var(--asset-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--asset-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(circle at center, black 0%, transparent 76%);
+}
+
+.asset-generator-stage {
+  position: relative;
+  z-index: 1;
+  min-width: 76rem;
+  min-height: 32rem;
+}
+
+.asset-generator-konva-loading {
+  display: grid;
+  place-items: center;
+  width: 1220px;
+  height: 620px;
+  color: var(--soft-muted);
+  font-size: 0.82rem;
+}
+
+.asset-generator-frame-board {
+  display: flex;
+  align-items: flex-start;
+  align-content: flex-start;
+  flex-wrap: wrap;
+  gap: 1.6rem;
+  width: min(980px, 100%);
+  margin: 0 auto;
+}
+
+.asset-generator-frame {
+  appearance: none;
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  width: max-content;
+  max-width: 14rem;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--bg) 58%, transparent);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 0.65rem;
+  text-align: center;
+}
+
+.asset-generator-frame:hover,
+.asset-generator-frame.is-active {
+  border-color: color-mix(in srgb, var(--brand) 54%, var(--asset-line));
+  background: color-mix(in srgb, var(--brand) 9%, var(--bg));
+}
+
+.asset-generator-frame-label,
+.asset-generator-frame-size {
+  display: block;
+  max-width: 11.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-generator-frame-label {
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.25;
+}
+
+.asset-generator-frame-size {
+  color: var(--soft-muted);
+  font-size: 0.7rem;
+  line-height: 1.2;
+}
+
+.asset-generator-preview {
+  --asset-bg: #101114;
+  --asset-text: #f5f7fb;
+  --asset-accent: #57d6ff;
+  --asset-aspect: 1 / 1;
+  --asset-frame-width: 12rem;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--asset-frame-width);
+  max-width: 13rem;
+  aspect-ratio: var(--asset-aspect);
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--asset-text) 12%, transparent);
+  border-radius: 0.9rem;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--asset-accent) 30%, transparent), transparent 42%),
+    var(--asset-bg);
+  box-shadow: 0 0.9rem 2.4rem color-mix(in srgb, black 32%, transparent);
+  color: var(--asset-text);
+}
+
+.asset-generator-preview::before {
+  content: '';
+  position: absolute;
+  inset: 11%;
+  border: 1px solid color-mix(in srgb, var(--asset-text) 10%, transparent);
+  border-radius: inherit;
+}
+
+.asset-generator-preview-glow::after {
+  content: '';
+  position: absolute;
+  width: 58%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--asset-accent) 36%, transparent);
+  filter: blur(24px);
+}
+
+.asset-generator-preview-badge {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, white 9%, transparent), transparent),
+    var(--asset-bg);
+}
+
+.asset-generator-mark {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 34%;
+  aspect-ratio: 1;
+  border: 1px solid color-mix(in srgb, var(--asset-text) 18%, transparent);
+  border-radius: 28%;
+  background:
+    linear-gradient(145deg, color-mix(in srgb, var(--asset-accent) 54%, transparent), transparent),
+    color-mix(in srgb, var(--asset-bg) 72%, var(--asset-text));
+}
+
+.asset-generator-preview-badge .asset-generator-mark {
+  width: 42%;
+  border-radius: 999px;
+}
+
+.asset-generator-mark span {
+  color: var(--asset-text);
+  font-size: clamp(0.9rem, 42px, 3.2rem);
+  font-weight: 800;
+  line-height: 1;
+}
+
+.asset-generator-preview small {
+  position: absolute;
+  z-index: 1;
+  bottom: 9%;
+  max-width: 70%;
+  overflow: hidden;
+  color: color-mix(in srgb, var(--asset-text) 80%, transparent);
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-generator-preview-tiny {
+  border-radius: 0.45rem;
+}
+
+.asset-generator-preview-tiny::before,
+.asset-generator-preview-tiny::after {
+  display: none;
+}
+
+.asset-generator-preview-tiny .asset-generator-mark {
+  width: 62%;
+  border-radius: 22%;
+}
+
+.asset-generator-preview-tiny .asset-generator-mark span {
+  font-size: 1rem;
+}
+
+.asset-generator-sidebar {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border-left: 1px solid var(--asset-line);
+  background: var(--asset-panel);
+}
+
+.asset-generator-panel {
+  padding: 0.9rem;
+  border-bottom: 1px solid var(--asset-line);
+}
+
+.asset-generator-panel-heading {
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.asset-generator-panel-heading strong {
+  font-size: 0.86rem;
+  line-height: 1.2;
+}
+
+.asset-generator-panel-heading span,
+.asset-generator-panel-heading svg {
+  color: var(--soft-muted);
+  font-size: 0.74rem;
+}
+
+.asset-generator-field {
+  display: grid;
+  gap: 0.38rem;
+  margin-bottom: 0.85rem;
+}
+
+.asset-generator-field span,
+.asset-generator-color-field span,
+.asset-generator-quality span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.25;
+}
+
+.asset-generator-field input {
+  width: 100%;
+  min-width: 0;
+  height: 2.25rem;
+  border: 1px solid var(--asset-line);
+  border-radius: 0.45rem;
+  background: var(--asset-control);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.86rem;
+  padding: 0 0.65rem;
+}
+
+.asset-generator-field small {
+  color: var(--soft-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
+.asset-generator-quality {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.45rem 0.75rem;
+  padding-top: 0.2rem;
+}
+
+.asset-generator-quality strong {
+  justify-self: end;
+  font-size: 0.76rem;
+}
+
+.asset-generator-quality strong[data-state='good'] {
+  color: var(--brand-soft);
+}
+
+.asset-generator-quality strong[data-state='adjust'] {
+  color: #ffbf69;
+}
+
+.asset-generator-segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin-bottom: 0.85rem;
+  border: 1px solid var(--asset-line);
+  border-radius: 0.5rem;
+  background: var(--asset-control);
+}
+
+.asset-generator-segmented button {
+  appearance: none;
+  min-width: 0;
+  min-height: 2rem;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+}
+
+.asset-generator-segmented button:hover,
+.asset-generator-segmented button.is-active {
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  color: var(--text);
+}
+
+.asset-generator-color-field {
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 2.45rem;
+  border-top: 1px solid var(--asset-line);
+}
+
+.asset-generator-color-field input {
+  width: 2.1rem;
+  height: 2.1rem;
+  border: 1px solid var(--asset-line);
+  border-radius: 0.42rem;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.14rem;
+}
+
+.asset-generator-asset-list {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.asset-generator-asset-list button {
+  appearance: none;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  width: 100%;
+  min-height: 2.6rem;
+  border: 1px solid var(--asset-line);
+  border-radius: 0.48rem;
+  background: var(--asset-control);
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  padding: 0.48rem 0.6rem;
+  text-align: left;
+}
+
+.asset-generator-asset-list button:hover,
+.asset-generator-asset-list button.is-active {
+  border-color: color-mix(in srgb, var(--brand) 48%, var(--asset-line));
+  background: color-mix(in srgb, var(--brand) 10%, var(--asset-control));
+}
+
+.asset-generator-asset-list span {
+  overflow: hidden;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-generator-asset-list small {
+  color: var(--soft-muted);
+  font-size: 0.7rem;
+  line-height: 1.25;
+}
+
 .quote-strip-centered p {
   margin: 0 auto;
   text-align: center;
@@ -2171,6 +2712,34 @@ a {
     height: min(52vh, 380px);
   }
 
+  .asset-generator-app {
+    min-height: 100dvh;
+  }
+
+  .asset-generator-workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) minmax(18rem, 38vh);
+  }
+
+  .asset-generator-sidebar {
+    border-top: 1px solid var(--asset-line);
+    border-left: 0;
+  }
+
+  .asset-generator-panel {
+    padding: 0.8rem;
+  }
+
+  .asset-generator-stage {
+    min-width: 76rem;
+    min-height: 24rem;
+  }
+
+  .asset-generator-frame-board {
+    width: 100%;
+    gap: 1.1rem;
+  }
+
   .portfolio-shell {
     padding: 1.5rem 1.25rem 2rem;
   }
@@ -2232,6 +2801,57 @@ a {
 
   .animations-panel-header {
     align-items: flex-start;
+  }
+
+  .asset-generator-toolbar {
+    align-items: flex-start;
+    min-height: 5.7rem;
+  }
+
+  .asset-generator-brand {
+    display: grid;
+    gap: 0.18rem;
+  }
+
+  .asset-generator-actions {
+    gap: 0.4rem;
+  }
+
+  .asset-generator-primary-button span {
+    display: none;
+  }
+
+  .asset-generator-primary-button {
+    width: 2.1rem;
+    padding: 0;
+  }
+
+  .asset-generator-workspace {
+    grid-template-rows: minmax(0, 1fr) minmax(20rem, 44vh);
+  }
+
+  .asset-generator-canvas-header {
+    align-items: flex-start;
+  }
+
+  .asset-generator-canvas {
+    padding: 0.85rem;
+  }
+
+  .asset-generator-stage {
+    min-width: 76rem;
+    min-height: 20rem;
+  }
+
+  .asset-generator-frame-board {
+    flex-wrap: nowrap;
+    width: max-content;
+    margin: 0;
+  }
+
+  .asset-generator-asset-list button {
+    grid-template-columns: 1fr;
+    gap: 0.18rem;
   }
 
   .portfolio-shell {
