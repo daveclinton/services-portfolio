@@ -12,29 +12,75 @@ type AssetDefinition = {
   format: 'png'
 }
 
-type DesignElement = {
-  type: 'brand-mark'
+type FontKey = (typeof fontKeys)[number]
+type FontWeight = (typeof fontWeights)[number]
+
+type BackgroundLayer = {
+  id: 'background'
+  type: 'background'
+  color: string
+}
+
+type TextLayer = {
+  id: 'text'
+  type: 'text'
   text: string
-  backgroundColor: string
-  textColor: string
-  shape: 'rounded' | 'circle' | 'rectangle'
+  color: string
+  fontFamily: string
+  fontKey: FontKey
+  fontWeight: FontWeight
+  x: number
+  y: number
+  maxWidth: number
+  maxFontSize: number
+}
+
+type DesignLayer = BackgroundLayer | TextLayer
+
+type IconDesign = {
+  layers: DesignLayer[]
 }
 
 const masterSize = 1024
-const shapes = ['rounded', 'circle', 'rectangle'] as const
 const platforms = ['ios', 'android'] as const
 const tools = ['select', 'hand', 'text'] as const
 const previewStates = ['open', 'closed'] as const
+const fontKeys = ['sans', 'rounded', 'display', 'mono'] as const
+const fontWeights = ['700', '800', '900'] as const
 
 const defaults = {
   text: 'Nova',
   backgroundColor: '#101114',
   textColor: '#f8fafc',
-  shape: 'rounded',
+  font: 'sans',
+  fontWeight: '800',
   platform: 'ios',
   tool: 'select',
   preview: 'closed',
 } as const
+
+const fontOptions: Array<{ key: FontKey; label: string; family: string }> = [
+  {
+    key: 'sans',
+    label: 'Sans',
+    family: 'Inter, system-ui, sans-serif',
+  },
+  {
+    key: 'rounded',
+    label: 'Rounded',
+    family: '"Arial Rounded MT Bold", Nunito, Inter, system-ui, sans-serif',
+  },
+  {
+    key: 'display',
+    label: 'Display',
+    family: '"Arial Black", Impact, Inter, system-ui, sans-serif',
+  },
+  {
+    key: 'mono',
+    label: 'Mono',
+    family: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+  },
+]
 
 const colorSwatches = [
   '#7f56d9',
@@ -77,11 +123,28 @@ const assets: AssetDefinition[] = [
   },
 ]
 
-function fittedFontSize(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxSize: number) {
+function getFontFamily(fontKey: FontKey) {
+  return fontOptions.find((font) => font.key === fontKey)?.family ?? fontOptions[0].family
+}
+
+function getTextLines(text: string) {
+  const normalized = text.trim() || 'App'
+  return normalized.split(/\n/g).map((line) => line.trim() || ' ')
+}
+
+function fittedFontSize(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  maxSize: number,
+  fontFamily: string,
+  fontWeight: FontWeight,
+) {
   let size = maxSize
   while (size > 18) {
-    ctx.font = `800 ${size}px Inter, system-ui, sans-serif`
-    if (ctx.measureText(text).width <= maxWidth) {
+    ctx.font = `${fontWeight} ${size}px ${fontFamily}`
+    const widestLine = Math.max(...getTextLines(text).map((line) => ctx.measureText(line).width))
+    if (widestLine <= maxWidth) {
       return size
     }
     size -= 4
@@ -89,7 +152,14 @@ function fittedFontSize(ctx: CanvasRenderingContext2D, text: string, maxWidth: n
   return size
 }
 
-function getFittedFontSizeForText(text: string, maxWidth: number, maxSize: number, minSize = 18) {
+function getFittedFontSizeForText(
+  text: string,
+  maxWidth: number,
+  maxSize: number,
+  minSize = 18,
+  fontFamily = 'Inter, system-ui, sans-serif',
+  fontWeight: FontWeight = '800',
+) {
   if (typeof document === 'undefined') {
     return minSize
   }
@@ -102,8 +172,9 @@ function getFittedFontSizeForText(text: string, maxWidth: number, maxSize: numbe
   const value = text.trim() || 'App'
 
   while (size > minSize) {
-    ctx.font = `800 ${size}px Inter, system-ui, sans-serif`
-    if (ctx.measureText(value).width <= maxWidth) {
+    ctx.font = `${fontWeight} ${size}px ${fontFamily}`
+    const widestLine = Math.max(...getTextLines(value).map((line) => ctx.measureText(line).width))
+    if (widestLine <= maxWidth) {
       return size
     }
     size -= 2
@@ -142,40 +213,57 @@ function roundedRect(
   ctx.closePath()
 }
 
-function getShapeRadius(shape: DesignElement['shape'], size: number) {
-  if (shape === 'circle') return size / 2
-  if (shape === 'rectangle') return 0
+function getAppIconRadius(size: number) {
   return size * 0.22
 }
 
 function renderDesign(
   ctx: CanvasRenderingContext2D,
-  element: DesignElement,
+  design: IconDesign,
   size = masterSize,
-  options: { hideText?: boolean } = {},
+  options: { hideLayerId?: DesignLayer['id'] } = {},
 ) {
-  const text = element.text.trim() || 'App'
   ctx.clearRect(0, 0, size, size)
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
 
-  roundedRect(ctx, 0, 0, size, size, getShapeRadius(element.shape, size))
-  ctx.fillStyle = element.backgroundColor
-  ctx.fill()
+  for (const layer of design.layers) {
+    if (options.hideLayerId === layer.id) {
+      continue
+    }
 
-  if (options.hideText) {
-    return
+    if (layer.type === 'background') {
+      roundedRect(ctx, 0, 0, size, size, getAppIconRadius(size))
+      ctx.fillStyle = layer.color
+      ctx.fill()
+      continue
+    }
+
+    const scale = size / masterSize
+    const fontSize = fittedFontSize(
+      ctx,
+      layer.text,
+      layer.maxWidth * scale,
+      layer.maxFontSize * scale,
+      layer.fontFamily,
+      layer.fontWeight,
+    )
+    const lines = getTextLines(layer.text)
+    const lineHeight = fontSize * 0.92
+    const blockHeight = lineHeight * lines.length
+    const startY = layer.y * scale - blockHeight / 2 + lineHeight / 2
+
+    ctx.font = `${layer.fontWeight} ${fontSize}px ${layer.fontFamily}`
+    ctx.fillStyle = layer.color
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    lines.forEach((line, index) => {
+      ctx.fillText(line, layer.x * scale, startY + index * lineHeight)
+    })
   }
-
-  const fontSize = fittedFontSize(ctx, text, size * 0.72, size * 0.22)
-  ctx.font = `800 ${fontSize}px Inter, system-ui, sans-serif`
-  ctx.fillStyle = element.textColor
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(text, size / 2, size / 2)
 }
 
-function renderAsset(definition: AssetDefinition, element: DesignElement) {
+function renderAsset(definition: AssetDefinition, design: IconDesign) {
   const { width, height } = definition.imageSize
   const dpiScale = definition.dpi / 72
   const canvas = document.createElement('canvas')
@@ -196,7 +284,7 @@ function renderAsset(definition: AssetDefinition, element: DesignElement) {
   const offsetY = (height - logicalSize) / 2
   ctx.translate(offsetX, offsetY)
   ctx.scale(logicalSize / masterSize, logicalSize / masterSize)
-  renderDesign(ctx, element)
+  renderDesign(ctx, design)
 
   return canvas
 }
@@ -232,7 +320,8 @@ export function CanvasClient() {
       text: parseAsString.withDefault(defaults.text),
       bg: parseAsString.withDefault(defaults.backgroundColor),
       fg: parseAsString.withDefault(defaults.textColor),
-      shape: parseAsStringLiteral(shapes).withDefault(defaults.shape),
+      font: parseAsStringLiteral(fontKeys).withDefault(defaults.font),
+      weight: parseAsStringLiteral(fontWeights).withDefault(defaults.fontWeight),
       platform: parseAsStringLiteral(platforms).withDefault(defaults.platform),
       tool: parseAsStringLiteral(tools).withDefault(defaults.tool),
       preview: parseAsStringLiteral(previewStates).withDefault(defaults.preview),
@@ -244,28 +333,47 @@ export function CanvasClient() {
   const [progress, setProgress] = useState('')
   const [isExporting, setIsExporting] = useState(false)
   const [openColorPicker, setOpenColorPicker] = useState<'bg' | 'fg' | null>(null)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const text = settings.text
   const backgroundColor = getValidColor(settings.bg, defaults.backgroundColor)
   const textColor = getValidColor(settings.fg, defaults.textColor)
-  const shape = settings.shape
+  const fontKey = settings.font
+  const fontFamily = getFontFamily(fontKey)
+  const fontWeight = settings.weight
   const platform = settings.platform
   const activeTool = settings.tool
   const isPreviewOpen = settings.preview === 'open'
   const [isEditingText, setIsEditingText] = useState(false)
+  const [selectedLayerId, setSelectedLayerId] = useState<DesignLayer['id']>('text')
   const editorFontSize = useMemo(
-    () => getFittedFontSizeForText(text, 340, 96, 18),
-    [text],
+    () => getFittedFontSizeForText(text, 240, 68, 16, fontFamily, fontWeight),
+    [fontFamily, fontWeight, text],
   )
 
-  const designElement = useMemo<DesignElement>(
+  const design = useMemo<IconDesign>(
     () => ({
-      type: 'brand-mark',
-      text,
-      backgroundColor,
-      textColor,
-      shape,
+      layers: [
+        {
+          id: 'background',
+          type: 'background',
+          color: backgroundColor,
+        },
+        {
+          id: 'text',
+          type: 'text',
+          text,
+          color: textColor,
+          fontFamily,
+          fontKey,
+          fontWeight,
+          x: masterSize / 2,
+          y: masterSize / 2,
+          maxWidth: masterSize * 0.72,
+          maxFontSize: masterSize * 0.22,
+        },
+      ],
     }),
-    [backgroundColor, shape, text, textColor],
+    [backgroundColor, fontFamily, fontKey, fontWeight, text, textColor],
   )
 
   useEffect(() => {
@@ -276,8 +384,8 @@ export function CanvasClient() {
     masterCanvas.height = masterSize
     const ctx = masterCanvas.getContext('2d')
     if (!ctx) return
-    renderDesign(ctx, designElement, masterSize, { hideText: isEditingText })
-  }, [designElement, isEditingText])
+    renderDesign(ctx, design, masterSize, { hideLayerId: isEditingText ? 'text' : undefined })
+  }, [design, isEditingText])
 
   useEffect(() => {
     const canvas = phonePreviewRef.current
@@ -288,8 +396,8 @@ export function CanvasClient() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
     ctx.scale(228 / masterSize, 228 / masterSize)
-    renderDesign(ctx, designElement)
-  }, [designElement, isPreviewOpen])
+    renderDesign(ctx, design)
+  }, [design, isPreviewOpen])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -313,6 +421,7 @@ export function CanvasClient() {
 
       if (event.key.toLowerCase() === 't') {
         setSettings({ tool: 'text' })
+        setSelectedLayerId('text')
         setIsEditingText(true)
       }
     }
@@ -330,7 +439,7 @@ export function CanvasClient() {
 
       for (let index = 0; index < assets.length; index += 1) {
         const asset = assets[index]
-        const canvas = renderAsset(asset, designElement)
+        const canvas = renderAsset(asset, design)
         const blob = await canvasToBlob(canvas)
         zip.file(asset.name, blob)
         canvas.width = 0
@@ -353,20 +462,76 @@ export function CanvasClient() {
       text: defaults.text,
       bg: defaults.backgroundColor,
       fg: defaults.textColor,
-      shape: defaults.shape,
+      font: defaults.font,
+      weight: defaults.fontWeight,
       tool: defaults.tool,
     })
     setIsEditingText(false)
+    setSelectedLayerId('text')
     setOpenColorPicker(null)
+    setIsMenuOpen(false)
     setProgress('Reset')
   }
 
   return (
     <main className="asset-generator-page" id="main-content">
       <div className="asset-generator-top-left">
-        <button type="button" className="asset-generator-icon-button" aria-label="Open menu" title="Menu">
+        <button
+          type="button"
+          className={`asset-generator-icon-button ${isMenuOpen ? 'is-active' : ''}`}
+          aria-label="Open menu"
+          aria-expanded={isMenuOpen}
+          title="Menu"
+          onClick={() => setIsMenuOpen((open) => !open)}
+        >
           <span aria-hidden="true">☰</span>
         </button>
+
+        {isMenuOpen ? (
+          <div className="asset-generator-main-menu" role="menu" aria-label="Asset generator menu">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                resetDesign()
+              }}
+            >
+              <span aria-hidden="true">↺</span>
+              <strong>Reset design</strong>
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setIsMenuOpen(false)
+                exportAllAssets()
+              }}
+              disabled={isExporting}
+            >
+              <span aria-hidden="true">↓</span>
+              <strong>{isExporting ? 'Exporting...' : 'Download assets'}</strong>
+            </button>
+
+            <div className="asset-generator-menu-separator" />
+
+            <section className="asset-generator-menu-assets" aria-label="Assets included in export">
+              <header>
+                <strong>Assets included</strong>
+                <span>{assets.length} PNG files</span>
+              </header>
+              <div>
+                {assets.map((asset) => (
+                  <article key={asset.name}>
+                    <strong>{asset.name}</strong>
+                    <span>
+                      {asset.imageSize.width} x {asset.imageSize.height} @ {asset.dpi} DPI
+                    </span>
+                  </article>
+                ))}
+              </div>
+            </section>
+          </div>
+        ) : null}
       </div>
 
       <div className="asset-generator-top-right" aria-label="Canvas actions">
@@ -388,7 +553,7 @@ export function CanvasClient() {
         </button>
       </div>
 
-      <section className="asset-generator-design">
+      <section className={`asset-generator-design ${isPreviewOpen ? 'is-preview-open' : ''}`}>
         <div className="asset-generator-canvas-toolbar" aria-label="Canvas toolbar">
           <button
             type="button"
@@ -423,6 +588,7 @@ export function CanvasClient() {
             className={`asset-generator-tool-button ${activeTool === 'text' ? 'is-active' : ''}`}
             onClick={() => {
               setSettings({ tool: 'text' })
+              setSelectedLayerId('text')
               setIsEditingText(true)
             }}
             aria-label="Text tool"
@@ -449,40 +615,72 @@ export function CanvasClient() {
             onToggle={() => setOpenColorPicker(openColorPicker === 'fg' ? null : 'fg')}
             onChange={(color) => setSettings({ fg: color })}
           />
-          <select
-            className="asset-generator-toolbar-select"
-            value={shape}
-            aria-label="Shape"
-            onChange={(event) => setSettings({ shape: event.target.value as DesignElement['shape'] })}
-          >
-            <option value="rounded">Rounded</option>
-            <option value="circle">Circle</option>
-            <option value="rectangle">Rectangle</option>
-          </select>
         </div>
+
+        {selectedLayerId === 'text' ? (
+          <div className="asset-generator-style-panel" aria-label="Selected text layer controls">
+            <label>
+              <span>Font</span>
+              <select
+                value={fontKey}
+                aria-label="Text font"
+                onChange={(event) => setSettings({ font: event.target.value as FontKey })}
+              >
+                {fontOptions.map((font) => (
+                  <option key={font.key} value={font.key}>
+                    {font.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>Weight</span>
+              <select
+                value={fontWeight}
+                aria-label="Text weight"
+                onChange={(event) => setSettings({ weight: event.target.value as FontWeight })}
+              >
+                <option value="700">Bold</option>
+                <option value="800">Heavy</option>
+                <option value="900">Black</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                setSettings({ tool: 'text' })
+                setIsEditingText(true)
+              }}
+            >
+              Edit text
+            </button>
+          </div>
+        ) : null}
 
         <div className="asset-generator-master">
           <canvas
             ref={masterCanvasRef}
             aria-label="Master design canvas"
             onClick={() => {
+              setSelectedLayerId('text')
               if (activeTool === 'text') {
                 setIsEditingText(true)
               }
             }}
           />
           {isEditingText ? (
-            <input
+            <textarea
               className="asset-generator-text-editor"
               value={text}
-              maxLength={24}
+              maxLength={42}
               autoFocus
-              style={{ color: textColor, fontSize: `${editorFontSize}px` }}
+              rows={2}
+              style={{ color: textColor, fontFamily, fontSize: `${editorFontSize}px`, fontWeight }}
               aria-label="Edit asset text"
               onChange={(event) => setSettings({ text: event.target.value })}
               onBlur={() => setIsEditingText(false)}
               onKeyDown={(event) => {
-                if (event.key === 'Escape' || event.key === 'Enter') {
+                if (event.key === 'Escape') {
                   event.currentTarget.blur()
                 }
               }}
@@ -518,16 +716,6 @@ export function CanvasClient() {
         </section>
       ) : null}
 
-      <section className="asset-generator-list" aria-label="Export assets">
-        {assets.map((asset) => (
-          <article key={asset.name}>
-            <strong>{asset.name}</strong>
-            <span>
-              {asset.imageSize.width} x {asset.imageSize.height} @ {asset.dpi} DPI
-            </span>
-          </article>
-        ))}
-      </section>
     </main>
   )
 }
