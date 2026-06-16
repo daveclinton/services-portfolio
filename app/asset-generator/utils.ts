@@ -95,11 +95,45 @@ export function getAppIconRadius(size: number) {
   return size * 0.22
 }
 
+export function getTextLayerLayout(ctx: CanvasRenderingContext2D, layer: Extract<DesignLayer, { type: 'text' }>, size = masterSize) {
+  const scale = size / masterSize
+  const fontSize = fittedFontSize(
+    ctx,
+    layer.text,
+    layer.maxWidth * scale,
+    layer.maxFontSize * scale,
+    layer.fontFamily,
+    layer.fontWeight,
+  )
+  const lines = getTextLines(layer.text)
+  const lineHeight = fontSize * 0.92
+  const blockHeight = lineHeight * lines.length
+  ctx.font = `${layer.fontWeight} ${fontSize}px ${layer.fontFamily}`
+  const widths = lines.map((line) => ctx.measureText(line).width)
+  const blockWidth = Math.max(...widths)
+  const x = layer.x * scale
+  const y = layer.y * scale
+  const startY = y - blockHeight / 2 + lineHeight / 2
+
+  return {
+    fontSize,
+    lines,
+    lineHeight,
+    startY,
+    bounds: {
+      x: x - blockWidth / 2,
+      y: y - blockHeight / 2,
+      width: blockWidth,
+      height: blockHeight,
+    },
+  }
+}
+
 export function renderDesign(
   ctx: CanvasRenderingContext2D,
   design: IconDesign,
   size = masterSize,
-  options: { hideLayerId?: DesignLayer['id'] } = {},
+  options: { hideLayerId?: DesignLayer['id']; selectedLayerId?: DesignLayer['id'] } = {},
 ) {
   ctx.clearRect(0, 0, size, size)
   ctx.imageSmoothingEnabled = true
@@ -118,18 +152,7 @@ export function renderDesign(
     }
 
     const scale = size / masterSize
-    const fontSize = fittedFontSize(
-      ctx,
-      layer.text,
-      layer.maxWidth * scale,
-      layer.maxFontSize * scale,
-      layer.fontFamily,
-      layer.fontWeight,
-    )
-    const lines = getTextLines(layer.text)
-    const lineHeight = fontSize * 0.92
-    const blockHeight = lineHeight * lines.length
-    const startY = layer.y * scale - blockHeight / 2 + lineHeight / 2
+    const { bounds, fontSize, lines, lineHeight, startY } = getTextLayerLayout(ctx, layer, size)
 
     ctx.font = `${layer.fontWeight} ${fontSize}px ${layer.fontFamily}`
     ctx.fillStyle = layer.color
@@ -138,6 +161,21 @@ export function renderDesign(
     lines.forEach((line, index) => {
       ctx.fillText(line, layer.x * scale, startY + index * lineHeight)
     })
+
+    if (options.selectedLayerId === layer.id) {
+      const padding = 24 * scale
+      roundedRect(
+        ctx,
+        bounds.x - padding,
+        bounds.y - padding,
+        bounds.width + padding * 2,
+        bounds.height + padding * 2,
+        22 * scale,
+      )
+      ctx.lineWidth = Math.max(2, 4 * scale)
+      ctx.strokeStyle = '#6965db'
+      ctx.stroke()
+    }
   }
 }
 

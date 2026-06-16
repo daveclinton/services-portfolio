@@ -913,6 +913,17 @@ a {
   color: var(--ag-on-primary-container);
 }
 
+.asset-generator-tool-button:disabled {
+  color: var(--ag-muted-light);
+  cursor: default;
+  opacity: 0.42;
+}
+
+.asset-generator-tool-button:disabled:hover {
+  background: transparent;
+  color: var(--ag-muted-light);
+}
+
 .asset-generator-tool-button:active {
   transform: scale(0.94);
 }
@@ -1183,15 +1194,24 @@ a {
   width: clamp(14rem, 30vw, 20rem);
   aspect-ratio: 1;
   background: transparent;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
   transition:
     filter var(--ag-transition-fast),
     transform var(--ag-transition-fast);
 }
 
+.asset-generator-master canvas.is-text-selected {
+  cursor: move;
+}
+
+.asset-generator-master canvas:hover {
+  transform: translateY(-1px);
+}
+
 .asset-generator-text-editor {
   position: absolute;
-  left: 50%;
-  top: 50%;
   width: min(72%, 15rem);
   min-height: 3rem;
   border: 0;

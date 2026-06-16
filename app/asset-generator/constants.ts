@@ -8,7 +8,7 @@ export const fontKeys = ['sans', 'rounded', 'display', 'mono'] as const
 export const fontWeights = ['700', '800', '900'] as const
 
 export const defaults = {
-  text: 'Nova',
+  text: 'David',
   backgroundColor: '#101114',
   textColor: '#f8fafc',
   font: 'sans',
