@@ -98,6 +98,7 @@ export default function RootLayout({
     <html
       lang="en"
       className={cx(anton.variable, inter.variable, stixTwoText.variable)}
+      suppressHydrationWarning
     >
       <body>
         <a href="#main-content" className="skip-link">
