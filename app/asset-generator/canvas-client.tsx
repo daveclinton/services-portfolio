@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent } from 'react'
-import JSZip from 'jszip'
 import {
   AlignCenter,
   AlignLeft,
@@ -86,15 +85,11 @@ import {
   getTextLayerLayout,
   renderAsset,
   renderDesign,
-} from './utils'
-import { ColorSwatchPicker, PhonePreview } from './components'
-
-type CanvasRect = {
-  x: number
-  y: number
-  width: number
-  height: number
-}
+  CanvasRect,
+} from './utils/'
+import { ColorSwatchPicker } from './components/ColorSwatchPicker'
+import { PhonePreview } from './components/PhonePreview'
+import { exportAllAssets as exportAllAssetsLib } from './lib/export-logic'
 
 export function CanvasClient() {
   const masterCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -760,26 +755,10 @@ export function CanvasClient() {
     )
   }
 
-  const exportAllAssets = async () => {
+  const handleExportAssets = async () => {
     setIsExporting(true)
-    setProgress(`0/${assets.length}`)
-
     try {
-      const zip = new JSZip()
-
-      for (let index = 0; index < assets.length; index += 1) {
-        const asset = assets[index]
-        const canvas = renderAsset(asset, design)
-        const blob = await canvasToBlob(canvas)
-        zip.file(asset.name, blob)
-        canvas.width = 0
-        canvas.height = 0
-        setProgress(`${index + 1}/${assets.length}`)
-      }
-
-      const zipBlob = await zip.generateAsync({ type: 'blob' })
-      downloadBlob(zipBlob, 'generated-assets.zip')
-      setProgress('Downloaded')
+      await exportAllAssetsLib(design, (progress) => setProgress(progress))
     } catch {
       setProgress('Export failed')
     } finally {
@@ -881,7 +860,7 @@ export function CanvasClient() {
                     role="menuitem"
                     onClick={() => {
                       setIsMenuOpen(false)
-                      exportAllAssets()
+                      handleExportAssets()
                     }}
                     disabled={isExporting}
                   >
@@ -1511,7 +1490,7 @@ export function CanvasClient() {
               <button
                 type="button"
                 className="excalidraw-button collab-button"
-                onClick={exportAllAssets}
+                onClick={handleExportAssets}
                 disabled={isExporting}
                 title={isExporting ? 'Exporting assets' : 'Download assets'}
               >

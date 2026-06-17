@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Ref } from 'react'
-import { colorSwatches } from './constants'
-import { getColorWithOpacity, normalizeHexColor } from './utils'
+import { colorSwatches } from '../constants'
+import { getColorWithOpacity, normalizeHexColor } from '../utils/'
 
 export function ColorSwatchPicker({
   label,
@@ -128,29 +128,5 @@ export function ColorSwatchPicker({
         </div>
       ) : null}
     </div>
-  )
-}
-
-export function PhonePreview({
-  title,
-  platform,
-  canvasRef,
-  splashBackgroundColor,
-}: {
-  title: string
-  platform: 'ios' | 'android'
-  canvasRef: Ref<HTMLCanvasElement>
-  splashBackgroundColor: string
-}) {
-  return (
-    <article className="asset-generator-phone">
-      <div className={`asset-generator-phone-frame asset-generator-phone-frame-${platform}`}>
-        <div className="asset-generator-phone-island" />
-        <div className="asset-generator-phone-screen" style={{ background: splashBackgroundColor }}>
-          <canvas ref={canvasRef} />
-        </div>
-      </div>
-      <strong>{title} preview</strong>
-    </article>
   )
 }

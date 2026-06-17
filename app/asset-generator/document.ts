@@ -14,7 +14,7 @@ import type {
   TextSizeKey,
   TextVerticalAlign,
 } from './types'
-import { getFontFamily, getValidColor } from './utils'
+import { getFontFamily, getValidColor } from './utils/'
 
 type QuerySettings = {
   text: string
