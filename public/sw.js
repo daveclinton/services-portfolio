@@ -67,6 +67,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.match(request).then((response) => {
         if (response) return response
+        
         return fetch(request).then((response) => {
           if (response.status === 200) {
             caches.open(FONT_CACHE).then((c) => c.put(request, response.clone()))
@@ -84,6 +85,7 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.match(request).then((response) => {
         if (response) return response
+        
         return fetch(request).then((response) => {
           if (response.status === 200) {
             caches.open(IMAGE_CACHE).then((c) => {
