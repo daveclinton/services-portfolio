@@ -15,6 +15,7 @@ export type BackgroundLayer = {
   id: 'background'
   type: 'background'
   color: string
+  opacity: number
 }
 
 export type TextLayer = {
@@ -22,11 +23,13 @@ export type TextLayer = {
   type: 'text'
   text: string
   color: string
+  colorOpacity: number
   fontFamily: string
   fontKey: FontKey
   fontWeight: FontWeight
   textAlign: TextAlign
   verticalAlign: TextVerticalAlign
+  textSize: TextSizeKey
   opacity: number
   x: number
   y: number
@@ -34,8 +37,59 @@ export type TextLayer = {
   maxFontSize: number
 }
 
-export type DesignLayer = BackgroundLayer | TextLayer
+export type FrameLayer = {
+  id: `frame-${string}`
+  type: 'frame'
+  name: string | null
+  x: number
+  y: number
+  width: number
+  height: number
+  strokeColor: string
+  backgroundColor: string
+  opacity: number
+}
+
+export type ShapeType = 'rectangle' | 'diamond' | 'ellipse'
+export type ShapeStrokeStyle = 'solid' | 'dashed' | 'dotted'
+export type ShapeFillStyle = 'solid'
+
+export type ShapeLayer = {
+  id: `shape-${string}`
+  type: ShapeType
+  x: number
+  y: number
+  width: number
+  height: number
+  strokeColor: string
+  backgroundColor: string
+  strokeWidth: number
+  strokeStyle: ShapeStrokeStyle
+  fillStyle: ShapeFillStyle
+  opacity: number
+  roughness: number
+}
+
+export type DesignLayer = BackgroundLayer | TextLayer | FrameLayer | ShapeLayer
 
 export type IconDesign = {
   layers: DesignLayer[]
+}
+
+export type AssetDocument = {
+  version: 1
+  icon: IconDesign
+  preview: {
+    splashBackgroundColor: string
+    splashBackgroundOpacity: number
+  }
+}
+
+export type EditorTool = 'select' | 'hand' | 'text' | 'frame' | ShapeType
+
+export type EditorState = {
+  activeTool: EditorTool
+  selectedLayerId: DesignLayer['id']
+  platform: 'ios' | 'android'
+  previewOpen: boolean
 }

@@ -2,7 +2,7 @@ import type { AssetDefinition, FontKey, TextAlign, TextSizeKey, TextVerticalAlig
 
 export const masterSize = 1024
 export const platforms = ['ios', 'android'] as const
-export const tools = ['select', 'hand', 'text'] as const
+export const tools = ['select', 'hand', 'rectangle', 'diamond', 'ellipse', 'frame', 'text'] as const
 export const previewStates = ['open', 'closed'] as const
 export const fontKeys = ['sans', 'rounded', 'display', 'mono'] as const
 export const fontWeights = ['700', '800', '900'] as const
@@ -13,7 +13,11 @@ export const textVerticalAlignments = ['top', 'middle', 'bottom'] as const
 export const defaults = {
   text: 'David',
   backgroundColor: '#101114',
+  backgroundOpacity: '100',
   textColor: '#f8fafc',
+  textColorOpacity: '100',
+  splashBackgroundColor: '#ffffff',
+  splashBackgroundOpacity: '100',
   font: 'sans',
   fontWeight: '800',
   textSize: 'md',

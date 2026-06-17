@@ -522,6 +522,7 @@ a {
   width: 100vw;
   min-width: 320px;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
   background: var(--ag-canvas-bg);
   color: var(--ag-text);
@@ -597,6 +598,18 @@ a {
   to {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes asset-generator-sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -1860,7 +1873,7 @@ a {
   bottom: 1rem;
   z-index: 20;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 0;
   width: min(21rem, calc(100vw - 2rem));
   min-height: 0;
@@ -1932,7 +1945,30 @@ a {
   font-weight: 700;
 }
 
+.asset-generator-preview-controls {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--ag-border);
+  background: var(--ag-default-bg);
+  animation: asset-generator-layer-fade-up 180ms var(--ag-ease-out) both;
+}
+
+.asset-generator-preview-controls .asset-generator-color-trigger {
+  min-width: 6.75rem;
+  border: 1px solid var(--ag-border);
+  background: var(--ag-island-bg);
+}
+
+.asset-generator-preview-controls .asset-generator-color-popover {
+  z-index: 30;
+}
+
 .asset-generator-phone {
+  position: relative;
+  z-index: 1;
   display: grid;
   justify-items: center;
   align-content: center;
@@ -2013,6 +2049,284 @@ a {
 .asset-generator-phone strong {
   color: var(--ag-muted);
   font-size: 0.78rem;
+}
+
+@supports (padding: max(0px)) {
+  .App-menu_top {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+  }
+
+  .asset-generator-design {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-width: 1024px) {
+  .asset-generator-page {
+    --lg-button-size: 2.75rem;
+    --default-button-size: 2.75rem;
+    --touch-target-size: 2.75rem;
+  }
+
+  .App-menu_top {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 0.375rem;
+  }
+
+  .shapes-section {
+    justify-self: stretch;
+    max-width: none;
+    overflow: hidden;
+  }
+
+  .App-toolbar-container {
+    overflow: hidden;
+  }
+
+  .App-toolbar {
+    min-width: 0;
+  }
+
+  .App-toolbar--compact {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+  }
+
+  .App-toolbar--compact::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ToolIcon,
+  .dropdown-menu-button,
+  .excalidraw-button,
+  .sidebar-trigger,
+  .properties-trigger {
+    min-width: var(--touch-target-size);
+    min-height: var(--touch-target-size);
+  }
+
+  .asset-generator-color-trigger,
+  .dropdown-menu-item,
+  .asset-generator-main-menu > button,
+  .asset-generator-device-tabs button {
+    min-height: 2.75rem;
+  }
+
+  .asset-generator-color-grid {
+    gap: 0.5rem;
+  }
+
+  .asset-generator-color-grid button {
+    width: 1.4rem;
+    height: 1.4rem;
+  }
+
+  .dropdown-menu.fonts {
+    max-height: min(24rem, calc(100dvh - 7rem));
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 768px) {
+  .App-menu {
+    padding-bottom: 0;
+  }
+
+  .App-menu_top {
+    gap: 0.25rem;
+    padding: 0.35rem;
+  }
+
+  .App-menu_top__left {
+    width: var(--lg-button-size);
+  }
+
+  .Island {
+    padding: 0.25rem;
+  }
+
+  .App-toolbar {
+    gap: 0.25rem;
+  }
+
+  .App-toolbar__divider,
+  .ButtonSeparator {
+    margin: 0 0.12rem;
+  }
+
+  .ToolIcon__keybinding {
+    display: none;
+  }
+
+  .ToolIndexIndicator {
+    top: 0.18rem;
+    left: 0.18rem;
+  }
+
+  .properties-content,
+  .asset-generator-color-popover,
+  .asset-generator-main-menu {
+    position: fixed;
+    top: auto;
+    right: max(0.5rem, env(safe-area-inset-right));
+    bottom: 0;
+    left: max(0.5rem, env(safe-area-inset-left));
+    z-index: 1000;
+    width: auto;
+    max-width: none;
+    max-height: min(62dvh, 32rem);
+    overflow: auto;
+    border-radius: 0.75rem 0.75rem 0 0;
+    transform: none;
+    transform-origin: bottom center;
+    animation: asset-generator-sheet-up 220ms var(--ag-ease-out) both;
+    will-change: transform, opacity;
+  }
+
+  .properties-content,
+  .asset-generator-color-popover {
+    padding: 0.75rem 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .asset-generator-main-menu {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .asset-generator-color-popover {
+    grid-template-columns: 1fr;
+  }
+
+  .asset-generator-color-preview {
+    height: 5rem;
+  }
+
+  .asset-generator-color-fields {
+    grid-template-columns: minmax(0, 1fr) 4rem;
+  }
+
+  .asset-generator-color-fields input,
+  .asset-generator-color-fields label {
+    height: 2.4rem;
+  }
+
+  .quick-search {
+    min-height: 2.75rem;
+  }
+
+  .quick-search-input {
+    font-size: 1rem;
+  }
+
+  .dropdown-menu-item {
+    grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+    font-size: 0.95rem;
+    padding: 0.5rem 0.65rem;
+  }
+
+  .asset-generator-design {
+    padding: 4.5rem 0.75rem 0.75rem;
+  }
+
+  .asset-generator-master canvas {
+    width: min(78vw, 25rem);
+    height: min(78vw, 25rem);
+  }
+
+  .asset-generator-preview-panel {
+    top: auto;
+    right: max(0.5rem, env(safe-area-inset-right));
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    left: max(0.5rem, env(safe-area-inset-left));
+    width: auto;
+    max-height: min(64dvh, 34rem);
+    border-radius: 0.75rem;
+    transform: translateY(calc(100% + 1.5rem));
+  }
+
+  .asset-generator-preview-panel.is-open {
+    transform: translateY(0);
+  }
+
+  .asset-generator-phone {
+    padding: 1rem 0.75rem;
+  }
+
+  .asset-generator-phone-frame {
+    width: min(12.5rem, 62vw);
+    height: min(25rem, 44dvh);
+  }
+}
+
+@media (max-width: 768px) and (orientation: landscape) {
+  .asset-generator-design {
+    padding-top: 4rem;
+  }
+
+  .asset-generator-master canvas {
+    width: min(42vw, 20rem);
+    height: min(42vw, 20rem);
+  }
+
+  .asset-generator-preview-panel {
+    top: 4.25rem;
+    right: max(0.5rem, env(safe-area-inset-right));
+    bottom: max(0.5rem, env(safe-area-inset-bottom));
+    left: auto;
+    width: min(19rem, 42vw);
+    max-height: none;
+    transform: translateX(calc(100% + 1.5rem));
+  }
+
+  .asset-generator-preview-panel.is-open {
+    transform: translateX(0);
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .asset-generator-page button,
+  .asset-generator-page label {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+
+  .ToolIcon:not(.active):hover:not(:disabled) .ToolIcon__icon,
+  .dropdown-menu-button:hover,
+  .dropdown-menu-item:hover,
+  .asset-generator-color-trigger:hover,
+  .asset-generator-color-trigger:hover i,
+  .excalidraw-button:hover,
+  .sidebar-trigger__label-element:hover .sidebar-trigger,
+  .asset-generator-phone-frame:hover,
+  .asset-generator-phone-screen canvas:hover {
+    transform: none;
+  }
+
+  .ToolIcon:not(.active):hover:not(:disabled) .ToolIcon__icon,
+  .dropdown-menu-item:not(.selected):hover,
+  .asset-generator-color-trigger:not([aria-expanded='true']):hover,
+  .dropdown-menu-button:not([data-state='open']):hover {
+    background-color: transparent;
+  }
+
+  .ToolIcon:active:not(:disabled) .ToolIcon__icon,
+  .dropdown-menu-button:active,
+  .dropdown-menu-item:active,
+  .asset-generator-color-trigger:active,
+  .excalidraw-button:active,
+  .sidebar-trigger__label-element:active .sidebar-trigger {
+    background-color: var(--button-hover-bg);
+  }
+
+  .FontPicker__option:hover,
+  .dropdown-menu-item.hovered:not(.selected) {
+    background-color: transparent;
+  }
 }
 
 body.excalidraw-animations-disabled .asset-generator-page *,

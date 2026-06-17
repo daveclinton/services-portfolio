@@ -12,7 +12,9 @@ import {
   AlignVerticalJustifyStart,
   Check,
   ChevronDown,
+  Circle,
   Code2,
+  Diamond,
   Download,
   Hand,
   Lock,
@@ -24,6 +26,8 @@ import {
   Search,
   SlidersHorizontal,
   Smartphone,
+  SquareDashed,
+  Square,
   Type,
   Undo2,
 } from 'lucide-react'
@@ -46,31 +50,44 @@ import {
   textVerticalAlignOptions,
   tools,
 } from './constants'
-import type { DesignLayer, FontKey, FontWeight, IconDesign, TextAlign, TextSizeKey, TextVerticalAlign } from './types'
+import {
+  addIconLayer,
+  createAssetDocumentFromSettings,
+  createDefaultEditorState,
+  createFrameLayer,
+  createShapeLayer,
+  getBackgroundLayer,
+  getDefaultAssetDocument,
+  getTextLayer as getDocumentTextLayer,
+  getTextSizeOption,
+  serializeDocumentToSettings,
+  serializeEditorToSettings,
+  updateIconLayer,
+} from './document'
+import type {
+  AssetDocument,
+  DesignLayer,
+  EditorState,
+  FontKey,
+  FontWeight,
+  FrameLayer,
+  ShapeLayer,
+  ShapeType,
+  TextAlign,
+  TextSizeKey,
+  TextVerticalAlign,
+} from './types'
 import {
   canvasToBlob,
   downloadBlob,
   getFittedFontSizeForText,
+  getColorWithOpacity,
   getFontFamily,
   getTextLayerLayout,
-  getValidColor,
   renderAsset,
   renderDesign,
 } from './utils'
 import { ColorSwatchPicker, PhonePreview } from './components'
-
-type CanvasSnapshot = {
-  text: string
-  bg: string
-  fg: string
-  font: FontKey
-  weight: FontWeight
-  textSize: TextSizeKey
-  textAlign: TextAlign
-  textVerticalAlign: TextVerticalAlign
-  textOpacity: string
-  textPosition: { x: number; y: number }
-}
 
 type CanvasRect = {
   x: number
@@ -87,11 +104,18 @@ export function CanvasClient() {
   const textPropertiesRef = useRef<HTMLDivElement>(null)
   const backgroundColorPickerRef = useRef<HTMLDivElement>(null)
   const textColorPickerRef = useRef<HTMLDivElement>(null)
+  const shapeStrokeColorPickerRef = useRef<HTMLDivElement>(null)
+  const shapeFillColorPickerRef = useRef<HTMLDivElement>(null)
+  const splashColorPickerRef = useRef<HTMLDivElement>(null)
   const [settings, setSettings] = useQueryStates(
     {
       text: parseAsString.withDefault(defaults.text),
       bg: parseAsString.withDefault(defaults.backgroundColor),
+      bgOpacity: parseAsString.withDefault(defaults.backgroundOpacity),
       fg: parseAsString.withDefault(defaults.textColor),
+      fgOpacity: parseAsString.withDefault(defaults.textColorOpacity),
+      splashBg: parseAsString.withDefault(defaults.splashBackgroundColor),
+      splashOpacity: parseAsString.withDefault(defaults.splashBackgroundOpacity),
       font: parseAsStringLiteral(fontKeys).withDefault(defaults.font),
       weight: parseAsStringLiteral(fontWeights).withDefault(defaults.fontWeight),
       textSize: parseAsStringLiteral(textSizeKeys).withDefault(defaults.textSize),
@@ -106,37 +130,57 @@ export function CanvasClient() {
       history: 'replace',
     },
   )
+  const [document, setDocument] = useState<AssetDocument>(() => createAssetDocumentFromSettings(settings))
+  const [editorState, setEditorState] = useState<EditorState>(() => createDefaultEditorState(settings))
   const [progress, setProgress] = useState('')
   const [isExporting, setIsExporting] = useState(false)
-  const [openColorPicker, setOpenColorPicker] = useState<'bg' | 'fg' | null>(null)
+  const [openColorPicker, setOpenColorPicker] = useState<'bg' | 'fg' | 'shapeStroke' | 'shapeFill' | 'splash' | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isFontPickerOpen, setIsFontPickerOpen] = useState(false)
   const [isTypographyOpen, setIsTypographyOpen] = useState(false)
   const [fontSearch, setFontSearch] = useState('')
   const [hoveredFontKey, setHoveredFontKey] = useState<FontKey | null>(null)
-  const text = settings.text
-  const backgroundColor = getValidColor(settings.bg, defaults.backgroundColor)
-  const textColor = getValidColor(settings.fg, defaults.textColor)
-  const fontKey = settings.font
-  const fontFamily = getFontFamily(fontKey)
-  const fontWeight = settings.weight
-  const textSize = settings.textSize
-  const textAlign = settings.align
-  const textVerticalAlign = settings.valign
-  const textOpacityValue = Math.min(100, Math.max(0, Number.parseInt(settings.opacity, 10) || 100))
-  const textOpacity = textOpacityValue / 100
-  const textSizeOption = textSizeOptions.find((option) => option.key === textSize) ?? textSizeOptions[1]
-  const platform = settings.platform
-  const activeTool = settings.tool
-  const isPreviewOpen = settings.preview === 'open'
+  const backgroundLayer = getBackgroundLayer(document)
+  const textLayer = getDocumentTextLayer(document)
+  const design = document.icon
+  const platform = editorState.platform
+  const activeTool = editorState.activeTool
+  const selectedLayerId = editorState.selectedLayerId
+  const isPreviewOpen = editorState.previewOpen
+  const text = textLayer.text
+  const backgroundColor = backgroundLayer.color
+  const textColor = textLayer.color
+  const selectedLayer = design.layers.find((layer) => layer.id === selectedLayerId) ?? backgroundLayer
+  const selectedShapeLayer = selectedLayer.type === 'rectangle' || selectedLayer.type === 'diamond' || selectedLayer.type === 'ellipse' ? selectedLayer : null
+  const shapeStrokeColor = selectedShapeLayer?.strokeColor ?? '#1e1e1e'
+  const shapeFillColor = selectedShapeLayer?.backgroundColor ?? 'transparent'
+  const shapeOpacityValue = Math.round((selectedShapeLayer?.opacity ?? 1) * 100)
+  const splashBackgroundColor = document.preview.splashBackgroundColor
+  const fontKey = textLayer.fontKey
+  const fontFamily = textLayer.fontFamily
+  const fontWeight = textLayer.fontWeight
+  const textSize = textLayer.textSize
+  const textAlign = textLayer.textAlign
+  const textVerticalAlign = textLayer.verticalAlign
+  const backgroundOpacityValue = Math.round(backgroundLayer.opacity * 100)
+  const textColorOpacityValue = Math.round(textLayer.colorOpacity * 100)
+  const splashBackgroundOpacityValue = Math.round(document.preview.splashBackgroundOpacity * 100)
+  const textOpacityValue = Math.round(textLayer.opacity * 100)
+  const textColorOpacity = textLayer.colorOpacity
+  const textOpacity = textLayer.opacity
+  const splashPreviewBackground = getColorWithOpacity(
+    splashBackgroundColor,
+    document.preview.splashBackgroundOpacity,
+    defaults.splashBackgroundColor,
+  )
+  const textSizeOption = getTextSizeOption(textSize)
+  const textPosition = { x: textLayer.x, y: textLayer.y }
   const [isEditingText, setIsEditingText] = useState(false)
-  const [selectedLayerId, setSelectedLayerId] = useState<DesignLayer['id']>('text')
-  const [textPosition, setTextPosition] = useState({ x: masterSize / 2, y: masterSize / 2 })
   const [selectionRect, setSelectionRect] = useState<CanvasRect | null>(null)
   const [historyVersion, setHistoryVersion] = useState(0)
-  const undoStackRef = useRef<CanvasSnapshot[]>([])
-  const redoStackRef = useRef<CanvasSnapshot[]>([])
-  const textEditSnapshotRef = useRef<CanvasSnapshot | null>(null)
+  const undoStackRef = useRef<AssetDocument[]>([])
+  const redoStackRef = useRef<AssetDocument[]>([])
+  const textEditSnapshotRef = useRef<AssetDocument | null>(null)
   const dragRef = useRef<
     | {
         mode: 'move-text'
@@ -144,12 +188,41 @@ export function CanvasClient() {
         offsetX: number
         offsetY: number
         origin: { x: number; y: number }
-        before: CanvasSnapshot
+        before: AssetDocument
       }
     | {
         mode: 'box-select'
         pointerId: number
         origin: { x: number; y: number }
+      }
+    | {
+        mode: 'draw-frame'
+        pointerId: number
+        origin: { x: number; y: number }
+        before: AssetDocument
+      }
+    | {
+        mode: 'draw-shape'
+        pointerId: number
+        shapeType: ShapeType
+        origin: { x: number; y: number }
+        before: AssetDocument
+      }
+    | {
+        mode: 'move-frame'
+        pointerId: number
+        layerId: FrameLayer['id']
+        offsetX: number
+        offsetY: number
+        before: AssetDocument
+      }
+    | {
+        mode: 'move-shape'
+        pointerId: number
+        layerId: ShapeLayer['id']
+        offsetX: number
+        offsetY: number
+        before: AssetDocument
       }
     | null
   >(null)
@@ -179,6 +252,18 @@ export function CanvasClient() {
     if (openColorPicker === 'fg') setOpenColorPicker(null)
   })
 
+  useOutsideClick(shapeStrokeColorPickerRef, () => {
+    if (openColorPicker === 'shapeStroke') setOpenColorPicker(null)
+  })
+
+  useOutsideClick(shapeFillColorPickerRef, () => {
+    if (openColorPicker === 'shapeFill') setOpenColorPicker(null)
+  })
+
+  useOutsideClick(splashColorPickerRef, () => {
+    if (openColorPicker === 'splash') setOpenColorPicker(null)
+  })
+
   const editorFontSize = useMemo(
     () => getFittedFontSizeForText(text, 240, Math.round(textSizeOption.maxFontSize * 0.3), 16, fontFamily, fontWeight),
     [fontFamily, fontWeight, text, textSizeOption.maxFontSize],
@@ -201,94 +286,40 @@ export function CanvasClient() {
     [filteredAvailableFonts, filteredSceneFonts],
   )
 
-  const design = useMemo<IconDesign>(
-    () => ({
-      layers: [
-        {
-          id: 'background',
-          type: 'background',
-          color: backgroundColor,
-        },
-        {
-          id: 'text',
-          type: 'text',
-          text,
-          color: textColor,
-          fontFamily,
-          fontKey,
-          fontWeight,
-          textAlign,
-          verticalAlign: textVerticalAlign,
-          opacity: textOpacity,
-          x: textPosition.x,
-          y: textPosition.y,
-          maxWidth: masterSize * 0.72,
-          maxFontSize: textSizeOption.maxFontSize,
-        },
-      ],
-    }),
-    [
-      backgroundColor,
-      fontFamily,
-      fontKey,
-      fontWeight,
-      text,
-      textAlign,
-      textColor,
-      textOpacity,
-      textPosition.x,
-      textPosition.y,
-      textSizeOption.maxFontSize,
-      textVerticalAlign,
-    ],
-  )
+  const getSnapshot = () => document
 
-  const getSnapshot = (): CanvasSnapshot => ({
-    text,
-    bg: backgroundColor,
-    fg: textColor,
-    font: fontKey,
-    weight: fontWeight,
-    textSize,
-    textAlign,
-    textVerticalAlign,
-    textOpacity: String(textOpacityValue),
-    textPosition,
-  })
+  const documentsEqual = (a: AssetDocument, b: AssetDocument) => JSON.stringify(a) === JSON.stringify(b)
 
-  const snapshotsEqual = (a: CanvasSnapshot, b: CanvasSnapshot) =>
-    a.text === b.text &&
-    a.bg === b.bg &&
-    a.fg === b.fg &&
-    a.font === b.font &&
-    a.weight === b.weight &&
-    a.textSize === b.textSize &&
-    a.textAlign === b.textAlign &&
-    a.textVerticalAlign === b.textVerticalAlign &&
-    a.textOpacity === b.textOpacity &&
-    a.textPosition.x === b.textPosition.x &&
-    a.textPosition.y === b.textPosition.y
+  const applyDocument = (nextDocument: AssetDocument) => {
+    setDocument(nextDocument)
+    setSettings(serializeDocumentToSettings(nextDocument))
+  }
 
-  const applySnapshot = (snapshot: CanvasSnapshot) => {
-    setSettings({
-      text: snapshot.text,
-      bg: snapshot.bg,
-      fg: snapshot.fg,
-      font: snapshot.font,
-      weight: snapshot.weight,
-      textSize: snapshot.textSize,
-      align: snapshot.textAlign,
-      valign: snapshot.textVerticalAlign,
-      opacity: snapshot.textOpacity,
-    })
-    setTextPosition(snapshot.textPosition)
+  const updateDocument = (updater: (current: AssetDocument) => AssetDocument) => {
+    const nextDocument = updater(document)
+    applyDocument(nextDocument)
+    return nextDocument
+  }
+
+  const setSelectedLayerId = (selectedLayerId: DesignLayer['id']) => {
+    setEditorState((current) => ({ ...current, selectedLayerId }))
+  }
+
+  const updateEditorState = (updater: (current: EditorState) => EditorState) => {
+    const nextEditorState = updater(editorState)
+    setEditorState(nextEditorState)
+    setSettings(serializeEditorToSettings(nextEditorState))
+  }
+
+  const applySnapshot = (snapshot: AssetDocument) => {
+    applyDocument(snapshot)
     setSelectedLayerId('text')
     setIsEditingText(false)
     setSelectionRect(null)
   }
 
-  const commitHistory = (before: CanvasSnapshot, after = getSnapshot()) => {
-    if (snapshotsEqual(before, after)) return
+  const commitHistory = (before: AssetDocument, after = getSnapshot()) => {
+    if (documentsEqual(before, after)) return
 
     undoStackRef.current.push(before)
     redoStackRef.current = []
@@ -313,58 +344,56 @@ export function CanvasClient() {
     setHistoryVersion((version) => version + 1)
   }
 
-  const updateSettingsWithHistory = (
-    nextSettings: Partial<{
-      text: string
-      bg: string
-      fg: string
-      font: FontKey
-      weight: FontWeight
-      textSize: TextSizeKey
-      align: TextAlign
-      valign: TextVerticalAlign
-      opacity: string
-    }>,
-  ) => {
+  const updateDocumentWithHistory = (updater: (current: AssetDocument) => AssetDocument) => {
     const before = getSnapshot()
-    setSettings(nextSettings)
-
-    const after = {
-      ...before,
-      ...nextSettings,
-      bg: nextSettings.bg ? getValidColor(nextSettings.bg, before.bg) : before.bg,
-      fg: nextSettings.fg ? getValidColor(nextSettings.fg, before.fg) : before.fg,
-      textAlign: nextSettings.align ?? before.textAlign,
-      textVerticalAlign: nextSettings.valign ?? before.textVerticalAlign,
-      textOpacity: nextSettings.opacity ?? before.textOpacity,
-    }
+    const after = updateDocument(updater)
     commitHistory(before, after)
   }
 
   const selectFont = (nextFont: FontKey) => {
-    updateSettingsWithHistory({ font: nextFont })
+    updateDocumentWithHistory((current) =>
+      updateIconLayer(current, 'text', (layer) => ({
+        ...layer,
+        fontKey: nextFont,
+        fontFamily: getFontFamily(nextFont),
+      })),
+    )
     setHoveredFontKey(nextFont)
     setIsFontPickerOpen(false)
   }
 
   const selectWeight = (nextWeight: FontWeight) => {
-    updateSettingsWithHistory({ weight: nextWeight })
+    updateDocumentWithHistory((current) => updateIconLayer(current, 'text', (layer) => ({ ...layer, fontWeight: nextWeight })))
   }
 
   const selectTextSize = (nextSize: TextSizeKey) => {
-    updateSettingsWithHistory({ textSize: nextSize })
+    const nextSizeOption = getTextSizeOption(nextSize)
+    updateDocumentWithHistory((current) =>
+      updateIconLayer(current, 'text', (layer) => ({
+        ...layer,
+        textSize: nextSize,
+        maxFontSize: nextSizeOption.maxFontSize,
+      })),
+    )
   }
 
   const selectTextAlign = (nextAlign: TextAlign) => {
-    updateSettingsWithHistory({ align: nextAlign })
+    updateDocumentWithHistory((current) => updateIconLayer(current, 'text', (layer) => ({ ...layer, textAlign: nextAlign })))
   }
 
   const selectTextVerticalAlign = (nextAlign: TextVerticalAlign) => {
-    updateSettingsWithHistory({ valign: nextAlign })
+    updateDocumentWithHistory((current) =>
+      updateIconLayer(current, 'text', (layer) => ({ ...layer, verticalAlign: nextAlign })),
+    )
   }
 
   const selectTextOpacity = (nextOpacity: string) => {
-    updateSettingsWithHistory({ opacity: nextOpacity })
+    updateDocumentWithHistory((current) =>
+      updateIconLayer(current, 'text', (layer) => ({
+        ...layer,
+        opacity: Math.min(100, Math.max(0, Number.parseInt(nextOpacity, 10) || 0)) / 100,
+      })),
+    )
   }
 
   const getTextAlignIcon = (align: TextAlign) => {
@@ -520,32 +549,58 @@ export function CanvasClient() {
             x: Math.min(masterSize - margin, Math.max(margin, textPosition.x + delta.x)),
             y: Math.min(masterSize - margin, Math.max(margin, textPosition.y + delta.y)),
           }
-          setTextPosition(nextPosition)
-          commitHistory(before, { ...before, textPosition: nextPosition })
+          const after = updateDocument((current) =>
+            updateIconLayer(current, 'text', (layer) => ({
+              ...layer,
+              x: nextPosition.x,
+              y: nextPosition.y,
+            })),
+          )
+          commitHistory(before, after)
         }
         return
       }
 
       if (event.key.toLowerCase() === 'h') {
-        setSettings({ tool: 'hand' })
+        updateEditorState((current) => ({ ...current, activeTool: 'hand' }))
         setIsEditingText(false)
       }
 
       if (event.key.toLowerCase() === 'v' || event.key === '1') {
-        setSettings({ tool: 'select' })
+        updateEditorState((current) => ({ ...current, activeTool: 'select' }))
         setIsEditingText(false)
       }
 
       if (event.key.toLowerCase() === 't') {
-        setSettings({ tool: 'text' })
+        updateEditorState((current) => ({ ...current, activeTool: 'text', selectedLayerId: 'text' }))
         setSelectedLayerId('text')
         setIsEditingText(true)
+      }
+
+      if (event.key.toLowerCase() === 'r') {
+        updateEditorState((current) => ({ ...current, activeTool: 'rectangle' }))
+        setIsEditingText(false)
+      }
+
+      if (event.key.toLowerCase() === 'd') {
+        updateEditorState((current) => ({ ...current, activeTool: 'diamond' }))
+        setIsEditingText(false)
+      }
+
+      if (event.key.toLowerCase() === 'o') {
+        updateEditorState((current) => ({ ...current, activeTool: 'ellipse' }))
+        setIsEditingText(false)
+      }
+
+      if (event.key.toLowerCase() === 'f') {
+        updateEditorState((current) => ({ ...current, activeTool: 'frame' }))
+        setIsEditingText(false)
       }
     }
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [commitHistory, getSnapshot, redoDesign, selectedLayerId, setSettings, textPosition.x, textPosition.y, undoDesign])
+  }, [commitHistory, getSnapshot, redoDesign, selectedLayerId, textPosition.x, textPosition.y, undoDesign])
 
   const getCanvasPoint = (event: PointerEvent<HTMLCanvasElement>) => {
     const canvas = masterCanvasRef.current
@@ -567,6 +622,99 @@ export function CanvasClient() {
 
   const rectsIntersect = (a: CanvasRect, b: CanvasRect) =>
     a.x <= b.x + b.width && a.x + a.width >= b.x && a.y <= b.y + b.height && a.y + a.height >= b.y
+
+  const isShapeTool = (tool: EditorState['activeTool']): tool is ShapeType =>
+    tool === 'rectangle' || tool === 'diamond' || tool === 'ellipse'
+
+  const getFrameLayers = () =>
+    design.layers.filter((layer): layer is FrameLayer => layer.type === 'frame')
+
+  const getShapeLayers = () =>
+    design.layers.filter((layer): layer is ShapeLayer => layer.type === 'rectangle' || layer.type === 'diamond' || layer.type === 'ellipse')
+
+  const getFrameLayer = (layerId: DesignLayer['id']) => {
+    const layer = design.layers.find((candidate) => candidate.id === layerId)
+    return layer?.type === 'frame' ? layer : null
+  }
+
+  const getFrameLayerAtPoint = (point: { x: number; y: number }) => {
+    const edgePadding = 14
+    return [...getFrameLayers()].reverse().find((frame) => {
+      const insideX = point.x >= frame.x - edgePadding && point.x <= frame.x + frame.width + edgePadding
+      const insideY = point.y >= frame.y - edgePadding && point.y <= frame.y + frame.height + edgePadding
+      if (!insideX || !insideY) return false
+
+      const nearLeft = Math.abs(point.x - frame.x) <= edgePadding
+      const nearRight = Math.abs(point.x - (frame.x + frame.width)) <= edgePadding
+      const nearTop = Math.abs(point.y - frame.y) <= edgePadding
+      const nearBottom = Math.abs(point.y - (frame.y + frame.height)) <= edgePadding
+
+      return nearLeft || nearRight || nearTop || nearBottom
+    })
+  }
+
+  const getShapeLayer = (layerId: DesignLayer['id']) => {
+    const layer = design.layers.find((candidate) => candidate.id === layerId)
+    return layer?.type === 'rectangle' || layer?.type === 'diamond' || layer?.type === 'ellipse' ? layer : null
+  }
+
+  const getShapeLayerAtPoint = (point: { x: number; y: number }) => {
+    return [...getShapeLayers()].reverse().find((shape) => {
+      if (point.x < shape.x || point.x > shape.x + shape.width || point.y < shape.y || point.y > shape.y + shape.height) {
+        return false
+      }
+
+      if (shape.type === 'ellipse') {
+        const rx = shape.width / 2
+        const ry = shape.height / 2
+        const cx = shape.x + rx
+        const cy = shape.y + ry
+        return ((point.x - cx) ** 2) / (rx ** 2 || 1) + ((point.y - cy) ** 2) / (ry ** 2 || 1) <= 1
+      }
+
+      if (shape.type === 'diamond') {
+        const rx = shape.width / 2
+        const ry = shape.height / 2
+        const cx = shape.x + rx
+        const cy = shape.y + ry
+        return Math.abs(point.x - cx) / (rx || 1) + Math.abs(point.y - cy) / (ry || 1) <= 1
+      }
+
+      return true
+    })
+  }
+
+  const moveFrameLayer = (layerId: FrameLayer['id'], point: { x: number; y: number }, offsetX: number, offsetY: number) => {
+    const layer = getFrameLayer(layerId)
+    if (!layer) return
+
+    const nextX = Math.min(masterSize - layer.width, Math.max(0, point.x - offsetX))
+    const nextY = Math.min(masterSize - layer.height, Math.max(0, point.y - offsetY))
+
+    updateDocument((current) =>
+      updateIconLayer(current, layerId, (frame) => ({
+        ...frame,
+        x: nextX,
+        y: nextY,
+      })),
+    )
+  }
+
+  const moveShapeLayer = (layerId: ShapeLayer['id'], point: { x: number; y: number }, offsetX: number, offsetY: number) => {
+    const layer = getShapeLayer(layerId)
+    if (!layer) return
+
+    const nextX = Math.min(masterSize - layer.width, Math.max(0, point.x - offsetX))
+    const nextY = Math.min(masterSize - layer.height, Math.max(0, point.y - offsetY))
+
+    updateDocument((current) =>
+      updateIconLayer(current, layerId, (shape) => ({
+        ...shape,
+        x: nextX,
+        y: nextY,
+      })),
+    )
+  }
 
   const getTextLayer = () => {
     const layer = design.layers.find((candidate) => candidate.id === 'text')
@@ -599,10 +747,17 @@ export function CanvasClient() {
 
   const moveTextLayer = (point: { x: number; y: number }, offsetX: number, offsetY: number) => {
     const margin = 96
-    setTextPosition({
+    const nextPosition = {
       x: Math.min(masterSize - margin, Math.max(margin, point.x - offsetX)),
       y: Math.min(masterSize - margin, Math.max(margin, point.y - offsetY)),
-    })
+    }
+    updateDocument((current) =>
+      updateIconLayer(current, 'text', (layer) => ({
+        ...layer,
+        x: nextPosition.x,
+        y: nextPosition.y,
+      })),
+    )
   }
 
   const exportAllAssets = async () => {
@@ -634,21 +789,16 @@ export function CanvasClient() {
 
   const resetDesign = () => {
     const before = getSnapshot()
-    setSettings({
-      text: defaults.text,
-      bg: defaults.backgroundColor,
-      fg: defaults.textColor,
-      font: defaults.font,
-      weight: defaults.fontWeight,
-      textSize: defaults.textSize,
-      align: defaults.textAlign,
-      valign: defaults.textVerticalAlign,
-      opacity: defaults.textOpacity,
-      tool: defaults.tool,
-    })
-    setTextPosition({ x: masterSize / 2, y: masterSize / 2 })
+    const nextDocument = getDefaultAssetDocument()
+    const nextEditorState: EditorState = {
+      ...editorState,
+      activeTool: defaults.tool,
+      selectedLayerId: 'text',
+    }
+    applyDocument(nextDocument)
+    setEditorState(nextEditorState)
+    setSettings(serializeEditorToSettings(nextEditorState))
     setIsEditingText(false)
-    setSelectedLayerId('text')
     setOpenColorPicker(null)
     setIsMenuOpen(false)
     setIsFontPickerOpen(false)
@@ -656,18 +806,7 @@ export function CanvasClient() {
     setFontSearch('')
     setHoveredFontKey(defaults.font)
     setProgress('Reset')
-    commitHistory(before, {
-      text: defaults.text,
-      bg: defaults.backgroundColor,
-      fg: defaults.textColor,
-      font: defaults.font,
-      weight: defaults.fontWeight,
-      textSize: defaults.textSize,
-      textAlign: defaults.textAlign,
-      textVerticalAlign: defaults.textVerticalAlign,
-      textOpacity: defaults.textOpacity,
-      textPosition: { x: masterSize / 2, y: masterSize / 2 },
-    })
+    commitHistory(before, nextDocument)
   }
 
   const toggleMainMenu = () => {
@@ -694,7 +833,7 @@ export function CanvasClient() {
     setIsMenuOpen(false)
   }
 
-  const toggleColorPicker = (target: 'bg' | 'fg') => {
+  const toggleColorPicker = (target: 'bg' | 'fg' | 'shapeStroke' | 'shapeFill' | 'splash') => {
     setOpenColorPicker(openColorPicker === target ? null : target)
     setIsFontPickerOpen(false)
     setIsTypographyOpen(false)
@@ -817,7 +956,7 @@ export function CanvasClient() {
                         aria-label="Hand tool"
                         aria-keyshortcuts="H"
                         onChange={() => {
-                          setSettings({ tool: 'hand' })
+                          updateEditorState((current) => ({ ...current, activeTool: 'hand' }))
                           setIsEditingText(false)
                         }}
                       />
@@ -839,7 +978,7 @@ export function CanvasClient() {
                         aria-label="Select tool"
                         aria-keyshortcuts="V"
                         onChange={() => {
-                          setSettings({ tool: 'select' })
+                          updateEditorState((current) => ({ ...current, activeTool: 'select' }))
                           setIsEditingText(false)
                         }}
                       />
@@ -861,7 +1000,7 @@ export function CanvasClient() {
                         aria-label="Text tool"
                         aria-keyshortcuts="T"
                         onChange={() => {
-                          setSettings({ tool: 'text' })
+                          updateEditorState((current) => ({ ...current, activeTool: 'text', selectedLayerId: 'text' }))
                           setSelectedLayerId('text')
                           setIsEditingText(true)
                         }}
@@ -871,6 +1010,94 @@ export function CanvasClient() {
                         <span className="ToolIcon__keybinding">T</span>
                         <span className="ToolIndexIndicator" aria-hidden="true">
                           3
+                        </span>
+                      </div>
+                    </label>
+
+                    <label className={`ToolIcon Shape fillable ${activeTool === 'rectangle' ? 'active' : ''}`} title="Rectangle">
+                      <input
+                        type="radio"
+                        className="ToolIcon_type_radio"
+                        name="editor-current-shape"
+                        checked={activeTool === 'rectangle'}
+                        aria-label="Rectangle tool"
+                        aria-keyshortcuts="R"
+                        onChange={() => {
+                          updateEditorState((current) => ({ ...current, activeTool: 'rectangle' }))
+                          setIsEditingText(false)
+                        }}
+                      />
+                      <div className="ToolIcon__icon">
+                        <Square aria-hidden="true" />
+                        <span className="ToolIcon__keybinding">R</span>
+                        <span className="ToolIndexIndicator" aria-hidden="true">
+                          4
+                        </span>
+                      </div>
+                    </label>
+
+                    <label className={`ToolIcon Shape fillable ${activeTool === 'diamond' ? 'active' : ''}`} title="Diamond">
+                      <input
+                        type="radio"
+                        className="ToolIcon_type_radio"
+                        name="editor-current-shape"
+                        checked={activeTool === 'diamond'}
+                        aria-label="Diamond tool"
+                        aria-keyshortcuts="D"
+                        onChange={() => {
+                          updateEditorState((current) => ({ ...current, activeTool: 'diamond' }))
+                          setIsEditingText(false)
+                        }}
+                      />
+                      <div className="ToolIcon__icon">
+                        <Diamond aria-hidden="true" />
+                        <span className="ToolIcon__keybinding">D</span>
+                        <span className="ToolIndexIndicator" aria-hidden="true">
+                          5
+                        </span>
+                      </div>
+                    </label>
+
+                    <label className={`ToolIcon Shape fillable ${activeTool === 'ellipse' ? 'active' : ''}`} title="Ellipse">
+                      <input
+                        type="radio"
+                        className="ToolIcon_type_radio"
+                        name="editor-current-shape"
+                        checked={activeTool === 'ellipse'}
+                        aria-label="Ellipse tool"
+                        aria-keyshortcuts="O"
+                        onChange={() => {
+                          updateEditorState((current) => ({ ...current, activeTool: 'ellipse' }))
+                          setIsEditingText(false)
+                        }}
+                      />
+                      <div className="ToolIcon__icon">
+                        <Circle aria-hidden="true" />
+                        <span className="ToolIcon__keybinding">O</span>
+                        <span className="ToolIndexIndicator" aria-hidden="true">
+                          6
+                        </span>
+                      </div>
+                    </label>
+
+                    <label className={`ToolIcon Shape ${activeTool === 'frame' ? 'active' : ''}`} title="Frame">
+                      <input
+                        type="radio"
+                        className="ToolIcon_type_radio"
+                        name="editor-current-shape"
+                        checked={activeTool === 'frame'}
+                        aria-label="Frame tool"
+                        aria-keyshortcuts="F"
+                        onChange={() => {
+                          updateEditorState((current) => ({ ...current, activeTool: 'frame' }))
+                          setIsEditingText(false)
+                        }}
+                      />
+                      <div className="ToolIcon__icon">
+                        <SquareDashed aria-hidden="true" />
+                        <span className="ToolIcon__keybinding">F</span>
+                        <span className="ToolIndexIndicator" aria-hidden="true">
+                          7
                         </span>
                       </div>
                     </label>
@@ -896,7 +1123,7 @@ export function CanvasClient() {
                           <Type aria-hidden="true" />
                           <ChevronDown aria-hidden="true" className="FontPickerTrigger__chevron" />
                           <span className="ToolIndexIndicator" aria-hidden="true">
-                            4
+                            8
                           </span>
                         </button>
 
@@ -1000,7 +1227,7 @@ export function CanvasClient() {
                         <SlidersHorizontal aria-hidden="true" />
                         <ChevronDown aria-hidden="true" className="FontPickerTrigger__chevron" />
                         <span className="ToolIndexIndicator" aria-hidden="true">
-                          5
+                          9
                         </span>
                       </button>
 
@@ -1132,7 +1359,7 @@ export function CanvasClient() {
                               type="button"
                               className="text-properties-edit-button"
                               onClick={() => {
-                                setSettings({ tool: 'text' })
+                                updateEditorState((current) => ({ ...current, activeTool: 'text', selectedLayerId: 'text' }))
                                 setIsEditingText(true)
                                 setIsTypographyOpen(false)
                               }}
@@ -1159,7 +1386,7 @@ export function CanvasClient() {
                       <span className="ToolIcon__icon">
                         <Undo2 aria-hidden="true" />
                         <span className="ToolIndexIndicator" aria-hidden="true">
-                          6
+                          10
                         </span>
                       </span>
                     </button>
@@ -1175,7 +1402,7 @@ export function CanvasClient() {
                       <span className="ToolIcon__icon">
                         <Redo2 aria-hidden="true" />
                         <span className="ToolIndexIndicator" aria-hidden="true">
-                          7
+                          11
                         </span>
                       </span>
                     </button>
@@ -1186,19 +1413,89 @@ export function CanvasClient() {
                       label="Bg"
                       value={backgroundColor}
                       isOpen={openColorPicker === 'bg'}
-                      indexLabel="8"
+                      indexLabel="12"
                       containerRef={backgroundColorPickerRef}
+                      opacity={backgroundOpacityValue}
                       onToggle={() => toggleColorPicker('bg')}
-                      onChange={(color) => updateSettingsWithHistory({ bg: color })}
+                      onChange={(color) =>
+                        updateDocumentWithHistory((current) =>
+                          updateIconLayer(current, 'background', (layer) => ({ ...layer, color })),
+                        )
+                      }
+                      onOpacityChange={(opacity) =>
+                        updateDocumentWithHistory((current) =>
+                          updateIconLayer(current, 'background', (layer) => ({ ...layer, opacity: opacity / 100 })),
+                        )
+                      }
                     />
                     <ColorSwatchPicker
                       label="Tx"
                       value={textColor}
                       isOpen={openColorPicker === 'fg'}
-                      indexLabel="9"
+                      indexLabel="13"
                       containerRef={textColorPickerRef}
+                      opacity={textColorOpacityValue}
                       onToggle={() => toggleColorPicker('fg')}
-                      onChange={(color) => updateSettingsWithHistory({ fg: color })}
+                      onChange={(color) =>
+                        updateDocumentWithHistory((current) => updateIconLayer(current, 'text', (layer) => ({ ...layer, color })))
+                      }
+                      onOpacityChange={(opacity) =>
+                        updateDocumentWithHistory((current) =>
+                          updateIconLayer(current, 'text', (layer) => ({ ...layer, colorOpacity: opacity / 100 })),
+                        )
+                      }
+                    />
+                    <ColorSwatchPicker
+                      label="Stroke"
+                      value={shapeStrokeColor}
+                      isOpen={openColorPicker === 'shapeStroke'}
+                      indexLabel="14"
+                      containerRef={shapeStrokeColorPickerRef}
+                      opacity={shapeOpacityValue}
+                      disabled={!selectedShapeLayer}
+                      onToggle={() => {
+                        if (selectedShapeLayer) toggleColorPicker('shapeStroke')
+                      }}
+                      onChange={(color) => {
+                        if (!selectedShapeLayer) return
+                        updateDocumentWithHistory((current) =>
+                          updateIconLayer(current, selectedShapeLayer.id, (layer) => ({ ...layer, strokeColor: color })),
+                        )
+                      }}
+                      onOpacityChange={(opacity) => {
+                        if (!selectedShapeLayer) return
+                        updateDocumentWithHistory((current) =>
+                          updateIconLayer(current, selectedShapeLayer.id, (layer) => ({ ...layer, opacity: opacity / 100 })),
+                        )
+                      }}
+                    />
+                    <ColorSwatchPicker
+                      label="Fill"
+                      value={shapeFillColor === 'transparent' ? '#ffffff' : shapeFillColor}
+                      isOpen={openColorPicker === 'shapeFill'}
+                      indexLabel="15"
+                      containerRef={shapeFillColorPickerRef}
+                      opacity={shapeFillColor === 'transparent' ? 0 : shapeOpacityValue}
+                      disabled={!selectedShapeLayer}
+                      onToggle={() => {
+                        if (selectedShapeLayer) toggleColorPicker('shapeFill')
+                      }}
+                      onChange={(color) => {
+                        if (!selectedShapeLayer) return
+                        updateDocumentWithHistory((current) =>
+                          updateIconLayer(current, selectedShapeLayer.id, (layer) => ({ ...layer, backgroundColor: color })),
+                        )
+                      }}
+                      onOpacityChange={(opacity) => {
+                        if (!selectedShapeLayer) return
+                        updateDocumentWithHistory((current) =>
+                          updateIconLayer(current, selectedShapeLayer.id, (layer) => ({
+                            ...layer,
+                            backgroundColor: opacity === 0 ? 'transparent' : layer.backgroundColor === 'transparent' ? '#ffffff' : layer.backgroundColor,
+                            opacity: opacity / 100,
+                          })),
+                        )
+                      }}
                     />
                   </div>
                 </div>
@@ -1228,7 +1525,7 @@ export function CanvasClient() {
                 checked={isPreviewOpen}
                 aria-label="Device preview"
                 aria-keyshortcuts="0"
-                onChange={() => setSettings({ preview: isPreviewOpen ? 'closed' : 'open' })}
+                onChange={() => updateEditorState((current) => ({ ...current, previewOpen: !current.previewOpen }))}
               />
               <span className="sidebar-trigger default-sidebar-trigger">
                 <Smartphone aria-hidden="true" />
@@ -1249,6 +1546,71 @@ export function CanvasClient() {
               if (!point) return
 
               setSelectionRect(null)
+              if (activeTool === 'frame') {
+                event.currentTarget.setPointerCapture(event.pointerId)
+                const before = getSnapshot()
+                dragRef.current = {
+                  mode: 'draw-frame',
+                  pointerId: event.pointerId,
+                  origin: point,
+                  before,
+                }
+                setSelectionRect({ x: point.x, y: point.y, width: 0, height: 0 })
+                setIsEditingText(false)
+                return
+              }
+
+              if (isShapeTool(activeTool)) {
+                event.currentTarget.setPointerCapture(event.pointerId)
+                const before = getSnapshot()
+                dragRef.current = {
+                  mode: 'draw-shape',
+                  pointerId: event.pointerId,
+                  shapeType: activeTool,
+                  origin: point,
+                  before,
+                }
+                setSelectionRect({ x: point.x, y: point.y, width: 0, height: 0 })
+                setIsEditingText(false)
+                return
+              }
+
+              const hitShape = getShapeLayerAtPoint(point)
+              if (hitShape) {
+                setSelectedLayerId(hitShape.id)
+                setIsEditingText(false)
+                if (activeTool === 'select') {
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                  dragRef.current = {
+                    mode: 'move-shape',
+                    pointerId: event.pointerId,
+                    layerId: hitShape.id,
+                    offsetX: point.x - hitShape.x,
+                    offsetY: point.y - hitShape.y,
+                    before: getSnapshot(),
+                  }
+                }
+                return
+              }
+
+              const hitFrame = getFrameLayerAtPoint(point)
+              if (hitFrame) {
+                setSelectedLayerId(hitFrame.id)
+                setIsEditingText(false)
+                if (activeTool === 'select') {
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                  dragRef.current = {
+                    mode: 'move-frame',
+                    pointerId: event.pointerId,
+                    layerId: hitFrame.id,
+                    offsetX: point.x - hitFrame.x,
+                    offsetY: point.y - hitFrame.y,
+                    before: getSnapshot(),
+                  }
+                }
+                return
+              }
+
               const isTextHit = isPointInsideTextLayer(point)
               if (!isTextHit) {
                 setSelectedLayerId('background')
@@ -1297,14 +1659,62 @@ export function CanvasClient() {
                 return
               }
 
+              if (drag.mode === 'draw-frame') {
+                setSelectionRect(getRectFromPoints(drag.origin, point))
+                return
+              }
+
+              if (drag.mode === 'draw-shape') {
+                setSelectionRect(getRectFromPoints(drag.origin, point))
+                return
+              }
+
+              if (drag.mode === 'move-frame') {
+                moveFrameLayer(drag.layerId, point, drag.offsetX, drag.offsetY)
+                return
+              }
+
+              if (drag.mode === 'move-shape') {
+                moveShapeLayer(drag.layerId, point, drag.offsetX, drag.offsetY)
+                return
+              }
+
               moveTextLayer(point, drag.offsetX, drag.offsetY)
             }}
             onPointerUp={(event) => {
               const drag = dragRef.current
               if (!drag || drag.pointerId !== event.pointerId) return
 
-              if (drag.mode === 'move-text') {
+              if (drag.mode === 'move-text' || drag.mode === 'move-frame' || drag.mode === 'move-shape') {
                 commitHistory(drag.before)
+              } else if (drag.mode === 'draw-frame') {
+                const point = getCanvasPoint(event)
+                const rect = point ? getRectFromPoints(drag.origin, point) : selectionRect
+                const minFrameSize = 32
+
+                if (rect && rect.width >= minFrameSize && rect.height >= minFrameSize) {
+                  const frame = createFrameLayer(rect)
+                  const after = addIconLayer(document, frame)
+                  applyDocument(after)
+                  setSelectedLayerId(frame.id)
+                  commitHistory(drag.before, after)
+                }
+
+                setSelectionRect(null)
+              } else if (drag.mode === 'draw-shape') {
+                const point = getCanvasPoint(event)
+                const rect = point ? getRectFromPoints(drag.origin, point) : selectionRect
+                const minShapeSize = 24
+
+                if (rect && rect.width >= minShapeSize && rect.height >= minShapeSize) {
+                  const shape = createShapeLayer(drag.shapeType, rect)
+                  const after = addIconLayer(document, shape)
+                  applyDocument(after)
+                  setSelectedLayerId(shape.id)
+                  commitHistory(drag.before, after)
+                }
+
+                setSelectionRect(null)
               } else {
                 const point = getCanvasPoint(event)
                 const nextSelectionRect = point ? getRectFromPoints(drag.origin, point) : selectionRect
@@ -1340,7 +1750,7 @@ export function CanvasClient() {
                 fontFamily,
                 fontSize: `${editorFontSize}px`,
                 fontWeight,
-                opacity: textOpacity,
+                opacity: textOpacity * textColorOpacity,
                 textAlign,
                 left: `${(textPosition.x / masterSize) * 100}%`,
                 top: `${(textPosition.y / masterSize) * 100}%`,
@@ -1348,7 +1758,12 @@ export function CanvasClient() {
               aria-label="Edit asset text"
               onChange={(event) => {
                 textEditSnapshotRef.current = textEditSnapshotRef.current ?? getSnapshot()
-                setSettings({ text: event.target.value })
+                updateDocument((current) =>
+                  updateIconLayer(current, 'text', (layer) => ({
+                    ...layer,
+                    text: event.target.value,
+                  })),
+                )
               }}
               onBlur={() => {
                 if (textEditSnapshotRef.current) {
@@ -1373,23 +1788,47 @@ export function CanvasClient() {
             <button
               type="button"
               className={platform === 'android' ? 'is-active' : ''}
-              onClick={() => setSettings({ platform: 'android' })}
+              onClick={() => updateEditorState((current) => ({ ...current, platform: 'android' }))}
             >
               Android
             </button>
             <button
               type="button"
               className={platform === 'ios' ? 'is-active' : ''}
-              onClick={() => setSettings({ platform: 'ios' })}
+              onClick={() => updateEditorState((current) => ({ ...current, platform: 'ios' }))}
             >
               iOS
             </button>
+          </div>
+
+          <div className="asset-generator-preview-controls" aria-label="Splash screen color">
+            <ColorSwatchPicker
+              label="Splash"
+              value={splashBackgroundColor}
+              isOpen={openColorPicker === 'splash'}
+              containerRef={splashColorPickerRef}
+              opacity={splashBackgroundOpacityValue}
+              onToggle={() => toggleColorPicker('splash')}
+              onChange={(color) =>
+                updateDocumentWithHistory((current) => ({
+                  ...current,
+                  preview: { ...current.preview, splashBackgroundColor: color },
+                }))
+              }
+              onOpacityChange={(opacity) =>
+                updateDocumentWithHistory((current) => ({
+                  ...current,
+                  preview: { ...current.preview, splashBackgroundOpacity: opacity / 100 },
+                }))
+              }
+            />
           </div>
 
           <PhonePreview
             title={platform === 'ios' ? 'iOS' : 'Android'}
             platform={platform}
             canvasRef={phonePreviewRef}
+            splashBackgroundColor={splashPreviewBackground}
           />
         </section>
       ) : null}
