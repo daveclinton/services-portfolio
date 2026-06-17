@@ -1,4 +1,4 @@
-import type { AssetDefinition, FontKey } from './types'
+import type { AssetDefinition, FontKey, TextAlign, TextSizeKey, TextVerticalAlign } from './types'
 
 export const masterSize = 1024
 export const platforms = ['ios', 'android'] as const
@@ -6,6 +6,9 @@ export const tools = ['select', 'hand', 'text'] as const
 export const previewStates = ['open', 'closed'] as const
 export const fontKeys = ['sans', 'rounded', 'display', 'mono'] as const
 export const fontWeights = ['700', '800', '900'] as const
+export const textSizeKeys = ['sm', 'md', 'lg', 'xl'] as const
+export const textAlignments = ['left', 'center', 'right'] as const
+export const textVerticalAlignments = ['top', 'middle', 'bottom'] as const
 
 export const defaults = {
   text: 'David',
@@ -13,10 +16,33 @@ export const defaults = {
   textColor: '#f8fafc',
   font: 'sans',
   fontWeight: '800',
+  textSize: 'md',
+  textAlign: 'center',
+  textVerticalAlign: 'middle',
+  textOpacity: '100',
   platform: 'ios',
   tool: 'select',
   preview: 'closed',
 } as const
+
+export const textSizeOptions: Array<{ key: TextSizeKey; label: string; maxFontSize: number }> = [
+  { key: 'sm', label: 'S', maxFontSize: 156 },
+  { key: 'md', label: 'M', maxFontSize: 225 },
+  { key: 'lg', label: 'L', maxFontSize: 288 },
+  { key: 'xl', label: 'XL', maxFontSize: 348 },
+]
+
+export const textAlignOptions: Array<{ key: TextAlign; label: string }> = [
+  { key: 'left', label: 'Left' },
+  { key: 'center', label: 'Center' },
+  { key: 'right', label: 'Right' },
+]
+
+export const textVerticalAlignOptions: Array<{ key: TextVerticalAlign; label: string }> = [
+  { key: 'top', label: 'Top' },
+  { key: 'middle', label: 'Middle' },
+  { key: 'bottom', label: 'Bottom' },
+]
 
 export const fontOptions: Array<{ key: FontKey; label: string; family: string }> = [
   {

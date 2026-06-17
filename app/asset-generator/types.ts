@@ -7,6 +7,9 @@ export type AssetDefinition = {
 
 export type FontKey = 'sans' | 'rounded' | 'display' | 'mono'
 export type FontWeight = '700' | '800' | '900'
+export type TextSizeKey = 'sm' | 'md' | 'lg' | 'xl'
+export type TextAlign = 'left' | 'center' | 'right'
+export type TextVerticalAlign = 'top' | 'middle' | 'bottom'
 
 export type BackgroundLayer = {
   id: 'background'
@@ -22,6 +25,9 @@ export type TextLayer = {
   fontFamily: string
   fontKey: FontKey
   fontWeight: FontWeight
+  textAlign: TextAlign
+  verticalAlign: TextVerticalAlign
+  opacity: number
   x: number
   y: number
   maxWidth: number

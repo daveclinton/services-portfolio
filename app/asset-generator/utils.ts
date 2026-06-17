@@ -113,16 +113,35 @@ export function getTextLayerLayout(ctx: CanvasRenderingContext2D, layer: Extract
   const blockWidth = Math.max(...widths)
   const x = layer.x * scale
   const y = layer.y * scale
-  const startY = y - blockHeight / 2 + lineHeight / 2
+  const boxHeight = layer.maxFontSize * scale * 2.1
+  const boxTop = y - boxHeight / 2
+  const startY =
+    layer.verticalAlign === 'top'
+      ? boxTop + lineHeight / 2
+      : layer.verticalAlign === 'bottom'
+        ? boxTop + boxHeight - blockHeight + lineHeight / 2
+        : y - blockHeight / 2 + lineHeight / 2
+  const boundsX =
+    layer.textAlign === 'left'
+      ? x - layer.maxWidth * scale / 2
+      : layer.textAlign === 'right'
+        ? x + layer.maxWidth * scale / 2 - blockWidth
+        : x - blockWidth / 2
 
   return {
     fontSize,
     lines,
     lineHeight,
     startY,
+    textAnchorX:
+      layer.textAlign === 'left'
+        ? x - layer.maxWidth * scale / 2
+        : layer.textAlign === 'right'
+          ? x + layer.maxWidth * scale / 2
+          : x,
     bounds: {
-      x: x - blockWidth / 2,
-      y: y - blockHeight / 2,
+      x: boundsX,
+      y: startY - lineHeight / 2,
       width: blockWidth,
       height: blockHeight,
     },
@@ -152,15 +171,18 @@ export function renderDesign(
     }
 
     const scale = size / masterSize
-    const { bounds, fontSize, lines, lineHeight, startY } = getTextLayerLayout(ctx, layer, size)
+    const { bounds, fontSize, lines, lineHeight, startY, textAnchorX } = getTextLayerLayout(ctx, layer, size)
 
+    ctx.save()
+    ctx.globalAlpha = layer.opacity
     ctx.font = `${layer.fontWeight} ${fontSize}px ${layer.fontFamily}`
     ctx.fillStyle = layer.color
-    ctx.textAlign = 'center'
+    ctx.textAlign = layer.textAlign
     ctx.textBaseline = 'middle'
     lines.forEach((line, index) => {
-      ctx.fillText(line, layer.x * scale, startY + index * lineHeight)
+      ctx.fillText(line, textAnchorX, startY + index * lineHeight)
     })
+    ctx.restore()
 
     if (options.selectedLayerId === layer.id) {
       const padding = 24 * scale
