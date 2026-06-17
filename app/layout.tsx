@@ -6,6 +6,9 @@ import { SpeedInsights } from '@vercel/speed-insights/next'
 import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import Script from 'next/script'
 import { absoluteUrl, siteConfig } from './seo'
+import { PwaProvider } from '@/lib/pwa-context'
+import { InstallPrompt } from '@/components/install-prompt'
+import { OfflineIndicator } from '@/components/offline-indicator'
 
 const anton = Anton({
   subsets: ['latin'],
@@ -50,6 +53,14 @@ export const metadata: Metadata = {
   category: 'technology',
   alternates: {
     canonical: '/',
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: siteConfig.title,
+  },
+  formatDetection: {
+    telephone: false,
   },
   robots: {
     index: true,
@@ -98,7 +109,13 @@ export default function RootLayout({
     <html
       lang="en"
       className={cx(anton.variable, inter.variable, stixTwoText.variable)}
+      suppressHydrationWarning
     >
+      <head>
+        <meta name="theme-color" content="#0a0a0a" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <link rel="apple-touch-icon" href="/favicon.ico" />
+      </head>
       <body>
         <a href="#main-content" className="skip-link">
           Skip to main content
@@ -124,7 +141,11 @@ export default function RootLayout({
             } catch (e) {}
           })();`}
         </Script>
-        <NuqsAdapter>{children}</NuqsAdapter>
+        <PwaProvider>
+          <OfflineIndicator />
+          <InstallPrompt />
+          <NuqsAdapter>{children}</NuqsAdapter>
+        </PwaProvider>
         <Analytics />
         <SpeedInsights />
       </body>

@@ -59,6 +59,7 @@ export default function Page() {
           <nav className="top-nav" aria-label="Primary">
             <Link href="/blog">blog</Link>
             <Link href="/work">work</Link>
+            <Link href="/asset-generator">assets</Link>
             <Link href="/contact">contact</Link>
             <ThemeToggle />
           </nav>
