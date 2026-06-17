@@ -28,6 +28,7 @@ import {
   Undo2,
 } from 'lucide-react'
 import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs'
+import { useOutsideClick } from '@/lib/use-outside-click'
 import {
   assets,
   defaults,
@@ -81,6 +82,11 @@ type CanvasRect = {
 export function CanvasClient() {
   const masterCanvasRef = useRef<HTMLCanvasElement>(null)
   const phonePreviewRef = useRef<HTMLCanvasElement>(null)
+  const mainMenuRef = useRef<HTMLDivElement>(null)
+  const fontPickerRef = useRef<HTMLDivElement>(null)
+  const textPropertiesRef = useRef<HTMLDivElement>(null)
+  const backgroundColorPickerRef = useRef<HTMLDivElement>(null)
+  const textColorPickerRef = useRef<HTMLDivElement>(null)
   const [settings, setSettings] = useQueryStates(
     {
       text: parseAsString.withDefault(defaults.text),
@@ -149,6 +155,30 @@ export function CanvasClient() {
   >(null)
   const canUndo = undoStackRef.current.length > 0
   const canRedo = redoStackRef.current.length > 0
+
+  useOutsideClick(mainMenuRef, () => {
+    if (isMenuOpen) setIsMenuOpen(false)
+  })
+
+  useOutsideClick(fontPickerRef, () => {
+    if (isFontPickerOpen) {
+      setIsFontPickerOpen(false)
+      setFontSearch('')
+    }
+  })
+
+  useOutsideClick(textPropertiesRef, () => {
+    if (isTypographyOpen) setIsTypographyOpen(false)
+  })
+
+  useOutsideClick(backgroundColorPickerRef, () => {
+    if (openColorPicker === 'bg') setOpenColorPicker(null)
+  })
+
+  useOutsideClick(textColorPickerRef, () => {
+    if (openColorPicker === 'fg') setOpenColorPicker(null)
+  })
+
   const editorFontSize = useMemo(
     () => getFittedFontSizeForText(text, 240, Math.round(textSizeOption.maxFontSize * 0.3), 16, fontFamily, fontWeight),
     [fontFamily, fontWeight, text, textSizeOption.maxFontSize],
@@ -679,7 +709,7 @@ export function CanvasClient() {
             className="Stack Stack_vertical App-menu_top__left zen-mode-transition"
             style={{ '--gap': 4 } as CSSProperties}
           >
-            <div className="dropdown-menu-event-wrapper">
+            <div className="dropdown-menu-event-wrapper" ref={mainMenuRef}>
               <button
                 type="button"
                 className="dropdown-menu-button main-menu-trigger"
@@ -770,6 +800,9 @@ export function CanvasClient() {
                       />
                       <div className="ToolIcon__icon">
                         <Lock aria-hidden="true" />
+                        <span className="ToolIndexIndicator" aria-hidden="true">
+                          0
+                        </span>
                       </div>
                     </label>
 
@@ -791,6 +824,9 @@ export function CanvasClient() {
                       <div className="ToolIcon__icon">
                         <Hand aria-hidden="true" />
                         <span className="ToolIcon__keybinding">H</span>
+                        <span className="ToolIndexIndicator" aria-hidden="true">
+                          1
+                        </span>
                       </div>
                     </label>
 
@@ -810,6 +846,9 @@ export function CanvasClient() {
                       <div className="ToolIcon__icon">
                         <MousePointer2 aria-hidden="true" />
                         <span className="ToolIcon__keybinding">V</span>
+                        <span className="ToolIndexIndicator" aria-hidden="true">
+                          2
+                        </span>
                       </div>
                     </label>
 
@@ -830,6 +869,9 @@ export function CanvasClient() {
                       <div className="ToolIcon__icon">
                         <Type aria-hidden="true" />
                         <span className="ToolIcon__keybinding">T</span>
+                        <span className="ToolIndexIndicator" aria-hidden="true">
+                          3
+                        </span>
                       </div>
                     </label>
 
@@ -839,27 +881,7 @@ export function CanvasClient() {
                       <h2 className="visually-hidden" id="asset-generator-fonts-title">
                         Fonts
                       </h2>
-                      <div className="buttonList" role="radiogroup" aria-label="Default fonts">
-                        {quickFontOptions.map((font) => (
-                          <button
-                            key={font.key}
-                            type="button"
-                            className={`properties-trigger ${fontKey === font.key ? 'active' : ''}`}
-                            aria-label={`${getFontTitle(font.key)} (${font.label})`}
-                            aria-checked={fontKey === font.key}
-                            role="radio"
-                            data-testid={`font-family-${font.key}`}
-                            title={font.label}
-                            onClick={() => selectFont(font.key)}
-                          >
-                            {getFontIcon(font.key)}
-                          </button>
-                        ))}
-                      </div>
-
-                      <div className="ButtonSeparator" />
-
-                      <div className="FontPicker__popoverRoot" onKeyDown={onFontPickerKeyDown}>
+                      <div className="FontPicker__popoverRoot" ref={fontPickerRef} onKeyDown={onFontPickerKeyDown}>
                         <button
                           type="button"
                           data-openpopup="fontFamily"
@@ -873,6 +895,9 @@ export function CanvasClient() {
                         >
                           <Type aria-hidden="true" />
                           <ChevronDown aria-hidden="true" className="FontPickerTrigger__chevron" />
+                          <span className="ToolIndexIndicator" aria-hidden="true">
+                            4
+                          </span>
                         </button>
 
                         {isFontPickerOpen ? (
@@ -962,7 +987,7 @@ export function CanvasClient() {
 
                     <div className="ButtonSeparator" />
 
-                    <div className="TextProperties__popoverRoot">
+                    <div className="TextProperties__popoverRoot" ref={textPropertiesRef}>
                       <button
                         type="button"
                         className={`properties-trigger TextPropertiesTrigger ${isTypographyOpen ? 'active' : ''}`}
@@ -974,10 +999,34 @@ export function CanvasClient() {
                       >
                         <SlidersHorizontal aria-hidden="true" />
                         <ChevronDown aria-hidden="true" className="FontPickerTrigger__chevron" />
+                        <span className="ToolIndexIndicator" aria-hidden="true">
+                          5
+                        </span>
                       </button>
 
                       {isTypographyOpen ? (
                         <div className="properties-content text-properties-content" role="dialog" aria-label="Text properties">
+                          <section className="text-properties-section text-properties-font-family">
+                            <h3>Font Family</h3>
+                            <div className="buttonList text-property-button-list" role="radiogroup" aria-label="Default fonts">
+                              {quickFontOptions.map((font) => (
+                                <button
+                                  key={font.key}
+                                  type="button"
+                                  className={`properties-trigger ${fontKey === font.key ? 'active' : ''}`}
+                                  aria-label={`${getFontTitle(font.key)} (${font.label})`}
+                                  aria-checked={fontKey === font.key}
+                                  role="radio"
+                                  data-testid={`font-family-${font.key}`}
+                                  title={font.label}
+                                  onClick={() => selectFont(font.key)}
+                                >
+                                  {getFontIcon(font.key)}
+                                </button>
+                              ))}
+                            </div>
+                          </section>
+
                           <section className="text-properties-section text-properties-font-size">
                             <h3>Font Size</h3>
                             <div className="buttonList text-property-button-list" role="radiogroup" aria-label="Font size">
@@ -1109,6 +1158,9 @@ export function CanvasClient() {
                     >
                       <span className="ToolIcon__icon">
                         <Undo2 aria-hidden="true" />
+                        <span className="ToolIndexIndicator" aria-hidden="true">
+                          6
+                        </span>
                       </span>
                     </button>
                     <button
@@ -1122,6 +1174,9 @@ export function CanvasClient() {
                     >
                       <span className="ToolIcon__icon">
                         <Redo2 aria-hidden="true" />
+                        <span className="ToolIndexIndicator" aria-hidden="true">
+                          7
+                        </span>
                       </span>
                     </button>
 
@@ -1131,6 +1186,8 @@ export function CanvasClient() {
                       label="Bg"
                       value={backgroundColor}
                       isOpen={openColorPicker === 'bg'}
+                      indexLabel="8"
+                      containerRef={backgroundColorPickerRef}
                       onToggle={() => toggleColorPicker('bg')}
                       onChange={(color) => updateSettingsWithHistory({ bg: color })}
                     />
@@ -1138,6 +1195,8 @@ export function CanvasClient() {
                       label="Tx"
                       value={textColor}
                       isOpen={openColorPicker === 'fg'}
+                      indexLabel="9"
+                      containerRef={textColorPickerRef}
                       onToggle={() => toggleColorPicker('fg')}
                       onChange={(color) => updateSettingsWithHistory({ fg: color })}
                     />

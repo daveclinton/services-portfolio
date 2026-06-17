@@ -861,6 +861,25 @@ a {
   line-height: 1;
 }
 
+.ToolIndexIndicator {
+  position: absolute;
+  top: 0.12rem;
+  left: 0.14rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0.58rem;
+  height: 0.58rem;
+  border: 1px solid color-mix(in srgb, var(--ag-border-strong) 70%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ag-island-bg) 88%, transparent);
+  color: var(--ag-muted-light);
+  font-size: 0.46rem;
+  font-weight: 750;
+  line-height: 1;
+  pointer-events: none;
+}
+
 .ToolIcon_type_radio:checked + .ToolIcon__icon .ToolIcon__keybinding,
 .ToolIcon.active .ToolIcon__keybinding {
   color: var(--ag-primary-active);
@@ -1583,6 +1602,10 @@ a {
   .asset-generator-design.is-preview-open {
     width: 100%;
   }
+}
+
+.asset-generator-color-trigger {
+  position: relative;
 }
 
 .asset-generator-phone {

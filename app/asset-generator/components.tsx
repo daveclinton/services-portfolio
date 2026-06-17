@@ -7,12 +7,16 @@ export function ColorSwatchPicker({
   label,
   value,
   isOpen,
+  indexLabel,
+  containerRef,
   onToggle,
   onChange,
 }: {
   label: string
   value: string
   isOpen: boolean
+  indexLabel?: string
+  containerRef?: Ref<HTMLDivElement>
   onToggle: () => void
   onChange: (color: string) => void
 }) {
@@ -29,7 +33,7 @@ export function ColorSwatchPicker({
   }
 
   return (
-    <div className="asset-generator-color-picker">
+    <div className="asset-generator-color-picker" ref={containerRef}>
       <button
         type="button"
         className="asset-generator-color-trigger"
@@ -40,6 +44,11 @@ export function ColorSwatchPicker({
       >
         <span>{label}</span>
         <i style={{ backgroundColor: value }} aria-hidden="true" />
+        {indexLabel ? (
+          <span className="ToolIndexIndicator" aria-hidden="true">
+            {indexLabel}
+          </span>
+        ) : null}
       </button>
 
       {isOpen ? (
