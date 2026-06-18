@@ -27,6 +27,8 @@ export type TextLayer = {
   fontFamily: string
   fontKey: FontKey
   fontWeight: FontWeight
+  fontStyle: 'normal' | 'italic'
+  underline: boolean
   textAlign: TextAlign
   verticalAlign: TextVerticalAlign
   textSize: TextSizeKey

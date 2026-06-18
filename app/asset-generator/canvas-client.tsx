@@ -67,6 +67,7 @@ import { exportAllAssets as exportAllAssetsLib } from './lib/export-logic'
 import { useIsMobile } from './hooks/useIsMobile'
 import { getTopPicksForTarget } from './lib/color-palette'
 import { getCanvasStyleDomain, getStrokeFillLayer } from './lib/style-domain'
+import { getCanvasCursorClass, resolveTextPlacement, toggleBoldWeight } from './lib/text-tool'
 
 export function CanvasClient() {
   const masterCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -136,6 +137,8 @@ export function CanvasClient() {
   const fontKey = textLayer.fontKey
   const fontFamily = textLayer.fontFamily
   const fontWeight = textLayer.fontWeight
+  const fontStyle = textLayer.fontStyle
+  const textUnderline = textLayer.underline
   const textSize = textLayer.textSize
   const textAlign = textLayer.textAlign
   const textVerticalAlign = textLayer.verticalAlign
@@ -199,6 +202,12 @@ export function CanvasClient() {
         layerId: ShapeLayer['id']
         offsetX: number
         offsetY: number
+        before: AssetDocument
+      }
+    | {
+        mode: 'place-text'
+        pointerId: number
+        origin: { x: number; y: number }
         before: AssetDocument
       }
     | null
@@ -537,7 +546,7 @@ export function CanvasClient() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [commitHistory, getSnapshot, redoDesign, selectedLayerId, textPosition.x, textPosition.y, undoDesign])
 
-  const getCanvasPoint = (event: PointerEvent<HTMLCanvasElement>) => {
+  const getCanvasPoint = (event: { clientX: number; clientY: number }) => {
     const canvas = masterCanvasRef.current
     if (!canvas) return null
 
@@ -1066,13 +1075,15 @@ export function CanvasClient() {
           <canvas
             ref={masterCanvasRef}
             aria-label="Master design canvas"
-            className={
-              selectedLayerId === 'text'
-                ? 'is-text-selected'
-                : selectedLayerId === 'background'
-                  ? 'is-canvas-selected'
-                  : undefined
-            }
+            className={getCanvasCursorClass(activeTool, selectedLayerId, isEditingText)}
+            onDoubleClick={(event) => {
+              const point = getCanvasPoint(event)
+              if (!point || !isPointInsideTextLayer(point)) return
+
+              updateEditorState((current) => ({ ...current, activeTool: 'text', selectedLayerId: 'text' }))
+              setSelectedLayerId('text')
+              setIsEditingText(true)
+            }}
             onPointerDown={(event) => {
               const point = getCanvasPoint(event)
               if (!point) return
@@ -1145,6 +1156,20 @@ export function CanvasClient() {
 
               const isTextHit = isPointInsideTextLayer(point)
               if (!isTextHit) {
+                if (activeTool === 'text') {
+                  event.currentTarget.setPointerCapture(event.pointerId)
+                  const before = getSnapshot()
+                  dragRef.current = {
+                    mode: 'place-text',
+                    pointerId: event.pointerId,
+                    origin: point,
+                    before,
+                  }
+                  setSelectedLayerId('text')
+                  setSelectionRect({ x: point.x, y: point.y, width: 0, height: 0 })
+                  return
+                }
+
                 setSelectedLayerId('background')
                 setIsEditingText(false)
                 if (activeTool === 'select') {
@@ -1201,6 +1226,11 @@ export function CanvasClient() {
                 return
               }
 
+              if (drag.mode === 'place-text') {
+                setSelectionRect(getRectFromPoints(drag.origin, point))
+                return
+              }
+
               if (drag.mode === 'move-frame') {
                 moveFrameLayer(drag.layerId, point, drag.offsetX, drag.offsetY)
                 return
@@ -1219,6 +1249,25 @@ export function CanvasClient() {
 
               if (drag.mode === 'move-text' || drag.mode === 'move-frame' || drag.mode === 'move-shape') {
                 commitHistory(drag.before)
+              } else if (drag.mode === 'place-text') {
+                const point = getCanvasPoint(event)
+                const placement = point ? resolveTextPlacement(drag.origin, point) : null
+
+                if (placement) {
+                  const after = updateDocument((current) =>
+                    updateIconLayer(current, 'text', (layer) => ({
+                      ...layer,
+                      x: placement.x,
+                      y: placement.y,
+                      ...(placement.mode === 'box' ? { maxWidth: placement.maxWidth } : {}),
+                    })),
+                  )
+                  commitHistory(drag.before, after)
+                }
+
+                setSelectedLayerId('text')
+                setIsEditingText(true)
+                setSelectionRect(null)
               } else if (drag.mode === 'draw-frame') {
                 const point = getCanvasPoint(event)
                 const rect = point ? getRectFromPoints(drag.origin, point) : selectionRect
@@ -1282,6 +1331,8 @@ export function CanvasClient() {
                 fontFamily,
                 fontSize: `${editorFontSize}px`,
                 fontWeight,
+                fontStyle,
+                textDecoration: textUnderline ? 'underline' : 'none',
                 opacity: textOpacity * textColorOpacity,
                 textAlign,
                 left: `${(textPosition.x / masterSize) * 100}%`,
@@ -1307,6 +1358,40 @@ export function CanvasClient() {
               onKeyDown={(event) => {
                 if (event.key === 'Escape') {
                   event.currentTarget.blur()
+                  return
+                }
+
+                const mod = event.metaKey || event.ctrlKey
+                if (!mod) return
+
+                if (event.key.toLowerCase() === 'b') {
+                  event.preventDefault()
+                  updateDocumentWithHistory((current) =>
+                    updateIconLayer(current, 'text', (layer) => ({
+                      ...layer,
+                      fontWeight: toggleBoldWeight(layer.fontWeight),
+                    })),
+                  )
+                }
+
+                if (event.key.toLowerCase() === 'i') {
+                  event.preventDefault()
+                  updateDocumentWithHistory((current) =>
+                    updateIconLayer(current, 'text', (layer) => ({
+                      ...layer,
+                      fontStyle: layer.fontStyle === 'italic' ? 'normal' : 'italic',
+                    })),
+                  )
+                }
+
+                if (event.key.toLowerCase() === 'u') {
+                  event.preventDefault()
+                  updateDocumentWithHistory((current) =>
+                    updateIconLayer(current, 'text', (layer) => ({
+                      ...layer,
+                      underline: !layer.underline,
+                    })),
+                  )
                 }
               }}
             />

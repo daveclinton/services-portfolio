@@ -156,12 +156,29 @@ export function renderDesign(
 
       ctx.save()
       ctx.globalAlpha = layer.opacity * layer.colorOpacity
-      ctx.font = `${layer.fontWeight} ${fontSize}px ${layer.fontFamily}`
+      const fontStylePrefix = layer.fontStyle === 'italic' ? 'italic ' : ''
+      ctx.font = `${fontStylePrefix}${layer.fontWeight} ${fontSize}px ${layer.fontFamily}`
       ctx.fillStyle = layer.color
       ctx.textAlign = layer.textAlign
       ctx.textBaseline = 'middle'
       lines.forEach((line, index) => {
-        ctx.fillText(line, textAnchorX, startY + index * lineHeight)
+        const y = startY + index * lineHeight
+        ctx.fillText(line, textAnchorX, y)
+        if (layer.underline) {
+          const width = ctx.measureText(line).width
+          const startX =
+            layer.textAlign === 'center'
+              ? textAnchorX - width / 2
+              : layer.textAlign === 'right'
+                ? textAnchorX - width
+                : textAnchorX
+          ctx.beginPath()
+          ctx.moveTo(startX, y + fontSize * 0.15)
+          ctx.lineTo(startX + width, y + fontSize * 0.15)
+          ctx.lineWidth = Math.max(1, fontSize * 0.06)
+          ctx.strokeStyle = layer.color
+          ctx.stroke()
+        }
       })
       ctx.restore()
 

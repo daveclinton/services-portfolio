@@ -1984,6 +1984,10 @@ a {
     transform var(--ag-transition-fast);
 }
 
+.asset-generator-master canvas.is-text-tool-active {
+  cursor: text;
+}
+
 .asset-generator-master canvas.is-text-selected {
   cursor: move;
   filter: drop-shadow(0 16px 30px rgba(18, 18, 18, 0.2)) drop-shadow(0 0 0 rgba(105, 101, 219, 0.32));
