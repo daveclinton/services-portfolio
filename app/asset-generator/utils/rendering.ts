@@ -109,6 +109,15 @@ export function renderDesign(
       ctx.fillStyle = layer.color
       ctx.fill()
       ctx.restore()
+
+      if (options.selectedLayerId === layer.id) {
+        const scale = size / masterSize
+        roundedRect(ctx, 0, 0, size, size, getAppIconRadius(size))
+        ctx.lineWidth = Math.max(2, 4 * scale)
+        ctx.strokeStyle = '#0076ff'
+        ctx.stroke()
+      }
+
       continue
     }
 

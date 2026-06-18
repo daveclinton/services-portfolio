@@ -129,7 +129,7 @@ export function createAssetDocumentFromSettings(settings: QuerySettings): AssetD
 export function createDefaultEditorState(settings: QuerySettings): EditorState {
   return {
     activeTool: settings.tool,
-    selectedLayerId: 'text',
+    selectedLayerId: 'background',
     platform: settings.platform,
     previewOpen: settings.preview === 'open',
   }

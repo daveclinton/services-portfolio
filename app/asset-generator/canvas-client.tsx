@@ -2,34 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, PointerEvent } from 'react'
-import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
-  AlignVerticalJustifyCenter,
-  AlignVerticalJustifyEnd,
-  AlignVerticalJustifyStart,
-  Check,
-  ChevronDown,
-  Circle,
-  Code2,
-  Diamond,
-  Download,
-  Hand,
-  Lock,
-  Menu,
-  MousePointer2,
-  Pencil,
-  Redo2,
-  RotateCcw,
-  Search,
-  SlidersHorizontal,
-  Smartphone,
-  SquareDashed,
-  Square,
-  Type,
-  Undo2,
-} from 'lucide-react'
+import { Download, Menu, RotateCcw, SlidersHorizontal, Smartphone, X } from 'lucide-react'
 import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs'
 import { useOutsideClick } from '@/lib/use-outside-click'
 import {
@@ -41,12 +14,9 @@ import {
   masterSize,
   platforms,
   previewStates,
-  textAlignOptions,
   textAlignments,
   textSizeKeys,
-  textSizeOptions,
   textVerticalAlignments,
-  textVerticalAlignOptions,
   tools,
 } from './constants'
 import {
@@ -67,6 +37,7 @@ import type {
   AssetDocument,
   DesignLayer,
   EditorState,
+  EditorTool,
   FontKey,
   FontWeight,
   FrameLayer,
@@ -88,8 +59,14 @@ import {
   CanvasRect,
 } from './utils/'
 import { ColorSwatchPicker } from './components/ColorSwatchPicker'
+import { ColorPickerSidePanel, getColorPickerLabel } from './components/ColorPickerSidePanel'
+import { EditorStyleToolbar } from './components/EditorStyleToolbar'
+import { EditorToolsToolbar } from './components/EditorToolsToolbar'
 import { PhonePreview } from './components/PhonePreview'
 import { exportAllAssets as exportAllAssetsLib } from './lib/export-logic'
+import { useIsMobile } from './hooks/useIsMobile'
+import { getTopPicksForTarget } from './lib/color-palette'
+import { getCanvasStyleDomain, getStrokeFillLayer } from './lib/style-domain'
 
 export function CanvasClient() {
   const masterCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -102,6 +79,9 @@ export function CanvasClient() {
   const shapeStrokeColorPickerRef = useRef<HTMLDivElement>(null)
   const shapeFillColorPickerRef = useRef<HTMLDivElement>(null)
   const splashColorPickerRef = useRef<HTMLDivElement>(null)
+  const mobilePropertiesRef = useRef<HTMLDivElement>(null)
+  const colorPickerPanelRef = useRef<HTMLDivElement>(null)
+  const isMobile = useIsMobile()
   const [settings, setSettings] = useQueryStates(
     {
       text: parseAsString.withDefault(defaults.text),
@@ -135,6 +115,7 @@ export function CanvasClient() {
   const [isTypographyOpen, setIsTypographyOpen] = useState(false)
   const [fontSearch, setFontSearch] = useState('')
   const [hoveredFontKey, setHoveredFontKey] = useState<FontKey | null>(null)
+  const [isMobilePropertiesOpen, setIsMobilePropertiesOpen] = useState(false)
   const backgroundLayer = getBackgroundLayer(document)
   const textLayer = getDocumentTextLayer(document)
   const design = document.icon
@@ -146,10 +127,11 @@ export function CanvasClient() {
   const backgroundColor = backgroundLayer.color
   const textColor = textLayer.color
   const selectedLayer = design.layers.find((layer) => layer.id === selectedLayerId) ?? backgroundLayer
-  const selectedShapeLayer = selectedLayer.type === 'rectangle' || selectedLayer.type === 'diamond' || selectedLayer.type === 'ellipse' ? selectedLayer : null
-  const shapeStrokeColor = selectedShapeLayer?.strokeColor ?? '#1e1e1e'
-  const shapeFillColor = selectedShapeLayer?.backgroundColor ?? 'transparent'
-  const shapeOpacityValue = Math.round((selectedShapeLayer?.opacity ?? 1) * 100)
+  const styleDomain = getCanvasStyleDomain(selectedLayer)
+  const strokeFillLayer = getStrokeFillLayer(selectedLayer)
+  const strokeColor = strokeFillLayer?.strokeColor ?? '#1e1e1e'
+  const fillColor = strokeFillLayer?.backgroundColor ?? 'transparent'
+  const strokeFillOpacityValue = Math.round((strokeFillLayer?.opacity ?? 1) * 100)
   const splashBackgroundColor = document.preview.splashBackgroundColor
   const fontKey = textLayer.fontKey
   const fontFamily = textLayer.fontFamily
@@ -259,11 +241,14 @@ export function CanvasClient() {
     if (openColorPicker === 'splash') setOpenColorPicker(null)
   })
 
+  useOutsideClick(mobilePropertiesRef, () => {
+    if (isMobilePropertiesOpen) setIsMobilePropertiesOpen(false)
+  })
+
   const editorFontSize = useMemo(
     () => getFittedFontSizeForText(text, 240, Math.round(textSizeOption.maxFontSize * 0.3), 16, fontFamily, fontWeight),
     [fontFamily, fontWeight, text, textSizeOption.maxFontSize],
   )
-  const quickFontOptions = useMemo(() => fontOptions.filter((font) => ['rounded', 'sans', 'mono'].includes(font.key)), [])
   const sceneFontOptions = useMemo(() => fontOptions.filter((font) => ['rounded', 'sans', 'mono'].includes(font.key)), [])
   const availableFontOptions = useMemo(() => fontOptions.filter((font) => !['rounded', 'sans', 'mono'].includes(font.key)), [])
   const filteredSceneFonts = useMemo(() => {
@@ -308,7 +293,7 @@ export function CanvasClient() {
 
   const applySnapshot = (snapshot: AssetDocument) => {
     applyDocument(snapshot)
-    setSelectedLayerId('text')
+    setSelectedLayerId('background')
     setIsEditingText(false)
     setSelectionRect(null)
   }
@@ -389,31 +374,6 @@ export function CanvasClient() {
         opacity: Math.min(100, Math.max(0, Number.parseInt(nextOpacity, 10) || 0)) / 100,
       })),
     )
-  }
-
-  const getTextAlignIcon = (align: TextAlign) => {
-    if (align === 'left') return <AlignLeft aria-hidden="true" />
-    if (align === 'right') return <AlignRight aria-hidden="true" />
-    return <AlignCenter aria-hidden="true" />
-  }
-
-  const getTextVerticalAlignIcon = (align: TextVerticalAlign) => {
-    if (align === 'top') return <AlignVerticalJustifyStart aria-hidden="true" />
-    if (align === 'bottom') return <AlignVerticalJustifyEnd aria-hidden="true" />
-    return <AlignVerticalJustifyCenter aria-hidden="true" />
-  }
-
-  const getFontIcon = (key: FontKey) => {
-    if (key === 'rounded') return <Hand aria-hidden="true" />
-    if (key === 'mono') return <Code2 aria-hidden="true" />
-    return <Type aria-hidden="true" />
-  }
-
-  const getFontTitle = (key: FontKey) => {
-    if (key === 'rounded') return 'Hand-drawn font'
-    if (key === 'mono') return 'Code font'
-    if (key === 'display') return 'Display font'
-    return 'Normal font'
   }
 
   const onFontPickerKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -772,7 +732,7 @@ export function CanvasClient() {
     const nextEditorState: EditorState = {
       ...editorState,
       activeTool: defaults.tool,
-      selectedLayerId: 'text',
+      selectedLayerId: 'background',
     }
     applyDocument(nextDocument)
     setEditorState(nextEditorState)
@@ -819,8 +779,184 @@ export function CanvasClient() {
     setIsMenuOpen(false)
   }
 
+  const handleSelectTool = (tool: EditorTool, options?: { selectText?: boolean; editText?: boolean }) => {
+    updateEditorState((current) => ({
+      ...current,
+      activeTool: tool,
+      ...(options?.selectText ? { selectedLayerId: 'text' as const } : {}),
+    }))
+    if (options?.selectText) setSelectedLayerId('text')
+    if (options?.editText) setIsEditingText(true)
+    else setIsEditingText(false)
+  }
+
+  useEffect(() => {
+    setOpenColorPicker(null)
+    setIsFontPickerOpen(false)
+    setIsTypographyOpen(false)
+    setFontSearch('')
+    setIsMobilePropertiesOpen(false)
+  }, [selectedLayerId])
+
+  const colorPickerAnchorRef =
+    openColorPicker === 'bg'
+      ? backgroundColorPickerRef
+      : openColorPicker === 'fg'
+        ? textColorPickerRef
+        : openColorPicker === 'shapeStroke'
+          ? shapeStrokeColorPickerRef
+          : openColorPicker === 'shapeFill'
+            ? shapeFillColorPickerRef
+            : openColorPicker === 'splash'
+              ? splashColorPickerRef
+              : null
+
+  useEffect(() => {
+    if (!openColorPicker) return
+
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (colorPickerPanelRef.current?.contains(target)) return
+      const anchor =
+        openColorPicker === 'bg'
+          ? backgroundColorPickerRef.current
+          : openColorPicker === 'fg'
+            ? textColorPickerRef.current
+            : openColorPicker === 'shapeStroke'
+              ? shapeStrokeColorPickerRef.current
+              : openColorPicker === 'shapeFill'
+                ? shapeFillColorPickerRef.current
+                : openColorPicker === 'splash'
+                  ? splashColorPickerRef.current
+                  : null
+      if (anchor?.contains(target)) return
+      setOpenColorPicker(null)
+    }
+
+    globalThis.document.addEventListener('pointerdown', onPointerDown)
+    return () => globalThis.document.removeEventListener('pointerdown', onPointerDown)
+  }, [openColorPicker])
+
+  const styleToolbar = (
+    <EditorStyleToolbar
+      styleDomain={styleDomain}
+      backgroundColor={backgroundColor}
+      backgroundOpacityValue={backgroundOpacityValue}
+      textColor={textColor}
+      textColorOpacityValue={textColorOpacityValue}
+      textOpacityValue={textOpacityValue}
+      fontKey={fontKey}
+      fontWeight={fontWeight}
+      textSize={textSize}
+      textAlign={textAlign}
+      textVerticalAlign={textVerticalAlign}
+      strokeFillLayer={strokeFillLayer}
+      strokeColor={strokeColor}
+      fillColor={fillColor}
+      strokeFillOpacityValue={strokeFillOpacityValue}
+      openColorPicker={openColorPicker}
+      isFontPickerOpen={isFontPickerOpen}
+      isTypographyOpen={isTypographyOpen}
+      fontSearch={fontSearch}
+      hoveredFontKey={hoveredFontKey}
+      filteredSceneFonts={filteredSceneFonts}
+      filteredAvailableFonts={filteredAvailableFonts}
+      filteredFontOptions={filteredFontOptions}
+      fontPickerRef={fontPickerRef}
+      textPropertiesRef={textPropertiesRef}
+      backgroundColorPickerRef={backgroundColorPickerRef}
+      textColorPickerRef={textColorPickerRef}
+      shapeStrokeColorPickerRef={shapeStrokeColorPickerRef}
+      shapeFillColorPickerRef={shapeFillColorPickerRef}
+      onToggleColorPicker={toggleColorPicker}
+      onBackgroundColorChange={(color) =>
+        updateDocumentWithHistory((current) =>
+          updateIconLayer(current, 'background', (layer) => ({ ...layer, color })),
+        )
+      }
+      onBackgroundOpacityChange={(opacity) =>
+        updateDocumentWithHistory((current) =>
+          updateIconLayer(current, 'background', (layer) => ({ ...layer, opacity: opacity / 100 })),
+        )
+      }
+      onTextColorChange={(color) =>
+        updateDocumentWithHistory((current) => updateIconLayer(current, 'text', (layer) => ({ ...layer, color })))
+      }
+      onTextColorOpacityChange={(opacity) =>
+        updateDocumentWithHistory((current) =>
+          updateIconLayer(current, 'text', (layer) => ({ ...layer, colorOpacity: opacity / 100 })),
+        )
+      }
+      onStrokeColorChange={(color) => {
+        if (!strokeFillLayer) return
+        updateDocumentWithHistory((current) =>
+          updateIconLayer(current, strokeFillLayer.id, (layer) => ({ ...layer, strokeColor: color })),
+        )
+      }}
+      onStrokeOpacityChange={(opacity) => {
+        if (!strokeFillLayer) return
+        updateDocumentWithHistory((current) =>
+          updateIconLayer(current, strokeFillLayer.id, (layer) => ({ ...layer, opacity: opacity / 100 })),
+        )
+      }}
+      onFillColorChange={(color) => {
+        if (!strokeFillLayer) return
+        updateDocumentWithHistory((current) =>
+          updateIconLayer(current, strokeFillLayer.id, (layer) => ({ ...layer, backgroundColor: color })),
+        )
+      }}
+      onFillOpacityChange={(opacity) => {
+        if (!strokeFillLayer) return
+        updateDocumentWithHistory((current) =>
+          updateIconLayer(current, strokeFillLayer.id, (layer) => ({
+            ...layer,
+            backgroundColor:
+              opacity === 0
+                ? 'transparent'
+                : layer.backgroundColor === 'transparent'
+                  ? '#ffffff'
+                  : layer.backgroundColor,
+            opacity: opacity / 100,
+          })),
+        )
+      }}
+      onToggleFontPicker={toggleFontPicker}
+      onToggleTypography={toggleTypography}
+      onFontSearchChange={(value) => {
+        setFontSearch(value)
+        const nextQuery = value.trim().toLowerCase()
+        const nextFont = fontOptions.find((font) => font.label.toLowerCase().includes(nextQuery))
+        setHoveredFontKey(nextFont?.key ?? null)
+      }}
+      onHoverFont={setHoveredFontKey}
+      onSelectFont={selectFont}
+      onSelectWeight={selectWeight}
+      onSelectTextSize={selectTextSize}
+      onSelectTextAlign={selectTextAlign}
+      onSelectTextVerticalAlign={selectTextVerticalAlign}
+      onSelectTextOpacity={selectTextOpacity}
+      onEditText={() => {
+        updateEditorState((current) => ({ ...current, activeTool: 'text', selectedLayerId: 'text' }))
+        setIsEditingText(true)
+        setIsTypographyOpen(false)
+      }}
+      onFontPickerKeyDown={onFontPickerKeyDown}
+    />
+  )
+
+  const toolsToolbar = (
+    <EditorToolsToolbar
+      activeTool={activeTool}
+      canUndo={canUndo}
+      canRedo={canRedo}
+      onSelectTool={handleSelectTool}
+      onUndo={undoDesign}
+      onRedo={redoDesign}
+    />
+  )
+
   return (
-    <main className="asset-generator-page" id="main-content">
+    <main className={`asset-generator-page${isMobile ? " asset-generator-page--mobile" : ""}`} id="main-content">
       <div className="App-menu">
         <div className="App-menu_top">
           <div
@@ -890,7 +1026,13 @@ export function CanvasClient() {
               ) : null}
             </div>
 
-            <div className="selected-shape-actions-container" aria-hidden="true" />
+            <div className="selected-shape-actions-container zen-mode-transition">
+              {!isMobile ? (
+                <div className="Island App-menu__left" style={{ '--padding': 2 } as CSSProperties}>
+                  {styleToolbar}
+                </div>
+              ) : null}
+            </div>
           </div>
 
           <section className="shapes-section" aria-labelledby="asset-generator-shapes-title">
@@ -899,585 +1041,10 @@ export function CanvasClient() {
                 className="Stack Stack_horizontal App-toolbar-container"
                 style={{ '--gap': 1, justifyContent: 'center' } as CSSProperties}
               >
-                <div
-                  className="Island App-toolbar App-toolbar--compact"
-                  style={{ '--padding': 1 } as CSSProperties}
-                  aria-label="Canvas toolbar"
-                >
-                  <div className="HintViewer" aria-hidden="true" />
-                  <h2 className="visually-hidden" id="asset-generator-shapes-title">
-                    Shapes
-                  </h2>
-                  <div className="Stack Stack_horizontal" style={{ '--gap': 0.5 } as CSSProperties}>
-                    <label className="ToolIcon ToolIcon__lock" title="Lock">
-                      <input
-                        type="checkbox"
-                        className="ToolIcon_type_checkbox"
-                        aria-label="Lock selected layer"
-                        disabled
-                      />
-                      <div className="ToolIcon__icon">
-                        <Lock aria-hidden="true" />
-                        <span className="ToolIndexIndicator" aria-hidden="true">
-                          0
-                        </span>
-                      </div>
-                    </label>
-
-                    <div className="App-toolbar__divider" />
-
-                    <label className={`ToolIcon Shape ${activeTool === 'hand' ? 'active' : ''}`} title="Hand">
-                      <input
-                        type="radio"
-                        className="ToolIcon_type_radio"
-                        name="editor-current-shape"
-                        checked={activeTool === 'hand'}
-                        aria-label="Hand tool"
-                        aria-keyshortcuts="H"
-                        onChange={() => {
-                          updateEditorState((current) => ({ ...current, activeTool: 'hand' }))
-                          setIsEditingText(false)
-                        }}
-                      />
-                      <div className="ToolIcon__icon">
-                        <Hand aria-hidden="true" />
-                        <span className="ToolIcon__keybinding">H</span>
-                        <span className="ToolIndexIndicator" aria-hidden="true">
-                          1
-                        </span>
-                      </div>
-                    </label>
-
-                    <label className={`ToolIcon Shape ${activeTool === 'select' ? 'active' : ''}`} title="Select">
-                      <input
-                        type="radio"
-                        className="ToolIcon_type_radio"
-                        name="editor-current-shape"
-                        checked={activeTool === 'select'}
-                        aria-label="Select tool"
-                        aria-keyshortcuts="V"
-                        onChange={() => {
-                          updateEditorState((current) => ({ ...current, activeTool: 'select' }))
-                          setIsEditingText(false)
-                        }}
-                      />
-                      <div className="ToolIcon__icon">
-                        <MousePointer2 aria-hidden="true" />
-                        <span className="ToolIcon__keybinding">V</span>
-                        <span className="ToolIndexIndicator" aria-hidden="true">
-                          2
-                        </span>
-                      </div>
-                    </label>
-
-                    <label className={`ToolIcon Shape ${activeTool === 'text' ? 'active' : ''}`} title="Text">
-                      <input
-                        type="radio"
-                        className="ToolIcon_type_radio"
-                        name="editor-current-shape"
-                        checked={activeTool === 'text'}
-                        aria-label="Text tool"
-                        aria-keyshortcuts="T"
-                        onChange={() => {
-                          updateEditorState((current) => ({ ...current, activeTool: 'text', selectedLayerId: 'text' }))
-                          setSelectedLayerId('text')
-                          setIsEditingText(true)
-                        }}
-                      />
-                      <div className="ToolIcon__icon">
-                        <Type aria-hidden="true" />
-                        <span className="ToolIcon__keybinding">T</span>
-                        <span className="ToolIndexIndicator" aria-hidden="true">
-                          3
-                        </span>
-                      </div>
-                    </label>
-
-                    <label className={`ToolIcon Shape fillable ${activeTool === 'rectangle' ? 'active' : ''}`} title="Rectangle">
-                      <input
-                        type="radio"
-                        className="ToolIcon_type_radio"
-                        name="editor-current-shape"
-                        checked={activeTool === 'rectangle'}
-                        aria-label="Rectangle tool"
-                        aria-keyshortcuts="R"
-                        onChange={() => {
-                          updateEditorState((current) => ({ ...current, activeTool: 'rectangle' }))
-                          setIsEditingText(false)
-                        }}
-                      />
-                      <div className="ToolIcon__icon">
-                        <Square aria-hidden="true" />
-                        <span className="ToolIcon__keybinding">R</span>
-                        <span className="ToolIndexIndicator" aria-hidden="true">
-                          4
-                        </span>
-                      </div>
-                    </label>
-
-                    <label className={`ToolIcon Shape fillable ${activeTool === 'diamond' ? 'active' : ''}`} title="Diamond">
-                      <input
-                        type="radio"
-                        className="ToolIcon_type_radio"
-                        name="editor-current-shape"
-                        checked={activeTool === 'diamond'}
-                        aria-label="Diamond tool"
-                        aria-keyshortcuts="D"
-                        onChange={() => {
-                          updateEditorState((current) => ({ ...current, activeTool: 'diamond' }))
-                          setIsEditingText(false)
-                        }}
-                      />
-                      <div className="ToolIcon__icon">
-                        <Diamond aria-hidden="true" />
-                        <span className="ToolIcon__keybinding">D</span>
-                        <span className="ToolIndexIndicator" aria-hidden="true">
-                          5
-                        </span>
-                      </div>
-                    </label>
-
-                    <label className={`ToolIcon Shape fillable ${activeTool === 'ellipse' ? 'active' : ''}`} title="Ellipse">
-                      <input
-                        type="radio"
-                        className="ToolIcon_type_radio"
-                        name="editor-current-shape"
-                        checked={activeTool === 'ellipse'}
-                        aria-label="Ellipse tool"
-                        aria-keyshortcuts="O"
-                        onChange={() => {
-                          updateEditorState((current) => ({ ...current, activeTool: 'ellipse' }))
-                          setIsEditingText(false)
-                        }}
-                      />
-                      <div className="ToolIcon__icon">
-                        <Circle aria-hidden="true" />
-                        <span className="ToolIcon__keybinding">O</span>
-                        <span className="ToolIndexIndicator" aria-hidden="true">
-                          6
-                        </span>
-                      </div>
-                    </label>
-
-                    <label className={`ToolIcon Shape ${activeTool === 'frame' ? 'active' : ''}`} title="Frame">
-                      <input
-                        type="radio"
-                        className="ToolIcon_type_radio"
-                        name="editor-current-shape"
-                        checked={activeTool === 'frame'}
-                        aria-label="Frame tool"
-                        aria-keyshortcuts="F"
-                        onChange={() => {
-                          updateEditorState((current) => ({ ...current, activeTool: 'frame' }))
-                          setIsEditingText(false)
-                        }}
-                      />
-                      <div className="ToolIcon__icon">
-                        <SquareDashed aria-hidden="true" />
-                        <span className="ToolIcon__keybinding">F</span>
-                        <span className="ToolIndexIndicator" aria-hidden="true">
-                          7
-                        </span>
-                      </div>
-                    </label>
-
-                    <div className="App-toolbar__divider" />
-
-                    <section className="FontPicker__container" aria-labelledby="asset-generator-fonts-title">
-                      <h2 className="visually-hidden" id="asset-generator-fonts-title">
-                        Fonts
-                      </h2>
-                      <div className="FontPicker__popoverRoot" ref={fontPickerRef} onKeyDown={onFontPickerKeyDown}>
-                        <button
-                          type="button"
-                          data-openpopup="fontFamily"
-                          className={`properties-trigger FontPickerTrigger ${isFontPickerOpen ? 'active' : ''}`}
-                          aria-label="Show fonts"
-                          aria-haspopup="dialog"
-                          aria-expanded={isFontPickerOpen}
-                          data-testid="font-family-show-fonts"
-                          title="Show fonts"
-                          onClick={toggleFontPicker}
-                        >
-                          <Type aria-hidden="true" />
-                          <ChevronDown aria-hidden="true" className="FontPickerTrigger__chevron" />
-                          <span className="ToolIndexIndicator" aria-hidden="true">
-                            8
-                          </span>
-                        </button>
-
-                        {isFontPickerOpen ? (
-                          <div className="properties-content" role="dialog" aria-label="Font picker">
-                            <label className="quick-search">
-                              <Search aria-hidden="true" />
-                              <input
-                                className="quick-search-input"
-                                type="text"
-                                placeholder="Search fonts..."
-                                aria-label="Search fonts"
-                                value={fontSearch}
-                                onChange={(event) => {
-                                  setFontSearch(event.target.value)
-                                  const nextQuery = event.target.value.trim().toLowerCase()
-                                  const nextFont = fontOptions.find((font) => font.label.toLowerCase().includes(nextQuery))
-                                  setHoveredFontKey(nextFont?.key ?? null)
-                                }}
-                              />
-                            </label>
-
-                            <div className="dropdown-menu fonts manual-hover">
-                              {filteredSceneFonts.length ? (
-                                <div className="dropdown-menu-group">
-                                  <div className="dropdown-menu-group-title">Scene Fonts</div>
-                                  {filteredSceneFonts.map((font) => (
-                                    <button
-                                      key={font.key}
-                                      type="button"
-                                      value={font.key}
-                                      className={`dropdown-menu-item ${fontKey === font.key ? 'selected' : ''} ${
-                                        hoveredFontKey === font.key ? 'hovered' : ''
-                                      }`}
-                                      title={font.label}
-                                      tabIndex={fontKey === font.key ? 0 : -1}
-                                      onClick={() => selectFont(font.key)}
-                                      onMouseMove={() => setHoveredFontKey(font.key)}
-                                    >
-                                      {fontKey === font.key ? <Check aria-hidden="true" /> : getFontIcon(font.key)}
-                                      <span
-                                        className="dropdown-menu-item-content"
-                                        style={{ fontFamily: font.family }}
-                                      >
-                                        {font.label}
-                                      </span>
-                                    </button>
-                                  ))}
-                                </div>
-                              ) : null}
-
-                              {filteredAvailableFonts.length ? (
-                                <div className="dropdown-menu-group">
-                                  <div className="dropdown-menu-group-title">Available Fonts</div>
-                                  {filteredAvailableFonts.map((font) => (
-                                    <button
-                                      key={font.key}
-                                      type="button"
-                                      value={font.key}
-                                      className={`dropdown-menu-item ${fontKey === font.key ? 'selected' : ''} ${
-                                        hoveredFontKey === font.key ? 'hovered' : ''
-                                      }`}
-                                      title={font.label}
-                                      tabIndex={fontKey === font.key ? 0 : -1}
-                                      onClick={() => selectFont(font.key)}
-                                      onMouseMove={() => setHoveredFontKey(font.key)}
-                                    >
-                                      {fontKey === font.key ? <Check aria-hidden="true" /> : getFontIcon(font.key)}
-                                      <span
-                                        className="dropdown-menu-item-content"
-                                        style={{ fontFamily: font.family }}
-                                      >
-                                        {font.label}
-                                      </span>
-                                    </button>
-                                  ))}
-                                </div>
-                              ) : null}
-
-                              {!filteredFontOptions.length ? (
-                                <div className="dropdown-menu-empty">No fonts found</div>
-                              ) : null}
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    </section>
-
-                    <div className="ButtonSeparator" />
-
-                    <div className="TextProperties__popoverRoot" ref={textPropertiesRef}>
-                      <button
-                        type="button"
-                        className={`properties-trigger TextPropertiesTrigger ${isTypographyOpen ? 'active' : ''}`}
-                        aria-label="Text properties"
-                        aria-haspopup="dialog"
-                        aria-expanded={isTypographyOpen}
-                        title="Text properties"
-                        onClick={toggleTypography}
-                      >
-                        <SlidersHorizontal aria-hidden="true" />
-                        <ChevronDown aria-hidden="true" className="FontPickerTrigger__chevron" />
-                        <span className="ToolIndexIndicator" aria-hidden="true">
-                          9
-                        </span>
-                      </button>
-
-                      {isTypographyOpen ? (
-                        <div className="properties-content text-properties-content" role="dialog" aria-label="Text properties">
-                          <section className="text-properties-section text-properties-font-family">
-                            <h3>Font Family</h3>
-                            <div className="buttonList text-property-button-list" role="radiogroup" aria-label="Default fonts">
-                              {quickFontOptions.map((font) => (
-                                <button
-                                  key={font.key}
-                                  type="button"
-                                  className={`properties-trigger ${fontKey === font.key ? 'active' : ''}`}
-                                  aria-label={`${getFontTitle(font.key)} (${font.label})`}
-                                  aria-checked={fontKey === font.key}
-                                  role="radio"
-                                  data-testid={`font-family-${font.key}`}
-                                  title={font.label}
-                                  onClick={() => selectFont(font.key)}
-                                >
-                                  {getFontIcon(font.key)}
-                                </button>
-                              ))}
-                            </div>
-                          </section>
-
-                          <section className="text-properties-section text-properties-font-size">
-                            <h3>Font Size</h3>
-                            <div className="buttonList text-property-button-list" role="radiogroup" aria-label="Font size">
-                              {textSizeOptions.map((size) => (
-                                <button
-                                  key={size.key}
-                                  type="button"
-                                  className={`properties-trigger text-size-trigger ${textSize === size.key ? 'active' : ''}`}
-                                  aria-label={`${size.label} font size`}
-                                  aria-checked={textSize === size.key}
-                                  role="radio"
-                                  onClick={() => selectTextSize(size.key)}
-                                >
-                                  <span>{size.label}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </section>
-
-                          <section className="text-properties-section text-properties-weight">
-                            <h3>Weight</h3>
-                            <div className="buttonList text-property-button-list" role="radiogroup" aria-label="Text weight">
-                              {fontWeights.map((weight) => (
-                                <button
-                                  key={weight}
-                                  type="button"
-                                  className={`properties-trigger typography-trigger ${fontWeight === weight ? 'active' : ''}`}
-                                  aria-label={`Text weight ${weight}`}
-                                  aria-checked={fontWeight === weight}
-                                  role="radio"
-                                  onClick={() => selectWeight(weight)}
-                                >
-                                  <span style={{ fontWeight: weight }}>{weight === '700' ? 'B' : weight === '800' ? 'H' : 'K'}</span>
-                                </button>
-                              ))}
-                            </div>
-                          </section>
-
-                          <section className="text-properties-section text-properties-align-horizontal">
-                            <h3>Text Alignment</h3>
-                            <div className="buttonList text-property-button-list" role="radiogroup" aria-label="Text alignment">
-                              {textAlignOptions.map((align) => (
-                                <button
-                                  key={align.key}
-                                  type="button"
-                                  className={`properties-trigger align-trigger ${textAlign === align.key ? 'active' : ''}`}
-                                  aria-label={`${align.label} align text`}
-                                  aria-checked={textAlign === align.key}
-                                  role="radio"
-                                  onClick={() => selectTextAlign(align.key)}
-                                >
-                                  {getTextAlignIcon(align.key)}
-                                </button>
-                              ))}
-                            </div>
-                          </section>
-
-                          <section className="text-properties-section text-properties-align-vertical">
-                            <h3>Vertical Alignment</h3>
-                            <div
-                              className="buttonList text-property-button-list"
-                              role="radiogroup"
-                              aria-label="Vertical text alignment"
-                            >
-                              {textVerticalAlignOptions.map((align) => (
-                                <button
-                                  key={align.key}
-                                  type="button"
-                                  className={`properties-trigger align-trigger ${
-                                    textVerticalAlign === align.key ? 'active' : ''
-                                  }`}
-                                  aria-label={`${align.label} vertical align text`}
-                                  aria-checked={textVerticalAlign === align.key}
-                                  role="radio"
-                                  onClick={() => selectTextVerticalAlign(align.key)}
-                                >
-                                  {getTextVerticalAlignIcon(align.key)}
-                                </button>
-                              ))}
-                            </div>
-                          </section>
-
-                          <section className="text-properties-section text-properties-opacity">
-                            <label>
-                              <span className="opacity-label">Opacity</span>
-                              <div className="opacity-slider-container">
-                                <input
-                                  type="range"
-                                  min="0"
-                                  max="100"
-                                  value={textOpacityValue}
-                                  className="opacity-slider"
-                                  aria-label="Text opacity"
-                                  onChange={(event) => selectTextOpacity(event.target.value)}
-                                />
-                                <span className="opacity-value">{textOpacityValue}%</span>
-                              </div>
-                            </label>
-                          </section>
-
-                          <section className="text-properties-section text-properties-edit">
-                            <button
-                              type="button"
-                              className="text-properties-edit-button"
-                              onClick={() => {
-                                updateEditorState((current) => ({ ...current, activeTool: 'text', selectedLayerId: 'text' }))
-                                setIsEditingText(true)
-                                setIsTypographyOpen(false)
-                              }}
-                            >
-                              <Pencil aria-hidden="true" />
-                              <span>Edit text</span>
-                            </button>
-                          </section>
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <div className="App-toolbar__divider" />
-
-                    <button
-                      type="button"
-                      className="ToolIcon Shape"
-                      onClick={undoDesign}
-                      aria-label="Undo"
-                      aria-keyshortcuts="Meta+Z Control+Z"
-                      title="Undo"
-                      disabled={!canUndo}
-                    >
-                      <span className="ToolIcon__icon">
-                        <Undo2 aria-hidden="true" />
-                        <span className="ToolIndexIndicator" aria-hidden="true">
-                          10
-                        </span>
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      className="ToolIcon Shape"
-                      onClick={redoDesign}
-                      aria-label="Redo"
-                      aria-keyshortcuts="Meta+Shift+Z Control+Y"
-                      title="Redo"
-                      disabled={!canRedo}
-                    >
-                      <span className="ToolIcon__icon">
-                        <Redo2 aria-hidden="true" />
-                        <span className="ToolIndexIndicator" aria-hidden="true">
-                          11
-                        </span>
-                      </span>
-                    </button>
-
-                    <div className="App-toolbar__divider" />
-
-                    <ColorSwatchPicker
-                      label="Bg"
-                      value={backgroundColor}
-                      isOpen={openColorPicker === 'bg'}
-                      indexLabel="12"
-                      containerRef={backgroundColorPickerRef}
-                      opacity={backgroundOpacityValue}
-                      onToggle={() => toggleColorPicker('bg')}
-                      onChange={(color) =>
-                        updateDocumentWithHistory((current) =>
-                          updateIconLayer(current, 'background', (layer) => ({ ...layer, color })),
-                        )
-                      }
-                      onOpacityChange={(opacity) =>
-                        updateDocumentWithHistory((current) =>
-                          updateIconLayer(current, 'background', (layer) => ({ ...layer, opacity: opacity / 100 })),
-                        )
-                      }
-                    />
-                    <ColorSwatchPicker
-                      label="Tx"
-                      value={textColor}
-                      isOpen={openColorPicker === 'fg'}
-                      indexLabel="13"
-                      containerRef={textColorPickerRef}
-                      opacity={textColorOpacityValue}
-                      onToggle={() => toggleColorPicker('fg')}
-                      onChange={(color) =>
-                        updateDocumentWithHistory((current) => updateIconLayer(current, 'text', (layer) => ({ ...layer, color })))
-                      }
-                      onOpacityChange={(opacity) =>
-                        updateDocumentWithHistory((current) =>
-                          updateIconLayer(current, 'text', (layer) => ({ ...layer, colorOpacity: opacity / 100 })),
-                        )
-                      }
-                    />
-                    <ColorSwatchPicker
-                      label="Stroke"
-                      value={shapeStrokeColor}
-                      isOpen={openColorPicker === 'shapeStroke'}
-                      indexLabel="14"
-                      containerRef={shapeStrokeColorPickerRef}
-                      opacity={shapeOpacityValue}
-                      disabled={!selectedShapeLayer}
-                      onToggle={() => {
-                        if (selectedShapeLayer) toggleColorPicker('shapeStroke')
-                      }}
-                      onChange={(color) => {
-                        if (!selectedShapeLayer) return
-                        updateDocumentWithHistory((current) =>
-                          updateIconLayer(current, selectedShapeLayer.id, (layer) => ({ ...layer, strokeColor: color })),
-                        )
-                      }}
-                      onOpacityChange={(opacity) => {
-                        if (!selectedShapeLayer) return
-                        updateDocumentWithHistory((current) =>
-                          updateIconLayer(current, selectedShapeLayer.id, (layer) => ({ ...layer, opacity: opacity / 100 })),
-                        )
-                      }}
-                    />
-                    <ColorSwatchPicker
-                      label="Fill"
-                      value={shapeFillColor === 'transparent' ? '#ffffff' : shapeFillColor}
-                      isOpen={openColorPicker === 'shapeFill'}
-                      indexLabel="15"
-                      containerRef={shapeFillColorPickerRef}
-                      opacity={shapeFillColor === 'transparent' ? 0 : shapeOpacityValue}
-                      disabled={!selectedShapeLayer}
-                      onToggle={() => {
-                        if (selectedShapeLayer) toggleColorPicker('shapeFill')
-                      }}
-                      onChange={(color) => {
-                        if (!selectedShapeLayer) return
-                        updateDocumentWithHistory((current) =>
-                          updateIconLayer(current, selectedShapeLayer.id, (layer) => ({ ...layer, backgroundColor: color })),
-                        )
-                      }}
-                      onOpacityChange={(opacity) => {
-                        if (!selectedShapeLayer) return
-                        updateDocumentWithHistory((current) =>
-                          updateIconLayer(current, selectedShapeLayer.id, (layer) => ({
-                            ...layer,
-                            backgroundColor: opacity === 0 ? 'transparent' : layer.backgroundColor === 'transparent' ? '#ffffff' : layer.backgroundColor,
-                            opacity: opacity / 100,
-                          })),
-                        )
-                      }}
-                    />
-                  </div>
-                </div>
+                <h2 className="visually-hidden" id="asset-generator-shapes-title">
+                  Canvas tools
+                </h2>
+                {!isMobile ? toolsToolbar : null}
               </div>
             </div>
           </section>
@@ -1514,12 +1081,18 @@ export function CanvasClient() {
         </div>
       </div>
 
-      <section className={`asset-generator-design ${isPreviewOpen ? 'is-preview-open' : ''}`}>
+      <section className={`asset-generator-design ${isPreviewOpen && !isMobile ? 'is-preview-open' : ''}${isMobile ? ' is-mobile-canvas' : ''}`}>
         <div className="asset-generator-master">
           <canvas
             ref={masterCanvasRef}
             aria-label="Master design canvas"
-            className={selectedLayerId === 'text' ? 'is-text-selected' : undefined}
+            className={
+              selectedLayerId === 'text'
+                ? 'is-text-selected'
+                : selectedLayerId === 'background'
+                  ? 'is-canvas-selected'
+                  : undefined
+            }
             onPointerDown={(event) => {
               const point = getCanvasPoint(event)
               if (!point) return
@@ -1785,6 +1358,7 @@ export function CanvasClient() {
               label="Splash"
               value={splashBackgroundColor}
               isOpen={openColorPicker === 'splash'}
+              topPicks={getTopPicksForTarget('splash')}
               containerRef={splashColorPickerRef}
               opacity={splashBackgroundOpacityValue}
               onToggle={() => toggleColorPicker('splash')}
@@ -1792,12 +1366,6 @@ export function CanvasClient() {
                 updateDocumentWithHistory((current) => ({
                   ...current,
                   preview: { ...current.preview, splashBackgroundColor: color },
-                }))
-              }
-              onOpacityChange={(opacity) =>
-                updateDocumentWithHistory((current) => ({
-                  ...current,
-                  preview: { ...current.preview, splashBackgroundOpacity: opacity / 100 },
                 }))
               }
             />
@@ -1811,6 +1379,158 @@ export function CanvasClient() {
           />
         </section>
       ) : null}
+
+      {openColorPicker ? (
+          <ColorPickerSidePanel
+            panelRef={colorPickerPanelRef}
+            target={openColorPicker}
+            label={getColorPickerLabel(openColorPicker)}
+            value={
+              openColorPicker === 'bg'
+                ? backgroundColor
+                : openColorPicker === 'fg'
+                  ? textColor
+                  : openColorPicker === 'splash'
+                    ? splashBackgroundColor
+                    : openColorPicker === 'shapeFill' && fillColor === 'transparent'
+                      ? '#ffffff'
+                      : openColorPicker === 'shapeFill'
+                        ? fillColor
+                        : openColorPicker === 'shapeStroke'
+                          ? strokeColor
+                          : backgroundColor
+            }
+            opacity={
+              openColorPicker === 'bg'
+                ? backgroundOpacityValue
+                : openColorPicker === 'fg'
+                  ? textColorOpacityValue
+                  : openColorPicker === 'splash'
+                    ? splashBackgroundOpacityValue
+                    : openColorPicker === 'shapeFill' && fillColor === 'transparent'
+                      ? 0
+                      : strokeFillOpacityValue
+            }
+            isOpen={Boolean(openColorPicker)}
+            isMobile={isMobile}
+            anchorRef={colorPickerAnchorRef ?? backgroundColorPickerRef}
+            onClose={() => setOpenColorPicker(null)}
+            onChange={(color) => {
+              if (openColorPicker === 'bg') {
+                updateDocumentWithHistory((current) =>
+                  updateIconLayer(current, 'background', (layer) => ({ ...layer, color })),
+                )
+                return
+              }
+              if (openColorPicker === 'fg') {
+                updateDocumentWithHistory((current) => updateIconLayer(current, 'text', (layer) => ({ ...layer, color })))
+                return
+              }
+              if (openColorPicker === 'splash') {
+                updateDocumentWithHistory((current) => ({
+                  ...current,
+                  preview: { ...current.preview, splashBackgroundColor: color },
+                }))
+                return
+              }
+              if (!strokeFillLayer) return
+              if (openColorPicker === 'shapeStroke') {
+                updateDocumentWithHistory((current) =>
+                  updateIconLayer(current, strokeFillLayer.id, (layer) => ({ ...layer, strokeColor: color })),
+                )
+                return
+              }
+              updateDocumentWithHistory((current) =>
+                updateIconLayer(current, strokeFillLayer.id, (layer) => ({ ...layer, backgroundColor: color })),
+              )
+            }}
+            onOpacityChange={(opacity) => {
+              if (openColorPicker === 'bg') {
+                updateDocumentWithHistory((current) =>
+                  updateIconLayer(current, 'background', (layer) => ({ ...layer, opacity: opacity / 100 })),
+                )
+                return
+              }
+              if (openColorPicker === 'fg') {
+                updateDocumentWithHistory((current) =>
+                  updateIconLayer(current, 'text', (layer) => ({ ...layer, colorOpacity: opacity / 100 })),
+                )
+                return
+              }
+              if (openColorPicker === 'splash') {
+                updateDocumentWithHistory((current) => ({
+                  ...current,
+                  preview: { ...current.preview, splashBackgroundOpacity: opacity / 100 },
+                }))
+                return
+              }
+              if (!strokeFillLayer) return
+              updateDocumentWithHistory((current) =>
+                updateIconLayer(current, strokeFillLayer.id, (layer) => ({
+                  ...layer,
+                  backgroundColor:
+                    openColorPicker === 'shapeFill' && opacity === 0
+                      ? 'transparent'
+                      : layer.backgroundColor === 'transparent'
+                        ? '#ffffff'
+                        : layer.backgroundColor,
+                  opacity: opacity / 100,
+                })),
+              )
+            }}
+          />
+      ) : null}
+
+      {isMobile ? (
+        <>
+          {isMobilePropertiesOpen ? (
+            <div
+              className="asset-generator-mobile-properties-backdrop"
+              aria-hidden="true"
+              onClick={() => setIsMobilePropertiesOpen(false)}
+            />
+          ) : null}
+          <div
+            ref={mobilePropertiesRef}
+            className={`asset-generator-mobile-properties-sheet ${isMobilePropertiesOpen ? 'is-open' : ''}`}
+            role={isMobilePropertiesOpen ? 'dialog' : undefined}
+            aria-label={isMobilePropertiesOpen ? 'Element properties' : undefined}
+            aria-hidden={!isMobilePropertiesOpen}
+          >
+            <div className="asset-generator-mobile-properties-sheet__header">
+              <span>Properties</span>
+              <button
+                type="button"
+                className="asset-generator-mobile-properties-sheet__close"
+                aria-label="Close properties"
+                onClick={() => setIsMobilePropertiesOpen(false)}
+              >
+                <X aria-hidden="true" />
+              </button>
+            </div>
+            <div className="Island App-menu__left asset-generator-mobile-properties-sheet__body">
+              {styleToolbar}
+            </div>
+          </div>
+
+          <div className="asset-generator-bottom-bar">
+            <div className="asset-generator-mobile-shape-actions">
+              <button
+                type="button"
+                className={`compact-action-button properties-trigger ${isMobilePropertiesOpen ? 'active' : ''}`}
+                aria-label="Show properties"
+                aria-expanded={isMobilePropertiesOpen}
+                title="Properties"
+                onClick={() => setIsMobilePropertiesOpen((open) => !open)}
+              >
+                <SlidersHorizontal aria-hidden="true" />
+              </button>
+            </div>
+            <div className="Island App-toolbar App-toolbar--compact App-toolbar--mobile">{toolsToolbar}</div>
+          </div>
+        </>
+      ) : null}
+
 
     </main>
   )
