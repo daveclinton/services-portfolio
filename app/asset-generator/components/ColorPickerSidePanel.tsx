@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import type { CSSProperties, RefObject } from 'react'
-import { Pencil } from 'lucide-react'
+import type { CSSProperties, RefObject, Ref } from 'react'
+import { Pencil, X } from 'lucide-react'
+import { Button } from '@/app/components/ui/button'
+import { Separator } from '@/app/components/ui/separator'
 import {
   getColorNameAndShade,
   getShadesForColor,
@@ -16,6 +18,7 @@ import {
 import { normalizeHexColor } from '../utils/'
 
 type ColorPickerTarget = 'bg' | 'fg' | 'shapeStroke' | 'shapeFill' | 'splash'
+type ColorPickerPosition = { top: number; left: number; side: 'left' | 'right' }
 
 type ColorPickerSidePanelProps = {
   target: ColorPickerTarget
@@ -25,7 +28,7 @@ type ColorPickerSidePanelProps = {
   isOpen: boolean
   isMobile: boolean
   anchorRef: RefObject<HTMLElement | null>
-  panelRef?: RefObject<HTMLDivElement | null>
+  panelRef?: Ref<HTMLDivElement>
   onClose: () => void
   onChange: (color: string) => void
   onOpacityChange?: (opacity: number) => void
@@ -65,11 +68,15 @@ export function ColorPickerSidePanel({
   const [draft, setDraft] = useState(value.toUpperCase())
   const [opacityDraft, setOpacityDraft] = useState(`${opacity}%`)
   const [recentColors, setRecentColors] = useState<string[]>([])
-  const [position, setPosition] = useState({ top: 0, left: 0 })
+  const [position, setPosition] = useState<ColorPickerPosition>({ top: 0, left: 0, side: 'right' })
 
   const colorMatch = useMemo(() => getColorNameAndShade(value), [value])
   const activeShade = colorMatch?.shade ?? 2
   const shades = useMemo(() => getShadesForColor(value) ?? getShadesForColor(getPaletteColor('yellow', 2)), [value])
+  const paletteColors = useMemo(
+    () => PALETTE_GRID_ORDER.filter((name) => !(name === 'transparent' && (target === 'bg' || target === 'splash'))),
+    [target],
+  )
 
   useEffect(() => {
     setDraft(value.toUpperCase())
@@ -89,9 +96,21 @@ export function ColorPickerSidePanel({
     const updatePosition = () => {
       const rect = anchorRef.current?.getBoundingClientRect()
       if (!rect) return
+      const gap = 10
+      const viewportPadding = 12
+      const panelWidth = Math.min(320, window.innerWidth - viewportPadding * 2)
+      const spaceRight = window.innerWidth - rect.right - viewportPadding
+      const spaceLeft = rect.left - viewportPadding
+      const side = spaceRight >= panelWidth + gap || spaceRight >= spaceLeft ? 'right' : 'left'
+      const left =
+        side === 'right'
+          ? Math.min(rect.right + gap, window.innerWidth - panelWidth - viewportPadding)
+          : Math.max(viewportPadding, rect.left - panelWidth - gap)
+
       setPosition({
-        top: Math.max(12, rect.top),
-        left: rect.right + 12,
+        top: Math.max(viewportPadding, Math.min(rect.top, window.innerHeight - viewportPadding)),
+        left,
+        side,
       })
     }
 
@@ -137,11 +156,34 @@ export function ColorPickerSidePanel({
   const panel = (
     <div
       ref={panelRef}
-      className={`color-picker-side-panel Island ${isMobile ? 'color-picker-side-panel--mobile' : ''}`}
+      className={`color-picker-side-panel ${isMobile ? 'color-picker-side-panel--mobile' : ''}`}
+      data-side={position.side}
       role="dialog"
       aria-label={`${label} color picker`}
       style={isMobile ? undefined : { top: position.top, left: position.left }}
+      onPointerDown={(event) => event.stopPropagation()}
     >
+      <header className="color-picker-side-panel__header">
+        <div className="color-picker-side-panel__title-row">
+          <span
+            className={`color-picker-side-panel__preview ${value === 'transparent' ? 'is-transparent' : ''}`}
+            style={{ '--swatch-color': value === 'transparent' ? undefined : value } as CSSProperties}
+            aria-hidden="true"
+          />
+          <h2 className="color-picker-side-panel__title">{label}</h2>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="color-picker-side-panel__close"
+          aria-label="Close color picker"
+          onClick={onClose}
+        >
+          <X aria-hidden="true" />
+        </Button>
+      </header>
+
       {recentColors.length ? (
         <section className="color-picker-side-panel__section">
           <h3 className="color-picker__heading">Most used custom colors</h3>
@@ -165,10 +207,12 @@ export function ColorPickerSidePanel({
         </section>
       ) : null}
 
+      {recentColors.length ? <Separator /> : null}
+
       <section className="color-picker-side-panel__section">
         <h3 className="color-picker__heading">Colors</h3>
         <div className="color-picker-content--default color-picker-content--grid">
-          {PALETTE_GRID_ORDER.map((name) => {
+          {paletteColors.map((name) => {
             const entryShade = colorMatch?.name === name ? activeShade : 2
             const swatchColor = getPaletteColor(name, entryShade)
             const isTransparent = swatchColor === 'transparent'
@@ -193,27 +237,32 @@ export function ColorPickerSidePanel({
       </section>
 
       {shades ? (
-        <section className="color-picker-side-panel__section">
-          <h3 className="color-picker__heading">Shades</h3>
-          <div className="color-picker-content--default color-picker-content--shades">
-            {shades.map((shadeColor, index) => (
-              <button
-                key={`${shadeColor}-${index}`}
-                type="button"
-                className={`color-picker__button color-picker__button--large has-outline ${
-                  shadeColor.toLowerCase() === value.toLowerCase() ? 'active' : ''
-                }`}
-                style={{ '--swatch-color': shadeColor } as CSSProperties}
-                aria-label={`Shade ${index + 1}`}
-                onClick={() => applyColor(shadeColor)}
-              >
-                <span className="color-picker__button-outline" />
-                <span className="color-picker__button-index">{String(index + 1).padStart(2, '0')}</span>
-              </button>
-            ))}
-          </div>
-        </section>
+        <>
+          <Separator />
+          <section className="color-picker-side-panel__section">
+            <h3 className="color-picker__heading">Shades</h3>
+            <div className="color-picker-content--default color-picker-content--shades">
+              {shades.map((shadeColor, index) => (
+                <button
+                  key={`${shadeColor}-${index}`}
+                  type="button"
+                  className={`color-picker__button color-picker__button--large has-outline ${
+                    shadeColor.toLowerCase() === value.toLowerCase() ? 'active' : ''
+                  }`}
+                  style={{ '--swatch-color': shadeColor } as CSSProperties}
+                  aria-label={`Shade ${index + 1}`}
+                  onClick={() => applyColor(shadeColor)}
+                >
+                  <span className="color-picker__button-outline" />
+                  <span className="color-picker__button-index">{String(index + 1).padStart(2, '0')}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        </>
       ) : null}
+
+      <Separator />
 
       <section className="color-picker-side-panel__section">
         <h3 className="color-picker__heading">Hex code</h3>
@@ -238,33 +287,36 @@ export function ColorPickerSidePanel({
       </section>
 
       {onOpacityChange ? (
-        <section className="color-picker-side-panel__section color-picker-side-panel__opacity">
-          <h3 className="color-picker__heading">Opacity</h3>
-          <div className="opacity-slider-container">
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={opacity}
-              className="opacity-slider"
-              aria-label={`${label} opacity`}
-              onChange={(event) => onOpacityChange(Number.parseInt(event.target.value, 10))}
-            />
-            <input
-              className="color-picker-opacity-input"
-              value={opacityDraft}
-              aria-label={`${label} opacity percent`}
-              onChange={(event) => setOpacityDraft(event.target.value)}
-              onBlur={commitOpacityDraft}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  commitOpacityDraft()
-                  event.currentTarget.blur()
-                }
-              }}
-            />
-          </div>
-        </section>
+        <>
+          <Separator />
+          <section className="color-picker-side-panel__section color-picker-side-panel__opacity">
+            <h3 className="color-picker__heading">Opacity</h3>
+            <div className="opacity-slider-container">
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={opacity}
+                className="opacity-slider"
+                aria-label={`${label} opacity`}
+                onChange={(event) => onOpacityChange(Number.parseInt(event.target.value, 10))}
+              />
+              <input
+                className="color-picker-opacity-input"
+                value={opacityDraft}
+                aria-label={`${label} opacity percent`}
+                onChange={(event) => setOpacityDraft(event.target.value)}
+                onBlur={commitOpacityDraft}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    commitOpacityDraft()
+                    event.currentTarget.blur()
+                  }
+                }}
+              />
+            </div>
+          </section>
+        </>
       ) : null}
     </div>
   )

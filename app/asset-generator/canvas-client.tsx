@@ -221,26 +221,6 @@ export function CanvasClient() {
     if (isTypographyOpen) setIsTypographyOpen(false)
   })
 
-  useOutsideClick(backgroundColorPickerRef, () => {
-    if (openColorPicker === 'bg') setOpenColorPicker(null)
-  })
-
-  useOutsideClick(textColorPickerRef, () => {
-    if (openColorPicker === 'fg') setOpenColorPicker(null)
-  })
-
-  useOutsideClick(shapeStrokeColorPickerRef, () => {
-    if (openColorPicker === 'shapeStroke') setOpenColorPicker(null)
-  })
-
-  useOutsideClick(shapeFillColorPickerRef, () => {
-    if (openColorPicker === 'shapeFill') setOpenColorPicker(null)
-  })
-
-  useOutsideClick(splashColorPickerRef, () => {
-    if (openColorPicker === 'splash') setOpenColorPicker(null)
-  })
-
   useOutsideClick(mobilePropertiesRef, () => {
     if (isMobilePropertiesOpen) setIsMobilePropertiesOpen(false)
   })
@@ -814,7 +794,7 @@ export function CanvasClient() {
   useEffect(() => {
     if (!openColorPicker) return
 
-    const onPointerDown = (event: PointerEvent) => {
+    const onPointerDown = (event: globalThis.PointerEvent) => {
       const target = event.target as Node
       if (colorPickerPanelRef.current?.contains(target)) return
       const anchor =
