@@ -18,7 +18,8 @@ import {
 import { normalizeHexColor } from '../utils/'
 
 type ColorPickerTarget = 'bg' | 'fg' | 'shapeStroke' | 'shapeFill' | 'splash'
-type ColorPickerPosition = { top: number; left: number; side: 'left' | 'right' }
+type ColorPickerPlacement = 'bottom-start' | 'top-start'
+type ColorPickerPosition = { top: number; left: number; placement: ColorPickerPlacement }
 
 type ColorPickerSidePanelProps = {
   target: ColorPickerTarget
@@ -68,7 +69,11 @@ export function ColorPickerSidePanel({
   const [draft, setDraft] = useState(value.toUpperCase())
   const [opacityDraft, setOpacityDraft] = useState(`${opacity}%`)
   const [recentColors, setRecentColors] = useState<string[]>([])
-  const [position, setPosition] = useState<ColorPickerPosition>({ top: 0, left: 0, side: 'right' })
+  const [position, setPosition] = useState<ColorPickerPosition>({
+    top: 0,
+    left: 0,
+    placement: 'bottom-start',
+  })
 
   const colorMatch = useMemo(() => getColorNameAndShade(value), [value])
   const activeShade = colorMatch?.shade ?? 2
@@ -96,32 +101,57 @@ export function ColorPickerSidePanel({
     const updatePosition = () => {
       const rect = anchorRef.current?.getBoundingClientRect()
       if (!rect) return
+
       const gap = 10
       const viewportPadding = 12
-      const panelWidth = Math.min(320, window.innerWidth - viewportPadding * 2)
-      const spaceRight = window.innerWidth - rect.right - viewportPadding
-      const spaceLeft = rect.left - viewportPadding
-      const side = spaceRight >= panelWidth + gap || spaceRight >= spaceLeft ? 'right' : 'left'
-      const left =
-        side === 'right'
-          ? Math.min(rect.right + gap, window.innerWidth - panelWidth - viewportPadding)
-          : Math.max(viewportPadding, rect.left - panelWidth - gap)
+      const panelElement = panelRef && 'current' in panelRef ? panelRef.current : null
+      const panelWidth = panelElement?.offsetWidth ?? Math.min(320, window.innerWidth - viewportPadding * 2)
+      const panelHeight = panelElement?.offsetHeight ?? 360
 
-      setPosition({
-        top: Math.max(viewportPadding, Math.min(rect.top, window.innerHeight - viewportPadding)),
-        left,
-        side,
-      })
+      let placement: ColorPickerPlacement = 'bottom-start'
+      let top = rect.bottom + gap
+
+      if (top + panelHeight > window.innerHeight - viewportPadding) {
+        const topAbove = rect.top - gap - panelHeight
+        if (topAbove >= viewportPadding) {
+          top = topAbove
+          placement = 'top-start'
+        } else {
+          top = Math.max(
+            viewportPadding,
+            Math.min(top, window.innerHeight - panelHeight - viewportPadding),
+          )
+        }
+      }
+
+      let left = rect.left
+      if (left + panelWidth > window.innerWidth - viewportPadding) {
+        left = Math.max(viewportPadding, window.innerWidth - panelWidth - viewportPadding)
+      }
+      left = Math.max(viewportPadding, left)
+
+      setPosition({ top, left, placement })
     }
 
     updatePosition()
+    const frame = window.requestAnimationFrame(updatePosition)
+
+    const panelElement = panelRef && 'current' in panelRef ? panelRef.current : null
+    const resizeObserver =
+      panelElement && typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(updatePosition)
+        : null
+    resizeObserver?.observe(panelElement as Element)
+
     window.addEventListener('resize', updatePosition)
     window.addEventListener('scroll', updatePosition, true)
     return () => {
+      window.cancelAnimationFrame(frame)
+      resizeObserver?.disconnect()
       window.removeEventListener('resize', updatePosition)
       window.removeEventListener('scroll', updatePosition, true)
     }
-  }, [anchorRef, isMobile, isOpen])
+  }, [anchorRef, isMobile, isOpen, panelRef])
 
   useEffect(() => {
     if (!isOpen) return
@@ -157,7 +187,7 @@ export function ColorPickerSidePanel({
     <div
       ref={panelRef}
       className={`color-picker-side-panel ${isMobile ? 'color-picker-side-panel--mobile' : ''}`}
-      data-side={position.side}
+      data-placement={position.placement}
       role="dialog"
       aria-label={`${label} color picker`}
       style={isMobile ? undefined : { top: position.top, left: position.left }}
@@ -184,29 +214,6 @@ export function ColorPickerSidePanel({
         </Button>
       </header>
 
-      {recentColors.length ? (
-        <section className="color-picker-side-panel__section">
-          <h3 className="color-picker__heading">Most used custom colors</h3>
-          <div className="color-picker-content--default color-picker-content--recent">
-            {recentColors.map((color, index) => (
-              <button
-                key={`${color}-${index}`}
-                type="button"
-                className={`color-picker__button color-picker__button--large has-outline ${
-                  color.toLowerCase() === value.toLowerCase() ? 'active' : ''
-                }`}
-                style={{ '--swatch-color': color } as CSSProperties}
-                aria-label={color}
-                onClick={() => applyColor(color)}
-              >
-                <span className="color-picker__button-outline" />
-                <span className="color-picker__button-index">{index + 1}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
       {recentColors.length ? <Separator /> : null}
 
       <section className="color-picker-side-panel__section">
@@ -220,7 +227,7 @@ export function ColorPickerSidePanel({
               <button
                 key={name}
                 type="button"
-                className={`color-picker__button color-picker__button--large has-outline ${
+                className={`color-picker__button color-picker__button--large ${
                   colorMatch?.name === name ? 'active' : ''
                 } ${isTransparent ? 'is-transparent' : ''}`}
                 style={{ '--swatch-color': isTransparent ? undefined : swatchColor } as CSSProperties}
@@ -228,7 +235,6 @@ export function ColorPickerSidePanel({
                 aria-label={PALETTE_LABELS[name]}
                 onClick={() => applyColor(swatchColor)}
               >
-                <span className="color-picker__button-outline" />
                 <span className="color-picker__button-key">{name.slice(0, 1)}</span>
               </button>
             )
@@ -246,14 +252,13 @@ export function ColorPickerSidePanel({
                 <button
                   key={`${shadeColor}-${index}`}
                   type="button"
-                  className={`color-picker__button color-picker__button--large has-outline ${
+                  className={`color-picker__button color-picker__button--large ${
                     shadeColor.toLowerCase() === value.toLowerCase() ? 'active' : ''
                   }`}
                   style={{ '--swatch-color': shadeColor } as CSSProperties}
                   aria-label={`Shade ${index + 1}`}
                   onClick={() => applyColor(shadeColor)}
                 >
-                  <span className="color-picker__button-outline" />
                   <span className="color-picker__button-index">{String(index + 1).padStart(2, '0')}</span>
                 </button>
               ))}

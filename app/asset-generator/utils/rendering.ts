@@ -1,7 +1,34 @@
 import type { AssetDefinition, DesignLayer, IconDesign } from '../types'
 import { masterSize } from '../constants'
+import { getResizeHandlePositions, getSelectionBounds } from '../lib/resize-handles'
 import { roundedRect, getRectLayerBounds, getAppIconRadius } from './geometry'
 import { getTextLayerLayout } from './text'
+
+function renderResizeHandles(
+  ctx: CanvasRenderingContext2D,
+  layer: Extract<DesignLayer, { type: 'frame' | 'rectangle' | 'diamond' | 'ellipse' }>,
+  size: number,
+) {
+  const scale = size / masterSize
+  const layerRect = {
+    x: layer.x,
+    y: layer.y,
+    width: layer.width,
+    height: layer.height,
+  }
+  const bounds = getSelectionBounds(layerRect)
+  const handleRadius = Math.max(4, 5 * scale)
+
+  for (const { x, y } of getResizeHandlePositions(bounds)) {
+    ctx.beginPath()
+    ctx.arc(x * scale, y * scale, handleRadius, 0, Math.PI * 2)
+    ctx.fillStyle = '#ffffff'
+    ctx.fill()
+    ctx.lineWidth = Math.max(1.5, 2 * scale)
+    ctx.strokeStyle = '#6965db'
+    ctx.stroke()
+  }
+}
 
 function renderFrameLayer(ctx: CanvasRenderingContext2D, layer: Extract<DesignLayer, { type: 'frame' }>, size = masterSize) {
   const scale = size / masterSize
@@ -31,16 +58,42 @@ function renderFrameLayer(ctx: CanvasRenderingContext2D, layer: Extract<DesignLa
   ctx.restore()
 }
 
-function drawShapePath(ctx: CanvasRenderingContext2D, layer: Extract<DesignLayer, { type: 'rectangle' | 'diamond' | 'ellipse' }>, scale: number) {
-  const x = layer.x * scale
-  const y = layer.y * scale
-  const width = layer.width * scale
-  const height = layer.height * scale
+function getShapeCornerRadius(layer: Extract<DesignLayer, { type: 'rectangle' | 'diamond' | 'ellipse' }>, scale: number) {
+  if (layer.type !== 'rectangle') {
+    return Math.min(12 * scale, (layer.width * scale) / 3, (layer.height * scale) / 3)
+  }
 
+  if (typeof layer.cornerRadius === 'number') {
+    return layer.cornerRadius * scale
+  }
+
+  if (layer.cornerRadius && typeof layer.cornerRadius === 'object') {
+    return (
+      Math.max(
+        layer.cornerRadius.topLeft,
+        layer.cornerRadius.topRight,
+        layer.cornerRadius.bottomRight,
+        layer.cornerRadius.bottomLeft,
+      ) * scale
+    )
+  }
+
+  return 0
+}
+
+function drawShapePath(
+  ctx: CanvasRenderingContext2D,
+  layer: Extract<DesignLayer, { type: 'rectangle' | 'diamond' | 'ellipse' }>,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  scale: number,
+) {
   ctx.beginPath()
 
   if (layer.type === 'rectangle') {
-    roundedRect(ctx, x, y, width, height, Math.min(12 * scale, width / 3, height / 3))
+    roundedRect(ctx, x, y, width, height, Math.min(getShapeCornerRadius(layer, scale), width / 2, height / 2))
     return
   }
 
@@ -63,10 +116,19 @@ function renderShapeLayer(
   size = masterSize,
 ) {
   const scale = size / masterSize
+  const x = layer.x * scale
+  const y = layer.y * scale
+  const width = layer.width * scale
+  const height = layer.height * scale
+  const centerX = x + width / 2
+  const centerY = y + height / 2
 
   ctx.save()
   ctx.globalAlpha = layer.opacity
-  drawShapePath(ctx, layer, scale)
+  ctx.translate(centerX, centerY)
+  ctx.rotate(((layer.rotation ?? 0) * Math.PI) / 180)
+  ctx.translate(-width / 2, -height / 2)
+  drawShapePath(ctx, layer, 0, 0, width, height, scale)
 
   if (layer.backgroundColor !== 'transparent') {
     ctx.fillStyle = layer.backgroundColor
@@ -130,6 +192,7 @@ export function renderDesign(
         ctx.lineWidth = Math.max(2, 4 * scale)
         ctx.strokeStyle = '#0076ff'
         ctx.stroke()
+        renderResizeHandles(ctx, layer, size)
       }
 
       continue
@@ -145,6 +208,7 @@ export function renderDesign(
         ctx.lineWidth = Math.max(2, 4 * scale)
         ctx.strokeStyle = '#0076ff'
         ctx.stroke()
+        renderResizeHandles(ctx, layer, size)
       }
 
       continue

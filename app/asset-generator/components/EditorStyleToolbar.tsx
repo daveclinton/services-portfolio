@@ -14,7 +14,7 @@ import {
   Type,
 } from 'lucide-react'
 import { fontOptions, fontWeights, textAlignOptions, textSizeOptions, textVerticalAlignOptions } from '../constants'
-import type { FontKey, FontWeight, TextAlign, TextSizeKey, TextVerticalAlign } from '../types'
+import type { FontKey, FontWeight, ShapeStrokeStyle, TextAlign, TextSizeKey, TextVerticalAlign } from '../types'
 import { getTopPicksForTarget } from '../lib/color-palette'
 import { getStyleDomainLabel, type CanvasStyleDomain, type StrokeFillLayer } from '../lib/style-domain'
 import { ColorSwatchPicker } from './ColorSwatchPicker'
@@ -49,6 +49,10 @@ type EditorStyleToolbarProps = {
   textColorPickerRef: Ref<HTMLDivElement>
   shapeStrokeColorPickerRef: Ref<HTMLDivElement>
   shapeFillColorPickerRef: Ref<HTMLDivElement>
+  backgroundColorPickerTriggerRef: Ref<HTMLButtonElement>
+  textColorPickerTriggerRef: Ref<HTMLButtonElement>
+  shapeStrokeColorPickerTriggerRef: Ref<HTMLButtonElement>
+  shapeFillColorPickerTriggerRef: Ref<HTMLButtonElement>
   onToggleColorPicker: (target: 'bg' | 'fg' | 'shapeStroke' | 'shapeFill') => void
   onBackgroundColorChange: (color: string) => void
   onBackgroundOpacityChange: (opacity: number) => void
@@ -70,6 +74,13 @@ type EditorStyleToolbarProps = {
   onSelectTextOpacity: (opacity: string) => void
   onEditText: () => void
   onFontPickerKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void
+  isRectangleSelected?: boolean
+  shapeStrokeWidth?: number
+  shapeStrokeStyle?: ShapeStrokeStyle
+  shapeCornerRadius?: number
+  onSelectShapeStrokeWidth?: (width: number) => void
+  onSelectShapeStrokeStyle?: (style: ShapeStrokeStyle) => void
+  onSelectShapeCornerRadius?: (radius: number) => void
 }
 
 const quickFontOptions = fontOptions.filter((font) => ['rounded', 'sans', 'mono'].includes(font.key))
@@ -128,6 +139,10 @@ export function EditorStyleToolbar({
   textColorPickerRef,
   shapeStrokeColorPickerRef,
   shapeFillColorPickerRef,
+  backgroundColorPickerTriggerRef,
+  textColorPickerTriggerRef,
+  shapeStrokeColorPickerTriggerRef,
+  shapeFillColorPickerTriggerRef,
   onToggleColorPicker,
   onBackgroundColorChange,
   onBackgroundOpacityChange,
@@ -147,6 +162,13 @@ export function EditorStyleToolbar({
   onSelectTextOpacity,
   onEditText,
   onFontPickerKeyDown,
+  isRectangleSelected = false,
+  shapeStrokeWidth = 2,
+  shapeStrokeStyle = 'solid',
+  shapeCornerRadius = 0,
+  onSelectShapeStrokeWidth,
+  onSelectShapeStrokeStyle,
+  onSelectShapeCornerRadius,
 }: EditorStyleToolbarProps) {
   const fillIsTransparent = fillColor === 'transparent'
 
@@ -164,6 +186,7 @@ export function EditorStyleToolbar({
             isOpen={openColorPicker === 'bg'}
             topPicks={getTopPicksForTarget('bg')}
             containerRef={backgroundColorPickerRef}
+            triggerRef={backgroundColorPickerTriggerRef}
             opacity={backgroundOpacityValue}
             onToggle={() => onToggleColorPicker('bg')}
             onChange={onBackgroundColorChange}
@@ -348,6 +371,7 @@ export function EditorStyleToolbar({
               isOpen={openColorPicker === 'fg'}
               topPicks={getTopPicksForTarget('fg')}
               containerRef={textColorPickerRef}
+              triggerRef={textColorPickerTriggerRef}
               opacity={textColorOpacityValue}
               onToggle={() => onToggleColorPicker('fg')}
               onChange={onTextColorChange}
@@ -370,6 +394,7 @@ export function EditorStyleToolbar({
               isOpen={openColorPicker === 'shapeStroke'}
               topPicks={getTopPicksForTarget('shapeStroke')}
               containerRef={shapeStrokeColorPickerRef}
+              triggerRef={shapeStrokeColorPickerTriggerRef}
               opacity={strokeFillOpacityValue}
               disabled={!strokeFillLayer}
               onToggle={() => {
@@ -384,6 +409,7 @@ export function EditorStyleToolbar({
               isOpen={openColorPicker === 'shapeFill'}
               topPicks={getTopPicksForTarget('shapeFill')}
               containerRef={shapeFillColorPickerRef}
+              triggerRef={shapeFillColorPickerTriggerRef}
               opacity={fillIsTransparent ? 0 : strokeFillOpacityValue}
               disabled={!strokeFillLayer}
               onToggle={() => {
@@ -391,6 +417,58 @@ export function EditorStyleToolbar({
               }}
               onChange={onFillColorChange}
             />
+
+            {isRectangleSelected ? (
+              <>
+                <StylePanelSection title="Stroke width">
+                  <div className="buttonList text-property-button-list" role="radiogroup" aria-label="Stroke width">
+                    {[1, 2, 4].map((width) => (
+                      <button
+                        key={width}
+                        type="button"
+                        className={`properties-trigger ${shapeStrokeWidth === width ? 'active' : ''}`}
+                        aria-label={`Stroke width ${width}`}
+                        onClick={() => onSelectShapeStrokeWidth?.(width)}
+                      >
+                        <span>{width}px</span>
+                      </button>
+                    ))}
+                  </div>
+                </StylePanelSection>
+
+                <StylePanelSection title="Stroke style">
+                  <div className="buttonList text-property-button-list" role="radiogroup" aria-label="Stroke style">
+                    {(['solid', 'dashed', 'dotted'] as ShapeStrokeStyle[]).map((style) => (
+                      <button
+                        key={style}
+                        type="button"
+                        className={`properties-trigger ${shapeStrokeStyle === style ? 'active' : ''}`}
+                        aria-label={`${style} stroke`}
+                        onClick={() => onSelectShapeStrokeStyle?.(style)}
+                      >
+                        <span>{style}</span>
+                      </button>
+                    ))}
+                  </div>
+                </StylePanelSection>
+
+                <StylePanelSection title="Corner radius">
+                  <div className="buttonList text-property-button-list" role="radiogroup" aria-label="Corner radius">
+                    {[0, 8, 16, 24].map((radius) => (
+                      <button
+                        key={radius}
+                        type="button"
+                        className={`properties-trigger ${shapeCornerRadius === radius ? 'active' : ''}`}
+                        aria-label={`Corner radius ${radius}`}
+                        onClick={() => onSelectShapeCornerRadius?.(radius)}
+                      >
+                        <span>{radius}</span>
+                      </button>
+                    ))}
+                  </div>
+                </StylePanelSection>
+              </>
+            ) : null}
           </>
         ) : null}
       </div>

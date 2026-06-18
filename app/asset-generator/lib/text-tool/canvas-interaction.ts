@@ -46,9 +46,4 @@ export function toggleBoldWeight(current: FontWeight): FontWeight {
   return '800'
 }
 
-export function getCanvasCursorClass(activeTool: string, selectedLayerId: string, isEditingText: boolean) {
-  if (activeTool === 'text') return 'is-text-tool-active'
-  if (selectedLayerId === 'text' && !isEditingText) return 'is-text-selected'
-  if (selectedLayerId === 'background') return 'is-canvas-selected'
-  return undefined
-}
+export { getCanvasCursorClass } from '../canvas-cursor'

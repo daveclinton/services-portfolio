@@ -25,6 +25,7 @@ import {
   createDefaultEditorState,
   createFrameLayer,
   createShapeLayer,
+  duplicateShapeLayer,
   getBackgroundLayer,
   getDefaultAssetDocument,
   getTextLayer as getDocumentTextLayer,
@@ -67,7 +68,15 @@ import { exportAllAssets as exportAllAssetsLib } from './lib/export-logic'
 import { useIsMobile } from './hooks/useIsMobile'
 import { getTopPicksForTarget } from './lib/color-palette'
 import { getCanvasStyleDomain, getStrokeFillLayer } from './lib/style-domain'
-import { getCanvasCursorClass, resolveTextPlacement, toggleBoldWeight } from './lib/text-tool'
+import { getCanvasCursorClass } from './lib/canvas-cursor'
+import {
+  getCursorForResizeHandle,
+  getResizeHandleAtPoint,
+  resizeRectFromHandle,
+  type ResizeHandle,
+} from './lib/resize-handles'
+import { resolveRectangleBounds } from './lib/rectangle-tool'
+import { resolveTextPlacement, toggleBoldWeight } from './lib/text-tool'
 
 export function CanvasClient() {
   const masterCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -80,6 +89,11 @@ export function CanvasClient() {
   const shapeStrokeColorPickerRef = useRef<HTMLDivElement>(null)
   const shapeFillColorPickerRef = useRef<HTMLDivElement>(null)
   const splashColorPickerRef = useRef<HTMLDivElement>(null)
+  const backgroundColorPickerTriggerRef = useRef<HTMLButtonElement>(null)
+  const textColorPickerTriggerRef = useRef<HTMLButtonElement>(null)
+  const shapeStrokeColorPickerTriggerRef = useRef<HTMLButtonElement>(null)
+  const shapeFillColorPickerTriggerRef = useRef<HTMLButtonElement>(null)
+  const splashColorPickerTriggerRef = useRef<HTMLButtonElement>(null)
   const mobilePropertiesRef = useRef<HTMLDivElement>(null)
   const colorPickerPanelRef = useRef<HTMLDivElement>(null)
   const isMobile = useIsMobile()
@@ -130,6 +144,9 @@ export function CanvasClient() {
   const selectedLayer = design.layers.find((layer) => layer.id === selectedLayerId) ?? backgroundLayer
   const styleDomain = getCanvasStyleDomain(selectedLayer)
   const strokeFillLayer = getStrokeFillLayer(selectedLayer)
+  const selectedRectangleLayer = selectedLayer.type === 'rectangle' ? selectedLayer : null
+  const shapeCornerRadius =
+    typeof selectedRectangleLayer?.cornerRadius === 'number' ? selectedRectangleLayer.cornerRadius : 0
   const strokeColor = strokeFillLayer?.strokeColor ?? '#1e1e1e'
   const fillColor = strokeFillLayer?.backgroundColor ?? 'transparent'
   const strokeFillOpacityValue = Math.round((strokeFillLayer?.opacity ?? 1) * 100)
@@ -208,6 +225,14 @@ export function CanvasClient() {
         mode: 'place-text'
         pointerId: number
         origin: { x: number; y: number }
+        before: AssetDocument
+      }
+    | {
+        mode: 'resize-shape'
+        pointerId: number
+        layerId: ShapeLayer['id']
+        handle: ResizeHandle
+        startRect: { x: number; y: number; width: number; height: number }
         before: AssetDocument
       }
     | null
@@ -526,6 +551,20 @@ export function CanvasClient() {
         setIsEditingText(false)
       }
 
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'd') {
+        event.preventDefault()
+        const shape = getShapeLayer(selectedLayerId)
+        if (shape) {
+          const before = getSnapshot()
+          const copy = duplicateShapeLayer(shape)
+          const after = addIconLayer(document, copy)
+          applyDocument(after)
+          setSelectedLayerId(copy.id)
+          commitHistory(before, after)
+        }
+        return
+      }
+
       if (event.key.toLowerCase() === 'd') {
         updateEditorState((current) => ({ ...current, activeTool: 'diamond' }))
         setIsEditingText(false)
@@ -640,6 +679,32 @@ export function CanvasClient() {
         ...frame,
         x: nextX,
         y: nextY,
+      })),
+    )
+  }
+
+  const getShapeRect = (layer: ShapeLayer) => ({
+    x: layer.x,
+    y: layer.y,
+    width: layer.width,
+    height: layer.height,
+  })
+
+  const resizeShapeLayer = (
+    layerId: ShapeLayer['id'],
+    handle: ResizeHandle,
+    startRect: { x: number; y: number; width: number; height: number },
+    point: { x: number; y: number },
+    shiftKey: boolean,
+  ) => {
+    const nextRect = resizeRectFromHandle(handle, startRect, point, { shiftKey })
+    updateDocument((current) =>
+      updateIconLayer(current, layerId, (shape) => ({
+        ...shape,
+        x: nextRect.x,
+        y: nextRect.y,
+        width: nextRect.width,
+        height: nextRect.height,
       })),
     )
   }
@@ -787,17 +852,17 @@ export function CanvasClient() {
     setIsMobilePropertiesOpen(false)
   }, [selectedLayerId])
 
-  const colorPickerAnchorRef =
+  const colorPickerTriggerRef =
     openColorPicker === 'bg'
-      ? backgroundColorPickerRef
+      ? backgroundColorPickerTriggerRef
       : openColorPicker === 'fg'
-        ? textColorPickerRef
+        ? textColorPickerTriggerRef
         : openColorPicker === 'shapeStroke'
-          ? shapeStrokeColorPickerRef
+          ? shapeStrokeColorPickerTriggerRef
           : openColorPicker === 'shapeFill'
-            ? shapeFillColorPickerRef
+            ? shapeFillColorPickerTriggerRef
             : openColorPicker === 'splash'
-              ? splashColorPickerRef
+              ? splashColorPickerTriggerRef
               : null
 
   useEffect(() => {
@@ -806,7 +871,7 @@ export function CanvasClient() {
     const onPointerDown = (event: globalThis.PointerEvent) => {
       const target = event.target as Node
       if (colorPickerPanelRef.current?.contains(target)) return
-      const anchor =
+      const container =
         openColorPicker === 'bg'
           ? backgroundColorPickerRef.current
           : openColorPicker === 'fg'
@@ -818,7 +883,7 @@ export function CanvasClient() {
                 : openColorPicker === 'splash'
                   ? splashColorPickerRef.current
                   : null
-      if (anchor?.contains(target)) return
+      if (container?.contains(target)) return
       setOpenColorPicker(null)
     }
 
@@ -857,6 +922,10 @@ export function CanvasClient() {
       textColorPickerRef={textColorPickerRef}
       shapeStrokeColorPickerRef={shapeStrokeColorPickerRef}
       shapeFillColorPickerRef={shapeFillColorPickerRef}
+      backgroundColorPickerTriggerRef={backgroundColorPickerTriggerRef}
+      textColorPickerTriggerRef={textColorPickerTriggerRef}
+      shapeStrokeColorPickerTriggerRef={shapeStrokeColorPickerTriggerRef}
+      shapeFillColorPickerTriggerRef={shapeFillColorPickerTriggerRef}
       onToggleColorPicker={toggleColorPicker}
       onBackgroundColorChange={(color) =>
         updateDocumentWithHistory((current) =>
@@ -930,6 +999,28 @@ export function CanvasClient() {
         setIsTypographyOpen(false)
       }}
       onFontPickerKeyDown={onFontPickerKeyDown}
+      isRectangleSelected={Boolean(selectedRectangleLayer)}
+      shapeStrokeWidth={selectedRectangleLayer?.strokeWidth ?? 2}
+      shapeStrokeStyle={selectedRectangleLayer?.strokeStyle ?? 'solid'}
+      shapeCornerRadius={shapeCornerRadius}
+      onSelectShapeStrokeWidth={(width) => {
+        if (!selectedRectangleLayer) return
+        updateDocumentWithHistory((current) =>
+          updateIconLayer(current, selectedRectangleLayer.id, (layer) => ({ ...layer, strokeWidth: width })),
+        )
+      }}
+      onSelectShapeStrokeStyle={(style) => {
+        if (!selectedRectangleLayer) return
+        updateDocumentWithHistory((current) =>
+          updateIconLayer(current, selectedRectangleLayer.id, (layer) => ({ ...layer, strokeStyle: style })),
+        )
+      }}
+      onSelectShapeCornerRadius={(radius) => {
+        if (!selectedRectangleLayer) return
+        updateDocumentWithHistory((current) =>
+          updateIconLayer(current, selectedRectangleLayer.id, (layer) => ({ ...layer, cornerRadius: radius })),
+        )
+      }}
     />
   )
 
@@ -1078,7 +1169,22 @@ export function CanvasClient() {
             className={getCanvasCursorClass(activeTool, selectedLayerId, isEditingText)}
             onDoubleClick={(event) => {
               const point = getCanvasPoint(event)
-              if (!point || !isPointInsideTextLayer(point)) return
+              if (!point) return
+
+              if (activeTool === 'select' && selectedRectangleLayer) {
+                const handle = getResizeHandleAtPoint(point, getShapeRect(selectedRectangleLayer))
+                if (handle && ['nw', 'ne', 'se', 'sw'].includes(handle)) {
+                  updateDocumentWithHistory((current) =>
+                    updateIconLayer(current, selectedRectangleLayer.id, (layer) => {
+                      const currentRadius = typeof layer.cornerRadius === 'number' ? layer.cornerRadius : 0
+                      return { ...layer, cornerRadius: currentRadius > 0 ? 0 : 12 }
+                    }),
+                  )
+                  return
+                }
+              }
+
+              if (!isPointInsideTextLayer(point)) return
 
               updateEditorState((current) => ({ ...current, activeTool: 'text', selectedLayerId: 'text' }))
               setSelectedLayerId('text')
@@ -1118,11 +1224,44 @@ export function CanvasClient() {
                 return
               }
 
+              if (activeTool === 'select') {
+                const selectedShape = getShapeLayer(selectedLayerId)
+                if (selectedShape) {
+                  const handle = getResizeHandleAtPoint(point, getShapeRect(selectedShape))
+                  if (handle) {
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                    dragRef.current = {
+                      mode: 'resize-shape',
+                      pointerId: event.pointerId,
+                      layerId: selectedShape.id,
+                      handle,
+                      startRect: getShapeRect(selectedShape),
+                      before: getSnapshot(),
+                    }
+                    return
+                  }
+                }
+              }
+
               const hitShape = getShapeLayerAtPoint(point)
               if (hitShape) {
                 setSelectedLayerId(hitShape.id)
                 setIsEditingText(false)
                 if (activeTool === 'select') {
+                  const handle = getResizeHandleAtPoint(point, getShapeRect(hitShape))
+                  if (handle) {
+                    event.currentTarget.setPointerCapture(event.pointerId)
+                    dragRef.current = {
+                      mode: 'resize-shape',
+                      pointerId: event.pointerId,
+                      layerId: hitShape.id,
+                      handle,
+                      startRect: getShapeRect(hitShape),
+                      before: getSnapshot(),
+                    }
+                    return
+                  }
+
                   event.currentTarget.setPointerCapture(event.pointerId)
                   dragRef.current = {
                     mode: 'move-shape',
@@ -1205,11 +1344,23 @@ export function CanvasClient() {
               }
             }}
             onPointerMove={(event) => {
-              const drag = dragRef.current
-              if (!drag || drag.pointerId !== event.pointerId) return
-
               const point = getCanvasPoint(event)
               if (!point) return
+
+              const drag = dragRef.current
+              if (!drag || drag.pointerId !== event.pointerId) {
+                const canvas = masterCanvasRef.current
+                if (canvas && activeTool === 'select') {
+                  const selectedShape = getShapeLayer(selectedLayerId)
+                  if (selectedShape) {
+                    const handle = getResizeHandleAtPoint(point, getShapeRect(selectedShape))
+                    canvas.style.cursor = handle ? getCursorForResizeHandle(handle) : ''
+                  } else {
+                    canvas.style.cursor = ''
+                  }
+                }
+                return
+              }
 
               if (drag.mode === 'box-select') {
                 setSelectionRect(getRectFromPoints(drag.origin, point))
@@ -1222,7 +1373,14 @@ export function CanvasClient() {
               }
 
               if (drag.mode === 'draw-shape') {
-                setSelectionRect(getRectFromPoints(drag.origin, point))
+                const rect =
+                  drag.shapeType === 'rectangle'
+                    ? resolveRectangleBounds(drag.origin, point, {
+                        shiftKey: event.shiftKey,
+                        altKey: event.altKey,
+                      })
+                    : getRectFromPoints(drag.origin, point)
+                setSelectionRect(rect)
                 return
               }
 
@@ -1241,13 +1399,23 @@ export function CanvasClient() {
                 return
               }
 
+              if (drag.mode === 'resize-shape') {
+                resizeShapeLayer(drag.layerId, drag.handle, drag.startRect, point, event.shiftKey)
+                return
+              }
+
               moveTextLayer(point, drag.offsetX, drag.offsetY)
             }}
             onPointerUp={(event) => {
               const drag = dragRef.current
               if (!drag || drag.pointerId !== event.pointerId) return
 
-              if (drag.mode === 'move-text' || drag.mode === 'move-frame' || drag.mode === 'move-shape') {
+              if (
+                drag.mode === 'move-text' ||
+                drag.mode === 'move-frame' ||
+                drag.mode === 'move-shape' ||
+                drag.mode === 'resize-shape'
+              ) {
                 commitHistory(drag.before)
               } else if (drag.mode === 'place-text') {
                 const point = getCanvasPoint(event)
@@ -1284,7 +1452,14 @@ export function CanvasClient() {
                 setSelectionRect(null)
               } else if (drag.mode === 'draw-shape') {
                 const point = getCanvasPoint(event)
-                const rect = point ? getRectFromPoints(drag.origin, point) : selectionRect
+                const rect = point
+                  ? drag.shapeType === 'rectangle'
+                    ? resolveRectangleBounds(drag.origin, point, {
+                        shiftKey: event.shiftKey,
+                        altKey: event.altKey,
+                      })
+                    : getRectFromPoints(drag.origin, point)
+                  : selectionRect
                 const minShapeSize = 24
 
                 if (rect && rect.width >= minShapeSize && rect.height >= minShapeSize) {
@@ -1425,6 +1600,7 @@ export function CanvasClient() {
               isOpen={openColorPicker === 'splash'}
               topPicks={getTopPicksForTarget('splash')}
               containerRef={splashColorPickerRef}
+              triggerRef={splashColorPickerTriggerRef}
               opacity={splashBackgroundOpacityValue}
               onToggle={() => toggleColorPicker('splash')}
               onChange={(color) =>
@@ -1478,7 +1654,7 @@ export function CanvasClient() {
             }
             isOpen={Boolean(openColorPicker)}
             isMobile={isMobile}
-            anchorRef={colorPickerAnchorRef ?? backgroundColorPickerRef}
+            anchorRef={colorPickerTriggerRef ?? backgroundColorPickerTriggerRef}
             onClose={() => setOpenColorPicker(null)}
             onChange={(color) => {
               if (openColorPicker === 'bg') {

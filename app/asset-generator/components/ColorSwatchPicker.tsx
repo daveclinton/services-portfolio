@@ -7,6 +7,7 @@ export function ColorSwatchPicker({
   isOpen,
   topPicks,
   containerRef,
+  triggerRef,
   opacity = 100,
   disabled = false,
   onToggle,
@@ -17,6 +18,7 @@ export function ColorSwatchPicker({
   isOpen: boolean
   topPicks: readonly string[]
   containerRef?: Ref<HTMLDivElement>
+  triggerRef?: Ref<HTMLButtonElement>
   opacity?: number
   disabled?: boolean
   onToggle: () => void
@@ -40,7 +42,7 @@ export function ColorSwatchPicker({
               <button
                 key={color}
                 type="button"
-                className={`color-picker__button has-outline ${
+                className={`color-picker__button ${
                   color.toLowerCase() === value.toLowerCase() ? 'active' : ''
                 } ${pickTransparent ? 'is-transparent' : ''}`}
                 style={
@@ -50,9 +52,7 @@ export function ColorSwatchPicker({
                 title={color}
                 disabled={disabled}
                 onClick={() => onChange(color)}
-              >
-                <span className="color-picker__button-outline" />
-              </button>
+              />
             )
           })}
         </div>
@@ -60,10 +60,11 @@ export function ColorSwatchPicker({
         <div className="ButtonSeparator" aria-hidden="true" />
 
         <button
+          ref={triggerRef}
           type="button"
-          className={`color-picker__button color-picker__button--active-swatch active-color properties-trigger ${
+          className={`color-picker__button color-picker__button--trigger ${
             isOpen ? 'active' : ''
-          } ${isTransparent ? 'is-transparent' : 'has-outline'}`}
+          } ${isTransparent ? 'is-transparent' : ''}`}
           style={isTransparent ? undefined : ({ '--swatch-color': previewColor } as CSSProperties)}
           aria-label={`Open ${label} color picker`}
           aria-expanded={isOpen}
@@ -71,9 +72,7 @@ export function ColorSwatchPicker({
           data-openpopup={label}
           title={`${label} color`}
           onClick={onToggle}
-        >
-          <span className="color-picker__button-outline" />
-        </button>
+        />
       </div>
     </div>
   )

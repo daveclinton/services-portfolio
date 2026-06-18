@@ -56,6 +56,15 @@ export type ShapeType = 'rectangle' | 'diamond' | 'ellipse'
 export type ShapeStrokeStyle = 'solid' | 'dashed' | 'dotted'
 export type ShapeFillStyle = 'solid'
 
+export type ShapeCornerRadius =
+  | number
+  | {
+      topLeft: number
+      topRight: number
+      bottomRight: number
+      bottomLeft: number
+    }
+
 export type ShapeLayer = {
   id: `shape-${string}`
   type: ShapeType
@@ -70,6 +79,8 @@ export type ShapeLayer = {
   fillStyle: ShapeFillStyle
   opacity: number
   roughness: number
+  cornerRadius: ShapeCornerRadius
+  rotation: number
 }
 
 export type DesignLayer = BackgroundLayer | TextLayer | FrameLayer | ShapeLayer

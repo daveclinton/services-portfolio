@@ -238,12 +238,28 @@ export function createShapeLayer(
     width: rect.width,
     height: rect.height,
     strokeColor: '#1e1e1e',
-    backgroundColor: 'transparent',
+    backgroundColor: type === 'rectangle' ? '#ffffff' : 'transparent',
     strokeWidth: 2,
     strokeStyle: 'solid',
     fillStyle: 'solid',
     opacity: 1,
     roughness: 0,
+    cornerRadius: 0,
+    rotation: 0,
+  }
+}
+
+export function duplicateShapeLayer(layer: ShapeLayer): ShapeLayer {
+  const id =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.round(Math.random() * 100000)}`
+
+  return {
+    ...layer,
+    id: `shape-${id}`,
+    x: layer.x + 16,
+    y: layer.y + 16,
   }
 }
 

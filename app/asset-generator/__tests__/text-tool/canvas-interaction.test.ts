@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import {
-  getCanvasCursorClass,
-  resolveTextPlacement,
-  toggleBoldWeight,
-} from '../../lib/text-tool/canvas-interaction'
+import { getCanvasCursorClass } from '../../lib/canvas-cursor'
+import { resolveTextPlacement, toggleBoldWeight } from '../../lib/text-tool/canvas-interaction'
 
 describe('Text Tool – canvas interaction bridge', () => {
   it('uses I-beam cursor class when text tool is active', () => {
