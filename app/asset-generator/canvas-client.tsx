@@ -7,6 +7,8 @@ import { parseAsString, parseAsStringLiteral, useQueryStates } from 'nuqs'
 import { useOutsideClick } from '@/lib/use-outside-click'
 import {
   assets,
+  getAssetExportLabel,
+  getExportFileSummary,
   defaults,
   fontKeys,
   fontOptions,
@@ -1089,15 +1091,13 @@ export function CanvasClient() {
                   <section className="asset-generator-menu-assets" aria-label="Assets included in export">
                     <header>
                       <strong>Assets included</strong>
-                      <span>{assets.length} PNG files</span>
+                      <span>{getExportFileSummary()}</span>
                     </header>
                     <div>
                       {assets.map((asset) => (
                         <article key={asset.name}>
                           <strong>{asset.name}</strong>
-                          <span>
-                            {asset.imageSize.width} x {asset.imageSize.height} @ {asset.dpi} DPI
-                          </span>
+                          <span>{getAssetExportLabel(asset)}</span>
                         </article>
                       ))}
                     </div>

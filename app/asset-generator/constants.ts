@@ -91,6 +91,7 @@ export const assets: AssetDefinition[] = [
   { name: 'logo-glow.png', imageSize: { width: 604, height: 604 }, dpi: 216, format: 'png' },
   { name: 'icon.png', imageSize: { width: 1024, height: 1024 }, dpi: 72, format: 'png' },
   { name: 'favicon.png', imageSize: { width: 48, height: 48 }, dpi: 108, format: 'png' },
+  { name: 'favicon.ico', dpi: 72, format: 'ico', icoSizes: [16, 32, 48] },
   { name: 'splash-icon.png', imageSize: { width: 228, height: 213 }, dpi: 216, format: 'png' },
   {
     name: 'android-icon-background.png',
@@ -111,3 +112,20 @@ export const assets: AssetDefinition[] = [
     format: 'png',
   },
 ]
+
+export function getAssetExportLabel(asset: AssetDefinition) {
+  if (asset.format === 'ico') {
+    return `${asset.icoSizes.map((size) => `${size}x${size}`).join(', ')} @ ${asset.dpi} DPI`
+  }
+
+  return `${asset.imageSize.width} x ${asset.imageSize.height} @ ${asset.dpi} DPI`
+}
+
+export function getExportFileSummary() {
+  const pngCount = assets.filter((asset) => asset.format === 'png').length
+  const icoCount = assets.filter((asset) => asset.format === 'ico').length
+
+  if (icoCount === 0) return `${pngCount} PNG files`
+  if (pngCount === 0) return `${icoCount} ICO files`
+  return `${pngCount} PNG + ${icoCount} ICO`
+}

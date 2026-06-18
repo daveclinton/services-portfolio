@@ -1,9 +1,18 @@
-export type AssetDefinition = {
+export type PngAssetDefinition = {
   name: string
   imageSize: { width: number; height: number }
   dpi: number
   format: 'png'
 }
+
+export type IcoAssetDefinition = {
+  name: string
+  dpi: number
+  format: 'ico'
+  icoSizes: number[]
+}
+
+export type AssetDefinition = PngAssetDefinition | IcoAssetDefinition
 
 export type FontKey = 'sans' | 'rounded' | 'display' | 'mono'
 export type FontWeight = '700' | '800' | '900'

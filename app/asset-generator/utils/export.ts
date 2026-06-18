@@ -10,6 +10,11 @@ export function canvasToBlob(canvas: HTMLCanvasElement) {
   })
 }
 
+export async function canvasToPngBytes(canvas: HTMLCanvasElement) {
+  const blob = await canvasToBlob(canvas)
+  return new Uint8Array(await blob.arrayBuffer())
+}
+
 export function downloadBlob(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')

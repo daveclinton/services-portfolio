@@ -1,4 +1,4 @@
-import type { AssetDefinition, DesignLayer, IconDesign } from '../types'
+import type { DesignLayer, IconDesign, PngAssetDefinition } from '../types'
 import { masterSize } from '../constants'
 import { getResizeHandlePositions, getSelectionBounds } from '../lib/resize-handles'
 import { roundedRect, getRectLayerBounds, getAppIconRadius } from './geometry'
@@ -264,7 +264,7 @@ export function renderDesign(
   }
 }
 
-export function renderAsset(definition: AssetDefinition, design: IconDesign) {
+export function renderAsset(definition: PngAssetDefinition, design: IconDesign) {
   const { width, height } = definition.imageSize
   const dpiScale = definition.dpi / 72
   const canvas = document.createElement('canvas')
