@@ -1,6 +1,5 @@
 @import 'tailwindcss';
-@import './asset-generator/styles/color-picker-side-panel.css';
-@import './asset-generator/styles/editor-toolbar.css';
+
 
 :root {
   --bg: #0b0b0b;
@@ -1761,7 +1760,7 @@ a {
   width: 100%;
   min-width: 0;
   min-height: 0;
-  padding: 5rem 1rem 1rem;
+  padding: 1rem;
   animation: asset-generator-layer-fade-up 220ms var(--ag-ease-out) both;
   transition:
     padding 0.35s ease-in-out,
@@ -2114,12 +2113,12 @@ a {
 
 .asset-generator-preview-panel {
   position: fixed;
-  top: 4.75rem;
+  top: 1rem;
   right: 1rem;
   bottom: 1rem;
   z-index: 20;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 0;
   width: min(21rem, calc(100vw - 2rem));
   min-height: 0;

@@ -1,34 +1,7 @@
 import type { DesignLayer, IconDesign, PngAssetDefinition } from '../types'
 import { masterSize } from '../constants'
-import { getResizeHandlePositions, getSelectionBounds } from '../lib/resize-handles'
-import { roundedRect, getRectLayerBounds, getAppIconRadius } from './geometry'
+import { roundedRect, getAppIconRadius } from './geometry'
 import { getTextLayerLayout } from './text'
-
-function renderResizeHandles(
-  ctx: CanvasRenderingContext2D,
-  layer: Extract<DesignLayer, { type: 'frame' | 'rectangle' | 'diamond' | 'ellipse' }>,
-  size: number,
-) {
-  const scale = size / masterSize
-  const layerRect = {
-    x: layer.x,
-    y: layer.y,
-    width: layer.width,
-    height: layer.height,
-  }
-  const bounds = getSelectionBounds(layerRect)
-  const handleRadius = Math.max(4, 5 * scale)
-
-  for (const { x, y } of getResizeHandlePositions(bounds)) {
-    ctx.beginPath()
-    ctx.arc(x * scale, y * scale, handleRadius, 0, Math.PI * 2)
-    ctx.fillStyle = '#ffffff'
-    ctx.fill()
-    ctx.lineWidth = Math.max(1.5, 2 * scale)
-    ctx.strokeStyle = '#6965db'
-    ctx.stroke()
-  }
-}
 
 function renderFrameLayer(ctx: CanvasRenderingContext2D, layer: Extract<DesignLayer, { type: 'frame' }>, size = masterSize) {
   const scale = size / masterSize
@@ -149,21 +122,12 @@ function renderShapeLayer(
   ctx.restore()
 }
 
-export function renderDesign(
-  ctx: CanvasRenderingContext2D,
-  design: IconDesign,
-  size = masterSize,
-  options: { hideLayerId?: DesignLayer['id']; selectedLayerId?: DesignLayer['id'] } = {},
-) {
+export function renderDesign(ctx: CanvasRenderingContext2D, design: IconDesign, size = masterSize) {
   ctx.clearRect(0, 0, size, size)
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
 
   for (const layer of design.layers) {
-    if (options.hideLayerId === layer.id) {
-      continue
-    }
-
     if (layer.type === 'background') {
       ctx.save()
       ctx.globalAlpha = layer.opacity
@@ -171,52 +135,21 @@ export function renderDesign(
       ctx.fillStyle = layer.color
       ctx.fill()
       ctx.restore()
-
-      if (options.selectedLayerId === layer.id) {
-        const scale = size / masterSize
-        roundedRect(ctx, 0, 0, size, size, getAppIconRadius(size))
-        ctx.lineWidth = Math.max(2, 4 * scale)
-        ctx.strokeStyle = '#0076ff'
-        ctx.stroke()
-      }
-
       continue
     }
 
     if (layer.type === 'frame') {
       renderFrameLayer(ctx, layer, size)
-
-      if (options.selectedLayerId === layer.id) {
-        const scale = size / masterSize
-        roundedRect(ctx, layer.x * scale, layer.y * scale, layer.width * scale, layer.height * scale, 8 * scale)
-        ctx.lineWidth = Math.max(2, 4 * scale)
-        ctx.strokeStyle = '#0076ff'
-        ctx.stroke()
-        renderResizeHandles(ctx, layer, size)
-      }
-
       continue
     }
 
     if (layer.type === 'rectangle' || layer.type === 'diamond' || layer.type === 'ellipse') {
       renderShapeLayer(ctx, layer, size)
-
-      if (options.selectedLayerId === layer.id) {
-        const bounds = getRectLayerBounds(layer, size)
-        const scale = size / masterSize
-        roundedRect(ctx, bounds.x - 8 * scale, bounds.y - 8 * scale, bounds.width + 16 * scale, bounds.height + 16 * scale, 12 * scale)
-        ctx.lineWidth = Math.max(2, 4 * scale)
-        ctx.strokeStyle = '#0076ff'
-        ctx.stroke()
-        renderResizeHandles(ctx, layer, size)
-      }
-
       continue
     }
 
     if (layer.type === 'text') {
-      const scale = size / masterSize
-      const { bounds, fontSize, lines, lineHeight, startY, textAnchorX } = getTextLayerLayout(ctx, layer, size)
+      const { fontSize, lines, lineHeight, startY, textAnchorX } = getTextLayerLayout(ctx, layer, size)
 
       ctx.save()
       ctx.globalAlpha = layer.opacity * layer.colorOpacity
@@ -245,21 +178,6 @@ export function renderDesign(
         }
       })
       ctx.restore()
-
-      if (options.selectedLayerId === layer.id) {
-        const padding = 24 * scale
-        roundedRect(
-          ctx,
-          bounds.x - padding,
-          bounds.y - padding,
-          bounds.width + padding * 2,
-          bounds.height + padding * 2,
-          22 * scale,
-        )
-        ctx.lineWidth = Math.max(2, 4 * scale)
-        ctx.strokeStyle = '#6965db'
-        ctx.stroke()
-      }
     }
   }
 }

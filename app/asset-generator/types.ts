@@ -5,15 +5,6 @@ export type PngAssetDefinition = {
   format: 'png'
 }
 
-export type IcoAssetDefinition = {
-  name: string
-  dpi: number
-  format: 'ico'
-  icoSizes: number[]
-}
-
-export type AssetDefinition = PngAssetDefinition | IcoAssetDefinition
-
 export type FontKey = 'sans' | 'rounded' | 'display' | 'mono'
 export type FontWeight = '700' | '800' | '900'
 export type TextSizeKey = 'sm' | 'md' | 'lg' | 'xl'
@@ -105,13 +96,4 @@ export type AssetDocument = {
     splashBackgroundColor: string
     splashBackgroundOpacity: number
   }
-}
-
-export type EditorTool = 'select' | 'hand' | 'text' | 'frame' | ShapeType
-
-export type EditorState = {
-  activeTool: EditorTool
-  selectedLayerId: DesignLayer['id']
-  platform: 'ios' | 'android'
-  previewOpen: boolean
 }
