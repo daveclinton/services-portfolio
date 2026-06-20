@@ -1,6 +1,6 @@
 import type { DesignLayer, IconDesign, PngAssetDefinition } from '../types'
 import { masterSize } from '../constants'
-import { roundedRect, getAppIconRadius } from './geometry'
+import { roundedRect, getAppIconRadius, getRectLayerBounds } from './geometry'
 import { getTextLayerLayout } from './text'
 
 function renderFrameLayer(ctx: CanvasRenderingContext2D, layer: Extract<DesignLayer, { type: 'frame' }>, size = masterSize) {
@@ -122,7 +122,75 @@ function renderShapeLayer(
   ctx.restore()
 }
 
-export function renderDesign(ctx: CanvasRenderingContext2D, design: IconDesign, size = masterSize) {
+function renderSelectionChrome(
+  ctx: CanvasRenderingContext2D,
+  layer: DesignLayer,
+  size: number,
+) {
+  const scale = size / masterSize
+
+  if (layer.type === 'background') {
+    roundedRect(ctx, 0, 0, size, size, getAppIconRadius(size))
+    ctx.lineWidth = Math.max(2, 4 * scale)
+    ctx.strokeStyle = '#0076ff'
+    ctx.stroke()
+    return
+  }
+
+  if (layer.type === 'frame') {
+    roundedRect(
+      ctx,
+      layer.x * scale,
+      layer.y * scale,
+      layer.width * scale,
+      layer.height * scale,
+      8 * scale,
+    )
+    ctx.lineWidth = Math.max(2, 4 * scale)
+    ctx.strokeStyle = '#0076ff'
+    ctx.stroke()
+    return
+  }
+
+  if (layer.type === 'rectangle' || layer.type === 'diamond' || layer.type === 'ellipse') {
+    const bounds = getRectLayerBounds(layer, size)
+    roundedRect(
+      ctx,
+      bounds.x - 8 * scale,
+      bounds.y - 8 * scale,
+      bounds.width + 16 * scale,
+      bounds.height + 16 * scale,
+      12 * scale,
+    )
+    ctx.lineWidth = Math.max(2, 4 * scale)
+    ctx.strokeStyle = '#0076ff'
+    ctx.stroke()
+    return
+  }
+
+  if (layer.type === 'text') {
+    const { bounds } = getTextLayerLayout(ctx, layer, size)
+    const padding = 24 * scale
+    roundedRect(
+      ctx,
+      bounds.x - padding,
+      bounds.y - padding,
+      bounds.width + padding * 2,
+      bounds.height + padding * 2,
+      22 * scale,
+    )
+    ctx.lineWidth = Math.max(2, 4 * scale)
+    ctx.strokeStyle = '#6965db'
+    ctx.stroke()
+  }
+}
+
+export function renderDesign(
+  ctx: CanvasRenderingContext2D,
+  design: IconDesign,
+  size = masterSize,
+  options: { selectedLayerIds?: DesignLayer['id'][] } = {},
+) {
   ctx.clearRect(0, 0, size, size)
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
@@ -178,6 +246,13 @@ export function renderDesign(ctx: CanvasRenderingContext2D, design: IconDesign, 
         }
       })
       ctx.restore()
+    }
+  }
+
+  for (const selectedLayerId of options.selectedLayerIds ?? []) {
+    const selectedLayer = design.layers.find((layer) => layer.id === selectedLayerId)
+    if (selectedLayer) {
+      renderSelectionChrome(ctx, selectedLayer, size)
     }
   }
 }

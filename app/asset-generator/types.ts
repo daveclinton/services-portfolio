@@ -97,3 +97,10 @@ export type AssetDocument = {
     splashBackgroundOpacity: number
   }
 }
+
+export type EditorTool = 'select'
+
+export type EditorState = {
+  activeTool: EditorTool
+  selectedLayerIds: DesignLayer['id'][]
+}
