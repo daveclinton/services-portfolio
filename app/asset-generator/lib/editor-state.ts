@@ -4,5 +4,6 @@ export function createDefaultEditorState(): EditorState {
   return {
     activeTool: 'select',
     selectedLayerIds: ['background'],
+    editingTextLayerId: null,
   }
 }

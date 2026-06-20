@@ -1,5 +1,7 @@
 import type { DesignLayer, IconDesign, PngAssetDefinition } from '../types'
 import { masterSize } from '../constants'
+import { getResizableLayerRect, isResizableLayer } from '../lib/resize-handles'
+import { renderResizeHandles } from '../lib/render-resize-handles'
 import { roundedRect, getAppIconRadius, getRectLayerBounds } from './geometry'
 import { getTextLayerLayout } from './text'
 
@@ -83,7 +85,7 @@ function drawShapePath(
   ctx.closePath()
 }
 
-function renderShapeLayer(
+export function renderShapeLayer(
   ctx: CanvasRenderingContext2D,
   layer: Extract<DesignLayer, { type: 'rectangle' | 'diamond' | 'ellipse' }>,
   size = masterSize,
@@ -189,7 +191,7 @@ export function renderDesign(
   ctx: CanvasRenderingContext2D,
   design: IconDesign,
   size = masterSize,
-  options: { selectedLayerIds?: DesignLayer['id'][] } = {},
+  options: { selectedLayerIds?: DesignLayer['id'][]; editingTextLayerId?: DesignLayer['id'] | null } = {},
 ) {
   ctx.clearRect(0, 0, size, size)
   ctx.imageSmoothingEnabled = true
@@ -217,6 +219,8 @@ export function renderDesign(
     }
 
     if (layer.type === 'text') {
+      if (layer.id === options.editingTextLayerId) continue
+
       const { fontSize, lines, lineHeight, startY, textAnchorX } = getTextLayerLayout(ctx, layer, size)
 
       ctx.save()
@@ -249,10 +253,21 @@ export function renderDesign(
     }
   }
 
-  for (const selectedLayerId of options.selectedLayerIds ?? []) {
+  const selectedLayerIds = options.selectedLayerIds ?? []
+
+  for (const selectedLayerId of selectedLayerIds) {
+    if (selectedLayerId === options.editingTextLayerId) continue
+
     const selectedLayer = design.layers.find((layer) => layer.id === selectedLayerId)
     if (selectedLayer) {
       renderSelectionChrome(ctx, selectedLayer, size)
+    }
+  }
+
+  if (selectedLayerIds.length === 1) {
+    const selectedLayer = design.layers.find((layer) => layer.id === selectedLayerIds[0])
+    if (isResizableLayer(selectedLayer)) {
+      renderResizeHandles(ctx, getResizableLayerRect(selectedLayer), size)
     }
   }
 }

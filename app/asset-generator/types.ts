@@ -98,9 +98,10 @@ export type AssetDocument = {
   }
 }
 
-export type EditorTool = 'select'
+export type EditorTool = 'select' | 'text' | ShapeType
 
 export type EditorState = {
   activeTool: EditorTool
   selectedLayerIds: DesignLayer['id'][]
+  editingTextLayerId: DesignLayer['id'] | null
 }
