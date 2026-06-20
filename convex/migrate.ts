@@ -35,7 +35,7 @@ export const seedPosts = mutationGeneric({
     ),
   },
   handler: async (ctx, args) => {
-    const results = []
+    const results: Array<{ slug: string; action: string }> = []
     for (const post of args.posts) {
       const existing = await ctx.db
         .query('posts')
