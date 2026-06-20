@@ -1,11 +1,14 @@
-import type { DesignLayer, IconDesign, PngAssetDefinition } from '../types'
+import type { DesignLayer, IconDesign, PngAssetDefinition, ShapeType } from '../types'
 import { masterSize } from '../constants'
+import { renderMarquee } from '../lib/render-marquee'
 import { getResizableLayerRect, isResizableLayer } from '../lib/resize-handles'
+import { renderShapePreview } from '../lib/render-shape-preview'
+import { renderSafeAreaGuide } from '../lib/render-safe-area-guide'
+import { renderTextBoxPreview } from '../lib/render-text-preview'
 import { getTextLayerResizeRect } from '../lib/text-layer-box'
 import { TEXT_SELECTION_PADDING } from '../lib/text-constants'
-import { renderSafeAreaGuide } from '../lib/render-safe-area-guide'
 import { renderTransformHandles } from '../lib/render-resize-handles'
-import { roundedRect, getAppIconRadius, getRectLayerBounds } from './geometry'
+import { roundedRect, getAppIconRadius, getRectLayerBounds, type CanvasRect } from './geometry'
 import { getTextFontString, getTextLayerLayout } from './text'
 
 function renderFrameLayer(ctx: CanvasRenderingContext2D, layer: Extract<DesignLayer, { type: 'frame' }>, size = masterSize) {
@@ -198,12 +201,18 @@ function renderSelectionChrome(
   }
 }
 
-export function renderDesign(
+function beginSceneClip(ctx: CanvasRenderingContext2D, size: number) {
+  ctx.save()
+  roundedRect(ctx, 0, 0, size, size, getAppIconRadius(size))
+  ctx.clip()
+}
+
+/** Excalidraw StaticCanvas — layers and guides only. */
+export function renderStaticScene(
   ctx: CanvasRenderingContext2D,
   design: IconDesign,
   size = masterSize,
   options: {
-    selectedLayerIds?: DesignLayer['id'][]
     editingTextLayerId?: DesignLayer['id'] | null
     showSafeAreaGuide?: boolean
   } = {},
@@ -212,9 +221,7 @@ export function renderDesign(
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
 
-  ctx.save()
-  roundedRect(ctx, 0, 0, size, size, getAppIconRadius(size))
-  ctx.clip()
+  beginSceneClip(ctx, size)
 
   if (options.showSafeAreaGuide) {
     renderSafeAreaGuide(ctx, size)
@@ -284,6 +291,32 @@ export function renderDesign(
     }
   }
 
+  ctx.restore()
+}
+
+export type InteractiveSceneOverlay = {
+  marquee?: CanvasRect | null
+  shapePreview?: { shapeType: ShapeType; rect: CanvasRect } | null
+  textPreview?: CanvasRect | null
+}
+
+/** Excalidraw InteractiveCanvas — selection chrome, handles, and transient overlays. */
+export function renderInteractiveScene(
+  ctx: CanvasRenderingContext2D,
+  design: IconDesign,
+  size = masterSize,
+  options: {
+    selectedLayerIds?: DesignLayer['id'][]
+    editingTextLayerId?: DesignLayer['id'] | null
+    overlay?: InteractiveSceneOverlay
+  } = {},
+) {
+  ctx.clearRect(0, 0, size, size)
+  ctx.imageSmoothingEnabled = true
+  ctx.imageSmoothingQuality = 'high'
+
+  beginSceneClip(ctx, size)
+
   const selectedLayerIds = options.selectedLayerIds ?? []
 
   for (const selectedLayerId of selectedLayerIds) {
@@ -316,7 +349,40 @@ export function renderDesign(
     }
   }
 
+  const overlay = options.overlay
+  if (overlay?.shapePreview) {
+    renderShapePreview(ctx, overlay.shapePreview.shapeType, overlay.shapePreview.rect, size)
+  } else if (overlay?.textPreview) {
+    renderTextBoxPreview(ctx, overlay.textPreview, size)
+  } else if (overlay?.marquee) {
+    renderMarquee(ctx, overlay.marquee, size)
+  }
+
   ctx.restore()
+}
+
+/** Full single-canvas render (export / phone preview). */
+export function renderDesign(
+  ctx: CanvasRenderingContext2D,
+  design: IconDesign,
+  size = masterSize,
+  options: {
+    selectedLayerIds?: DesignLayer['id'][]
+    editingTextLayerId?: DesignLayer['id'] | null
+    showSafeAreaGuide?: boolean
+  } = {},
+) {
+  renderStaticScene(ctx, design, size, {
+    editingTextLayerId: options.editingTextLayerId,
+    showSafeAreaGuide: options.showSafeAreaGuide,
+  })
+
+  if (options.selectedLayerIds?.length) {
+    renderInteractiveScene(ctx, design, size, {
+      selectedLayerIds: options.selectedLayerIds,
+      editingTextLayerId: options.editingTextLayerId,
+    })
+  }
 }
 
 export function renderAsset(definition: PngAssetDefinition, design: IconDesign) {

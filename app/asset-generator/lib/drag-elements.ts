@@ -1,9 +1,10 @@
 import { getAppIconSafeAreaMargin } from './app-icon-bounds'
+import { DRAGGING_THRESHOLD } from './interaction-constants'
 import { masterSize } from '../constants'
 import { updateLayerById } from '../document'
 import type { AssetDocument, DesignLayer } from '../types'
 
-export const DRAG_THRESHOLD = 4
+export const DRAG_THRESHOLD = DRAGGING_THRESHOLD
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))

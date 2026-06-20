@@ -1,11 +1,11 @@
 import { isPointInAppIcon } from './app-icon-bounds'
+import { getTextLayerResizeRect } from './text-layer-box'
 import { masterSize } from '../constants'
-import { usesTextAutoResize } from './text-tool'
 import type { DesignLayer, IconDesign, ShapeLayer } from '../types'
-import { getTextLayerLayout } from '../utils/text'
 
 const FRAME_EDGE_PADDING = 14
-const TEXT_HIT_PADDING = 32
+/** Padding around the selection box — generous enough to click, tight enough to reach background nearby. */
+const TEXT_HIT_PADDING = 18
 
 function isPointInRect(
   point: { x: number; y: number },
@@ -53,31 +53,49 @@ function isPointOnFrameEdge(
   return nearLeft || nearRight || nearTop || nearBottom
 }
 
+function isPointOnShapeStroke(point: { x: number; y: number }, shape: ShapeLayer) {
+  const padding = Math.max(8, shape.strokeWidth + 6)
+  const outer = {
+    x: shape.x - padding,
+    y: shape.y - padding,
+    width: shape.width + padding * 2,
+    height: shape.height + padding * 2,
+  }
+  const inner = {
+    x: shape.x + padding,
+    y: shape.y + padding,
+    width: Math.max(0, shape.width - padding * 2),
+    height: Math.max(0, shape.height - padding * 2),
+  }
+
+  if (!isPointInRect(point, outer)) return false
+  if (inner.width > 0 && inner.height > 0 && isPointInRect(point, inner)) {
+    if (shape.backgroundColor !== 'transparent') return true
+    return false
+  }
+  return true
+}
+
 function isPointInShape(point: { x: number; y: number }, shape: ShapeLayer) {
   if (!isPointInRect(point, shape)) return false
+
+  if (shape.backgroundColor === 'transparent') {
+    return isPointOnShapeStroke(point, shape)
+  }
+
   if (shape.type === 'ellipse') return isPointInEllipse(point, shape)
   if (shape.type === 'diamond') return isPointInDiamond(point, shape)
   return true
 }
 
 function getTextHitRect(layer: Extract<DesignLayer, { type: 'text' }>, ctx: CanvasRenderingContext2D) {
-  const { bounds } = getTextLayerLayout(ctx, layer)
+  const rect = getTextLayerResizeRect(ctx, layer, masterSize)
 
-  if (usesTextAutoResize(layer.autoResize)) {
-    return {
-      x: bounds.x - TEXT_HIT_PADDING,
-      y: bounds.y - TEXT_HIT_PADDING,
-      width: bounds.width + TEXT_HIT_PADDING * 2,
-      height: bounds.height + TEXT_HIT_PADDING * 2,
-    }
-  }
-
-  const boxHeight = layer.maxFontSize * 2.1
   return {
-    x: layer.x - layer.maxWidth / 2 - TEXT_HIT_PADDING,
-    y: layer.y - boxHeight / 2 - TEXT_HIT_PADDING,
-    width: layer.maxWidth + TEXT_HIT_PADDING * 2,
-    height: boxHeight + TEXT_HIT_PADDING * 2,
+    x: rect.x - TEXT_HIT_PADDING,
+    y: rect.y - TEXT_HIT_PADDING,
+    width: rect.width + TEXT_HIT_PADDING * 2,
+    height: rect.height + TEXT_HIT_PADDING * 2,
   }
 }
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
 import { Smartphone, X } from 'lucide-react'
 import { defaults, masterSize } from './constants'
@@ -21,8 +21,10 @@ import {
 import { useDocumentHistory } from './hooks/useDocumentHistory'
 import { getColorWithOpacity, getFontFamily, renderDesign } from './utils/'
 import { getRectFromPoints, type CanvasRect } from './utils/geometry'
+import { DesignCanvasStack } from './components/DesignCanvasStack'
 import { PhonePreview } from './components/PhonePreview'
 import { EditorToolsToolbar } from './components/EditorToolsToolbar'
+import { PropertiesPanel } from './components/PropertiesPanel'
 import { TextLayerEditor } from './components/TextLayerEditor'
 import { useIsMobile } from './hooks/useIsMobile'
 import { getCanvasCursorClass } from './lib/canvas-cursor'
@@ -33,10 +35,15 @@ import {
   hasExceededDragThreshold,
   moveLayersByDelta,
 } from './lib/drag-elements'
+import {
+  createDualCanvasRenderScheduler,
+  type CanvasOverlayState,
+  type DualCanvasTargets,
+} from './lib/canvas-render-scheduler'
 import { hitTestLayerAtPoint } from './lib/hit-detection'
-import { renderMarquee } from './lib/render-marquee'
-import { renderShapePreview } from './lib/render-shape-preview'
-import { renderTextBoxPreview } from './lib/render-text-preview'
+import { startPointerSession } from './lib/pointer-session'
+import { clearTextTapState, registerTextTap } from './lib/text-double-tap'
+
 import { getMinTextBoxWidth, resolveTextBoxBounds } from './lib/text-box-tool'
 import {
   getCursorForTransformHandle,
@@ -91,6 +98,7 @@ type DragState =
       origin: { x: number; y: number }
       before: AssetDocument
       layerIds: DesignLayer['id'][]
+      clickedLayerId: DesignLayer['id']
       hasMoved: boolean
     }
   | {
@@ -128,7 +136,8 @@ type DragState =
     }
 
 export function CanvasClient() {
-  const masterCanvasRef = useRef<HTMLCanvasElement>(null)
+  const staticCanvasRef = useRef<HTMLCanvasElement>(null)
+  const interactiveCanvasRef = useRef<HTMLCanvasElement>(null)
   const canvasStageRef = useRef<HTMLDivElement>(null)
   const masterContainerRef = useRef<HTMLDivElement>(null)
   const phonePreviewRef = useRef<HTMLCanvasElement>(null)
@@ -139,6 +148,15 @@ export function CanvasClient() {
   const textEditFrozenStyleRef = useRef<FrozenTextEditorStyle | null>(null)
   const editingTextLayerIdRef = useRef<DesignLayer['id'] | null>(null)
   const documentSnapshotRef = useRef<AssetDocument | null>(null)
+  const liveDocumentRef = useRef(getDefaultAssetDocument())
+  const liveOverlayRef = useRef<CanvasOverlayState>({
+    marquee: null,
+    shapePreview: null,
+    textPreview: null,
+  })
+  const editorStateRef = useRef<EditorState>(createDefaultEditorState())
+  const isInteractingRef = useRef(false)
+  const endPointerSessionRef = useRef<(() => void) | null>(null)
   const isMobile = useIsMobile()
   const [platform, setPlatform] = useState<PreviewPlatform>('ios')
   const [isPreviewOpen, setIsPreviewOpen] = useState(false)
@@ -154,9 +172,35 @@ export function CanvasClient() {
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   documentSnapshotRef.current = document
+  liveDocumentRef.current = document
+  editorStateRef.current = editorState
   const design = document.icon
   const { activeTool, selectedLayerIds, editingTextLayerId } = editorState
   editingTextLayerIdRef.current = editingTextLayerId
+
+  const getCanvasTargets = useCallback(
+    (): DualCanvasTargets => ({
+      staticCanvas: staticCanvasRef.current,
+      interactiveCanvas: interactiveCanvasRef.current,
+    }),
+    [],
+  )
+
+  const renderScheduler = useMemo(
+    () =>
+      createDualCanvasRenderScheduler(() => ({
+        document: liveDocumentRef.current,
+        selectedLayerIds: editorStateRef.current.selectedLayerIds,
+        editingTextLayerId: editorStateRef.current.editingTextLayerId,
+        overlay: liveOverlayRef.current,
+      })),
+    [],
+  )
+
+  const scheduleSceneRender = useCallback(() => {
+    renderScheduler.scheduleAll(getCanvasTargets())
+  }, [getCanvasTargets, renderScheduler])
+
   const editingTextLayer: TextLayer | null = editingTextLayerId
     ? (design.layers.find(
         (layer): layer is TextLayer => layer.id === editingTextLayerId && layer.type === 'text',
@@ -170,10 +214,15 @@ export function CanvasClient() {
   const showPreviewPanel = !isMobile || isPreviewOpen
 
   const selectLayers = useCallback((nextSelectedLayerIds: DesignLayer['id'][]) => {
-    setEditorState((current) => ({
-      ...current,
-      selectedLayerIds: nextSelectedLayerIds.length > 0 ? nextSelectedLayerIds : ['background'],
-    }))
+    setEditorState((current) => {
+      const nextState: EditorState = {
+        ...current,
+        selectedLayerIds:
+          nextSelectedLayerIds.length > 0 ? nextSelectedLayerIds : (['background'] as const),
+      }
+      editorStateRef.current = nextState
+      return nextState
+    })
   }, [])
 
   const finishTextEditing = useCallback(() => {
@@ -217,7 +266,7 @@ export function CanvasClient() {
         historyBefore?: AssetDocument
       } = {},
     ) => {
-      const canvas = masterCanvasRef.current
+      const canvas = interactiveCanvasRef.current
       const stage = canvasStageRef.current
       const ctx = canvas?.getContext('2d')
       const sourceDocument = options.sourceDocument ?? document
@@ -229,12 +278,16 @@ export function CanvasClient() {
       textEditAutoSelectRef.current = options.autoSelect ?? false
       textEditCaretOffsetRef.current = options.initialCaretOffset ?? null
       editingTextLayerIdRef.current = layerId
-      setEditorState((current) => ({
-        ...current,
-        activeTool: 'select',
-        selectedLayerIds: [layerId],
-        editingTextLayerId: layerId,
-      }))
+      setEditorState((current) => {
+        const nextState: EditorState = {
+          ...current,
+          activeTool: 'select',
+          selectedLayerIds: [layerId],
+          editingTextLayerId: layerId,
+        }
+        editorStateRef.current = nextState
+        return nextState
+      })
     },
     [cloneDocument, document],
   )
@@ -250,34 +303,87 @@ export function CanvasClient() {
     [setDocument],
   )
 
+  const applyLiveDocument = useCallback(
+    (nextDocument: AssetDocument) => {
+      liveDocumentRef.current = nextDocument
+      const targets = getCanvasTargets()
+      renderScheduler.scheduleStatic(targets)
+      renderScheduler.scheduleInteractive(targets)
+    },
+    [getCanvasTargets, renderScheduler],
+  )
+
+  const applyLiveOverlay = useCallback(
+    (overlay: CanvasOverlayState) => {
+      liveOverlayRef.current = overlay
+      renderScheduler.scheduleInteractive(getCanvasTargets())
+    },
+    [getCanvasTargets, renderScheduler],
+  )
+
+  const onWindowPointerMoveRef = useRef<(event: PointerEvent) => void>(() => {})
+  const onWindowPointerUpRef = useRef<(event: PointerEvent) => void>(() => {})
+
+  const ensurePointerSession = useCallback(
+    (canvas: HTMLCanvasElement, pointerId: number) => {
+      endPointerSessionRef.current?.()
+      isInteractingRef.current = true
+      const session = startPointerSession({
+        canvas,
+        pointerId,
+        onMove: (event) => onWindowPointerMoveRef.current(event),
+        onUp: (event) => onWindowPointerUpRef.current(event),
+      })
+      endPointerSessionRef.current = session.cleanup
+      scheduleSceneRender()
+    },
+    [scheduleSceneRender],
+  )
+
   useEffect(() => {
     if (isMobile) {
       setIsPreviewOpen(false)
     }
   }, [isMobile])
 
+  const lastPaintedDocumentRef = useRef(document)
+  const lastPaintedEditingLayerRef = useRef(editingTextLayerId)
+
   useEffect(() => {
-    const masterCanvas = masterCanvasRef.current
-    if (!masterCanvas) return
+    if (isInteractingRef.current) return
 
-    masterCanvas.width = masterSize
-    masterCanvas.height = masterSize
-    const ctx = masterCanvas.getContext('2d')
-    if (!ctx) return
-    renderDesign(ctx, design, masterSize, {
-      selectedLayerIds,
-      editingTextLayerId,
-      showSafeAreaGuide: true,
-    })
+    liveDocumentRef.current = document
+    liveOverlayRef.current = { marquee, shapePreview, textPreview }
 
-    if (shapePreview) {
-      renderShapePreview(ctx, shapePreview.shapeType, shapePreview.rect, masterSize)
-    } else if (textPreview) {
-      renderTextBoxPreview(ctx, textPreview, masterSize)
-    } else if (marquee) {
-      renderMarquee(ctx, marquee, masterSize)
+    const targets = getCanvasTargets()
+    const needsStaticPaint =
+      lastPaintedDocumentRef.current !== document ||
+      lastPaintedEditingLayerRef.current !== editingTextLayerId
+
+    lastPaintedDocumentRef.current = document
+    lastPaintedEditingLayerRef.current = editingTextLayerId
+
+    if (needsStaticPaint) {
+      renderScheduler.renderAllNow(targets)
+      return
     }
-  }, [design, editingTextLayerId, marquee, selectedLayerIds, shapePreview, textPreview])
+
+    renderScheduler.renderInteractiveNow(targets.interactiveCanvas)
+  }, [
+    document,
+    editingTextLayerId,
+    getCanvasTargets,
+    marquee,
+    renderScheduler,
+    selectedLayerIds,
+    shapePreview,
+    textPreview,
+  ])
+
+  useEffect(() => () => {
+    endPointerSessionRef.current?.()
+    renderScheduler.cancel()
+  }, [renderScheduler])
 
   useEffect(() => {
     const canvas = phonePreviewRef.current
@@ -399,8 +505,258 @@ export function CanvasClient() {
     undo,
   ])
 
+  const syncInteractionToReact = useCallback(
+    (nextDocument?: AssetDocument) => {
+      isInteractingRef.current = false
+      if (nextDocument) setDocument(nextDocument)
+      setMarquee(null)
+      setShapePreview(null)
+      setTextPreview(null)
+      liveOverlayRef.current = { marquee: null, shapePreview: null, textPreview: null }
+    },
+    [setDocument],
+  )
+
+  const onWindowPointerMove = useCallback(
+    (event: PointerEvent) => {
+      const canvas = interactiveCanvasRef.current
+      if (!canvas) return
+
+      const point = getCanvasPoint(canvas, event.clientX, event.clientY, masterSize)
+      const drag = dragRef.current
+      if (!drag || drag.pointerId !== event.pointerId) return
+
+      if (drag.mode === 'draw-text') {
+        const ctx = canvas.getContext('2d')
+        if (!ctx) return
+        const textSizeOption = getTextSizeOption(defaults.textSize)
+        const minWidth = getMinTextBoxWidth(
+          ctx,
+          getFontFamily(defaults.font),
+          defaults.fontWeight,
+          textSizeOption.maxFontSize,
+        )
+        const { rect } = resolveTextBoxBounds(drag.origin, point, minWidth)
+        applyLiveOverlay({ ...liveOverlayRef.current, textPreview: rect, shapePreview: null, marquee: null })
+        return
+      }
+
+      if (drag.mode === 'box-select') {
+        applyLiveOverlay({
+          ...liveOverlayRef.current,
+          marquee: getRectFromPoints(drag.origin, point),
+          shapePreview: null,
+          textPreview: null,
+        })
+        return
+      }
+
+      if (drag.mode === 'draw-shape') {
+        applyLiveOverlay({
+          ...liveOverlayRef.current,
+          shapePreview: {
+            shapeType: drag.shapeType,
+            rect: resolveRectangleBounds(drag.origin, point, {
+              shiftKey: event.shiftKey,
+              altKey: event.altKey,
+            }),
+          },
+          textPreview: null,
+          marquee: null,
+        })
+        return
+      }
+
+      if (drag.mode === 'resize-layer') {
+        drag.hasMoved = true
+        setIsResizing(true)
+
+        if (drag.startTextLayer && isTextLayerId(drag.layerId)) {
+          const ctx = canvas.getContext('2d')
+          if (!ctx) return
+          applyLiveDocument(
+            resizeTextLayerInDocument(
+              drag.before,
+              drag.layerId,
+              resizeTextLayerFromHandle(
+                ctx,
+                drag.startTextLayer,
+                drag.startRect,
+                drag.handle,
+                point,
+                { shiftKey: event.shiftKey },
+              ),
+            ),
+          )
+          return
+        }
+
+        applyLiveDocument(
+          resizeLayerInDocument(
+            drag.before,
+            drag.layerId,
+            resizeRectFromHandle(drag.handle, drag.startRect, point, { shiftKey: event.shiftKey }),
+          ),
+        )
+        return
+      }
+
+      if (drag.mode === 'rotate-layer') {
+        drag.hasMoved = true
+        setIsResizing(true)
+        const currentAngle = getPointerAngleDegrees(drag.center, point)
+        const rotation = computeRotatedAngle(
+          drag.startRotation,
+          drag.startPointerAngle,
+          currentAngle,
+          event.shiftKey,
+        )
+        applyLiveDocument(rotateTextLayerInDocument(drag.before, drag.layerId, rotation))
+        return
+      }
+
+      if (drag.mode === 'move-selection' && !drag.hasMoved && hasExceededDragThreshold(drag.origin, point)) {
+        drag.hasMoved = true
+        setIsDragging(true)
+      }
+
+      if (drag.mode === 'move-selection' && drag.hasMoved) {
+        applyLiveDocument(
+          moveLayersByDelta(drag.before, drag.layerIds, {
+            x: point.x - drag.origin.x,
+            y: point.y - drag.origin.y,
+          }),
+        )
+      }
+
+    },
+    [applyLiveDocument, applyLiveOverlay],
+  )
+
+  const onWindowPointerUp = useCallback(
+    (event: PointerEvent) => {
+      const canvas = interactiveCanvasRef.current
+      const drag = dragRef.current
+      if (!drag || drag.pointerId !== event.pointerId) return
+
+      const point = canvas
+        ? getCanvasPoint(canvas, event.clientX, event.clientY, masterSize)
+        : null
+      const currentDocument = liveDocumentRef.current
+      const currentDesign = currentDocument.icon
+      const { selectedLayerIds: currentSelection } = editorStateRef.current
+      const overlay = liveOverlayRef.current
+
+      if (drag.mode === 'draw-text') {
+        const ctx = canvas?.getContext('2d')
+        const drawPoint = point ?? drag.origin
+        if (ctx) {
+          const textSizeOption = getTextSizeOption(defaults.textSize)
+          const minWidth = getMinTextBoxWidth(
+            ctx,
+            getFontFamily(defaults.font),
+            defaults.fontWeight,
+            textSizeOption.maxFontSize,
+          )
+          const { rect, autoResize } = resolveTextBoxBounds(drag.origin, drawPoint, minWidth)
+          const layer = autoResize
+            ? createTextLayerAtClick(drag.origin)
+            : createTextLayerFromBox(rect, { autoResize: false })
+          const after = addIconLayer(drag.before, layer)
+          liveDocumentRef.current = after
+          syncInteractionToReact(after)
+          startTextEditing(layer.id, {
+            autoSelect: true,
+            sourceDocument: after,
+            historyBefore: drag.before,
+          })
+          commitHistory(drag.before, after)
+        } else {
+          syncInteractionToReact()
+        }
+        dragRef.current = null
+        endPointerSessionRef.current = null
+        return
+      }
+
+      if (drag.mode === 'draw-shape') {
+        const rect = point
+          ? resolveRectangleBounds(drag.origin, point, {
+              shiftKey: event.shiftKey,
+              altKey: event.altKey,
+            })
+          : overlay.shapePreview?.rect ?? null
+
+        if (rect && rect.width >= MIN_SHAPE_SIZE && rect.height >= MIN_SHAPE_SIZE) {
+          const shape = createShapeLayer(drag.shapeType, rect)
+          const after = addIconLayer(drag.before, shape)
+          setDocument(after)
+          selectLayers([shape.id])
+          setEditorState((current) => ({ ...current, activeTool: 'select' }))
+          commitHistory(drag.before, after)
+        }
+        syncInteractionToReact()
+        dragRef.current = null
+        endPointerSessionRef.current = null
+        return
+      }
+
+      if (drag.mode === 'resize-layer' || drag.mode === 'rotate-layer') {
+        if (drag.hasMoved) commitHistory(drag.before, liveDocumentRef.current)
+        syncInteractionToReact(drag.hasMoved ? liveDocumentRef.current : undefined)
+        dragRef.current = null
+        setIsResizing(false)
+        endPointerSessionRef.current = null
+        return
+      }
+
+      if (drag.mode === 'move-selection') {
+        if (drag.hasMoved) {
+          commitHistory(drag.before, liveDocumentRef.current)
+          clearTextTapState()
+        }
+        syncInteractionToReact(drag.hasMoved ? liveDocumentRef.current : undefined)
+        dragRef.current = null
+        setIsDragging(false)
+        endPointerSessionRef.current = null
+        return
+      }
+
+      if (drag.mode === 'box-select') {
+        const ctx = canvas?.getContext('2d')
+        const nextMarquee = point ? getRectFromPoints(drag.origin, point) : overlay.marquee
+
+        if (ctx && nextMarquee) {
+          if (isMarqueeGesture(nextMarquee)) {
+            const marqueeLayerIds = getLayersInMarquee(currentDesign, nextMarquee, ctx)
+            selectLayers(
+              drag.additive
+                ? mergeMarqueeSelection(currentSelection, marqueeLayerIds)
+                : marqueeLayerIds,
+            )
+          } else if (!drag.additive) {
+            selectLayers(['background'])
+          }
+        }
+        clearTextTapState()
+        syncInteractionToReact()
+        dragRef.current = null
+        endPointerSessionRef.current = null
+      }
+    },
+    [
+      commitHistory,
+      selectLayers,
+      startTextEditing,
+      syncInteractionToReact,
+    ],
+  )
+
+  onWindowPointerMoveRef.current = onWindowPointerMove
+  onWindowPointerUpRef.current = onWindowPointerUp
+
   const handleCanvasPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const canvas = masterCanvasRef.current
+    const canvas = interactiveCanvasRef.current
     if (!canvas) return
 
     if (editingTextLayerId) {
@@ -428,19 +784,22 @@ export function CanvasClient() {
         return
       }
 
-      event.currentTarget.setPointerCapture(event.pointerId)
       dragRef.current = {
         mode: 'draw-text',
         pointerId: event.pointerId,
         origin: point,
         before: cloneDocument(document),
       }
-      setTextPreview({ x: point.x, y: point.y, width: 0, height: 1 })
+      applyLiveOverlay({
+        textPreview: { x: point.x, y: point.y, width: 0, height: 1 },
+        shapePreview: null,
+        marquee: null,
+      })
+      ensurePointerSession(canvas, event.pointerId)
       return
     }
 
     if (isShapeTool(activeTool)) {
-      event.currentTarget.setPointerCapture(event.pointerId)
       dragRef.current = {
         mode: 'draw-shape',
         shapeType: activeTool,
@@ -448,7 +807,12 @@ export function CanvasClient() {
         origin: point,
         before: cloneDocument(document),
       }
-      setShapePreview({ shapeType: activeTool, rect: { x: point.x, y: point.y, width: 0, height: 0 } })
+      applyLiveOverlay({
+        shapePreview: { shapeType: activeTool, rect: { x: point.x, y: point.y, width: 0, height: 0 } },
+        textPreview: null,
+        marquee: null,
+      })
+      ensurePointerSession(canvas, event.pointerId)
       return
     }
 
@@ -465,7 +829,6 @@ export function CanvasClient() {
         const handle = getTransformHandleAtPoint(point, rect, undefined, rotation)
 
         if (handle) {
-          event.currentTarget.setPointerCapture(event.pointerId)
           if (handle === 'rotation') {
             dragRef.current = {
               mode: 'rotate-layer',
@@ -489,7 +852,8 @@ export function CanvasClient() {
               startTextLayer: preparedLayer,
             }
           }
-          setMarquee(null)
+          applyLiveOverlay({ marquee: null, shapePreview: null, textPreview: null })
+          ensurePointerSession(canvas, event.pointerId)
           return
         }
       } else if (isResizableLayer(selectedLayer)) {
@@ -506,7 +870,6 @@ export function CanvasClient() {
           shapeRotation,
         )
         if (handle) {
-          event.currentTarget.setPointerCapture(event.pointerId)
           dragRef.current = {
             mode: 'resize-layer',
             pointerId: event.pointerId,
@@ -516,7 +879,8 @@ export function CanvasClient() {
             before: cloneDocument(document),
             hasMoved: false,
           }
-          setMarquee(null)
+          applyLiveOverlay({ marquee: null, shapePreview: null, textPreview: null })
+          ensurePointerSession(canvas, event.pointerId)
           return
         }
       }
@@ -525,6 +889,19 @@ export function CanvasClient() {
     const hitLayerId = hitTestLayerAtPoint(design, point, ctx)
 
     if (hitLayerId !== 'background') {
+      if (
+        isTextLayerHit(design, hitLayerId) &&
+        !event.shiftKey &&
+        registerTextTap(event.clientX, event.clientY)
+      ) {
+        const layer = getDesignTextLayerById(design, hitLayerId)
+        if (layer) {
+          const initialCaretOffset = getCaretOffsetAtPoint(ctx, layer, point)
+          startTextEditing(hitLayerId, { initialCaretOffset })
+          return
+        }
+      }
+
       const { selectedLayerIds: nextSelection, shouldDrag } = resolveClickSelection(
         selectedLayerIds,
         hitLayerId,
@@ -537,31 +914,38 @@ export function CanvasClient() {
       const movableLayerIds = getMovableLayerIds(nextSelection)
       if (movableLayerIds.length === 0) return
 
-      event.currentTarget.setPointerCapture(event.pointerId)
       dragRef.current = {
         mode: 'move-selection',
         pointerId: event.pointerId,
         origin: point,
         before: cloneDocument(document),
         layerIds: movableLayerIds,
+        clickedLayerId: hitLayerId,
         hasMoved: false,
       }
-      setMarquee(null)
+      applyLiveOverlay({ marquee: null, shapePreview: null, textPreview: null })
+      ensurePointerSession(canvas, event.pointerId)
       return
     }
+
+    clearTextTapState()
 
     if (!event.shiftKey) {
       selectLayers(['background'])
     }
 
-    event.currentTarget.setPointerCapture(event.pointerId)
     dragRef.current = {
       mode: 'box-select',
       pointerId: event.pointerId,
       origin: point,
       additive: event.shiftKey,
     }
-    setMarquee({ x: point.x, y: point.y, width: 0, height: 0 })
+    applyLiveOverlay({
+      marquee: { x: point.x, y: point.y, width: 0, height: 0 },
+      shapePreview: null,
+      textPreview: null,
+    })
+    ensurePointerSession(canvas, event.pointerId)
   }
 
   const updateResizeHandleCursor = (
@@ -610,272 +994,34 @@ export function CanvasClient() {
   }
 
   const handleCanvasPointerMove = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const canvas = masterCanvasRef.current
+    if (isInteractingRef.current) return
+
+    const canvas = interactiveCanvasRef.current
     if (!canvas) return
 
     const point = getCanvasPoint(canvas, event.clientX, event.clientY, masterSize)
-    const drag = dragRef.current
+    const hoverDesign = liveDocumentRef.current.icon
 
-    if (!drag || drag.pointerId !== event.pointerId) {
-      if (activeTool === 'text') {
-        const ctx = canvas.getContext('2d')
-        if (ctx) {
-          const hitLayerId = hitTestLayerAtPoint(design, point, ctx)
-          canvas.style.cursor = isTextLayerHit(design, hitLayerId) ? 'text' : 'crosshair'
-        }
-      } else {
-        updateResizeHandleCursor(canvas, point)
-      }
-      return
-    }
-
-    if (drag.mode === 'draw-text') {
+    if (activeTool === 'text') {
       const ctx = canvas.getContext('2d')
-      if (!ctx) return
-      const textSizeOption = getTextSizeOption(defaults.textSize)
-      const minWidth = getMinTextBoxWidth(
-        ctx,
-        getFontFamily(defaults.font),
-        defaults.fontWeight,
-        textSizeOption.maxFontSize,
-      )
-      const { rect } = resolveTextBoxBounds(drag.origin, point, minWidth)
-      setTextPreview(rect)
-      return
-    }
-
-    if (drag.mode === 'box-select') {
-      setMarquee(getRectFromPoints(drag.origin, point))
-      return
-    }
-
-    if (drag.mode === 'draw-shape') {
-      setShapePreview({
-        shapeType: drag.shapeType,
-        rect: resolveRectangleBounds(drag.origin, point, {
-          shiftKey: event.shiftKey,
-          altKey: event.altKey,
-        }),
-      })
-      return
-    }
-
-    if (drag.mode === 'resize-layer') {
-      drag.hasMoved = true
-      setIsResizing(true)
-
-      if (drag.startTextLayer && isTextLayerId(drag.layerId)) {
-        const ctx = canvas.getContext('2d')
-        if (!ctx) return
-        setDocument(
-          resizeTextLayerInDocument(
-            drag.before,
-            drag.layerId,
-            resizeTextLayerFromHandle(
-              ctx,
-              drag.startTextLayer,
-              drag.startRect,
-              drag.handle,
-              point,
-              { shiftKey: event.shiftKey },
-            ),
-          ),
-        )
-        return
+      if (ctx) {
+        const hitLayerId = hitTestLayerAtPoint(hoverDesign, point, ctx)
+        canvas.style.cursor = isTextLayerHit(hoverDesign, hitLayerId) ? 'text' : 'crosshair'
       }
-
-      setDocument(
-        resizeLayerInDocument(
-          drag.before,
-          drag.layerId,
-          resizeRectFromHandle(drag.handle, drag.startRect, point, { shiftKey: event.shiftKey }),
-        ),
-      )
       return
     }
 
-    if (drag.mode === 'rotate-layer') {
-      drag.hasMoved = true
-      setIsResizing(true)
-      const currentAngle = getPointerAngleDegrees(drag.center, point)
-      const rotation = computeRotatedAngle(
-        drag.startRotation,
-        drag.startPointerAngle,
-        currentAngle,
-        event.shiftKey,
-      )
-      setDocument(rotateTextLayerInDocument(drag.before, drag.layerId, rotation))
-      return
-    }
-
-    if (!drag.hasMoved && hasExceededDragThreshold(drag.origin, point)) {
-      drag.hasMoved = true
-      setIsDragging(true)
-    }
-
-    if (drag.hasMoved) {
-      setDocument(
-        moveLayersByDelta(drag.before, drag.layerIds, {
-          x: point.x - drag.origin.x,
-          y: point.y - drag.origin.y,
-        }),
-      )
-      return
-    }
+    updateResizeHandleCursor(canvas, point)
   }
 
-  const finishTransformLayer = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId) return
-    if (drag.mode !== 'resize-layer' && drag.mode !== 'rotate-layer') return
-
-    if (drag.hasMoved) {
-      commitHistory(drag.before)
-    }
-
-    dragRef.current = null
-    setIsResizing(false)
-  }
-
-  const finishMoveSelection = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId || drag.mode !== 'move-selection') return
-
-    if (drag.hasMoved) {
-      commitHistory(drag.before)
-    }
-
-    dragRef.current = null
-    setIsDragging(false)
-  }
-
-  const abortDrawShape = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId || drag.mode !== 'draw-shape') return
-
-    dragRef.current = null
-    setShapePreview(null)
-  }
-
-  const abortDrawText = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId || drag.mode !== 'draw-text') return
-
-    dragRef.current = null
-    setTextPreview(null)
-  }
-
-  const abortBoxSelect = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId || drag.mode !== 'box-select') return
-
-    dragRef.current = null
-    setMarquee(null)
-  }
-
-  const finishDrawShape = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId || drag.mode !== 'draw-shape') return
-
-    const canvas = masterCanvasRef.current
-    const point = canvas ? getCanvasPoint(canvas, event.clientX, event.clientY, masterSize) : null
-    const rect = point
-      ? resolveRectangleBounds(drag.origin, point, {
-          shiftKey: event.shiftKey,
-          altKey: event.altKey,
-        })
-      : shapePreview?.rect ?? null
-
-    if (rect && rect.width >= MIN_SHAPE_SIZE && rect.height >= MIN_SHAPE_SIZE) {
-      const shape = createShapeLayer(drag.shapeType, rect)
-      const after = addIconLayer(drag.before, shape)
-      setDocument(after)
-      selectLayers([shape.id])
-      setEditorState((current) => ({ ...current, activeTool: 'select' }))
-      commitHistory(drag.before, after)
-    }
-
-    dragRef.current = null
-    setShapePreview(null)
-  }
-
-  const finishDrawText = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId || drag.mode !== 'draw-text') return
-
-    const canvas = masterCanvasRef.current
-    const ctx = canvas?.getContext('2d')
-    const point = canvas
-      ? getCanvasPoint(canvas, event.clientX, event.clientY, masterSize)
-      : drag.origin
-
-    if (!ctx) {
-      dragRef.current = null
-      setTextPreview(null)
-      return
-    }
-
-    const textSizeOption = getTextSizeOption(defaults.textSize)
-    const minWidth = getMinTextBoxWidth(
-      ctx,
-      getFontFamily(defaults.font),
-      defaults.fontWeight,
-      textSizeOption.maxFontSize,
-    )
-    const { rect, autoResize } = resolveTextBoxBounds(drag.origin, point, minWidth)
-    const layer = autoResize ? createTextLayerAtClick(drag.origin) : createTextLayerFromBox(rect, { autoResize: false })
-    const after = addIconLayer(drag.before, layer)
-
-    setDocument(after)
-    startTextEditing(layer.id, {
-      autoSelect: true,
-      sourceDocument: after,
-      historyBefore: drag.before,
-    })
-    commitHistory(drag.before, after)
-
-    dragRef.current = null
-    setTextPreview(null)
-  }
-
-  const finishBoxSelect = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const drag = dragRef.current
-    if (!drag || drag.pointerId !== event.pointerId || drag.mode !== 'box-select') return
-
-    const canvas = masterCanvasRef.current
-    const ctx = canvas?.getContext('2d')
-    const point = canvas ? getCanvasPoint(canvas, event.clientX, event.clientY, masterSize) : null
-    const nextMarquee = point ? getRectFromPoints(drag.origin, point) : marquee
-
-    if (ctx && nextMarquee) {
-      if (isMarqueeGesture(nextMarquee)) {
-        const marqueeLayerIds = getLayersInMarquee(design, nextMarquee, ctx)
-        selectLayers(
-          drag.additive
-            ? mergeMarqueeSelection(selectedLayerIds, marqueeLayerIds)
-            : marqueeLayerIds,
-        )
-      } else if (!drag.additive) {
-        selectLayers(['background'])
-      }
-    }
-
-    dragRef.current = null
-    setMarquee(null)
-  }
-
-  const handleCanvasPointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    finishDrawText(event)
-    finishDrawShape(event)
-    finishTransformLayer(event)
-    finishMoveSelection(event)
-    finishBoxSelect(event)
+  const handleCanvasPointerUp = () => {
+    // Window pointer session handles commit; keep for React event parity.
   }
 
   const handleCanvasDoubleClick = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (editingTextLayerId || activeTool !== 'select') return
 
-    const canvas = masterCanvasRef.current
+    const canvas = interactiveCanvasRef.current
     if (!canvas) return
 
     const point = getAppIconCanvasPoint(canvas, event.clientX, event.clientY, masterSize)
@@ -891,23 +1037,31 @@ export function CanvasClient() {
     if (!layer) return
 
     const initialCaretOffset = getCaretOffsetAtPoint(ctx, layer, point)
+    clearTextTapState()
     startTextEditing(hitLayerId, { initialCaretOffset })
   }
 
   const handleCanvasPointerCancel = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const drag = dragRef.current
-    if (drag?.mode === 'move-selection' && drag.hasMoved) {
-      setDocument(drag.before)
-    }
-    if ((drag?.mode === 'resize-layer' || drag?.mode === 'rotate-layer') && drag.hasMoved) {
-      setDocument(drag.before)
+    if (!drag || drag.pointerId !== event.pointerId) return
+
+    const hadMutation =
+      (drag.mode === 'move-selection' ||
+        drag.mode === 'resize-layer' ||
+        drag.mode === 'rotate-layer') &&
+      drag.hasMoved
+
+    if (hadMutation) {
+      liveDocumentRef.current = drag.before
     }
 
-    abortDrawText(event)
-    abortDrawShape(event)
-    abortBoxSelect(event)
-    finishTransformLayer(event)
-    finishMoveSelection(event)
+    endPointerSessionRef.current?.()
+    endPointerSessionRef.current = null
+    dragRef.current = null
+    syncInteractionToReact(hadMutation ? drag.before : undefined)
+    setIsDragging(false)
+    setIsResizing(false)
+    clearTextTapState()
   }
 
   return (
@@ -917,7 +1071,17 @@ export function CanvasClient() {
     >
       <div className="App-menu">
         <div className="App-menu_top">
-          <div className="App-menu_top__left zen-mode-transition" aria-hidden="true" />
+          <div className="App-menu_top__left zen-mode-transition">
+            <PropertiesPanel
+              document={document}
+              selectedLayerIds={selectedLayerIds}
+              isMobile={isMobile}
+              cloneDocument={cloneDocument}
+              setDocument={setDocument}
+              commitHistory={commitHistory}
+              onEditText={(layerId) => startTextEditing(layerId)}
+            />
+          </div>
 
           <section className="shapes-section" aria-labelledby="asset-generator-tools-title">
             <h2 className="visually-hidden" id="asset-generator-tools-title">
@@ -943,10 +1107,10 @@ export function CanvasClient() {
             className={`asset-generator-canvas-stage${editingTextLayerId ? ' is-text-editing' : ''}`}
             ref={canvasStageRef}
           >
-            <canvas
-              ref={masterCanvasRef}
-              aria-label="Master design canvas"
-              className={`${getCanvasCursorClass(activeTool, selectedLayerIds)}${marquee ? ' is-marquee-active' : ''}${shapePreview ? ' is-shape-preview-active' : ''}${textPreview ? ' is-text-preview-active' : ''}${isDragging ? ' is-dragging' : ''}${isResizing ? ' is-resizing' : ''}${editingTextLayerId ? ' is-text-editing' : ''}`}
+            <DesignCanvasStack
+              staticCanvasRef={staticCanvasRef}
+              interactiveCanvasRef={interactiveCanvasRef}
+              interactiveClassName={`${getCanvasCursorClass(activeTool, selectedLayerIds)}${marquee ? ' is-marquee-active' : ''}${shapePreview ? ' is-shape-preview-active' : ''}${textPreview ? ' is-text-preview-active' : ''}${isDragging ? ' is-dragging' : ''}${isResizing ? ' is-resizing' : ''}${editingTextLayerId ? ' is-text-editing' : ''}`}
               onPointerDown={handleCanvasPointerDown}
               onPointerMove={handleCanvasPointerMove}
               onPointerUp={handleCanvasPointerUp}
@@ -955,7 +1119,7 @@ export function CanvasClient() {
             />
             {editingTextLayer && textEditFrozenStyleRef.current ? (
               <TextLayerEditor
-                canvasRef={masterCanvasRef}
+                canvasRef={interactiveCanvasRef}
                 containerRef={canvasStageRef}
                 layer={editingTextLayer}
                 frozenStyle={textEditFrozenStyleRef.current}

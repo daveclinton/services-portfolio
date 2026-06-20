@@ -37,6 +37,20 @@ export const defaults = {
   textOpacity: '100',
 }
 
+export const fontWeights = ['700', '800', '900'] as const
+
+export const textAlignOptions: Array<{ key: TextAlign; label: string }> = [
+  { key: 'left', label: 'Left' },
+  { key: 'center', label: 'Center' },
+  { key: 'right', label: 'Right' },
+]
+
+export const textVerticalAlignOptions: Array<{ key: TextVerticalAlign; label: string }> = [
+  { key: 'top', label: 'Top' },
+  { key: 'middle', label: 'Middle' },
+  { key: 'bottom', label: 'Bottom' },
+]
+
 export const fontOptions: Array<{ key: FontKey; label: string; family: string }> = [
   { key: 'sans', label: 'Sans', family: 'Inter, system-ui, sans-serif' },
   {
