@@ -1,4 +1,6 @@
+import { isPointInAppIcon } from './app-icon-bounds'
 import { masterSize } from '../constants'
+import { usesTextAutoResize } from './text-tool'
 import type { DesignLayer, IconDesign, ShapeLayer } from '../types'
 import { getTextLayerLayout } from '../utils/text'
 
@@ -58,18 +60,33 @@ function isPointInShape(point: { x: number; y: number }, shape: ShapeLayer) {
   return true
 }
 
+function getTextHitRect(layer: Extract<DesignLayer, { type: 'text' }>, ctx: CanvasRenderingContext2D) {
+  const { bounds } = getTextLayerLayout(ctx, layer)
+
+  if (usesTextAutoResize(layer.autoResize)) {
+    return {
+      x: bounds.x - TEXT_HIT_PADDING,
+      y: bounds.y - TEXT_HIT_PADDING,
+      width: bounds.width + TEXT_HIT_PADDING * 2,
+      height: bounds.height + TEXT_HIT_PADDING * 2,
+    }
+  }
+
+  const boxHeight = layer.maxFontSize * 2.1
+  return {
+    x: layer.x - layer.maxWidth / 2 - TEXT_HIT_PADDING,
+    y: layer.y - boxHeight / 2 - TEXT_HIT_PADDING,
+    width: layer.maxWidth + TEXT_HIT_PADDING * 2,
+    height: boxHeight + TEXT_HIT_PADDING * 2,
+  }
+}
+
 function isPointInTextLayer(
   point: { x: number; y: number },
   layer: Extract<DesignLayer, { type: 'text' }>,
   ctx: CanvasRenderingContext2D,
 ) {
-  const { bounds } = getTextLayerLayout(ctx, layer)
-  return isPointInRect(point, {
-    x: bounds.x - TEXT_HIT_PADDING,
-    y: bounds.y - TEXT_HIT_PADDING,
-    width: bounds.width + TEXT_HIT_PADDING * 2,
-    height: bounds.height + TEXT_HIT_PADDING * 2,
-  })
+  return isPointInRect(point, getTextHitRect(layer, ctx))
 }
 
 function isPointInLayer(
@@ -78,7 +95,7 @@ function isPointInLayer(
   ctx: CanvasRenderingContext2D,
 ) {
   if (layer.type === 'background') {
-    return point.x >= 0 && point.x <= masterSize && point.y >= 0 && point.y <= masterSize
+    return isPointInAppIcon(point)
   }
 
   if (layer.type === 'text') {

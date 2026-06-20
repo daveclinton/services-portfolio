@@ -1,11 +1,32 @@
+import { getAppIconSafeAreaMargin } from './app-icon-bounds'
+import { ROTATION_HANDLE_GAP } from './text-constants'
 import { masterSize } from '../constants'
 import type { DesignLayer } from '../types'
 import type { CanvasRect } from '../utils/geometry'
 
 export type ResizeHandle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
+export type TransformHandle = ResizeHandle | 'rotation'
 
 const MIN_LAYER_SIZE = 24
 const HANDLE_HIT_RADIUS = 12
+
+export function rotatePoint(
+  x: number,
+  y: number,
+  centerX: number,
+  centerY: number,
+  angleRad: number,
+) {
+  const dx = x - centerX
+  const dy = y - centerY
+  const cos = Math.cos(angleRad)
+  const sin = Math.sin(angleRad)
+
+  return {
+    x: centerX + dx * cos - dy * sin,
+    y: centerY + dx * sin + dy * cos,
+  }
+}
 
 export function isResizableLayer(layer: DesignLayer | undefined): layer is Extract<
   DesignLayer,
@@ -51,8 +72,41 @@ export function getResizeHandleAtPoint(
   point: { x: number; y: number },
   rect: CanvasRect,
   hitRadius = HANDLE_HIT_RADIUS,
+  rotation = 0,
 ): ResizeHandle | null {
-  for (const { handle, x, y } of getResizeHandlePositions(rect)) {
+  const handle = getTransformHandleAtPoint(point, rect, hitRadius, rotation)
+  return handle && handle !== 'rotation' ? handle : null
+}
+
+export function getTransformHandlePositions(rect: CanvasRect, rotation = 0) {
+  const centerX = rect.x + rect.width / 2
+  const centerY = rect.y + rect.height / 2
+  const angleRad = (rotation * Math.PI) / 180
+
+  const positions = [
+    ...getResizeHandlePositions(rect),
+    {
+      handle: 'rotation' as const,
+      x: rect.x + rect.width / 2,
+      y: rect.y - ROTATION_HANDLE_GAP,
+    },
+  ]
+
+  if (rotation === 0) return positions
+
+  return positions.map(({ handle, x, y }) => ({
+    handle,
+    ...rotatePoint(x, y, centerX, centerY, angleRad),
+  }))
+}
+
+export function getTransformHandleAtPoint(
+  point: { x: number; y: number },
+  rect: CanvasRect,
+  hitRadius = HANDLE_HIT_RADIUS,
+  rotation = 0,
+): TransformHandle | null {
+  for (const { handle, x, y } of getTransformHandlePositions(rect, rotation)) {
     const distance = Math.hypot(point.x - x, point.y - y)
     if (distance <= hitRadius) return handle
   }
@@ -77,11 +131,19 @@ export function getCursorForResizeHandle(handle: ResizeHandle) {
   }
 }
 
+export function getCursorForTransformHandle(handle: TransformHandle) {
+  if (handle === 'rotation') return 'grab'
+  return getCursorForResizeHandle(handle)
+}
+
 function clampRect(rect: CanvasRect): CanvasRect {
-  const width = Math.max(MIN_LAYER_SIZE, Math.min(rect.width, masterSize))
-  const height = Math.max(MIN_LAYER_SIZE, Math.min(rect.height, masterSize))
-  const x = Math.min(Math.max(rect.x, 0), masterSize - width)
-  const y = Math.min(Math.max(rect.y, 0), masterSize - height)
+  const margin = getAppIconSafeAreaMargin()
+  const maxWidth = masterSize - margin * 2
+  const maxHeight = masterSize - margin * 2
+  const width = Math.max(MIN_LAYER_SIZE, Math.min(rect.width, maxWidth))
+  const height = Math.max(MIN_LAYER_SIZE, Math.min(rect.height, maxHeight))
+  const x = Math.min(Math.max(rect.x, margin), masterSize - margin - width)
+  const y = Math.min(Math.max(rect.y, margin), masterSize - margin - height)
 
   return { x, y, width, height }
 }

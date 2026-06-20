@@ -1,4 +1,5 @@
 import { isShapeTool } from './shape-tool'
+import { isTextLayerId } from './text-layer'
 import type { DesignLayer, EditorState } from '../types'
 
 export function getCanvasCursorClass(
@@ -11,7 +12,7 @@ export function getCanvasCursorClass(
 
   const primarySelection = selectedLayerIds[0] ?? 'background'
 
-  if (primarySelection === 'text') return 'is-text-selected'
+  if (isTextLayerId(primarySelection)) return 'is-text-selected'
   if (primarySelection === 'background') return 'is-canvas-selected'
   return 'is-shape-selected'
 }

@@ -19,7 +19,7 @@ export type BackgroundLayer = {
 }
 
 export type TextLayer = {
-  id: 'text'
+  id: `text-${string}`
   type: 'text'
   text: string
   color: string
@@ -37,6 +37,10 @@ export type TextLayer = {
   y: number
   maxWidth: number
   maxFontSize: number
+  /** When true (default), font shrinks to fit. When false, text wraps inside maxWidth. */
+  autoResize?: boolean
+  /** Rotation in degrees around the text box center. */
+  rotation?: number
 }
 
 export type FrameLayer = {

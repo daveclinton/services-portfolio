@@ -1,9 +1,12 @@
 import type { DesignLayer, IconDesign, PngAssetDefinition } from '../types'
 import { masterSize } from '../constants'
 import { getResizableLayerRect, isResizableLayer } from '../lib/resize-handles'
-import { renderResizeHandles } from '../lib/render-resize-handles'
+import { getTextLayerResizeRect } from '../lib/text-layer-box'
+import { TEXT_SELECTION_PADDING } from '../lib/text-constants'
+import { renderSafeAreaGuide } from '../lib/render-safe-area-guide'
+import { renderTransformHandles } from '../lib/render-resize-handles'
 import { roundedRect, getAppIconRadius, getRectLayerBounds } from './geometry'
-import { getTextLayerLayout } from './text'
+import { getTextFontString, getTextLayerLayout } from './text'
 
 function renderFrameLayer(ctx: CanvasRenderingContext2D, layer: Extract<DesignLayer, { type: 'frame' }>, size = masterSize) {
   const scale = size / masterSize
@@ -171,19 +174,27 @@ function renderSelectionChrome(
   }
 
   if (layer.type === 'text') {
-    const { bounds } = getTextLayerLayout(ctx, layer, size)
-    const padding = 24 * scale
+    const rect = getTextLayerResizeRect(ctx, layer, size)
+    const padding = TEXT_SELECTION_PADDING * scale
+    const rotation = layer.rotation ?? 0
+    const cx = (rect.x + rect.width / 2) * scale
+    const cy = (rect.y + rect.height / 2) * scale
+
+    ctx.save()
+    ctx.translate(cx, cy)
+    ctx.rotate((rotation * Math.PI) / 180)
     roundedRect(
       ctx,
-      bounds.x - padding,
-      bounds.y - padding,
-      bounds.width + padding * 2,
-      bounds.height + padding * 2,
-      22 * scale,
+      -rect.width * scale / 2 - padding,
+      -rect.height * scale / 2 - padding,
+      rect.width * scale + padding * 2,
+      rect.height * scale + padding * 2,
+      8 * scale,
     )
     ctx.lineWidth = Math.max(2, 4 * scale)
     ctx.strokeStyle = '#6965db'
     ctx.stroke()
+    ctx.restore()
   }
 }
 
@@ -191,11 +202,23 @@ export function renderDesign(
   ctx: CanvasRenderingContext2D,
   design: IconDesign,
   size = masterSize,
-  options: { selectedLayerIds?: DesignLayer['id'][]; editingTextLayerId?: DesignLayer['id'] | null } = {},
+  options: {
+    selectedLayerIds?: DesignLayer['id'][]
+    editingTextLayerId?: DesignLayer['id'] | null
+    showSafeAreaGuide?: boolean
+  } = {},
 ) {
   ctx.clearRect(0, 0, size, size)
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
+
+  ctx.save()
+  roundedRect(ctx, 0, 0, size, size, getAppIconRadius(size))
+  ctx.clip()
+
+  if (options.showSafeAreaGuide) {
+    renderSafeAreaGuide(ctx, size)
+  }
 
   for (const layer of design.layers) {
     if (layer.type === 'background') {
@@ -221,17 +244,25 @@ export function renderDesign(
     if (layer.type === 'text') {
       if (layer.id === options.editingTextLayerId) continue
 
-      const { fontSize, lines, lineHeight, startY, textAnchorX } = getTextLayerLayout(ctx, layer, size)
+      const { fontSize, lines, lineHeight, firstLineTop, textAnchorX } = getTextLayerLayout(ctx, layer, size)
+      const rotation = layer.rotation ?? 0
+      const rect = getTextLayerResizeRect(ctx, layer, size)
+      const cx = (rect.x + rect.width / 2) * (size / masterSize)
+      const cy = (rect.y + rect.height / 2) * (size / masterSize)
 
       ctx.save()
+      if (rotation !== 0) {
+        ctx.translate(cx, cy)
+        ctx.rotate((rotation * Math.PI) / 180)
+        ctx.translate(-cx, -cy)
+      }
       ctx.globalAlpha = layer.opacity * layer.colorOpacity
-      const fontStylePrefix = layer.fontStyle === 'italic' ? 'italic ' : ''
-      ctx.font = `${fontStylePrefix}${layer.fontWeight} ${fontSize}px ${layer.fontFamily}`
+      ctx.font = getTextFontString(layer, fontSize)
       ctx.fillStyle = layer.color
       ctx.textAlign = layer.textAlign
-      ctx.textBaseline = 'middle'
+      ctx.textBaseline = 'top'
       lines.forEach((line, index) => {
-        const y = startY + index * lineHeight
+        const y = firstLineTop + index * lineHeight
         ctx.fillText(line, textAnchorX, y)
         if (layer.underline) {
           const width = ctx.measureText(line).width
@@ -242,8 +273,8 @@ export function renderDesign(
                 ? textAnchorX - width
                 : textAnchorX
           ctx.beginPath()
-          ctx.moveTo(startX, y + fontSize * 0.15)
-          ctx.lineTo(startX + width, y + fontSize * 0.15)
+          ctx.moveTo(startX, y + fontSize * 0.88)
+          ctx.lineTo(startX + width, y + fontSize * 0.88)
           ctx.lineWidth = Math.max(1, fontSize * 0.06)
           ctx.strokeStyle = layer.color
           ctx.stroke()
@@ -267,9 +298,25 @@ export function renderDesign(
   if (selectedLayerIds.length === 1) {
     const selectedLayer = design.layers.find((layer) => layer.id === selectedLayerIds[0])
     if (isResizableLayer(selectedLayer)) {
-      renderResizeHandles(ctx, getResizableLayerRect(selectedLayer), size)
+      const shapeRotation =
+        selectedLayer.type === 'rectangle' ||
+        selectedLayer.type === 'diamond' ||
+        selectedLayer.type === 'ellipse'
+          ? (selectedLayer.rotation ?? 0)
+          : 0
+      renderTransformHandles(ctx, getResizableLayerRect(selectedLayer), size, {
+        rotation: shapeRotation,
+        showRotation: false,
+      })
+    } else if (selectedLayer?.type === 'text') {
+      renderTransformHandles(ctx, getTextLayerResizeRect(ctx, selectedLayer, size), size, {
+        rotation: selectedLayer.rotation ?? 0,
+        showRotation: true,
+      })
     }
   }
+
+  ctx.restore()
 }
 
 export function renderAsset(definition: PngAssetDefinition, design: IconDesign) {

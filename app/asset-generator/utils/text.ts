@@ -1,3 +1,4 @@
+import { usesTextAutoResize } from '../lib/text-tool'
 import type { DesignLayer, FontKey, FontWeight } from '../types'
 import { fontOptions, masterSize } from '../constants'
 
@@ -5,9 +6,59 @@ export function getFontFamily(fontKey: FontKey) {
   return fontOptions.find((font) => font.key === fontKey)?.family ?? fontOptions[0].family
 }
 
-export function getTextLines(text: string) {
+export function getTextFontString(
+  layer: Pick<Extract<DesignLayer, { type: 'text' }>, 'fontStyle' | 'fontWeight' | 'fontFamily'>,
+  fontSize: number,
+) {
+  const stylePrefix = layer.fontStyle === 'italic' ? 'italic ' : ''
+  return `${stylePrefix}${layer.fontWeight} ${fontSize}px ${layer.fontFamily}`
+}
+
+export function getTextLines(text: string, options: { forEditor?: boolean } = {}) {
+  if (options.forEditor) {
+    return text.length > 0 ? text.split(/\n/g) : ['']
+  }
+
   const normalized = text.trim() || 'App'
   return normalized.split(/\n/g).map((line) => line.trim() || ' ')
+}
+
+function wrapLine(ctx: CanvasRenderingContext2D, line: string, maxWidth: number) {
+  if (!line) return ['']
+
+  const words = line.split(/(\s+)/)
+  const lines: string[] = []
+  let current = ''
+
+  for (const word of words) {
+    const next = current + word
+    if (ctx.measureText(next).width > maxWidth && current.trim()) {
+      lines.push(current.trimEnd())
+      current = word.trimStart() ? word : ''
+    } else {
+      current = next
+    }
+  }
+
+  if (current.trim() || lines.length === 0) {
+    lines.push(current.trimEnd() || line)
+  }
+
+  return lines
+}
+
+export function getWrappedTextLines(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  fontFamily: string,
+  fontWeight: FontWeight,
+  fontSize: number,
+  options: { forEditor?: boolean } = {},
+) {
+  const rawLines = getTextLines(text, options)
+  ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`
+  return rawLines.flatMap((line) => wrapLine(ctx, line, maxWidth))
 }
 
 export function fittedFontSize(
@@ -61,32 +112,56 @@ export function getFittedFontSizeForText(
   return minSize
 }
 
-export function getTextLayerLayout(ctx: CanvasRenderingContext2D, layer: Extract<DesignLayer, { type: 'text' }>, size = masterSize) {
+export function getTextLayerLayout(
+  ctx: CanvasRenderingContext2D,
+  layer: Extract<DesignLayer, { type: 'text' }>,
+  size = masterSize,
+  options: { forEditor?: boolean; frozenFontSize?: number } = {},
+) {
   const scale = size / masterSize
-  const fontSize = fittedFontSize(
-    ctx,
-    layer.text,
-    layer.maxWidth * scale,
-    layer.maxFontSize * scale,
-    layer.fontFamily,
-    layer.fontWeight,
-  )
-  const lines = getTextLines(layer.text)
+  const maxFontSize = layer.maxFontSize * scale
+  const autoResize = usesTextAutoResize(layer.autoResize)
+  const fontSize =
+    options.frozenFontSize !== undefined
+      ? options.frozenFontSize * scale
+      : !autoResize
+        ? maxFontSize
+        : options.forEditor && !layer.text.trim()
+          ? maxFontSize
+          : fittedFontSize(
+              ctx,
+              layer.text,
+              layer.maxWidth * scale,
+              maxFontSize,
+              layer.fontFamily,
+              layer.fontWeight,
+            )
+  const lines = autoResize
+    ? getTextLines(layer.text, options)
+    : getWrappedTextLines(
+        ctx,
+        layer.text,
+        layer.maxWidth * scale,
+        layer.fontFamily,
+        layer.fontWeight,
+        fontSize,
+        options,
+      )
   const lineHeight = fontSize * 0.92
   const blockHeight = lineHeight * lines.length
-  ctx.font = `${layer.fontWeight} ${fontSize}px ${layer.fontFamily}`
+  ctx.font = getTextFontString(layer, fontSize)
   const widths = lines.map((line) => ctx.measureText(line).width)
   const blockWidth = Math.max(...widths)
   const x = layer.x * scale
   const y = layer.y * scale
   const boxHeight = layer.maxFontSize * scale * 2.1
   const boxTop = y - boxHeight / 2
-  const startY =
+  const firstLineTop =
     layer.verticalAlign === 'top'
-      ? boxTop + lineHeight / 2
+      ? boxTop
       : layer.verticalAlign === 'bottom'
-        ? boxTop + boxHeight - blockHeight + lineHeight / 2
-        : y - blockHeight / 2 + lineHeight / 2
+        ? boxTop + boxHeight - blockHeight
+        : y - blockHeight / 2
   const boundsX =
     layer.textAlign === 'left'
       ? x - layer.maxWidth * scale / 2
@@ -98,7 +173,7 @@ export function getTextLayerLayout(ctx: CanvasRenderingContext2D, layer: Extract
     fontSize,
     lines,
     lineHeight,
-    startY,
+    firstLineTop,
     textAnchorX:
       layer.textAlign === 'left'
         ? x - layer.maxWidth * scale / 2
@@ -107,7 +182,7 @@ export function getTextLayerLayout(ctx: CanvasRenderingContext2D, layer: Extract
           : x,
     bounds: {
       x: boundsX,
-      y: startY - lineHeight / 2,
+      y: firstLineTop,
       width: blockWidth,
       height: blockHeight,
     },

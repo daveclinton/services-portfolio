@@ -1,3 +1,4 @@
+import { getAppIconSafeAreaMargin } from './app-icon-bounds'
 import { masterSize } from '../constants'
 import { updateLayerById } from '../document'
 import type { AssetDocument, DesignLayer } from '../types'
@@ -10,7 +11,7 @@ function clamp(value: number, min: number, max: number) {
 
 function moveLayer(layer: DesignLayer, delta: { x: number; y: number }): DesignLayer {
   if (layer.type === 'text') {
-    const margin = 96
+    const margin = getAppIconSafeAreaMargin()
     return {
       ...layer,
       x: clamp(layer.x + delta.x, margin, masterSize - margin),
@@ -19,10 +20,11 @@ function moveLayer(layer: DesignLayer, delta: { x: number; y: number }): DesignL
   }
 
   if (layer.type === 'frame' || layer.type === 'rectangle' || layer.type === 'diamond' || layer.type === 'ellipse') {
+    const margin = getAppIconSafeAreaMargin()
     return {
       ...layer,
-      x: clamp(layer.x + delta.x, 0, masterSize - layer.width),
-      y: clamp(layer.y + delta.y, 0, masterSize - layer.height),
+      x: clamp(layer.x + delta.x, margin, masterSize - margin - layer.width),
+      y: clamp(layer.y + delta.y, margin, masterSize - margin - layer.height),
     }
   }
 

@@ -1,6 +1,7 @@
-import { defaults, masterSize, textSizeOptions } from './constants'
-import type { AssetDocument, DesignLayer, ShapeLayer, ShapeType, TextLayer, TextSizeKey } from './types'
+import { APP_ICON_SAFE_AREA_SIZE, defaults, masterSize, textSizeOptions } from './constants'
+import { clampPointToAppIconContent } from './lib/app-icon-bounds'
 import { isResizableLayer } from './lib/resize-handles'
+import type { AssetDocument, DesignLayer, ShapeLayer, ShapeType, TextLayer, TextSizeKey } from './types'
 import { getFontFamily } from './utils/'
 
 export function parseOpacityPercent(value: string, fallback: string) {
@@ -13,9 +14,20 @@ export function getTextSizeOption(textSize: TextSizeKey) {
   return textSizeOptions.find((option) => option.key === textSize) ?? textSizeOptions[1]
 }
 
+function createTextLayerId(): TextLayer['id'] {
+  const id =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.round(Math.random() * 100000)}`
+
+  return `text-${id}`
+}
+
 export function getDefaultAssetDocument(): AssetDocument {
-  const textSize = defaults.textSize
-  const textSizeOption = getTextSizeOption(textSize)
+  const defaultTextLayer = createTextLayer(
+    { x: masterSize / 2, y: masterSize / 2 },
+    { text: defaults.text },
+  )
 
   return {
     version: 1,
@@ -27,26 +39,7 @@ export function getDefaultAssetDocument(): AssetDocument {
           color: defaults.backgroundColor,
           opacity: parseOpacityPercent(defaults.backgroundOpacity, '100') / 100,
         },
-        {
-          id: 'text',
-          type: 'text',
-          text: defaults.text,
-          color: defaults.textColor,
-          colorOpacity: parseOpacityPercent(defaults.textColorOpacity, '100') / 100,
-          fontFamily: getFontFamily(defaults.font),
-          fontKey: defaults.font,
-          fontWeight: defaults.fontWeight,
-          fontStyle: 'normal',
-          underline: false,
-          textAlign: defaults.textAlign,
-          verticalAlign: defaults.textVerticalAlign,
-          textSize,
-          opacity: parseOpacityPercent(defaults.textOpacity, '100') / 100,
-          x: masterSize / 2,
-          y: masterSize / 2,
-          maxWidth: masterSize * 0.72,
-          maxFontSize: textSizeOption.maxFontSize,
-        },
+        defaultTextLayer,
       ],
     },
     preview: {
@@ -108,6 +101,15 @@ export function addIconLayer(document: AssetDocument, layer: DesignLayer): Asset
     (candidate) => candidate.type !== 'background' && candidate.type !== 'text',
   )
 
+  if (layer.type === 'text') {
+    return {
+      ...document,
+      icon: {
+        layers: [...backgroundLayers, ...drawableLayers, ...textLayers, layer],
+      },
+    }
+  }
+
   return {
     ...document,
     icon: {
@@ -133,6 +135,25 @@ export function resizeLayerInDocument(
   })
 }
 
+export function resizeTextLayerInDocument(
+  document: AssetDocument,
+  layerId: TextLayer['id'],
+  layer: TextLayer,
+): AssetDocument {
+  return updateLayerById(document, layerId, () => layer)
+}
+
+export function rotateTextLayerInDocument(
+  document: AssetDocument,
+  layerId: TextLayer['id'],
+  rotation: number,
+): AssetDocument {
+  return updateIconLayer(document, layerId, (layer) => ({
+    ...layer,
+    rotation,
+  }))
+}
+
 export function updateLayerById(
   document: AssetDocument,
   layerId: DesignLayer['id'],
@@ -146,28 +167,31 @@ export function updateLayerById(
   }
 }
 
-const TEXT_LAYER_MARGIN = 96
-
 function clampTextLayerPoint(point: { x: number; y: number }) {
-  return {
-    x: Math.min(masterSize - TEXT_LAYER_MARGIN, Math.max(TEXT_LAYER_MARGIN, point.x)),
-    y: Math.min(masterSize - TEXT_LAYER_MARGIN, Math.max(TEXT_LAYER_MARGIN, point.y)),
-  }
+  return clampPointToAppIconContent(point)
 }
 
-export function getTextLayer(document: AssetDocument): TextLayer | undefined {
-  return document.icon.layers.find((layer): layer is TextLayer => layer.type === 'text')
+export function getTextLayerById(
+  document: AssetDocument,
+  layerId: TextLayer['id'],
+): TextLayer | undefined {
+  const layer = document.icon.layers.find((candidate) => candidate.id === layerId)
+  return layer?.type === 'text' ? layer : undefined
 }
 
-export function createDefaultTextLayer(point: { x: number; y: number }): TextLayer {
+export function createTextLayer(
+  point: { x: number; y: number },
+  overrides: Partial<Pick<TextLayer, 'text' | 'maxWidth' | 'autoResize' | 'textAlign' | 'verticalAlign'>> = {},
+): TextLayer {
   const textSize = defaults.textSize
   const textSizeOption = getTextSizeOption(textSize)
   const clampedPoint = clampTextLayerPoint(point)
+  const autoResize = overrides.autoResize ?? true
 
   return {
-    id: 'text',
+    id: createTextLayerId(),
     type: 'text',
-    text: '',
+    text: overrides.text ?? '',
     color: defaults.textColor,
     colorOpacity: parseOpacityPercent(defaults.textColorOpacity, '100') / 100,
     fontFamily: getFontFamily(defaults.font),
@@ -175,45 +199,59 @@ export function createDefaultTextLayer(point: { x: number; y: number }): TextLay
     fontWeight: defaults.fontWeight,
     fontStyle: 'normal',
     underline: false,
-    textAlign: defaults.textAlign,
-    verticalAlign: defaults.textVerticalAlign,
+    textAlign: overrides.textAlign ?? defaults.textAlign,
+    verticalAlign: overrides.verticalAlign ?? defaults.textVerticalAlign,
     textSize,
     opacity: parseOpacityPercent(defaults.textOpacity, '100') / 100,
     x: clampedPoint.x,
     y: clampedPoint.y,
-    maxWidth: masterSize * 0.72,
+    maxWidth: overrides.maxWidth ?? APP_ICON_SAFE_AREA_SIZE,
     maxFontSize: textSizeOption.maxFontSize,
+    autoResize,
   }
 }
 
-export function ensureTextLayerAtPoint(
+/** Excalidraw click-to-type: cursor becomes vertical center of first line. */
+export function createTextLayerAtClick(point: { x: number; y: number }): TextLayer {
+  return createTextLayer(point, {
+    text: '',
+    autoResize: true,
+    textAlign: defaults.textAlign,
+    verticalAlign: defaults.textVerticalAlign,
+  })
+}
+
+/** Excalidraw drag-to-draw: top edge locked to origin, width from drag. */
+export function createTextLayerFromBox(
+  rect: { x: number; y: number; width: number; height: number },
+  options: { autoResize: boolean },
+): TextLayer {
+  const textSize = defaults.textSize
+  const textSizeOption = getTextSizeOption(textSize)
+  const lineHeight = textSizeOption.maxFontSize * 0.92
+  const centerX = rect.x + rect.width / 2
+  const centerY = options.autoResize
+    ? rect.y + Math.max(rect.height, lineHeight) / 2
+    : rect.y + lineHeight / 2
+
+  return createTextLayer(
+    { x: centerX, y: centerY },
+    {
+      text: '',
+      maxWidth: options.autoResize ? APP_ICON_SAFE_AREA_SIZE : rect.width,
+      autoResize: options.autoResize,
+      textAlign: options.autoResize ? defaults.textAlign : 'left',
+      verticalAlign: options.autoResize ? defaults.textVerticalAlign : 'top',
+    },
+  )
+}
+
+export function updateTextLayerContent(
   document: AssetDocument,
-  point: { x: number; y: number },
-): { document: AssetDocument; layerId: TextLayer['id']; created: boolean } {
-  const clampedPoint = clampTextLayerPoint(point)
-  const existing = getTextLayer(document)
-
-  if (existing) {
-    return {
-      document: updateIconLayer(document, 'text', (layer) => ({
-        ...layer,
-        x: clampedPoint.x,
-        y: clampedPoint.y,
-      })),
-      layerId: 'text',
-      created: false,
-    }
-  }
-
-  return {
-    document: addIconLayer(document, createDefaultTextLayer(clampedPoint)),
-    layerId: 'text',
-    created: true,
-  }
-}
-
-export function updateTextLayerContent(document: AssetDocument, text: string): AssetDocument {
-  return updateIconLayer(document, 'text', (layer) => ({ ...layer, text }))
+  layerId: TextLayer['id'],
+  text: string,
+): AssetDocument {
+  return updateIconLayer(document, layerId, (layer) => ({ ...layer, text }))
 }
 
 export function removeIconLayers(

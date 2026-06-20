@@ -3,8 +3,8 @@ import { Circle, Diamond, MousePointer2, Square, Type } from 'lucide-react'
 import type { EditorTool } from '../types'
 
 const tools: Array<{ tool: EditorTool; label: string; title: string; icon: typeof Square }> = [
-  { tool: 'select', label: 'Selection tool', title: 'Selection (V)', icon: MousePointer2 },
-  { tool: 'text', label: 'Text tool', title: 'Text (T)', icon: Type },
+  { tool: 'select', label: 'Selection tool', title: 'Selection — 1 or V', icon: MousePointer2 },
+  { tool: 'text', label: 'Text tool', title: 'Text — 8 or T', icon: Type },
   { tool: 'rectangle', label: 'Rectangle tool', title: 'Rectangle (R)', icon: Square },
   { tool: 'diamond', label: 'Diamond tool', title: 'Diamond (D)', icon: Diamond },
   { tool: 'ellipse', label: 'Ellipse tool', title: 'Ellipse (O)', icon: Circle },
