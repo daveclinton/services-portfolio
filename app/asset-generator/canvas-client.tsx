@@ -1,17 +1,21 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Smartphone, X } from 'lucide-react'
 import { defaults, masterSize } from './constants'
 import { getDefaultAssetDocument } from './document'
 import { getColorWithOpacity, renderDesign } from './utils/'
 import { PhonePreview } from './components/PhonePreview'
+import { useIsMobile } from './hooks/useIsMobile'
 
 type PreviewPlatform = 'ios' | 'android'
 
 export function CanvasClient() {
   const masterCanvasRef = useRef<HTMLCanvasElement>(null)
   const phonePreviewRef = useRef<HTMLCanvasElement>(null)
+  const isMobile = useIsMobile()
   const [platform, setPlatform] = useState<PreviewPlatform>('ios')
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const document = useMemo(() => getDefaultAssetDocument(), [])
   const design = document.icon
   const splashPreviewBackground = getColorWithOpacity(
@@ -19,6 +23,13 @@ export function CanvasClient() {
     document.preview.splashBackgroundOpacity,
     defaults.splashBackgroundColor,
   )
+  const showPreviewPanel = !isMobile || isPreviewOpen
+
+  useEffect(() => {
+    if (isMobile) {
+      setIsPreviewOpen(false)
+    }
+  }, [isMobile])
 
   useEffect(() => {
     const masterCanvas = masterCanvasRef.current
@@ -41,17 +52,61 @@ export function CanvasClient() {
     if (!ctx) return
     ctx.scale(228 / masterSize, 228 / masterSize)
     renderDesign(ctx, design)
-  }, [design, platform])
+  }, [design, platform, showPreviewPanel])
 
   return (
-    <main className="asset-generator-page" id="main-content">
-      <section className="asset-generator-design is-preview-open">
+    <main
+      className={`asset-generator-page${isMobile ? ' asset-generator-page--mobile' : ''}`}
+      id="main-content"
+    >
+      <section
+        className={`asset-generator-design${!isMobile ? ' is-preview-open' : ''}${isMobile ? ' is-mobile-canvas' : ''}`}
+      >
         <div className="asset-generator-master">
           <canvas ref={masterCanvasRef} aria-label="Master design canvas" />
         </div>
       </section>
 
-      <section className="asset-generator-preview-panel is-open" aria-label="Phone preview">
+      {isMobile && isPreviewOpen ? (
+        <button
+          type="button"
+          className="asset-generator-preview-backdrop"
+          aria-label="Close device preview"
+          onClick={() => setIsPreviewOpen(false)}
+        />
+      ) : null}
+
+      {isMobile && !isPreviewOpen ? (
+        <button
+          type="button"
+          className="asset-generator-preview-toggle"
+          aria-label="Open device preview"
+          aria-expanded={isPreviewOpen}
+          onClick={() => setIsPreviewOpen(true)}
+        >
+          <Smartphone aria-hidden="true" />
+        </button>
+      ) : null}
+
+      <section
+        className={`asset-generator-preview-panel${isMobile ? ' asset-generator-preview-panel--sheet' : ''}${showPreviewPanel ? ' is-open' : ''}`}
+        aria-label="Phone preview"
+        aria-hidden={!showPreviewPanel}
+      >
+        {isMobile ? (
+          <div className="asset-generator-preview-sheet-header">
+            <span>Device preview</span>
+            <button
+              type="button"
+              className="asset-generator-preview-sheet-close"
+              aria-label="Close device preview"
+              onClick={() => setIsPreviewOpen(false)}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </div>
+        ) : null}
+
         <div className="asset-generator-device-tabs" role="tablist" aria-label="Platform">
           <button
             type="button"

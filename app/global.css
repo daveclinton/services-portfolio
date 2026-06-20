@@ -1812,11 +1812,11 @@ a {
     display: grid;
     place-items: center;
     width: 100%;
-    min-height: calc(100dvh - 5rem);
+    min-height: 100dvh;
     padding:
-      calc(4.25rem + env(safe-area-inset-top, 0px))
+      max(1rem, env(safe-area-inset-top, 0px))
       max(0.75rem, env(safe-area-inset-right))
-      calc(6.75rem + env(safe-area-inset-bottom, 0px))
+      calc(5rem + env(safe-area-inset-bottom, 0px))
       max(0.75rem, env(safe-area-inset-left));
   }
 
@@ -1832,19 +1832,14 @@ a {
     margin: 0 auto;
   }
 
-  .asset-generator-page--mobile .asset-generator-preview-panel {
-    top: auto;
-    right: max(0.5rem, env(safe-area-inset-right));
-    bottom: max(0.5rem, env(safe-area-inset-bottom));
-    left: max(0.5rem, env(safe-area-inset-left));
-    width: auto;
-    max-height: min(64dvh, 34rem);
-    border-radius: 0.75rem;
-    transform: translateY(calc(100% + 1.5rem));
+  .asset-generator-page--mobile .asset-generator-preview-panel--sheet {
+    height: 80dvh;
+    max-height: 80dvh;
   }
 
-  .asset-generator-page--mobile .asset-generator-preview-panel.is-open {
-    transform: translateY(0);
+  .asset-generator-page--mobile .asset-generator-preview-panel--sheet .asset-generator-phone-frame {
+    width: min(15rem, 58vw);
+    height: min(58dvh, calc(80dvh - 9rem));
   }
 
 }
@@ -2139,6 +2134,93 @@ a {
   opacity: 1;
   pointer-events: auto;
   transform: translateX(0);
+}
+
+.asset-generator-preview-panel--sheet {
+  top: auto;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 80dvh;
+  max-height: 80dvh;
+  border-radius: 1rem 1rem 0 0;
+  transform: translateY(100%);
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.asset-generator-preview-panel--sheet.is-open {
+  transform: translateY(0);
+}
+
+.asset-generator-preview-sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem 0.25rem;
+  color: var(--ag-text);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.asset-generator-preview-sheet-close {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid var(--ag-border);
+  border-radius: var(--ag-radius);
+  background: var(--ag-island-bg);
+  color: var(--ag-text);
+  cursor: pointer;
+}
+
+.asset-generator-preview-sheet-close svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.asset-generator-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+  border: 0;
+  background: rgba(18, 18, 18, 0.32);
+  cursor: pointer;
+  animation: asset-generator-layer-fade-up 160ms var(--ag-ease-out) both;
+}
+
+.asset-generator-preview-toggle {
+  position: fixed;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 18;
+  display: grid;
+  place-items: center;
+  width: var(--lg-button-size);
+  height: var(--lg-button-size);
+  border: 1px solid var(--ag-border);
+  border-radius: var(--ag-radius);
+  background: var(--ag-island-bg);
+  color: var(--ag-text);
+  box-shadow: var(--ag-shadow-island);
+  cursor: pointer;
+}
+
+.asset-generator-preview-toggle svg {
+  width: var(--default-icon-size);
+  height: var(--default-icon-size);
+}
+
+.asset-generator-preview-panel--sheet .asset-generator-phone {
+  min-height: 0;
+  padding: 0.75rem 1rem 1.25rem;
+}
+
+.asset-generator-preview-panel--sheet .asset-generator-phone-frame {
+  width: min(15rem, 58vw);
+  height: min(58dvh, calc(80dvh - 9rem));
 }
 
 .asset-generator-device-tabs {
@@ -2451,7 +2533,7 @@ a {
     height: min(78vw, 25rem);
   }
 
-  .asset-generator-preview-panel {
+  .asset-generator-preview-panel:not(.asset-generator-preview-panel--sheet) {
     top: auto;
     right: max(0.5rem, env(safe-area-inset-right));
     bottom: max(0.5rem, env(safe-area-inset-bottom));
@@ -2462,17 +2544,18 @@ a {
     transform: translateY(calc(100% + 1.5rem));
   }
 
-  .asset-generator-preview-panel.is-open {
+  .asset-generator-preview-panel:not(.asset-generator-preview-panel--sheet).is-open {
     transform: translateY(0);
   }
 
-  .asset-generator-phone {
-    padding: 1rem 0.75rem;
+  .asset-generator-preview-panel--sheet {
+    height: 80dvh;
+    max-height: 80dvh;
   }
 
-  .asset-generator-phone-frame {
-    width: min(12.5rem, 62vw);
-    height: min(25rem, 44dvh);
+  .asset-generator-preview-panel--sheet .asset-generator-phone-frame {
+    width: min(15rem, 58vw);
+    height: min(58dvh, calc(80dvh - 9rem));
   }
 }
 
