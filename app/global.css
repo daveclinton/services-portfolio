@@ -436,6 +436,511 @@ a {
   color: var(--soft-muted);
 }
 
+.asset-excalidraw-shell {
+  --asset-ui: color-mix(in srgb, var(--bg) 94%, var(--text));
+  --asset-ui-raised: color-mix(in srgb, var(--bg) 88%, var(--text));
+  --asset-canvas-bg: color-mix(in srgb, var(--bg) 91%, var(--text));
+  --asset-blueprint: #a5d8ff;
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  min-width: 320px;
+  min-height: 620px;
+  overflow: hidden;
+  background: var(--asset-canvas-bg);
+  color: var(--text);
+  font-family: var(--font-ui), Inter, system-ui, sans-serif;
+}
+
+.asset-excalidraw-canvas-wrap {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at center, color-mix(in srgb, var(--brand) 14%, transparent), transparent 34rem),
+    linear-gradient(var(--rule) 1px, transparent 1px),
+    linear-gradient(90deg, var(--rule) 1px, transparent 1px),
+    var(--asset-canvas-bg);
+  background-size: auto, 32px 32px, 32px 32px, auto;
+}
+
+.asset-excalidraw-canvas {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: min(32rem, 42vw);
+  min-width: 22rem;
+  aspect-ratio: 1;
+  border: 4px dotted #343a40;
+  border-radius: 2rem;
+  background: var(--asset-blueprint);
+  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 0.2);
+  color: #343a40;
+  opacity: 0.9;
+}
+
+.asset-excalidraw-safe-zone {
+  position: absolute;
+  inset: 16%;
+  border: 2px dotted #343a40;
+  border-radius: 1.35rem;
+}
+
+.asset-excalidraw-canvas span {
+  z-index: 1;
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.asset-excalidraw-layer-ui {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.asset-excalidraw-fixed-side {
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.asset-excalidraw-fixed-side--top {
+  top: 0;
+}
+
+.asset-excalidraw-menu {
+  display: grid;
+  color: var(--text);
+  pointer-events: none;
+}
+
+.asset-excalidraw-menu--top {
+  grid-template-columns: 1fr 2fr 1fr;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 0.75rem;
+}
+
+.asset-excalidraw-menu--top > * {
+  pointer-events: auto;
+}
+
+.asset-excalidraw-top-left,
+.asset-excalidraw-top-right,
+.asset-excalidraw-shapes {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.asset-excalidraw-top-left {
+  justify-self: flex-start;
+}
+
+.asset-excalidraw-shapes {
+  justify-content: center;
+}
+
+.asset-excalidraw-top-right {
+  justify-self: flex-end;
+}
+
+.asset-excalidraw-island {
+  border: 1px solid var(--rule);
+  border-radius: 0.75rem;
+  background: var(--asset-ui);
+  box-shadow: 0 0.6rem 1.8rem rgb(0 0 0 / 0.14);
+}
+
+.asset-excalidraw-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+}
+
+.asset-excalidraw-icon-button,
+.asset-excalidraw-toolbar button,
+.asset-excalidraw-device-tabs button {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid var(--rule);
+  background: var(--asset-ui);
+  color: var(--muted);
+  cursor: default;
+  font: inherit;
+}
+
+.asset-excalidraw-icon-button,
+.asset-excalidraw-toolbar button {
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 0.5rem;
+}
+
+.asset-excalidraw-icon-button svg,
+.asset-excalidraw-toolbar svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.asset-excalidraw-toolbar button.is-active {
+  border-color: color-mix(in srgb, var(--brand) 70%, var(--rule));
+  background: color-mix(in srgb, var(--brand) 18%, var(--asset-ui));
+  color: var(--text);
+}
+
+.asset-excalidraw-properties {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.35rem;
+  padding: 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.asset-excalidraw-properties i {
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--asset-blueprint);
+}
+
+.asset-excalidraw-sidebar {
+  position: absolute;
+  top: 7rem;
+  left: 0.75rem;
+  display: grid;
+  gap: 0.5rem;
+  width: 14rem;
+  padding: 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.85rem;
+  background: var(--asset-ui);
+  box-shadow: 0 0.8rem 2rem rgb(0 0 0 / 0.14);
+  pointer-events: auto;
+}
+
+.asset-excalidraw-sidebar-header,
+.asset-excalidraw-sidebar-trigger,
+.asset-excalidraw-sidebar-backdrop {
+  display: none;
+}
+
+.asset-excalidraw-sidebar-section {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.65rem;
+  border-radius: 0.55rem;
+  background: var(--asset-ui-raised);
+}
+
+.asset-excalidraw-sidebar-section span {
+  color: var(--soft-muted);
+  font-size: 0.72rem;
+}
+
+.asset-excalidraw-sidebar-section strong {
+  overflow: hidden;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-excalidraw-preview {
+  position: absolute;
+  top: 7rem;
+  right: 0.75rem;
+  display: grid;
+  justify-items: center;
+  gap: 0.85rem;
+  width: 18rem;
+  pointer-events: auto;
+}
+
+.asset-excalidraw-preview-header,
+.asset-excalidraw-preview-trigger,
+.asset-excalidraw-preview-backdrop {
+  display: none;
+}
+
+.asset-excalidraw-preview-body {
+  display: grid;
+  justify-items: center;
+  gap: 0.85rem;
+}
+
+.asset-excalidraw-preview-header {
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  color: var(--text);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.asset-excalidraw-preview-header button,
+.asset-excalidraw-preview-trigger,
+.asset-excalidraw-sidebar-header button,
+.asset-excalidraw-sidebar-trigger {
+  appearance: none;
+  place-items: center;
+  border: 1px solid var(--rule);
+  background: var(--asset-ui);
+  color: var(--muted);
+}
+
+.asset-excalidraw-preview-header button,
+.asset-excalidraw-sidebar-header button {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+}
+
+.asset-excalidraw-preview-header svg,
+.asset-excalidraw-preview-trigger svg,
+.asset-excalidraw-sidebar-header svg,
+.asset-excalidraw-sidebar-trigger svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.asset-excalidraw-device-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border: 1px solid var(--rule);
+  border-radius: 0.75rem;
+  background: var(--asset-ui);
+}
+
+.asset-excalidraw-device-tabs button {
+  min-width: 5rem;
+  min-height: 2rem;
+  border-radius: 0.5rem;
+  font-size: 0.82rem;
+}
+
+.asset-excalidraw-device-tabs button[aria-selected='true'] {
+  background: var(--text);
+  color: var(--bg);
+}
+
+.asset-excalidraw-phone {
+  position: relative;
+  display: grid;
+  width: 15rem;
+  aspect-ratio: 0.48;
+  padding: 0.75rem;
+  border: 1px solid var(--rule);
+  border-radius: 2.2rem;
+  background: #050505;
+  box-shadow: 0 1rem 3rem rgb(0 0 0 / 0.24);
+}
+
+.asset-excalidraw-phone-island {
+  position: absolute;
+  top: 0.9rem;
+  left: 50%;
+  z-index: 1;
+  width: 5rem;
+  height: 1.3rem;
+  border-radius: 999px;
+  background: #000000;
+  transform: translateX(-50%);
+}
+
+.asset-excalidraw-phone-screen {
+  display: grid;
+  place-items: center;
+  border-radius: 1.65rem;
+  background: var(--asset-blueprint);
+  color: #343a40;
+}
+
+.asset-excalidraw-phone-screen svg {
+  width: 2rem;
+  height: 2rem;
+}
+
+@media (max-width: 980px) {
+  .asset-excalidraw-menu--top {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .asset-excalidraw-toolbar {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  .asset-excalidraw-properties {
+    display: none;
+  }
+
+  .asset-excalidraw-sidebar {
+    top: auto;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    left: 0.75rem;
+    width: auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .asset-excalidraw-preview {
+    top: 5.25rem;
+    width: 12rem;
+  }
+
+  .asset-excalidraw-phone {
+    width: 10rem;
+  }
+
+  .asset-excalidraw-canvas {
+    width: min(28rem, 64vw);
+  }
+}
+
+@media (max-width: 640px) {
+  .asset-excalidraw-shell {
+    min-height: 720px;
+  }
+
+  .asset-excalidraw-menu--top {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .asset-excalidraw-top-right {
+    display: none;
+  }
+
+  .asset-excalidraw-preview-trigger,
+  .asset-excalidraw-sidebar-trigger {
+    position: absolute;
+    bottom: 1rem;
+    z-index: 8;
+    display: grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 999px;
+    box-shadow: 0 0.8rem 2rem rgb(0 0 0 / 0.2);
+    pointer-events: auto;
+  }
+
+  .asset-excalidraw-preview-trigger {
+    right: 1rem;
+  }
+
+  .asset-excalidraw-sidebar-trigger {
+    left: 1rem;
+  }
+
+  .asset-excalidraw-preview-backdrop,
+  .asset-excalidraw-sidebar-backdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 9;
+    background: rgb(0 0 0 / 0.42);
+    pointer-events: auto;
+  }
+
+  .asset-excalidraw-preview,
+  .asset-excalidraw-sidebar {
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 10;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    justify-items: stretch;
+    gap: 0.9rem;
+    width: auto;
+    max-height: none;
+    padding: max(0.85rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+    border: 0;
+    border-radius: 0;
+    background: var(--asset-ui);
+    box-shadow: none;
+    transform: translateY(100%);
+    transition: transform 180ms ease-out;
+    pointer-events: auto;
+  }
+
+  .asset-excalidraw-sidebar {
+    align-content: start;
+    grid-template-rows: auto auto;
+  }
+
+  .asset-excalidraw-preview-header,
+  .asset-excalidraw-sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    font-size: 0.86rem;
+    font-weight: 600;
+  }
+
+  .asset-excalidraw-preview-body {
+    align-content: center;
+    justify-content: center;
+    min-height: 0;
+  }
+
+  .asset-excalidraw-shell.is-mobile-preview-open .asset-excalidraw-preview {
+    transform: translateY(0);
+  }
+
+  .asset-excalidraw-shell.is-mobile-sidebar-open .asset-excalidraw-sidebar {
+    transform: translateY(0);
+  }
+
+  .asset-excalidraw-shell:not(.is-mobile-preview-open) .asset-excalidraw-preview-backdrop,
+  .asset-excalidraw-shell:not(.is-mobile-sidebar-open) .asset-excalidraw-sidebar-backdrop {
+    display: none;
+  }
+
+  .asset-excalidraw-shell.is-mobile-preview-open .asset-excalidraw-preview-backdrop,
+  .asset-excalidraw-shell.is-mobile-sidebar-open .asset-excalidraw-sidebar-backdrop {
+    display: block;
+  }
+
+  .asset-excalidraw-shell.is-mobile-preview-open .asset-excalidraw-preview-trigger,
+  .asset-excalidraw-shell.is-mobile-sidebar-open .asset-excalidraw-sidebar-trigger {
+    display: none;
+  }
+
+  .asset-excalidraw-shell.is-mobile-preview-open .asset-excalidraw-sidebar-trigger,
+  .asset-excalidraw-shell.is-mobile-sidebar-open .asset-excalidraw-preview-trigger {
+    display: none;
+  }
+
+  .asset-excalidraw-sidebar {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .asset-excalidraw-canvas {
+    width: min(22rem, calc(100vw - 2rem));
+    min-width: 0;
+  }
+
+  .asset-excalidraw-phone {
+    width: min(17rem, 72vw);
+    justify-self: center;
+  }
+}
+
 .quote-strip-centered p {
   margin: 0 auto;
   text-align: center;
