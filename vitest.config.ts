@@ -12,7 +12,6 @@ export default defineConfig({
     globals: true,
     coverage: {
       provider: 'v8',
-      include: ['app/asset-generator/**/*.{ts,tsx}'],
       exclude: ['**/*.test.{ts,tsx}', '**/*.spec.{ts,tsx}', '**/page.tsx'],
     },
   },
