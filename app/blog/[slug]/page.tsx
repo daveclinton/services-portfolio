@@ -3,19 +3,9 @@ import { notFound } from 'next/navigation'
 import { ThemeToggle } from 'app/components/theme-toggle'
 import { CustomMDX } from 'app/components/mdx'
 import { ReaderModeToggle } from 'app/components/reader-mode-toggle'
-import {
-  formatDate,
-  getPublishedBlogPosts,
-  type BlogPost,
-} from 'app/blog/utils'
+import { formatDate } from 'app/blog/utils'
+import { getBlogPostBySlug, getPublishedBlogPosts } from 'app/blog/convex-utils'
 import { absoluteUrl, siteConfig } from 'app/seo'
-
-function byNewest(a: BlogPost, b: BlogPost) {
-  if (new Date(a.metadata.publishedAt) > new Date(b.metadata.publishedAt)) {
-    return -1
-  }
-  return 1
-}
 
 function hasValue(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
@@ -29,40 +19,35 @@ type RecommendedRead = {
   isInternal: boolean
 }
 
-export function generateStaticParams() {
-  const posts = getPublishedBlogPosts()
-  return posts.map((post) => ({ slug: post.slug }))
-}
-
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const post = getPublishedBlogPosts().find((entry) => entry.slug === slug)
+  const post = await getBlogPostBySlug(slug)
 
   if (!post) {
     return
   }
 
   const pageUrl = absoluteUrl(`/blog/${post.slug}`)
-  const ogImage = post.metadata.image
-    ? absoluteUrl(post.metadata.image)
-    : absoluteUrl(`/og?title=${encodeURIComponent(post.metadata.title)}`)
+  const ogImage = post.image
+    ? absoluteUrl(post.image)
+    : absoluteUrl(`/og?title=${encodeURIComponent(post.title)}`)
 
   return {
-    title: post.metadata.title,
-    description: post.metadata.summary,
+    title: post.title,
+    description: post.summary,
     alternates: {
       canonical: `/blog/${post.slug}`,
     },
     authors: [{ name: siteConfig.owner }],
     openGraph: {
-      title: post.metadata.title,
-      description: post.metadata.summary,
+      title: post.title,
+      description: post.summary,
       type: 'article',
-      publishedTime: post.metadata.publishedAt,
+      publishedTime: post.publishedAt,
       url: pageUrl,
       authors: [siteConfig.owner],
       images: [
@@ -70,14 +55,14 @@ export async function generateMetadata({
           url: ogImage,
           width: 1200,
           height: 630,
-          alt: `${post.metadata.title} social preview`,
+          alt: `${post.title} social preview`,
         },
       ],
     },
     twitter: {
       card: 'summary_large_image',
-      title: post.metadata.title,
-      description: post.metadata.summary,
+      title: post.title,
+      description: post.summary,
       creator: siteConfig.twitterHandle,
       images: [ogImage],
     },
@@ -90,35 +75,35 @@ export default async function BlogPost({
   params: Promise<{ slug: string }>
 }) {
   const { slug } = await params
-  const allPosts = getPublishedBlogPosts().sort(byNewest)
-  const post = allPosts.find((entry) => entry.slug === slug)
+  const post = await getBlogPostBySlug(slug)
 
   if (!post) {
     notFound()
   }
 
   const postUrl = absoluteUrl(`/blog/${post.slug}`)
-  const previewImageUrl = post.metadata.image
-    ? absoluteUrl(post.metadata.image)
-    : absoluteUrl(`/og?title=${encodeURIComponent(post.metadata.title)}`)
+  const previewImageUrl = post.image
+    ? absoluteUrl(post.image)
+    : absoluteUrl(`/og?title=${encodeURIComponent(post.title)}`)
 
-  const recommendedReads: RecommendedRead[] = (post.metadata.recommendedReads || [])
+  const recommendedReads: RecommendedRead[] = (post.recommendedReads || [])
     .map((item) => {
       const href = item.href || item.url
       return {
         ...item,
-        href,
+        href: href || '',
         isInternal: hasValue(href) && href.startsWith('/'),
       }
     })
     .filter((item): item is RecommendedRead => hasValue(item.href))
     .sort((a, b) => Number(b.isInternal) - Number(a.isInternal))
+
   const wordCount = post.content.trim().split(/\s+/).filter(Boolean).length
   const articleJsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Article',
-    headline: post.metadata.title,
-    description: post.metadata.summary,
+    headline: post.title,
+    description: post.summary,
     author: {
       '@type': 'Person',
       name: siteConfig.owner,
@@ -132,8 +117,8 @@ export default async function BlogPost({
         url: absoluteUrl('/my-picture.jpg'),
       },
     },
-    datePublished: post.metadata.publishedAt,
-    dateModified: post.metadata.publishedAt,
+    datePublished: post.publishedAt,
+    dateModified: post.publishedAt,
     mainEntityOfPage: postUrl,
     image: [previewImageUrl],
     wordCount,
@@ -165,9 +150,9 @@ export default async function BlogPost({
         <main className="post-layout" id="main-content">
           <article className="post-article">
             <header className="post-header">
-              <h1>{post.metadata.title}</h1>
-              <Link href="/blog">{formatDate(post.metadata.publishedAt)} - David Clinton</Link>
-              <p className="post-subheading">{post.metadata.summary}</p>
+              <h1>{post.title}</h1>
+              <Link href="/blog">{formatDate(post.publishedAt)} - David Clinton</Link>
+              <p className="post-subheading">{post.summary}</p>
             </header>
 
             <CustomMDX source={post.content} />

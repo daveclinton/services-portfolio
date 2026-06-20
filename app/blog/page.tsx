@@ -2,7 +2,8 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { ThemeToggle } from 'app/components/theme-toggle'
 import { absoluteUrl } from 'app/seo'
-import { formatDate, getPublishedBlogPosts } from './utils'
+import { formatDate } from './utils'
+import { getPublishedBlogPosts } from './convex-utils'
 
 function getReadTime(content: string) {
   const words = content.trim().split(/\s+/).filter(Boolean).length
@@ -10,20 +11,23 @@ function getReadTime(content: string) {
   return `${minutes} min read`
 }
 
-const posts = getPublishedBlogPosts()
-  .sort((a, b) => {
-    if (new Date(a.metadata.publishedAt) > new Date(b.metadata.publishedAt)) {
-      return -1
-    }
-    return 1
-  })
-  .map((post) => ({
-    title: post.metadata.title,
-    summary: post.metadata.summary,
-    date: formatDate(post.metadata.publishedAt),
-    readTime: getReadTime(post.content),
-    href: `/blog/${post.slug}`,
-  }))
+async function getPosts() {
+  const posts = await getPublishedBlogPosts()
+  return posts
+    .sort((a, b) => {
+      if (new Date(a.publishedAt) > new Date(b.publishedAt)) {
+        return -1
+      }
+      return 1
+    })
+    .map((post) => ({
+      title: post.title,
+      summary: post.summary,
+      date: formatDate(post.publishedAt),
+      readTime: getReadTime(post.content),
+      href: `/blog/${post.slug}`,
+    }))
+}
 
 export const metadata: Metadata = {
   title: 'Blog',
@@ -53,7 +57,8 @@ export const metadata: Metadata = {
   },
 }
 
-export default function BlogIndexPage() {
+export default async function BlogIndexPage() {
+  const posts = await getPosts()
   return (
     <div className="portfolio-shell">
       <div className="portfolio-container">

@@ -20,6 +20,7 @@
     "@vercel/speed-insights": "^1.0.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "convex": "^1.41.0",
     "geist": "1.2.2",
     "jszip": "^3.10.1",
     "lucide-react": "^1.20.0",
