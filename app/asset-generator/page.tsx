@@ -13,6 +13,7 @@ import {
   Type,
 } from 'lucide-react'
 import { AssetGeneratorLayout } from './components/AssetGeneratorLayout'
+import { AppIconCanvas } from './components/AppIconCanvas'
 
 export const metadata: Metadata = {
   title: 'Asset Generator',
@@ -123,12 +124,7 @@ export default function AssetGeneratorPage() {
           </div>
         </>
       }
-      canvas={
-        <div className="asset-excalidraw-canvas">
-          <div className="asset-excalidraw-safe-zone" />
-          <span>CANVAS AREA</span>
-        </div>
-      }
+      canvas={<AppIconCanvas />}
     />
   )
 }

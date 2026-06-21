@@ -437,10 +437,29 @@ a {
 }
 
 .asset-excalidraw-shell {
-  --asset-ui: color-mix(in srgb, var(--bg) 94%, var(--text));
-  --asset-ui-raised: color-mix(in srgb, var(--bg) 88%, var(--text));
-  --asset-canvas-bg: color-mix(in srgb, var(--bg) 91%, var(--text));
-  --asset-blueprint: #a5d8ff;
+  --asset-default-bg: #ffffff;
+  --asset-ui: #ffffff;
+  --asset-ui-alt: #ffffff;
+  --asset-ui-raised: #f1f0ff;
+  --asset-control: #f1f0ff;
+  --asset-canvas-bg: #ffffff;
+  --asset-blueprint: #ffffff;
+  --asset-text: #1b1b1f;
+  --asset-muted: #7a7a7a;
+  --asset-muted-light: #999999;
+  --asset-border: #ececf4;
+  --asset-border-strong: #d6d6e7;
+  --asset-primary: #6965db;
+  --asset-primary-hover: #5753d0;
+  --asset-primary-active: #4440bf;
+  --asset-primary-container: #e0dfff;
+  --asset-on-primary-container: #030064;
+  --asset-hover: #f1f0ff;
+  --asset-radius: 0.5rem;
+  --asset-shadow-island:
+    0px 0px 1px 0px rgb(0 0 0 / 0.17),
+    0px 0px 3px 0px rgb(0 0 0 / 0.08),
+    0px 7px 14px 0px rgb(0 0 0 / 0.05);
   position: relative;
   width: 100vw;
   height: 100vh;
@@ -448,7 +467,7 @@ a {
   min-height: 620px;
   overflow: hidden;
   background: var(--asset-canvas-bg);
-  color: var(--text);
+  color: var(--asset-text);
   font-family: var(--font-ui), Inter, system-ui, sans-serif;
 }
 
@@ -457,41 +476,32 @@ a {
   inset: 0;
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(circle at center, color-mix(in srgb, var(--brand) 14%, transparent), transparent 34rem),
-    linear-gradient(var(--rule) 1px, transparent 1px),
-    linear-gradient(90deg, var(--rule) 1px, transparent 1px),
-    var(--asset-canvas-bg);
-  background-size: auto, 32px 32px, 32px 32px, auto;
+  background: var(--asset-canvas-bg);
 }
 
 .asset-excalidraw-canvas {
   position: relative;
-  display: grid;
-  place-items: center;
   width: min(32rem, 42vw);
   min-width: 22rem;
   aspect-ratio: 1;
-  border: 4px dotted #343a40;
-  border-radius: 2rem;
-  background: var(--asset-blueprint);
-  box-shadow: 0 1.5rem 4rem rgb(0 0 0 / 0.2);
-  color: #343a40;
-  opacity: 0.9;
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.04),
+    0 24px 64px rgb(0 0 0 / 0.12);
+  isolation: isolate;
 }
 
-.asset-excalidraw-safe-zone {
+.asset-excalidraw-canvas-layer {
   position: absolute;
-  inset: 16%;
-  border: 2px dotted #343a40;
-  border-radius: 1.35rem;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 2.25rem;
 }
 
-.asset-excalidraw-canvas span {
-  z-index: 1;
-  font-size: 0.86rem;
-  font-weight: 700;
-  letter-spacing: 0;
+.asset-excalidraw-canvas-layer--interactive {
+  cursor: crosshair;
+  touch-action: none;
 }
 
 .asset-excalidraw-layer-ui {
@@ -514,7 +524,7 @@ a {
 
 .asset-excalidraw-menu {
   display: grid;
-  color: var(--text);
+  color: var(--asset-text);
   pointer-events: none;
 }
 
@@ -550,10 +560,10 @@ a {
 }
 
 .asset-excalidraw-island {
-  border: 1px solid var(--rule);
-  border-radius: 0.75rem;
+  border: 1px solid var(--asset-border);
+  border-radius: 0.625rem;
   background: var(--asset-ui);
-  box-shadow: 0 0.6rem 1.8rem rgb(0 0 0 / 0.14);
+  box-shadow: var(--asset-shadow-island);
 }
 
 .asset-excalidraw-toolbar {
@@ -569,18 +579,44 @@ a {
   appearance: none;
   display: inline-grid;
   place-items: center;
-  border: 1px solid var(--rule);
-  background: var(--asset-ui);
-  color: var(--muted);
+  border: 1px solid transparent;
+  background: var(--asset-control);
+  color: var(--asset-text);
   cursor: default;
   font: inherit;
+  transition:
+    background-color 150ms ease-out,
+    border-color 150ms ease-out,
+    color 150ms ease-out,
+    transform 120ms ease-out;
 }
 
 .asset-excalidraw-icon-button,
 .asset-excalidraw-toolbar button {
-  width: 2.35rem;
-  height: 2.35rem;
-  border-radius: 0.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.625rem;
+}
+
+.asset-excalidraw-icon-button:hover,
+.asset-excalidraw-toolbar button:hover,
+.asset-excalidraw-device-tabs button:hover,
+.asset-excalidraw-preview-header button:hover,
+.asset-excalidraw-sidebar-header button:hover,
+.asset-excalidraw-preview-trigger:hover,
+.asset-excalidraw-sidebar-trigger:hover {
+  border-color: var(--asset-border-strong);
+  background: var(--asset-hover);
+}
+
+.asset-excalidraw-icon-button:active,
+.asset-excalidraw-toolbar button:active,
+.asset-excalidraw-device-tabs button:active,
+.asset-excalidraw-preview-header button:active,
+.asset-excalidraw-sidebar-header button:active,
+.asset-excalidraw-preview-trigger:active,
+.asset-excalidraw-sidebar-trigger:active {
+  transform: scale(0.94);
 }
 
 .asset-excalidraw-icon-button svg,
@@ -590,9 +626,9 @@ a {
 }
 
 .asset-excalidraw-toolbar button.is-active {
-  border-color: color-mix(in srgb, var(--brand) 70%, var(--rule));
-  background: color-mix(in srgb, var(--brand) 18%, var(--asset-ui));
-  color: var(--text);
+  border-color: var(--asset-primary-container);
+  background: var(--asset-primary-container);
+  color: var(--asset-on-primary-container);
 }
 
 .asset-excalidraw-properties {
@@ -601,14 +637,14 @@ a {
   gap: 0.6rem;
   min-height: 2.35rem;
   padding: 0 0.75rem;
-  color: var(--muted);
+  color: var(--asset-muted);
   font-size: 0.82rem;
 }
 
 .asset-excalidraw-properties i {
   width: 1.1rem;
   height: 1.1rem;
-  border: 1px solid var(--rule);
+  border: 1px solid var(--asset-border-strong);
   border-radius: 999px;
   background: var(--asset-blueprint);
 }
@@ -621,10 +657,10 @@ a {
   gap: 0.5rem;
   width: 14rem;
   padding: 0.75rem;
-  border: 1px solid var(--rule);
-  border-radius: 0.85rem;
+  border: 1px solid var(--asset-border);
+  border-radius: 0.75rem;
   background: var(--asset-ui);
-  box-shadow: 0 0.8rem 2rem rgb(0 0 0 / 0.14);
+  box-shadow: var(--asset-shadow-island);
   pointer-events: auto;
 }
 
@@ -638,12 +674,12 @@ a {
   display: grid;
   gap: 0.2rem;
   padding: 0.65rem;
-  border-radius: 0.55rem;
+  border-radius: 0.5rem;
   background: var(--asset-ui-raised);
 }
 
 .asset-excalidraw-sidebar-section span {
-  color: var(--soft-muted);
+  color: var(--asset-muted);
   font-size: 0.72rem;
 }
 
@@ -683,7 +719,7 @@ a {
   justify-content: space-between;
   gap: 1rem;
   width: 100%;
-  color: var(--text);
+  color: var(--asset-text);
   font-size: 0.86rem;
   font-weight: 600;
 }
@@ -694,9 +730,9 @@ a {
 .asset-excalidraw-sidebar-trigger {
   appearance: none;
   place-items: center;
-  border: 1px solid var(--rule);
-  background: var(--asset-ui);
-  color: var(--muted);
+  border: 1px solid transparent;
+  background: var(--asset-control);
+  color: var(--asset-text);
 }
 
 .asset-excalidraw-preview-header button,
@@ -704,7 +740,7 @@ a {
   display: grid;
   width: 2rem;
   height: 2rem;
-  border-radius: 0.5rem;
+  border-radius: 0.625rem;
 }
 
 .asset-excalidraw-preview-header svg,
@@ -719,9 +755,10 @@ a {
   display: flex;
   gap: 0.25rem;
   padding: 0.25rem;
-  border: 1px solid var(--rule);
-  border-radius: 0.75rem;
+  border: 1px solid var(--asset-border);
+  border-radius: 0.625rem;
   background: var(--asset-ui);
+  box-shadow: var(--asset-shadow-island);
 }
 
 .asset-excalidraw-device-tabs button {
@@ -732,8 +769,9 @@ a {
 }
 
 .asset-excalidraw-device-tabs button[aria-selected='true'] {
-  background: var(--text);
-  color: var(--bg);
+  border-color: var(--asset-primary-container);
+  background: var(--asset-primary-container);
+  color: var(--asset-on-primary-container);
 }
 
 .asset-excalidraw-phone {
@@ -742,10 +780,12 @@ a {
   width: 15rem;
   aspect-ratio: 0.48;
   padding: 0.75rem;
-  border: 1px solid var(--rule);
+  border: 1px solid #121212;
   border-radius: 2.2rem;
-  background: #050505;
-  box-shadow: 0 1rem 3rem rgb(0 0 0 / 0.24);
+  background: #121212;
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.12) inset,
+    0 16px 42px rgb(0 0 0 / 0.16);
 }
 
 .asset-excalidraw-phone-island {
@@ -763,6 +803,7 @@ a {
 .asset-excalidraw-phone-screen {
   display: grid;
   place-items: center;
+  border: 1px solid var(--asset-border);
   border-radius: 1.65rem;
   background: var(--asset-blueprint);
   color: #343a40;
@@ -849,7 +890,7 @@ a {
     position: absolute;
     inset: 0;
     z-index: 9;
-    background: rgb(0 0 0 / 0.42);
+    background: rgb(27 27 31 / 0.24);
     pointer-events: auto;
   }
 
