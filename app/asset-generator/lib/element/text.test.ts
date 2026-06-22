@@ -3,11 +3,22 @@ import { getDefaultAppState } from '../editor/appState'
 import { DEFAULT_ELEMENT_PROPS } from '../common/defaults'
 import { resetTestIds } from '../common/random'
 import { newRectangleElement, newTextElement } from './newElement'
-import { getCanvasCursor, getTextTopForSceneY } from './text'
+import { getCanvasCursor, getTextLines, getTextTopForSceneY, measureTextDimensions } from './text'
 
 describe('text helpers', () => {
   it('centers the first line on the click Y coordinate', () => {
     expect(getTextTopForSceneY(512, 64)).toBeCloseTo(476.8, 1)
+  })
+
+  it('splits text into canvas-renderable lines', () => {
+    expect(getTextLines('One\nTwo\n')).toEqual(['One', 'Two', ''])
+  })
+
+  it('measures multiline text from the widest line and line count', () => {
+    expect(measureTextDimensions('ABCDEFGHIJ\nB', 64)).toEqual({
+      width: 397,
+      height: 141,
+    })
   })
 
   it('uses a text cursor over existing text while the text tool is active', () => {

@@ -5,12 +5,19 @@ import { DOCUMENT_VERSION, parseDocument, serializeDocument } from './json'
 
 describe('asset document json', () => {
   it('round-trips the current editor snapshot', () => {
-    const snapshot = createInitialSnapshot()
+    const snapshot = {
+      ...createInitialSnapshot(),
+      appState: {
+        ...createInitialSnapshot().appState,
+        currentItemFontSize: 88,
+      },
+    }
     const restored = parseDocument(serializeDocument(snapshot))
 
     expect(restored.elements).toEqual(snapshot.elements)
     expect(restored.appState.projectName).toBe(snapshot.appState.projectName)
     expect(restored.appState.viewBackgroundColor).toBe(snapshot.appState.viewBackgroundColor)
+    expect(restored.appState.currentItemFontSize).toBe(88)
   })
 
   it('rejects unsupported documents', () => {

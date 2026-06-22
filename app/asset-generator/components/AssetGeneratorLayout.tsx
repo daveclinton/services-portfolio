@@ -8,6 +8,7 @@ type AssetGeneratorLayoutProps = {
   toolbar: ReactNode
   topRight: ReactNode
   sidebar: ReactNode
+  statusBar: ReactNode
   preview: ReactNode
   canvas: ReactNode
 }
@@ -17,6 +18,7 @@ export function AssetGeneratorLayout({
   toolbar,
   topRight,
   sidebar,
+  statusBar,
   preview,
   canvas,
 }: AssetGeneratorLayoutProps) {
@@ -67,6 +69,10 @@ export function AssetGeneratorLayout({
           </div>
           {sidebar}
         </aside>
+
+        <div className="asset-excalidraw-statusbar" aria-label="Canvas status">
+          {statusBar}
+        </div>
 
         <button
           type="button"

@@ -29,6 +29,7 @@ export type AppState = {
   currentItemStrokeColor: string
   currentItemBackgroundColor: string
   currentItemStrokeWidth: number
+  currentItemFontSize: number
   selectedElementIds: Record<string, true>
   newElement: AssetElement | null
   pointerOrigin: { x: number; y: number } | null

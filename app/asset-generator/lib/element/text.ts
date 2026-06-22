@@ -30,6 +30,19 @@ export function getDefaultTextDimensions(fontSize = DEFAULT_FONT_SIZE) {
   }
 }
 
+export function getTextLines(text: string) {
+  return text.split('\n')
+}
+
+export function measureTextDimensions(text: string, fontSize = DEFAULT_FONT_SIZE) {
+  const lines = getTextLines(text || ' ')
+  const widestLineLength = lines.reduce((max, line) => Math.max(max, line.length || 1), 1)
+  const width = Math.max(MIN_TEXT_WIDTH, Math.ceil(widestLineLength * fontSize * 0.62))
+  const height = Math.max(MIN_TEXT_HEIGHT, Math.ceil(lines.length * getTextLineHeightInPx(fontSize)))
+
+  return { width, height }
+}
+
 export function getCanvasCursor(
   appState: AppState,
   elements: readonly AssetElement[],

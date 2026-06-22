@@ -6,10 +6,11 @@ import type { AssetElement } from '../lib/element/types'
 
 type TextEditorProps = {
   element: AssetElement
+  onChange: (text: string) => void
   onCommit: (text: string, viaKeyboard?: boolean) => void
 }
 
-export function TextEditor({ element, onCommit }: TextEditorProps) {
+export function TextEditor({ element, onChange, onCommit }: TextEditorProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const [blurEnabled, setBlurEnabled] = useState(false)
 
@@ -28,7 +29,7 @@ export function TextEditor({ element, onCommit }: TextEditorProps) {
     }, 0)
 
     return () => window.clearTimeout(timer)
-  }, [element.text])
+  }, [element.id])
 
   const commit = (viaKeyboard = false) => {
     const input = inputRef.current
@@ -40,16 +41,17 @@ export function TextEditor({ element, onCommit }: TextEditorProps) {
     <textarea
       ref={inputRef}
       className="asset-text-editor"
-      defaultValue={element.text ?? ''}
+      value={element.text ?? ''}
       aria-label="Edit text label"
       style={{
         left: `${(element.x / ICON_SIZE) * 100}%`,
         top: `${(element.y / ICON_SIZE) * 100}%`,
         width: `${(element.width / ICON_SIZE) * 100}%`,
-        minHeight: `${(element.height / ICON_SIZE) * 100}%`,
+        height: `${(element.height / ICON_SIZE) * 100}%`,
         fontSize: `calc(100cqw * ${element.fontSize ?? 64} / ${ICON_SIZE})`,
         color: element.strokeColor,
       }}
+      onChange={(event) => onChange(event.currentTarget.value)}
       onBlur={() => {
         if (!blurEnabled) return
         commit(false)

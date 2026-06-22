@@ -1,4 +1,5 @@
 import type { AssetFile } from '../editor/types'
+import { getTextLineHeightInPx, getTextLines } from '../element/text'
 import { getReadyImage } from './imageCache'
 import type { AssetElement } from '../element/types'
 
@@ -100,15 +101,20 @@ export function renderElement(
     const label = element.text?.trim()
     if (label) {
       const fontSize = element.fontSize ?? 64
+      const lines = getTextLines(element.text ?? '')
+      const lineHeight = getTextLineHeightInPx(fontSize)
+      const startY = element.y + element.height / 2 - ((lines.length - 1) * lineHeight) / 2
       context.font = `700 ${fontSize}px Inter, system-ui, sans-serif`
       context.textAlign = 'center'
       context.textBaseline = 'middle'
       context.fillStyle = element.strokeColor
-      context.fillText(
-        label,
-        element.x + element.width / 2,
-        element.y + element.height / 2,
-      )
+      lines.forEach((line, index) => {
+        context.fillText(
+          line || ' ',
+          element.x + element.width / 2,
+          startY + index * lineHeight,
+        )
+      })
     }
 
     context.restore()

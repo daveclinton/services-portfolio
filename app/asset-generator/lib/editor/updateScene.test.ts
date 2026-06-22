@@ -8,6 +8,7 @@ import {
   deleteSelectedElements,
   duplicateSelectedElements,
   selectElementForContextMenu,
+  updateElementInScene,
   updateScene,
 } from './updateScene'
 
@@ -563,6 +564,55 @@ describe('updateScene', () => {
     })
     expect(snapshot.appState.activeTool.type).toBe('selection')
     expect(snapshot.appState.editingElementId).toBe(snapshot.elements[0].id)
+  })
+
+  it('uses the current font size for new text placements', () => {
+    resetTestIds()
+
+    let snapshot = updateScene(createInitialSnapshot(), {
+      appState: {
+        activeTool: { type: 'text', locked: false },
+        currentItemFontSize: 96,
+      },
+    })
+
+    snapshot = updateScene(snapshot, {}, { phase: 'down', x: 400, y: 500 })
+    snapshot = updateScene(snapshot, {}, { phase: 'up', x: 400, y: 500 })
+
+    expect(snapshot.elements[0]).toMatchObject({
+      type: 'text',
+      fontSize: 96,
+      height: 106,
+    })
+  })
+
+  it('remeasures text elements when the draft text changes', () => {
+    resetTestIds()
+
+    const text = newTextElement({
+      ...baseOpts,
+      x: 100,
+      y: 100,
+      width: MIN_TEXT_WIDTH,
+      height: MIN_TEXT_HEIGHT,
+      fontSize: 64,
+      text: '',
+    })
+
+    const snapshot = updateElementInScene(
+      {
+        ...createInitialSnapshot(),
+        elements: [text],
+      },
+      text.id,
+      { text: 'ABCDEFGHIJ\nB' },
+    )
+
+    expect(snapshot.elements[0]).toMatchObject({
+      text: 'ABCDEFGHIJ\nB',
+      width: 397,
+      height: 141,
+    })
   })
 
   it('enters edit mode when clicking an already-selected text label', () => {

@@ -36,13 +36,14 @@ pnpm build
 ### Current status snapshot (2026-06-22)
 - **Phase A — Selection tool:** complete.
 - **Phase B — Shape tools:** complete for app-icon scope.
+- **Phase C — Text polish:** core complete.
 - **Context menu / chrome work:** started early and functional.
-- **Next recommended chunk:** Phase C — text polish.
+- **Next recommended chunk:** Phase D — image tool polish.
 
 **Latest verification:**
 
 ```bash
-pnpm test:run app/asset-generator  # 11 files, 53 tests passing
+pnpm test:run app/asset-generator  # 11 files, 57 tests passing
 pnpm build                         # passing
 ```
 
@@ -72,6 +73,10 @@ Borrowed from `packages/excalidraw/components/App.tsx`, `wysiwyg/textWysiwyg.tsx
 | Escape / Cmd+Enter commit + re-select | Done |
 | Empty whitespace commit → delete element | Done |
 | Horizontal drag > 36px sets fixed width | Done |
+| Live textarea input updates canvas element before commit | Done |
+| Text elements auto-resize to content while typing | Done |
+| Multiline canvas render | Done |
+| Font size app state + sidebar control for new text | Done |
 
 **Key files:** `lib/editor/updateScene.ts`, `lib/element/text.ts`, `components/TextEditor.tsx`, `components/canvases/StaticCanvas.tsx`
 
@@ -113,13 +118,20 @@ Borrowed from `App.tsx` (`handleCanvasContextMenu`, `getContextMenuItems`) and `
 | Pattern | Status |
 |---------|--------|
 | Right-click opens Radix context menu | Done |
+| Top-left hamburger opens Radix dropdown app menu | Done |
 | Right-click hit element is selected before element actions show | Done |
 | Right-click empty canvas preserves existing selection | Done |
 | Canvas menu: import image, save/load JSON, export platform, export all, select all | Done |
 | Element menu: duplicate, layer submenu, delete | Done |
 | Cmd+D duplicate | Done |
 | Cmd+A select all | Done |
-| Sidebar reduced to status/settings instead of file/export/layer actions | Done |
+| Sidebar reduced to controls only instead of file/export/layer/status actions | Done |
+| Sidebar restyled as Excalidraw-like floating properties popup with swatches | Done |
+| Sidebar property controls edit the selected element, falling back to new-item defaults | Done |
+| Color controls open Excalidraw-like Radix Popover picker panels | Done |
+| Project name moved to top-left chrome; duplicate top Background control removed | Done |
+| Tool/selection/elements shown in a minimalist bottom status bar | Done |
+| Safe-area warning moved to export-time confirmation | Done |
 | Context-menu surface visually distinct from white canvas | Done |
 
 **Key files:** `components/AssetCanvasContextMenu.tsx`, `components/AssetGenerator.tsx`, `components/canvases/StaticCanvas.tsx`, `components/ui/context-menu.tsx`, `lib/editor/useEditor.ts`, `lib/editor/updateScene.ts`, `app/global.css`
@@ -173,9 +185,9 @@ Work through these **in order**. For each tool, read the Excalidraw source first
 
 ---
 
-### Phase C — Text tool polish (remaining gaps)
+### Phase C — Text tool polish
 
-**Status:** Next recommended chunk.
+**Status:** Core complete. C1-C4 are implemented; C5-C6 remain optional/review-level.
 
 **Excalidraw refs:** `textWysiwyg.tsx`, `packages/element/src/textElement.ts`, `refreshTextDimensions`
 

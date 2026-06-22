@@ -24,6 +24,7 @@ import {
   ContextMenuSubTrigger,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu'
+import { getElementsOutsideSafeArea } from '../lib/common/safeArea'
 import { exportAllPlatforms, exportPlatformPack } from '../lib/utils/export'
 import type { PreviewPlatform } from '../lib/common/exportPresets'
 import type { AssetFile } from '../lib/editor/types'
@@ -77,6 +78,18 @@ export function AssetCanvasContextMenu({
   const hasElements = elements.length > 0
   const hasSelection = selectedCount > 0
   const platformLabel = previewPlatform === 'ios' ? 'iOS' : 'Android'
+  const confirmSafeAreaExport = () => {
+    const violations = getElementsOutsideSafeArea(elements)
+    if (violations.length === 0) {
+      return true
+    }
+
+    return window.confirm(
+      `${violations.length} element${
+        violations.length === 1 ? ' is' : 's are'
+      } outside the safe area. Export anyway?`,
+    )
+  }
 
   return (
     <ContextMenu>
@@ -143,16 +156,26 @@ export function AssetCanvasContextMenu({
         <ContextMenuSeparator />
         <ContextMenuItem
           disabled={!hasElements}
-          onSelect={() =>
+          onSelect={() => {
+            if (!confirmSafeAreaExport()) {
+              return
+            }
+
             exportPlatformPack(elements, files, backgroundColor, projectName, previewPlatform)
-          }
+          }}
         >
           <Download aria-hidden="true" />
           Export {platformLabel}
         </ContextMenuItem>
         <ContextMenuItem
           disabled={!hasElements}
-          onSelect={() => exportAllPlatforms(elements, files, backgroundColor, projectName)}
+          onSelect={() => {
+            if (!confirmSafeAreaExport()) {
+              return
+            }
+
+            exportAllPlatforms(elements, files, backgroundColor, projectName)
+          }}
         >
           <Files aria-hidden="true" />
           Export all

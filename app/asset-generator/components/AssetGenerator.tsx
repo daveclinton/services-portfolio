@@ -1,23 +1,21 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import Link from 'next/link'
 import {
   Circle,
   Diamond,
-  Menu,
   MousePointer2,
-  Palette,
   Square,
   Type,
 } from 'lucide-react'
 import { getElementAtPosition, getPrimarySelectedElement } from '../lib/element/selection'
 import { useEditor } from '../lib/editor/useEditor'
+import { AssetColorPicker } from './AssetColorPicker'
 import { AssetCanvasContextMenu } from './AssetCanvasContextMenu'
 import { AssetGeneratorLayout } from './AssetGeneratorLayout'
+import { AssetMainMenu } from './AssetMainMenu'
 import { DevicePreview } from './DevicePreview'
 import { HistoryControls } from './HistoryControls'
-import { SafeAreaStatus } from './SafeAreaStatus'
 import { StaticCanvas } from './canvases/StaticCanvas'
 
 const tools = [
@@ -27,6 +25,10 @@ const tools = [
   { label: 'Diamond', icon: Diamond, type: 'diamond' as const },
   { label: 'Ellipse', icon: Circle, type: 'ellipse' as const },
 ]
+
+const backgroundSwatches = ['#ffffff', '#f1f0ff', '#1b1b1f']
+const fillSwatches = ['transparent', '#6965db', '#1b1b1f']
+const strokeSwatches = ['#1b1b1f', '#6965db', '#e03131']
 
 export function AssetGenerator() {
   const {
@@ -42,6 +44,7 @@ export function AssetGenerator() {
     onPointerUp,
     onCanvasDoubleClick,
     onCanvasContextMenu,
+    updateTextDraft,
     updateText,
     undoChange,
     redoChange,
@@ -52,17 +55,57 @@ export function AssetGenerator() {
     deleteSelected,
     duplicateSelected,
     selectAll,
+    updateSelectedElements,
   } = useEditor()
 
   const [contextMenuTarget, setContextMenuTarget] = useState<'canvas' | 'element'>('canvas')
   const selectedCount = Object.keys(appState.selectedElementIds).length
   const selectedElement = getPrimarySelectedElement(elements, appState.selectedElementIds)
+  const fillValue = selectedElement?.backgroundColor ?? appState.currentItemBackgroundColor
+  const strokeValue = selectedElement?.strokeColor ?? appState.currentItemStrokeColor
+  const fontSize = Number.isFinite(selectedElement?.fontSize)
+    ? selectedElement?.fontSize ?? 64
+    : Number.isFinite(appState.currentItemFontSize)
+    ? appState.currentItemFontSize
+    : 64
   const selectionLabel =
     selectedCount > 1
       ? `${selectedCount} selected`
       : selectedElement
       ? selectedElement.type
       : 'None'
+  const canShowFill = !selectedElement || selectedElement.type !== 'image'
+  const canShowFontSize =
+    !selectedElement ||
+    selectedElement.type === 'text' ||
+    (selectedCount > 1 && elements.some((element) => appState.selectedElementIds[element.id] && element.type === 'text'))
+
+  const updateFill = useCallback((backgroundColor: string) => {
+    if (selectedCount > 0) {
+      updateSelectedElements({ backgroundColor })
+      return
+    }
+
+    updateAppState({ currentItemBackgroundColor: backgroundColor })
+  }, [selectedCount, updateAppState, updateSelectedElements])
+
+  const updateStroke = useCallback((strokeColor: string) => {
+    if (selectedCount > 0) {
+      updateSelectedElements({ strokeColor })
+      return
+    }
+
+    updateAppState({ currentItemStrokeColor: strokeColor })
+  }, [selectedCount, updateAppState, updateSelectedElements])
+
+  const updateFontSize = useCallback((nextFontSize: number) => {
+    if (selectedCount > 0) {
+      updateSelectedElements({ fontSize: nextFontSize })
+      return
+    }
+
+    updateAppState({ currentItemFontSize: nextFontSize })
+  }, [selectedCount, updateAppState, updateSelectedElements])
 
   const handleCanvasContextMenu = useCallback((x: number, y: number) => {
     const hit = getElementAtPosition(elements, x, y)
@@ -74,19 +117,33 @@ export function AssetGenerator() {
     <AssetGeneratorLayout
       topLeft={
         <>
-          <Link href="/" className="asset-excalidraw-icon-button" aria-label="Back to home">
-            <Menu aria-hidden="true" />
-          </Link>
-          <label className="asset-excalidraw-island asset-excalidraw-properties">
-            <span>Background</span>
+          <AssetMainMenu
+            elements={elements}
+            files={files}
+            backgroundColor={appState.viewBackgroundColor}
+            projectName={appState.projectName}
+            previewPlatform={appState.previewPlatform}
+            selectedCount={selectedCount}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onImportImage={importImage}
+            onLoadDocument={loadDocument}
+            onSaveDocument={saveDocument}
+            onUndo={undoChange}
+            onRedo={redoChange}
+            onSelectAll={selectAll}
+            onDuplicateSelected={duplicateSelected}
+            onDeleteSelected={deleteSelected}
+          />
+          <label className="asset-excalidraw-island asset-top-project-field">
             <input
-              type="color"
-              value={appState.viewBackgroundColor}
-              onChange={(event) =>
-                updateAppState({ viewBackgroundColor: event.target.value })
-              }
-              aria-label="Canvas background color"
+              type="text"
+              value={appState.projectName}
+              onChange={(event) => updateAppState({ projectName: event.target.value })}
+              placeholder="my-app"
+              aria-label="Project name for export files"
             />
+            <span>Project</span>
           </label>
         </>
       }
@@ -107,63 +164,68 @@ export function AssetGenerator() {
         </div>
       }
       topRight={
-        <>
-          <HistoryControls
-            canUndo={canUndo}
-            canRedo={canRedo}
-            onUndo={undoChange}
-            onRedo={redoChange}
-          />
-          <label className="asset-excalidraw-icon-button" aria-label="Stroke color">
-            <Palette aria-hidden="true" />
-            <input
-              type="color"
-              value={appState.currentItemStrokeColor}
-              onChange={(event) =>
-                updateAppState({ currentItemStrokeColor: event.target.value })
-              }
-              className="asset-excalidraw-color-input"
-            />
-          </label>
-        </>
+        <HistoryControls
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={undoChange}
+          onRedo={redoChange}
+        />
       }
       sidebar={
         <>
-          <SafeAreaStatus elements={elements} />
-          <div className="asset-excalidraw-sidebar-section">
-            <span>Active tool</span>
-            <strong>{appState.activeTool.type}</strong>
-          </div>
-          <div className="asset-excalidraw-sidebar-section">
-            <span>Selection</span>
-            <strong>{selectionLabel}</strong>
-            {selectedCount > 1 ? <small>Shift+click to add or remove</small> : null}
-          </div>
-          <div className="asset-excalidraw-sidebar-section">
-            <span>Elements</span>
-            <strong>{elements.length}</strong>
-          </div>
-          <label className="asset-excalidraw-sidebar-section asset-export-field">
-            <span>Project name</span>
-            <input
-              type="text"
-              value={appState.projectName}
-              onChange={(event) => updateAppState({ projectName: event.target.value })}
-              placeholder="my-app"
-              aria-label="Project name for export files"
+          <AssetColorPicker
+            label="Background"
+            value={appState.viewBackgroundColor}
+            colors={backgroundSwatches}
+            onChange={(viewBackgroundColor) => updateAppState({ viewBackgroundColor })}
+          />
+          {canShowFill ? (
+            <AssetColorPicker
+              label="Fill"
+              value={fillValue}
+              colors={fillSwatches}
+              allowTransparent
+              onChange={updateFill}
             />
-          </label>
-          <label className="asset-excalidraw-sidebar-section asset-excalidraw-color-field">
-            <span>Fill</span>
-            <input
-              type="color"
-              value={appState.currentItemBackgroundColor}
-              onChange={(event) =>
-                updateAppState({ currentItemBackgroundColor: event.target.value })
-              }
-              aria-label="Fill color"
+          ) : null}
+          {selectedElement?.type !== 'image' ? (
+            <AssetColorPicker
+              label={selectedElement?.type === 'text' ? 'Text' : 'Stroke'}
+              value={strokeValue}
+              colors={strokeSwatches}
+              onChange={updateStroke}
             />
-          </label>
+          ) : null}
+          {canShowFontSize ? (
+            <label className="asset-excalidraw-sidebar-section asset-sidebar-input-field">
+              <span>Font size</span>
+              <input
+                type="number"
+                min={16}
+                max={220}
+                step={4}
+                value={fontSize}
+                onChange={(event) => {
+                  const next = Math.min(220, Math.max(16, Number(event.target.value) || 16))
+                  updateFontSize(next)
+                }}
+                aria-label="Font size for new text"
+              />
+            </label>
+          ) : null}
+        </>
+      }
+      statusBar={
+        <>
+          <span>
+            Tool <strong>{appState.activeTool.type}</strong>
+          </span>
+          <span>
+            Selection <strong>{selectionLabel}</strong>
+          </span>
+          <span>
+            Elements <strong>{elements.length}</strong>
+          </span>
         </>
       }
       preview={
@@ -204,6 +266,7 @@ export function AssetGenerator() {
             onPointerUp={onPointerUp}
             onContextMenu={handleCanvasContextMenu}
             onDoubleClick={onCanvasDoubleClick}
+            onTextChange={updateTextDraft}
             onTextCommit={updateText}
           />
         </AssetCanvasContextMenu>

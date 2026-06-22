@@ -7,7 +7,7 @@ import { DEFAULT_FONT_SIZE } from '../common/defaults'
 import { randomId, randomSeed } from '../common/random'
 import { newElementForTool, newTextElement, normalizeRect } from '../element/newElement'
 import {
-  getDefaultTextDimensions,
+  measureTextDimensions,
   getTextLineHeightInPx,
   getTextTopForSceneY,
 } from '../element/text'
@@ -154,7 +154,7 @@ function handleTextPointerDown(
     }
   }
 
-  const fontSize = DEFAULT_FONT_SIZE
+  const fontSize = appState.currentItemFontSize
   const draft = newTextElement({
     x,
     y: getTextTopForSceneY(y, fontSize),
@@ -195,17 +195,18 @@ function handleTextPointerMove(
 
   const fontSize = appState.newElement.fontSize ?? DEFAULT_FONT_SIZE
   const dragWidth = Math.max(x - appState.pointerOrigin.x, 0)
+  const defaultDimensions = measureTextDimensions('', fontSize)
   const fixedWidth =
     dragWidth > TEXT_DRAG_THRESHOLD
-      ? Math.max(dragWidth, getDefaultTextDimensions(fontSize).width)
-      : getDefaultTextDimensions(fontSize).width
+      ? Math.max(dragWidth, defaultDimensions.width)
+      : defaultDimensions.width
 
   return {
     appState: {
       ...appState,
       newElement: newElementWith(appState.newElement, {
         width: fixedWidth,
-        height: getDefaultTextDimensions(fontSize).height,
+        height: defaultDimensions.height,
         y: getTextTopForSceneY(appState.pointerOrigin.y, fontSize),
       }),
     },
@@ -228,14 +229,15 @@ function commitTextDraft(
 
   const fontSize = appState.newElement.fontSize ?? DEFAULT_FONT_SIZE
   const dragWidth = Math.max(x - appState.pointerOrigin.x, 0)
+  const defaultDimensions = measureTextDimensions('', fontSize)
   const width =
     dragWidth > TEXT_DRAG_THRESHOLD
-      ? Math.max(dragWidth, getDefaultTextDimensions(fontSize).width)
-      : getDefaultTextDimensions(fontSize).width
+      ? Math.max(dragWidth, defaultDimensions.width)
+      : defaultDimensions.width
 
   const committed = newElementWith(appState.newElement, {
     width,
-    height: getDefaultTextDimensions(fontSize).height,
+    height: defaultDimensions.height,
     y: getTextTopForSceneY(appState.pointerOrigin.y, fontSize),
   })
 
@@ -686,9 +688,35 @@ export function updateElementInScene(
 ): EditorSnapshot {
   return {
     ...snapshot,
-    elements: snapshot.elements.map((element) =>
-      element.id === elementId ? newElementWith(element, updates) : element,
-    ),
+    elements: snapshot.elements.map((element) => {
+      if (element.id !== elementId) {
+        return element
+      }
+
+      if (element.type !== 'text') {
+        const supportedUpdates = { ...updates }
+        delete supportedUpdates.text
+        delete supportedUpdates.fontSize
+        return Object.keys(supportedUpdates).length > 0
+          ? newElementWith(element, supportedUpdates)
+          : element
+      }
+
+      const nextText = typeof updates.text === 'string' ? updates.text : element.text ?? ''
+      const nextFontSize =
+        typeof updates.fontSize === 'number'
+          ? updates.fontSize
+          : element.fontSize ?? DEFAULT_FONT_SIZE
+      const textUpdates = {
+        ...updates,
+        ...measureTextDimensions(nextText, nextFontSize),
+      }
+      const changed = Object.entries(textUpdates).some(
+        ([key, value]) => element[key as keyof AssetElement] !== value,
+      )
+
+      return changed ? newElementWith(element, textUpdates) : element
+    }),
   }
 }
 

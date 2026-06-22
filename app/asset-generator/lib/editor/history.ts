@@ -14,6 +14,7 @@ export type EditorState = {
   undoStack: HistorySnapshot[]
   redoStack: HistorySnapshot[]
   gestureCheckpoint: EditorSnapshot | null
+  textEditCheckpoint: EditorSnapshot | null
 }
 
 export const MAX_HISTORY_ENTRIES = 50
@@ -72,6 +73,7 @@ export function createInitialEditorState(): EditorState {
     undoStack: [],
     redoStack: [],
     gestureCheckpoint: null,
+    textEditCheckpoint: null,
   }
 }
 
@@ -101,6 +103,7 @@ export function undo(state: EditorState): EditorState {
     undoStack,
     redoStack,
     gestureCheckpoint: null,
+    textEditCheckpoint: null,
   }
 }
 
@@ -119,6 +122,7 @@ export function redo(state: EditorState): EditorState {
     undoStack,
     redoStack,
     gestureCheckpoint: null,
+    textEditCheckpoint: null,
   }
 }
 
@@ -138,5 +142,6 @@ export function replacePresent(state: EditorState, snapshot: EditorSnapshot): Ed
     undoStack: [],
     redoStack: [],
     gestureCheckpoint: null,
+    textEditCheckpoint: null,
   }
 }

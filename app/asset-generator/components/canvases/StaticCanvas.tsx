@@ -19,6 +19,7 @@ type StaticCanvasProps = {
   onPointerUp: (x: number, y: number, shiftKey?: boolean, altKey?: boolean) => void
   onContextMenu?: (x: number, y: number) => void
   onDoubleClick: (x: number, y: number) => void
+  onTextChange: (elementId: string, text: string) => void
   onTextCommit: (elementId: string, text: string, viaKeyboard?: boolean) => void
 }
 
@@ -31,6 +32,7 @@ export function StaticCanvas({
   onPointerUp,
   onContextMenu = () => {},
   onDoubleClick,
+  onTextChange,
   onTextCommit,
 }: StaticCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -142,6 +144,7 @@ export function StaticCanvas({
       {editingElement?.type === 'text' ? (
         <TextEditor
           element={editingElement}
+          onChange={(text) => onTextChange(editingElement.id, text)}
           onCommit={(text, viaKeyboard) => onTextCommit(editingElement.id, text, viaKeyboard)}
         />
       ) : null}

@@ -54,6 +54,8 @@ type EditorAction =
   | { type: 'delete-selected' }
   | { type: 'duplicate-selected' }
   | { type: 'select-all' }
+  | { type: 'update-selected-elements'; updates: Partial<EditorSnapshot['elements'][number]> }
+  | { type: 'update-text-draft'; elementId: string; text: string }
   | { type: 'update-text'; elementId: string; text: string; viaKeyboard?: boolean }
   | { type: 'z-order'; direction: ZOrderAction }
   | { type: 'context-menu'; x: number; y: number }
@@ -114,6 +116,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
           ...state,
           present,
           gestureCheckpoint: shouldCheckpointGesture(present) ? checkpoint : null,
+          textEditCheckpoint: null,
         }
       }
 
@@ -129,6 +132,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         ...state,
         present,
         gestureCheckpoint: null,
+        textEditCheckpoint: null,
       }
 
       if (state.gestureCheckpoint && !snapshotsEqual(state.gestureCheckpoint, present)) {
@@ -139,14 +143,23 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
     }
     case 'update-scene': {
       const present = updateScene(state.present, action.update)
+      const clearsTextEdit =
+        action.update.appState &&
+        ('editingElementId' in action.update.appState ||
+          'activeTool' in action.update.appState)
 
       if (!action.recordHistory || snapshotsEqual(state.present, present)) {
-        return { ...state, present }
+        return {
+          ...state,
+          present,
+          textEditCheckpoint: clearsTextEdit ? null : state.textEditCheckpoint,
+        }
       }
 
       return {
         ...pushUndo(state, state.present),
         present,
+        textEditCheckpoint: clearsTextEdit ? null : state.textEditCheckpoint,
       }
     }
     case 'delete-selected': {
@@ -159,6 +172,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         ...pushUndo(state, state.present),
         present,
         gestureCheckpoint: null,
+        textEditCheckpoint: null,
       }
     }
     case 'duplicate-selected': {
@@ -171,18 +185,53 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         ...pushUndo(state, state.present),
         present,
         gestureCheckpoint: null,
+        textEditCheckpoint: null,
+      }
+    }
+    case 'update-selected-elements': {
+      const selectedIds = Object.keys(state.present.appState.selectedElementIds)
+      if (selectedIds.length === 0) {
+        return state
+      }
+
+      const present = selectedIds.reduce(
+        (snapshot, elementId) => updateElementInScene(snapshot, elementId, action.updates),
+        state.present,
+      )
+
+      if (snapshotsEqual(state.present, present)) {
+        return state
+      }
+
+      return {
+        ...pushUndo(state, state.present),
+        present,
+        gestureCheckpoint: null,
+        textEditCheckpoint: null,
+      }
+    }
+    case 'update-text-draft': {
+      const present = updateElementInScene(state.present, action.elementId, {
+        text: action.text,
+      })
+
+      return {
+        ...state,
+        present,
+        textEditCheckpoint: state.textEditCheckpoint ?? cloneSnapshot(state.present),
       }
     }
     case 'select-all': {
       const present = selectAllElements(state.present)
-      return { ...state, present, gestureCheckpoint: null }
+      return { ...state, present, gestureCheckpoint: null, textEditCheckpoint: null }
     }
     case 'context-menu': {
       const present = selectElementForContextMenu(state.present, action.x, action.y)
-      return { ...state, present, gestureCheckpoint: null }
+      return { ...state, present, gestureCheckpoint: null, textEditCheckpoint: null }
     }
     case 'update-text': {
       const trimmed = action.text.trim()
+      const checkpoint = state.textEditCheckpoint ?? state.present
 
       if (!trimmed) {
         const present: EditorSnapshot = {
@@ -202,31 +251,43 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         }
 
         return {
-          ...pushUndo(state, state.present),
+          ...pushUndo(state, checkpoint),
           present,
           gestureCheckpoint: null,
+          textEditCheckpoint: null,
         }
       }
 
-      const present = updateElementInScene(state.present, action.elementId, {
+      const updated = updateElementInScene(state.present, action.elementId, {
         text: action.text,
       })
+      const present: EditorSnapshot = {
+        ...updated,
+        appState: {
+          ...updated.appState,
+          editingElementId: null,
+          selectedElementIds: action.viaKeyboard
+            ? { [action.elementId]: true as const }
+            : updated.appState.selectedElementIds,
+          selectionBox: null,
+          selectionOriginIds: null,
+        },
+      }
+
+      if (snapshotsEqual(checkpoint, present)) {
+        return {
+          ...state,
+          present,
+          gestureCheckpoint: null,
+          textEditCheckpoint: null,
+        }
+      }
 
       return {
-        ...pushUndo(state, state.present),
-        present: {
-          ...present,
-          appState: {
-            ...present.appState,
-            editingElementId: null,
-            selectedElementIds: action.viaKeyboard
-              ? { [action.elementId]: true as const }
-              : present.appState.selectedElementIds,
-            selectionBox: null,
-            selectionOriginIds: null,
-          },
-        },
+        ...pushUndo(state, checkpoint),
+        present,
         gestureCheckpoint: null,
+        textEditCheckpoint: null,
       }
     }
     case 'z-order': {
@@ -239,6 +300,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         ...pushUndo(state, state.present),
         present,
         gestureCheckpoint: null,
+        textEditCheckpoint: null,
       }
     }
     case 'import-image': {
@@ -269,6 +331,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         ...pushUndo(state, state.present),
         present,
         gestureCheckpoint: null,
+        textEditCheckpoint: null,
       }
     }
     default:
@@ -346,6 +409,13 @@ export function useEditor() {
     dispatch({ type: 'select-all' })
   }, [])
 
+  const updateSelectedElements = useCallback(
+    (updates: Partial<EditorSnapshot['elements'][number]>) => {
+      dispatch({ type: 'update-selected-elements', updates })
+    },
+    [],
+  )
+
   const undoChange = useCallback(() => {
     dispatch({ type: 'undo' })
   }, [])
@@ -389,6 +459,10 @@ export function useEditor() {
 
   const updateText = useCallback((elementId: string, text: string, viaKeyboard = false) => {
     dispatch({ type: 'update-text', elementId, text, viaKeyboard })
+  }, [])
+
+  const updateTextDraft = useCallback((elementId: string, text: string) => {
+    dispatch({ type: 'update-text-draft', elementId, text })
   }, [])
 
   const handleCanvasContextMenu = useCallback((x: number, y: number) => {
@@ -508,6 +582,8 @@ export function useEditor() {
     onCanvasContextMenu: handleCanvasContextMenu,
     startTextEditing,
     updateText,
+    updateTextDraft,
+    updateSelectedElements,
     deleteSelected,
     duplicateSelected,
     selectAll,
