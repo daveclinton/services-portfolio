@@ -65,7 +65,7 @@ export function newElement(
     opacity,
     version: 1,
     seed: randomSeed(),
-    text: type === 'text' ? text ?? 'Label' : undefined,
+    text: type === 'text' ? text ?? '' : undefined,
     fontSize: type === 'text' ? fontSize ?? DEFAULT_FONT_SIZE : undefined,
     fileId: type === 'image' ? fileId : undefined,
   }

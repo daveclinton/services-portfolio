@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { resetTestIds } from '../common/random'
 import { DEFAULT_ELEMENT_PROPS } from '../common/defaults'
-import { newRectangleElement } from '../element/newElement'
+import { MIN_TEXT_HEIGHT, MIN_TEXT_WIDTH } from '../common/constants'
+import { newRectangleElement, newTextElement } from '../element/newElement'
 import {
   createInitialSnapshot,
   deleteSelectedElements,
@@ -201,5 +202,85 @@ describe('updateScene', () => {
 
     expect(snapshot.elements[0]).toMatchObject({ x: 40, y: 40 })
     expect(snapshot.elements[1]).toMatchObject({ x: 240, y: 240 })
+  })
+
+  it('creates text on pointer up and opens the editor', () => {
+    resetTestIds()
+
+    let snapshot = updateScene(createInitialSnapshot(), {
+      appState: {
+        activeTool: { type: 'text', locked: false },
+      },
+    })
+
+    snapshot = updateScene(snapshot, {}, { phase: 'down', x: 400, y: 500 })
+    snapshot = updateScene(snapshot, {}, { phase: 'up', x: 400, y: 500 })
+
+    expect(snapshot.elements).toHaveLength(1)
+    expect(snapshot.elements[0]).toMatchObject({
+      type: 'text',
+      text: '',
+      width: MIN_TEXT_WIDTH,
+      height: MIN_TEXT_HEIGHT,
+    })
+    expect(snapshot.appState.activeTool.type).toBe('selection')
+    expect(snapshot.appState.editingElementId).toBe(snapshot.elements[0].id)
+  })
+
+  it('enters edit mode when clicking an already-selected text label', () => {
+    resetTestIds()
+
+    const text = newTextElement({
+      ...baseOpts,
+      x: 100,
+      y: 100,
+      width: 240,
+      height: 96,
+      text: 'Logo',
+    })
+
+    let snapshot = {
+      ...createInitialSnapshot(),
+      appState: {
+        ...createInitialSnapshot().appState,
+        activeTool: { type: 'selection' as const, locked: false },
+        selectedElementIds: { [text.id]: true as const },
+      },
+      elements: [text],
+    }
+
+    snapshot = updateScene(snapshot, {}, { phase: 'down', x: 120, y: 120 })
+    snapshot = updateScene(snapshot, {}, { phase: 'up', x: 120, y: 120 })
+
+    expect(snapshot.appState.editingElementId).toBe(text.id)
+  })
+
+  it('edits existing text immediately when the text tool hits a label', () => {
+    resetTestIds()
+
+    const text = newTextElement({
+      ...baseOpts,
+      x: 100,
+      y: 100,
+      width: 240,
+      height: 96,
+      text: 'Logo',
+    })
+
+    const snapshot = updateScene(
+      {
+        ...createInitialSnapshot(),
+        appState: {
+          ...createInitialSnapshot().appState,
+          activeTool: { type: 'text' as const, locked: false },
+        },
+        elements: [text],
+      },
+      {},
+      { phase: 'down', x: 120, y: 120 },
+    )
+
+    expect(snapshot.appState.activeTool.type).toBe('selection')
+    expect(snapshot.appState.editingElementId).toBe(text.id)
   })
 })

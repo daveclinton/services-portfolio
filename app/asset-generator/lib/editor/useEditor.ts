@@ -48,7 +48,7 @@ type EditorAction =
       file: AssetFile
     }
   | { type: 'delete-selected' }
-  | { type: 'update-text'; elementId: string; text: string }
+  | { type: 'update-text'; elementId: string; text: string; viaKeyboard?: boolean }
   | { type: 'z-order'; direction: ZOrderAction }
   | { type: 'undo' }
   | { type: 'redo' }
@@ -155,6 +155,30 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
       }
     }
     case 'update-text': {
+      const trimmed = action.text.trim()
+
+      if (!trimmed) {
+        const present: EditorSnapshot = {
+          ...state.present,
+          elements: state.present.elements.filter((element) => element.id !== action.elementId),
+          appState: {
+            ...state.present.appState,
+            editingElementId: null,
+            selectedElementIds: {},
+          },
+        }
+
+        if (snapshotsEqual(state.present, present)) {
+          return state
+        }
+
+        return {
+          ...pushUndo(state, state.present),
+          present,
+          gestureCheckpoint: null,
+        }
+      }
+
       const present = updateElementInScene(state.present, action.elementId, {
         text: action.text,
       })
@@ -166,6 +190,9 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
           appState: {
             ...present.appState,
             editingElementId: null,
+            selectedElementIds: action.viaKeyboard
+              ? { [action.elementId]: true as const }
+              : present.appState.selectedElementIds,
           },
         },
         gestureCheckpoint: null,
@@ -314,27 +341,20 @@ export function useEditor() {
     })
   }, [])
 
-  const finishTextEditing = useCallback(() => {
-    dispatch({
-      type: 'update-scene',
-      update: {
-        appState: {
-          editingElementId: null,
-        },
-      },
-    })
-  }, [])
-
-  const updateText = useCallback((elementId: string, text: string) => {
-    dispatch({ type: 'update-text', elementId, text })
+  const updateText = useCallback((elementId: string, text: string, viaKeyboard = false) => {
+    dispatch({ type: 'update-text', elementId, text, viaKeyboard })
   }, [])
 
   const handleCanvasDoubleClick = useCallback((x: number, y: number) => {
+    if (snapshot.appState.activeTool.type !== 'selection') {
+      return
+    }
+
     const hit = getElementAtPosition(snapshot.elements, x, y)
     if (hit?.type === 'text') {
       startTextEditing(hit.id)
     }
-  }, [snapshot.elements, startTextEditing])
+  }, [snapshot.appState.activeTool.type, snapshot.elements, startTextEditing])
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -367,6 +387,18 @@ export function useEditor() {
         return
       }
 
+      if (event.key === 'Enter') {
+        const selectedIds = Object.keys(snapshot.appState.selectedElementIds)
+        if (selectedIds.length === 1) {
+          const selected = snapshot.elements.find((element) => element.id === selectedIds[0])
+          if (selected?.type === 'text') {
+            event.preventDefault()
+            startTextEditing(selected.id)
+            return
+          }
+        }
+      }
+
       if (event.key === 'Backspace' || event.key === 'Delete') {
         event.preventDefault()
         deleteSelected()
@@ -387,7 +419,15 @@ export function useEditor() {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [changeZOrder, deleteSelected, redoChange, snapshot.appState.selectedElementIds, undoChange])
+  }, [
+    changeZOrder,
+    deleteSelected,
+    redoChange,
+    snapshot.appState.selectedElementIds,
+    snapshot.elements,
+    startTextEditing,
+    undoChange,
+  ])
 
   return {
     appState: snapshot.appState,
@@ -402,7 +442,6 @@ export function useEditor() {
     onPointerUp,
     onCanvasDoubleClick: handleCanvasDoubleClick,
     startTextEditing,
-    finishTextEditing,
     updateText,
     deleteSelected,
     undoChange,

@@ -495,17 +495,19 @@ a {
   position: absolute;
   z-index: 2;
   box-sizing: border-box;
-  padding: 0.35rem 0.5rem;
-  border: 2px solid var(--asset-primary);
-  border-radius: 0.5rem;
-  background: rgb(255 255 255 / 0.94);
-  color: var(--asset-text);
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
   font-family: var(--font-ui), Inter, system-ui, sans-serif;
   font-weight: 700;
   line-height: 1.1;
   text-align: center;
   resize: none;
   outline: none;
+  overflow: hidden;
+  white-space: pre-wrap;
 }
 
 .asset-excalidraw-canvas-layer {
@@ -518,7 +520,6 @@ a {
 }
 
 .asset-excalidraw-canvas-layer--interactive {
-  cursor: crosshair;
   touch-action: none;
 }
 

@@ -1,4 +1,11 @@
-import { newElementForTool, normalizeRect } from '../element/newElement'
+import { TEXT_CLICK_THRESHOLD, TEXT_DRAG_THRESHOLD } from '../common/constants'
+import { DEFAULT_FONT_SIZE } from '../common/defaults'
+import { newElementForTool, newTextElement, normalizeRect } from '../element/newElement'
+import {
+  getDefaultTextDimensions,
+  getTextLineHeightInPx,
+  getTextTopForSceneY,
+} from '../element/text'
 import { newElementWith } from '../element/mutateElement'
 import {
   getElementAtPosition,
@@ -48,6 +55,185 @@ function buildOriginalElementsMap(elements: readonly AssetElement[], ids: Record
   return Object.fromEntries(
     getSelectedElements(elements, ids).map((element) => [element.id, { ...element }]),
   )
+}
+
+function switchToSelectionTool(appState: AppState): AppState {
+  return {
+    ...appState,
+    activeTool: { type: 'selection', locked: false },
+  }
+}
+
+function pointerTravelSq(
+  origin: { x: number; y: number } | null,
+  x: number,
+  y: number,
+) {
+  if (!origin) {
+    return 0
+  }
+
+  const dx = x - origin.x
+  const dy = y - origin.y
+  return dx * dx + dy * dy
+}
+
+function handleTextPointerDown(
+  appState: AppState,
+  elements: readonly AssetElement[],
+  x: number,
+  y: number,
+): Pick<EditorSnapshot, 'appState' | 'elements'> {
+  if (appState.editingElementId) {
+    return { appState, elements }
+  }
+
+  const hit = getElementAtPosition(elements, x, y)
+  if (hit?.type === 'text') {
+    return {
+      appState: {
+        ...switchToSelectionTool(appState),
+        editingElementId: hit.id,
+        selectedElementIds: { [hit.id]: true as const },
+        interaction: 'idle',
+        resizeHandle: null,
+        originalElement: null,
+        originalElements: null,
+        pointerOrigin: null,
+        newElement: null,
+      },
+      elements,
+    }
+  }
+
+  const fontSize = DEFAULT_FONT_SIZE
+  const draft = newTextElement({
+    x,
+    y: getTextTopForSceneY(y, fontSize),
+    width: 0,
+    height: getTextLineHeightInPx(fontSize),
+    text: '',
+    fontSize,
+    strokeColor: appState.currentItemStrokeColor,
+  })
+
+  return {
+    appState: {
+      ...switchToSelectionTool(appState),
+      editingElementId: null,
+      selectedElementIds: {},
+      newElement: draft,
+      pointerOrigin: { x, y },
+      interaction: 'drawing',
+      resizeHandle: null,
+      originalElement: null,
+      originalElements: null,
+    },
+    elements,
+  }
+}
+
+function handleTextPointerMove(
+  appState: AppState,
+  elements: readonly AssetElement[],
+  x: number,
+  y: number,
+): Pick<EditorSnapshot, 'appState' | 'elements'> {
+  if (!appState.newElement || appState.newElement.type !== 'text' || !appState.pointerOrigin) {
+    return { appState, elements }
+  }
+
+  const fontSize = appState.newElement.fontSize ?? DEFAULT_FONT_SIZE
+  const dragWidth = Math.max(x - appState.pointerOrigin.x, 0)
+  const fixedWidth =
+    dragWidth > TEXT_DRAG_THRESHOLD
+      ? Math.max(dragWidth, getDefaultTextDimensions(fontSize).width)
+      : getDefaultTextDimensions(fontSize).width
+
+  return {
+    appState: {
+      ...appState,
+      newElement: newElementWith(appState.newElement, {
+        width: fixedWidth,
+        height: getDefaultTextDimensions(fontSize).height,
+        y: getTextTopForSceneY(appState.pointerOrigin.y, fontSize),
+      }),
+    },
+    elements,
+  }
+}
+
+function commitTextDraft(
+  appState: AppState,
+  elements: readonly AssetElement[],
+  x: number,
+  y: number,
+): Pick<EditorSnapshot, 'appState' | 'elements'> {
+  if (!appState.newElement || appState.newElement.type !== 'text' || !appState.pointerOrigin) {
+    return {
+      appState: resetInteraction(appState),
+      elements,
+    }
+  }
+
+  const fontSize = appState.newElement.fontSize ?? DEFAULT_FONT_SIZE
+  const dragWidth = Math.max(x - appState.pointerOrigin.x, 0)
+  const width =
+    dragWidth > TEXT_DRAG_THRESHOLD
+      ? Math.max(dragWidth, getDefaultTextDimensions(fontSize).width)
+      : getDefaultTextDimensions(fontSize).width
+
+  const committed = newElementWith(appState.newElement, {
+    width,
+    height: getDefaultTextDimensions(fontSize).height,
+    y: getTextTopForSceneY(appState.pointerOrigin.y, fontSize),
+  })
+
+  return {
+    appState: {
+      ...resetInteraction(appState),
+      editingElementId: committed.id,
+      selectedElementIds: { [committed.id]: true as const },
+    },
+    elements: [...elements, committed],
+  }
+}
+
+function maybeEnterTextEditOnPointerUp(
+  appState: AppState,
+  elements: readonly AssetElement[],
+  x: number,
+  y: number,
+): Pick<EditorSnapshot, 'appState' | 'elements'> | null {
+  if (
+    appState.activeTool.type !== 'selection' ||
+    appState.interaction !== 'dragging' ||
+    appState.originalElement?.type !== 'text' ||
+    !appState.pointerOrigin
+  ) {
+    return null
+  }
+
+  if (pointerTravelSq(appState.pointerOrigin, x, y) > TEXT_CLICK_THRESHOLD * TEXT_CLICK_THRESHOLD) {
+    return null
+  }
+
+  const selectedCount = Object.keys(appState.selectedElementIds).length
+  if (
+    selectedCount !== 1 ||
+    !appState.selectedElementIds[appState.originalElement.id]
+  ) {
+    return null
+  }
+
+  return {
+    appState: {
+      ...resetInteraction(appState),
+      editingElementId: appState.originalElement.id,
+      selectedElementIds: { [appState.originalElement.id]: true as const },
+    },
+    elements,
+  }
 }
 
 function commitDraftElement(
@@ -339,6 +525,17 @@ export function updateScene(
   }
 
   if (pointer.phase === 'down') {
+    if (appState.editingElementId) {
+      return { appState, elements, files }
+    }
+
+    if (appState.activeTool.type === 'text') {
+      return {
+        ...handleTextPointerDown(appState, elements, pointer.x, pointer.y),
+        files,
+      }
+    }
+
     if (appState.activeTool.type === 'selection') {
       return {
         ...handleSelectionPointerDown(appState, elements, pointer.x, pointer.y, pointer.shiftKey),
@@ -372,6 +569,13 @@ export function updateScene(
   }
 
   if (pointer.phase === 'move') {
+    if (appState.newElement?.type === 'text') {
+      return {
+        ...handleTextPointerMove(appState, elements, pointer.x, pointer.y),
+        files,
+      }
+    }
+
     if (appState.activeTool.type === 'selection') {
       return {
         ...handleSelectionPointerMove(appState, elements, pointer.x, pointer.y),
@@ -390,14 +594,7 @@ export function updateScene(
       pointer.y,
     )
 
-    const nextDraft =
-      appState.newElement.type === 'text'
-        ? newElementWith(appState.newElement, {
-            ...rect,
-            width: Math.max(rect.width, 240),
-            height: Math.max(rect.height, 96),
-          })
-        : newElementWith(appState.newElement, rect)
+    const nextDraft = newElementWith(appState.newElement, rect)
 
     return {
       appState: {
@@ -405,6 +602,21 @@ export function updateScene(
         newElement: nextDraft,
       },
       elements,
+      files,
+    }
+  }
+
+  if (appState.newElement?.type === 'text') {
+    return {
+      ...commitTextDraft(appState, elements, pointer.x, pointer.y),
+      files,
+    }
+  }
+
+  const textEdit = maybeEnterTextEditOnPointerUp(appState, elements, pointer.x, pointer.y)
+  if (textEdit) {
+    return {
+      ...textEdit,
       files,
     }
   }

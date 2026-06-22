@@ -3,6 +3,12 @@ export const SAFE_AREA_SIZE = 820
 export const ICON_RADIUS = 226
 export const MIN_ELEMENT_SIZE = 8
 
+export const MIN_TEXT_WIDTH = 240
+export const MIN_TEXT_HEIGHT = 96
+export const TEXT_LINE_HEIGHT = 1.1
+export const TEXT_DRAG_THRESHOLD = 36
+export const TEXT_CLICK_THRESHOLD = 4
+
 export const EXPORT_SIZES = [
   { label: 'App Store', size: 1024 },
   { label: 'iPad', size: 512 },

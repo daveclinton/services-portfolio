@@ -72,6 +72,7 @@ export function renderStaticScene({
   backgroundColor,
   selectedElementIds,
   draftElement,
+  editingElementId = null,
   showGuides,
   safeAreaViolationIds,
 }: StaticSceneRenderConfig) {
@@ -85,6 +86,10 @@ export function renderStaticScene({
   ctx.fill()
 
   for (const element of elements) {
+    if (editingElementId && element.id === editingElementId && element.type === 'text') {
+      continue
+    }
+
     const isSelected = Boolean(selectedElementIds[element.id])
     const violatesSafeArea = Boolean(safeAreaViolationIds?.[element.id])
     renderElement(element, ctx, isSelected, files)

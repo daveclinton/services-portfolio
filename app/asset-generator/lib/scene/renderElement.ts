@@ -97,16 +97,20 @@ export function renderElement(
   } else if (element.type === 'diamond') {
     drawDiamondPath(context, element)
   } else if (element.type === 'text') {
-    const fontSize = element.fontSize ?? 64
-    context.font = `700 ${fontSize}px Inter, system-ui, sans-serif`
-    context.textAlign = 'center'
-    context.textBaseline = 'middle'
-    context.fillStyle = element.strokeColor
-    context.fillText(
-      element.text ?? 'Label',
-      element.x + element.width / 2,
-      element.y + element.height / 2,
-    )
+    const label = element.text?.trim()
+    if (label) {
+      const fontSize = element.fontSize ?? 64
+      context.font = `700 ${fontSize}px Inter, system-ui, sans-serif`
+      context.textAlign = 'center'
+      context.textBaseline = 'middle'
+      context.fillStyle = element.strokeColor
+      context.fillText(
+        label,
+        element.x + element.width / 2,
+        element.y + element.height / 2,
+      )
+    }
+
     context.restore()
 
     if (isSelected) {

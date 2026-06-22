@@ -8,6 +8,7 @@ export type StaticSceneRenderConfig = {
   backgroundColor: string
   selectedElementIds: Record<string, true>
   draftElement: AssetElement | null
+  editingElementId?: string | null
   showGuides: boolean
   safeAreaViolationIds?: Record<string, true>
 }

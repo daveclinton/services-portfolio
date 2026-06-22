@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getElementsOutsideSafeArea } from '../../lib/common/safeArea'
+import { getCanvasCursor } from '../../lib/element/text'
 import { getCanvasPoint } from '../../lib/editor/useEditor'
 import { preloadImages } from '../../lib/scene/imageCache'
 import { renderStaticScene } from '../../lib/scene/staticScene'
@@ -17,8 +18,7 @@ type StaticCanvasProps = {
   onPointerMove: (x: number, y: number, shiftKey?: boolean) => void
   onPointerUp: (x: number, y: number, shiftKey?: boolean) => void
   onDoubleClick: (x: number, y: number) => void
-  onTextCommit: (elementId: string, text: string) => void
-  onTextCancel: () => void
+  onTextCommit: (elementId: string, text: string, viaKeyboard?: boolean) => void
 }
 
 export function StaticCanvas({
@@ -30,10 +30,10 @@ export function StaticCanvas({
   onPointerUp,
   onDoubleClick,
   onTextCommit,
-  onTextCancel,
 }: StaticCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const isDrawingRef = useRef(false)
+  const [hoverPoint, setHoverPoint] = useState<{ x: number; y: number } | null>(null)
 
   const editingElement = appState.editingElementId
     ? elements.find((element) => element.id === appState.editingElementId)
@@ -43,6 +43,14 @@ export function StaticCanvas({
     const violations = getElementsOutsideSafeArea(elements)
     return Object.fromEntries(violations.map((element) => [element.id, true as const]))
   }, [elements])
+
+  const cursor = useMemo(() => {
+    if (!hoverPoint) {
+      return getCanvasCursor(appState, elements, -1, -1)
+    }
+
+    return getCanvasCursor(appState, elements, hoverPoint.x, hoverPoint.y)
+  }, [appState, elements, hoverPoint])
 
   useEffect(() => {
     preloadImages(files)
@@ -59,6 +67,7 @@ export function StaticCanvas({
         backgroundColor: appState.viewBackgroundColor,
         selectedElementIds: appState.selectedElementIds,
         draftElement: appState.newElement,
+        editingElementId: appState.editingElementId,
         showGuides: true,
         safeAreaViolationIds,
       })
@@ -75,16 +84,30 @@ export function StaticCanvas({
         ref={canvasRef}
         className="asset-excalidraw-canvas-layer asset-excalidraw-canvas-layer--interactive"
         aria-label="Interactive app icon canvas"
+        style={{ cursor }}
         onPointerDown={(event) => {
           if (!canvasRef.current) return
+
+          if (appState.editingElementId) {
+            const active = document.activeElement
+            if (active instanceof HTMLElement) {
+              active.blur()
+            }
+            return
+          }
+
           isDrawingRef.current = true
           canvasRef.current.setPointerCapture(event.pointerId)
           const point = getCanvasPoint(canvasRef.current, event.clientX, event.clientY)
           onPointerDown(point.x, point.y, event.shiftKey)
         }}
         onPointerMove={(event) => {
-          if (!canvasRef.current || !isDrawingRef.current) return
+          if (!canvasRef.current) return
+
           const point = getCanvasPoint(canvasRef.current, event.clientX, event.clientY)
+          setHoverPoint(point)
+
+          if (!isDrawingRef.current) return
           onPointerMove(point.x, point.y, event.shiftKey)
         }}
         onPointerUp={(event) => {
@@ -94,8 +117,11 @@ export function StaticCanvas({
           const point = getCanvasPoint(canvasRef.current, event.clientX, event.clientY)
           onPointerUp(point.x, point.y, event.shiftKey)
         }}
+        onPointerLeave={() => {
+          setHoverPoint(null)
+        }}
         onDoubleClick={(event) => {
-          if (!canvasRef.current) return
+          if (!canvasRef.current || appState.editingElementId) return
           const point = getCanvasPoint(canvasRef.current, event.clientX, event.clientY)
           onDoubleClick(point.x, point.y)
         }}
@@ -107,8 +133,7 @@ export function StaticCanvas({
       {editingElement?.type === 'text' ? (
         <TextEditor
           element={editingElement}
-          onCommit={(text) => onTextCommit(editingElement.id, text)}
-          onCancel={onTextCancel}
+          onCommit={(text, viaKeyboard) => onTextCommit(editingElement.id, text, viaKeyboard)}
         />
       ) : null}
     </div>

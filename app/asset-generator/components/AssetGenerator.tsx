@@ -44,7 +44,6 @@ export function AssetGenerator() {
     onPointerUp,
     onCanvasDoubleClick,
     updateText,
-    finishTextEditing,
     undoChange,
     redoChange,
     changeZOrder,
@@ -187,7 +186,6 @@ export function AssetGenerator() {
           onPointerUp={onPointerUp}
           onDoubleClick={onCanvasDoubleClick}
           onTextCommit={updateText}
-          onTextCancel={finishTextEditing}
         />
       }
     />
