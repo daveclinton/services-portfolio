@@ -1,4 +1,8 @@
-import { TEXT_CLICK_THRESHOLD, TEXT_DRAG_THRESHOLD } from '../common/constants'
+import {
+  SELECTION_DRAG_THRESHOLD,
+  TEXT_CLICK_THRESHOLD,
+  TEXT_DRAG_THRESHOLD,
+} from '../common/constants'
 import { DEFAULT_FONT_SIZE } from '../common/defaults'
 import { newElementForTool, newTextElement, normalizeRect } from '../element/newElement'
 import {
@@ -12,6 +16,7 @@ import {
   getPrimarySelectedElement,
   getSelectedElementIds,
   getSelectedElements,
+  getSelectedElementsWithinBox,
   isElementLargeEnough,
   isElementSelected,
   isMultiSelection,
@@ -48,6 +53,8 @@ function resetInteraction(appState: AppState): AppState {
     originalElements: null,
     pointerOrigin: null,
     newElement: null,
+    selectionBox: null,
+    selectionOriginIds: null,
   }
 }
 
@@ -101,6 +108,8 @@ function handleTextPointerDown(
         originalElements: null,
         pointerOrigin: null,
         newElement: null,
+        selectionBox: null,
+        selectionOriginIds: null,
       },
       elements,
     }
@@ -128,6 +137,8 @@ function handleTextPointerDown(
       resizeHandle: null,
       originalElement: null,
       originalElements: null,
+      selectionBox: null,
+      selectionOriginIds: null,
     },
     elements,
   }
@@ -300,6 +311,8 @@ function handleSelectionPointerDown(
           originalElements: null,
           pointerOrigin: { x, y },
           newElement: null,
+          selectionBox: null,
+          selectionOriginIds: null,
         },
         elements,
       }
@@ -321,6 +334,8 @@ function handleSelectionPointerDown(
           pointerOrigin: null,
           newElement: null,
           resizeHandle: null,
+          selectionBox: null,
+          selectionOriginIds: null,
         },
         elements,
       }
@@ -337,6 +352,8 @@ function handleSelectionPointerDown(
           pointerOrigin: { x, y },
           newElement: null,
           resizeHandle: null,
+          selectionBox: null,
+          selectionOriginIds: null,
         },
         elements,
       }
@@ -353,6 +370,8 @@ function handleSelectionPointerDown(
         pointerOrigin: { x, y },
         newElement: null,
         resizeHandle: null,
+        selectionBox: null,
+        selectionOriginIds: null,
       },
       elements,
     }
@@ -363,13 +382,15 @@ function handleSelectionPointerDown(
       appState: {
         ...appState,
         editingElementId: null,
-        selectedElementIds: {},
-        interaction: 'idle',
+        selectedElementIds: {} as Record<string, true>,
+        interaction: 'marquee',
         originalElement: null,
         originalElements: null,
-        pointerOrigin: null,
+        pointerOrigin: { x, y },
         newElement: null,
         resizeHandle: null,
+        selectionBox: null,
+        selectionOriginIds: {},
       },
       elements,
     }
@@ -379,12 +400,14 @@ function handleSelectionPointerDown(
     appState: {
       ...appState,
       editingElementId: null,
-      interaction: 'idle',
+      interaction: 'marquee',
       originalElement: null,
       originalElements: null,
-      pointerOrigin: null,
+      pointerOrigin: { x, y },
       newElement: null,
       resizeHandle: null,
+      selectionBox: null,
+      selectionOriginIds: selectedIds,
     },
     elements,
   }
@@ -396,6 +419,43 @@ function handleSelectionPointerMove(
   x: number,
   y: number,
 ): Pick<EditorSnapshot, 'appState' | 'elements'> {
+  if (appState.interaction === 'marquee' && appState.pointerOrigin) {
+    if (
+      pointerTravelSq(appState.pointerOrigin, x, y) <=
+      SELECTION_DRAG_THRESHOLD * SELECTION_DRAG_THRESHOLD
+    ) {
+      return { appState, elements }
+    }
+
+    const selectionBox = normalizeRect(appState.pointerOrigin.x, appState.pointerOrigin.y, x, y)
+    const selectedWithinBox = Object.fromEntries(
+      getSelectedElementsWithinBox(elements, selectionBox).map((element) => [
+        element.id,
+        true as const,
+      ]),
+    )
+
+    return {
+      appState: {
+        ...appState,
+        selectedElementIds: {
+          ...(appState.selectionOriginIds ?? {}),
+          ...selectedWithinBox,
+        },
+        selectionBox,
+      },
+      elements,
+    }
+  }
+
+  if (
+    appState.interaction === 'dragging' &&
+    pointerTravelSq(appState.pointerOrigin, x, y) <=
+      SELECTION_DRAG_THRESHOLD * SELECTION_DRAG_THRESHOLD
+  ) {
+    return { appState, elements }
+  }
+
   if (
     appState.interaction === 'dragging' &&
     appState.originalElements &&
@@ -489,6 +549,8 @@ export function deleteSelectedElements(snapshot: EditorSnapshot): EditorSnapshot
       originalElement: null,
       originalElements: null,
       pointerOrigin: null,
+      selectionBox: null,
+      selectionOriginIds: null,
     },
     elements,
     files,
@@ -562,6 +624,8 @@ export function updateScene(
         resizeHandle: null,
         originalElement: null,
         originalElements: null,
+        selectionBox: null,
+        selectionOriginIds: null,
       },
       elements,
       files,

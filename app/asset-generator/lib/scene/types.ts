@@ -1,4 +1,4 @@
-import type { AssetFile } from '../editor/types'
+import type { AssetFile, SelectionBox } from '../editor/types'
 import type { AssetElement } from '../element/types'
 
 export type StaticSceneRenderConfig = {
@@ -8,6 +8,7 @@ export type StaticSceneRenderConfig = {
   backgroundColor: string
   selectedElementIds: Record<string, true>
   draftElement: AssetElement | null
+  selectionBox: SelectionBox | null
   editingElementId?: string | null
   showGuides: boolean
   safeAreaViolationIds?: Record<string, true>

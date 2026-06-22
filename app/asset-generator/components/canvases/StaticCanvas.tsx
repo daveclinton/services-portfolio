@@ -67,6 +67,7 @@ export function StaticCanvas({
         backgroundColor: appState.viewBackgroundColor,
         selectedElementIds: appState.selectedElementIds,
         draftElement: appState.newElement,
+        selectionBox: appState.selectionBox,
         editingElementId: appState.editingElementId,
         showGuides: true,
         safeAreaViolationIds,

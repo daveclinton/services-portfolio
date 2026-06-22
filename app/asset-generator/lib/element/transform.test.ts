@@ -3,6 +3,7 @@ import { resetTestIds } from '../common/random'
 import { newRectangleElement } from './newElement'
 import { DEFAULT_ELEMENT_PROPS } from '../common/defaults'
 import { dragElement, resizeElement } from './transform'
+import { getCursorForResizingHandle } from './transformHandles'
 
 const baseOpts = {
   x: 100,
@@ -53,5 +54,12 @@ describe('transform', () => {
     expect(next.y).toBe(140)
     expect(next.width).toBe(80)
     expect(next.height).toBe(80)
+  })
+
+  it('maps resize handles to Excalidraw-style cursors', () => {
+    expect(getCursorForResizingHandle('n')).toBe('ns-resize')
+    expect(getCursorForResizingHandle('e')).toBe('ew-resize')
+    expect(getCursorForResizingHandle('nw')).toBe('nwse-resize')
+    expect(getCursorForResizingHandle('ne')).toBe('nesw-resize')
   })
 })

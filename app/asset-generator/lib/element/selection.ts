@@ -45,6 +45,21 @@ export function getSelectedElements(
   return elements.filter((element) => selectedIds.has(element.id))
 }
 
+export function getSelectedElementsWithinBox(
+  elements: readonly AssetElement[],
+  box: { x: number; y: number; width: number; height: number },
+) {
+  const boxRight = box.x + box.width
+  const boxBottom = box.y + box.height
+
+  return elements.filter((element) => (
+    element.x >= box.x &&
+    element.y >= box.y &&
+    element.x + element.width <= boxRight &&
+    element.y + element.height <= boxBottom
+  ))
+}
+
 export function isMultiSelection(selectedElementIds: Record<string, true>) {
   return getSelectedElementIds(selectedElementIds).length > 1
 }

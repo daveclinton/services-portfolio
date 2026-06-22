@@ -60,6 +60,8 @@ export function resetTransientAppState(appState: AppState): AppState {
     resizeHandle: null,
     originalElement: null,
     originalElements: null,
+    selectionBox: null,
+    selectionOriginIds: null,
     editingElementId: null,
   }
 }

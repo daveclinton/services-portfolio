@@ -45,3 +45,22 @@ export function getTransformHandleAtPosition(
 
   return null
 }
+
+export function getCursorForResizingHandle(handle: TransformHandleDirection | null) {
+  switch (handle) {
+    case 'n':
+    case 's':
+      return 'ns-resize'
+    case 'e':
+    case 'w':
+      return 'ew-resize'
+    case 'nw':
+    case 'se':
+      return 'nwse-resize'
+    case 'ne':
+    case 'sw':
+      return 'nesw-resize'
+    default:
+      return ''
+  }
+}

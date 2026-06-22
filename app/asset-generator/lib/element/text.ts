@@ -2,9 +2,14 @@ import {
   MIN_TEXT_HEIGHT,
   MIN_TEXT_WIDTH,
   TEXT_LINE_HEIGHT,
+  CURSOR_TYPE,
 } from '../common/constants'
 import { DEFAULT_FONT_SIZE } from '../common/defaults'
-import { getElementAtPosition } from './selection'
+import { getElementAtPosition, getSelectedElementIds } from './selection'
+import {
+  getCursorForResizingHandle,
+  getTransformHandleAtPosition,
+} from './transformHandles'
 import type { AppState } from '../editor/types'
 import type { AssetElement } from './types'
 
@@ -32,26 +37,38 @@ export function getCanvasCursor(
   y: number,
 ) {
   if (appState.editingElementId) {
-    return 'default'
+    return CURSOR_TYPE.AUTO
   }
 
   const hit = x >= 0 && y >= 0 ? getElementAtPosition(elements, x, y) : null
 
   if (appState.activeTool.type === 'text') {
-    return hit?.type === 'text' ? 'text' : 'crosshair'
+    return hit?.type === 'text' ? CURSOR_TYPE.TEXT : CURSOR_TYPE.CROSSHAIR
   }
 
   if (appState.activeTool.type === 'selection') {
-    if (hit && appState.selectedElementIds[hit.id]) {
-      return 'move'
+    if (appState.interaction === 'dragging') {
+      return CURSOR_TYPE.GRABBING
+    }
+
+    if (appState.interaction === 'resizing') {
+      return getCursorForResizingHandle(appState.resizeHandle)
+    }
+
+    if (x >= 0 && y >= 0 && getSelectedElementIds(appState.selectedElementIds).length === 1) {
+      const selected = elements.find((element) => appState.selectedElementIds[element.id])
+      const resizeHandle = selected ? getTransformHandleAtPosition(selected, x, y) : null
+      if (resizeHandle) {
+        return getCursorForResizingHandle(resizeHandle)
+      }
     }
 
     if (hit) {
-      return 'pointer'
+      return CURSOR_TYPE.MOVE
     }
 
-    return 'default'
+    return CURSOR_TYPE.AUTO
   }
 
-  return 'crosshair'
+  return CURSOR_TYPE.CROSSHAIR
 }

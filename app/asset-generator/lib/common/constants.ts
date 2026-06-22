@@ -8,6 +8,17 @@ export const MIN_TEXT_HEIGHT = 96
 export const TEXT_LINE_HEIGHT = 1.1
 export const TEXT_DRAG_THRESHOLD = 36
 export const TEXT_CLICK_THRESHOLD = 4
+export const SELECTION_DRAG_THRESHOLD = 4
+
+export const CURSOR_TYPE = {
+  TEXT: 'text',
+  CROSSHAIR: 'crosshair',
+  GRABBING: 'grabbing',
+  GRAB: 'grab',
+  POINTER: 'pointer',
+  MOVE: 'move',
+  AUTO: '',
+} as const
 
 export const EXPORT_SIZES = [
   { label: 'App Store', size: 1024 },

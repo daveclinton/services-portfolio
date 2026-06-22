@@ -93,6 +93,39 @@ describe('updateScene', () => {
     })
   })
 
+  it('keeps a selected element still until the drag threshold is crossed', () => {
+    resetTestIds()
+
+    const element = newRectangleElement({
+      ...baseOpts,
+      x: 100,
+      y: 100,
+      width: 120,
+      height: 80,
+    })
+
+    let snapshot = {
+      ...createInitialSnapshot(),
+      appState: {
+        ...createInitialSnapshot().appState,
+        activeTool: { type: 'selection', locked: false },
+        selectedElementIds: { [element.id]: true },
+      },
+      elements: [element],
+    }
+
+    snapshot = updateScene(snapshot, {}, { phase: 'down', x: 110, y: 110 })
+    snapshot = updateScene(snapshot, {}, { phase: 'move', x: 113, y: 112 })
+    snapshot = updateScene(snapshot, {}, { phase: 'up', x: 113, y: 112 })
+
+    expect(snapshot.elements[0]).toMatchObject({
+      x: 100,
+      y: 100,
+      width: 120,
+      height: 80,
+    })
+  })
+
   it('deletes selected elements', () => {
     resetTestIds()
 
@@ -163,6 +196,139 @@ describe('updateScene', () => {
 
     expect(snapshot.appState.selectedElementIds[first.id]).toBeUndefined()
     expect(snapshot.appState.selectedElementIds[second.id]).toBe(true)
+  })
+
+  it('deselects selected elements on empty canvas click', () => {
+    resetTestIds()
+
+    const element = newRectangleElement({
+      ...baseOpts,
+      x: 100,
+      y: 100,
+      width: 120,
+      height: 80,
+    })
+
+    const snapshot = updateScene(
+      {
+        ...createInitialSnapshot(),
+        appState: {
+          ...createInitialSnapshot().appState,
+          activeTool: { type: 'selection' as const, locked: false },
+          selectedElementIds: { [element.id]: true as const },
+        },
+        elements: [element],
+      },
+      {},
+      { phase: 'down', x: 10, y: 10 },
+    )
+
+    expect(snapshot.appState.selectedElementIds).toEqual({})
+  })
+
+  it('selects elements inside an empty-canvas marquee', () => {
+    resetTestIds()
+
+    const first = newRectangleElement({
+      ...baseOpts,
+      x: 40,
+      y: 40,
+      width: 100,
+      height: 100,
+    })
+    const second = newRectangleElement({
+      ...baseOpts,
+      x: 220,
+      y: 220,
+      width: 100,
+      height: 100,
+    })
+    const outside = newRectangleElement({
+      ...baseOpts,
+      x: 500,
+      y: 500,
+      width: 100,
+      height: 100,
+    })
+
+    let snapshot = {
+      ...createInitialSnapshot(),
+      appState: {
+        ...createInitialSnapshot().appState,
+        activeTool: { type: 'selection' as const, locked: false },
+      },
+      elements: [first, second, outside],
+    }
+
+    snapshot = updateScene(snapshot, {}, { phase: 'down', x: 10, y: 10 })
+    snapshot = updateScene(snapshot, {}, { phase: 'move', x: 360, y: 360 })
+
+    expect(snapshot.appState.selectionBox).toEqual({
+      x: 10,
+      y: 10,
+      width: 350,
+      height: 350,
+    })
+    expect(snapshot.appState.selectedElementIds).toEqual({
+      [first.id]: true,
+      [second.id]: true,
+    })
+
+    snapshot = updateScene(snapshot, {}, { phase: 'up', x: 360, y: 360 })
+
+    expect(snapshot.appState.selectionBox).toBeNull()
+    expect(snapshot.appState.selectedElementIds[outside.id]).toBeUndefined()
+    expect(Object.keys(snapshot.appState.selectedElementIds)).toHaveLength(2)
+  })
+
+  it('adds to the current selection with shift+marquee', () => {
+    resetTestIds()
+
+    const existing = newRectangleElement({
+      ...baseOpts,
+      x: 40,
+      y: 40,
+      width: 100,
+      height: 100,
+    })
+    const next = newRectangleElement({
+      ...baseOpts,
+      x: 220,
+      y: 220,
+      width: 100,
+      height: 100,
+    })
+
+    let snapshot = {
+      ...createInitialSnapshot(),
+      appState: {
+        ...createInitialSnapshot().appState,
+        activeTool: { type: 'selection' as const, locked: false },
+        selectedElementIds: { [existing.id]: true as const },
+      },
+      elements: [existing, next],
+    }
+
+    snapshot = updateScene(
+      snapshot,
+      {},
+      { phase: 'down', x: 200, y: 200, shiftKey: true },
+    )
+    snapshot = updateScene(
+      snapshot,
+      {},
+      { phase: 'move', x: 360, y: 360, shiftKey: true },
+    )
+    snapshot = updateScene(
+      snapshot,
+      {},
+      { phase: 'up', x: 360, y: 360, shiftKey: true },
+    )
+
+    expect(snapshot.appState.selectedElementIds).toEqual({
+      [existing.id]: true,
+      [next.id]: true,
+    })
   })
 
   it('drags multiple selected elements together', () => {

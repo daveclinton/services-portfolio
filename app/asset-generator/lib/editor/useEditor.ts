@@ -165,6 +165,8 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
             ...state.present.appState,
             editingElementId: null,
             selectedElementIds: {},
+            selectionBox: null,
+            selectionOriginIds: null,
           },
         }
 
@@ -193,6 +195,8 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
             selectedElementIds: action.viaKeyboard
               ? { [action.elementId]: true as const }
               : present.appState.selectedElementIds,
+            selectionBox: null,
+            selectionOriginIds: null,
           },
         },
         gestureCheckpoint: null,
@@ -228,6 +232,8 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
           resizeHandle: null,
           originalElement: null,
           originalElements: null,
+          selectionBox: null,
+          selectionOriginIds: null,
           editingElementId: null,
         },
       }
@@ -276,6 +282,8 @@ export function useEditor() {
           resizeHandle: null,
           originalElement: null,
           originalElements: null,
+          selectionBox: null,
+          selectionOriginIds: null,
           editingElementId: null,
         },
       },
@@ -335,6 +343,9 @@ export function useEditor() {
           interaction: 'idle',
           resizeHandle: null,
           originalElement: null,
+          originalElements: null,
+          selectionBox: null,
+          selectionOriginIds: null,
           pointerOrigin: null,
         },
       },

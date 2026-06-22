@@ -30,7 +30,7 @@ describe('text helpers', () => {
     expect(getCanvasCursor(appState, [text], 10, 10)).toBe('crosshair')
   })
 
-  it('uses move and pointer cursors in selection mode', () => {
+  it('uses Excalidraw-style move and auto cursors in selection mode', () => {
     resetTestIds()
 
     const text = newTextElement({
@@ -57,7 +57,88 @@ describe('text helpers', () => {
     }
 
     expect(getCanvasCursor(appState, [text, shape], 120, 120)).toBe('move')
-    expect(getCanvasCursor(appState, [text, shape], 420, 420)).toBe('pointer')
-    expect(getCanvasCursor(appState, [text, shape], 10, 10)).toBe('default')
+    expect(getCanvasCursor(appState, [text, shape], 420, 420)).toBe('move')
+    expect(getCanvasCursor(appState, [text, shape], 10, 10)).toBe('')
+  })
+
+  it('uses resize cursors over selected transform handles', () => {
+    resetTestIds()
+
+    const shape = newRectangleElement({
+      x: 400,
+      y: 400,
+      width: 120,
+      height: 120,
+      strokeColor: DEFAULT_ELEMENT_PROPS.strokeColor,
+      backgroundColor: DEFAULT_ELEMENT_PROPS.backgroundColor,
+      strokeWidth: DEFAULT_ELEMENT_PROPS.strokeWidth,
+    })
+
+    const appState = {
+      ...getDefaultAppState(),
+      activeTool: { type: 'selection' as const, locked: false },
+      selectedElementIds: { [shape.id]: true as const },
+    }
+
+    expect(getCanvasCursor(appState, [shape], 400, 400)).toBe('nwse-resize')
+    expect(getCanvasCursor(appState, [shape], 460, 400)).toBe('ns-resize')
+    expect(getCanvasCursor(appState, [shape], 520, 460)).toBe('ew-resize')
+  })
+
+  it('suppresses resize cursors while multiple elements are selected', () => {
+    resetTestIds()
+
+    const first = newRectangleElement({
+      x: 100,
+      y: 100,
+      width: 120,
+      height: 120,
+      strokeColor: DEFAULT_ELEMENT_PROPS.strokeColor,
+      backgroundColor: DEFAULT_ELEMENT_PROPS.backgroundColor,
+      strokeWidth: DEFAULT_ELEMENT_PROPS.strokeWidth,
+    })
+    const second = newRectangleElement({
+      x: 400,
+      y: 400,
+      width: 120,
+      height: 120,
+      strokeColor: DEFAULT_ELEMENT_PROPS.strokeColor,
+      backgroundColor: DEFAULT_ELEMENT_PROPS.backgroundColor,
+      strokeWidth: DEFAULT_ELEMENT_PROPS.strokeWidth,
+    })
+
+    const appState = {
+      ...getDefaultAppState(),
+      activeTool: { type: 'selection' as const, locked: false },
+      selectedElementIds: {
+        [first.id]: true as const,
+        [second.id]: true as const,
+      },
+    }
+
+    expect(getCanvasCursor(appState, [first, second], 100, 100)).toBe('move')
+  })
+
+  it('uses a grabbing cursor while selected elements are being dragged', () => {
+    resetTestIds()
+
+    const shape = newRectangleElement({
+      x: 400,
+      y: 400,
+      width: 120,
+      height: 120,
+      strokeColor: DEFAULT_ELEMENT_PROPS.strokeColor,
+      backgroundColor: DEFAULT_ELEMENT_PROPS.backgroundColor,
+      strokeWidth: DEFAULT_ELEMENT_PROPS.strokeWidth,
+    })
+
+    const appState = {
+      ...getDefaultAppState(),
+      activeTool: { type: 'selection' as const, locked: false },
+      interaction: 'dragging' as const,
+      selectedElementIds: { [shape.id]: true as const },
+    }
+
+    expect(getCanvasCursor(appState, [shape], 420, 420)).toBe('grabbing')
   })
 })

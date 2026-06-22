@@ -44,6 +44,20 @@ function renderGuides(ctx: CanvasRenderingContext2D) {
   ctx.setLineDash([])
 }
 
+function renderSelectionBox(
+  ctx: CanvasRenderingContext2D,
+  box: { x: number; y: number; width: number; height: number },
+) {
+  ctx.save()
+  ctx.fillStyle = 'rgba(105, 101, 219, 0.08)'
+  ctx.strokeStyle = '#6965db'
+  ctx.lineWidth = 2
+  ctx.setLineDash([8, 8])
+  ctx.fillRect(box.x, box.y, box.width, box.height)
+  ctx.strokeRect(box.x, box.y, box.width, box.height)
+  ctx.restore()
+}
+
 function prepareCanvas(canvas: HTMLCanvasElement) {
   const dpr = typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1
   const pixelSize = Math.round(ICON_SIZE * dpr)
@@ -72,6 +86,7 @@ export function renderStaticScene({
   backgroundColor,
   selectedElementIds,
   draftElement,
+  selectionBox,
   editingElementId = null,
   showGuides,
   safeAreaViolationIds,
@@ -110,6 +125,10 @@ export function renderStaticScene({
 
   if (draftElement) {
     renderElement(draftElement, ctx, false, files)
+  }
+
+  if (selectionBox) {
+    renderSelectionBox(ctx, selectionBox)
   }
 
   if (showGuides) {

@@ -7,7 +7,14 @@ export type ActiveTool = {
   locked: boolean
 }
 
-export type InteractionMode = 'idle' | 'drawing' | 'dragging' | 'resizing'
+export type InteractionMode = 'idle' | 'drawing' | 'dragging' | 'resizing' | 'marquee'
+
+export type SelectionBox = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
 
 export type AssetFile = {
   mimeType: string
@@ -29,6 +36,8 @@ export type AppState = {
   resizeHandle: TransformHandleDirection | null
   originalElement: AssetElement | null
   originalElements: Record<string, AssetElement> | null
+  selectionBox: SelectionBox | null
+  selectionOriginIds: Record<string, true> | null
   editingElementId: string | null
   projectName: string
   previewPlatform: PreviewPlatform
