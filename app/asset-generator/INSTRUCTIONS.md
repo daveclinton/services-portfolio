@@ -128,7 +128,7 @@ Borrowed from `App.tsx` (`handleCanvasContextMenu`, `getContextMenuItems`) and `
 | Sidebar reduced to controls only instead of file/export/layer/status actions | Done |
 | Sidebar restyled as Excalidraw-like floating properties popup with swatches | Done |
 | Sidebar property controls edit the selected element, falling back to new-item defaults | Done |
-| Color controls open Excalidraw-like Radix Popover picker panels | Done |
+| Color controls show inline top-picks plus active swatch that opens side Popover picker | Done |
 | Project name moved to top-left chrome; duplicate top Background control removed | Done |
 | Tool/selection/elements shown in a minimalist bottom status bar | Done |
 | Safe-area warning moved to export-time confirmation | Done |

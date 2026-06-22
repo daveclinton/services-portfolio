@@ -75,6 +75,7 @@ function ColorButton({
       aria-label={label}
       onClick={onSelect}
     >
+      <span className="asset-color-picker-button-outline" aria-hidden="true" />
       {hotkey ? (
         <span style={{ color: getReadableLabelColor(color) }} aria-hidden="true">
           {hotkey}
@@ -99,7 +100,7 @@ export function AssetColorPicker({
     if (!allowTransparent) {
       colorSet.delete("transparent")
     }
-    return Array.from(colorSet).slice(0, 5)
+    return Array.from(colorSet).slice(0, 3)
   }, [allowTransparent, colors, value])
 
   const updateHex = (rawValue: string) => {
@@ -112,105 +113,127 @@ export function AssetColorPicker({
   return (
     <fieldset className="asset-sidebar-fieldset">
       <legend>{label}</legend>
-      <Popover>
-        <PopoverTrigger asChild>
-          <button type="button" className="asset-color-picker-trigger">
-            <span
-              className="asset-color-picker-trigger-swatch"
+      <div className="asset-color-picker-inline" role="group" aria-label={`${label} colors`}>
+        {/* Changed to asset-color-picker-grid for identical layout, spacing & design as popover */}
+        <div className="asset-color-picker-grid" role="group" aria-label="Most used colors">
+          {mostUsedColors.map((color, index) => (
+            <ColorButton
+              key={`${color}-${index}`}
+              color={color}
+              label={`${label} ${color}`}
+              active={normalizeColor(value) === normalizeColor(color)}
+              onSelect={() => onChange(color)}
+            />
+          ))}
+        </div>
+
+        <div className="asset-color-picker-inline-divider" aria-hidden="true" />
+
+        <Popover>
+          <PopoverTrigger asChild>
+            <button
+              type="button"
+              className="asset-color-picker-swatch asset-color-picker-swatch--active-trigger"
+              data-active="true"
               data-transparent={isTransparent}
               style={{ backgroundColor: isTransparent ? "#ffffff" : value }}
-              aria-hidden="true"
-            />
-            <span className="asset-color-picker-trigger-value">
-              {isTransparent ? "Transparent" : value.toUpperCase()}
-            </span>
-          </button>
-        </PopoverTrigger>
-        <PopoverContent className="asset-color-picker-popover">
-          <div className="asset-color-picker-island">
-            <section className="asset-color-picker-section">
-              <h3>Most used</h3>
-              <div className="asset-color-picker-grid">
-                {mostUsedColors.map((color, index) => (
-                  <ColorButton
-                    key={`${color}-${index}`}
-                    color={color}
-                    label={`${label} ${color}`}
-                    active={normalizeColor(value) === normalizeColor(color)}
-                    hotkey={index < 5 ? `${index + 1}` : undefined}
-                    onSelect={() => onChange(color)}
-                  />
-                ))}
-              </div>
-            </section>
+              aria-label={`Show ${label.toLowerCase()} color picker`}
+              title={`Show ${label.toLowerCase()} color picker`}
+            >
+              <span className="asset-color-picker-button-outline" aria-hidden="true" />
+            </button>
+          </PopoverTrigger>
+          <PopoverContent
+            side="right"
+            align="center"
+            sideOffset={10}
+            className="asset-color-picker-popover"
+          >
+            <div className="asset-color-picker-island">
+              <section className="asset-color-picker-section">
+                <h3>Most used</h3>
+                <div className="asset-color-picker-grid">
+                  {mostUsedColors.map((color, index) => (
+                    <ColorButton
+                      key={`${color}-${index}`}
+                      color={color}
+                      label={`${label} ${color}`}
+                      active={normalizeColor(value) === normalizeColor(color)}
+                      hotkey={index < 5 ? `${index + 1}` : undefined}
+                      onSelect={() => onChange(color)}
+                    />
+                  ))}
+                </div>
+              </section>
 
-            <section className="asset-color-picker-section">
-              <h3>Colors</h3>
-              <div className="asset-color-picker-grid">
-                {allowTransparent ? (
-                  <ColorButton
-                    color="transparent"
-                    label={`${label} transparent`}
-                    active={value === "transparent"}
-                    hotkey="0"
-                    onSelect={() => onChange("transparent")}
-                  />
-                ) : null}
-                {paletteColors.map((color, index) => (
-                  <ColorButton
-                    key={color}
-                    color={color}
-                    label={`${label} ${color}`}
-                    active={normalizeColor(value) === normalizeColor(color)}
-                    hotkey={hotkeys[index]}
-                    onSelect={() => onChange(color)}
-                  />
-                ))}
-              </div>
-            </section>
+              <section className="asset-color-picker-section">
+                <h3>Colors</h3>
+                <div className="asset-color-picker-grid">
+                  {allowTransparent ? (
+                    <ColorButton
+                      color="transparent"
+                      label={`${label} transparent`}
+                      active={value === "transparent"}
+                      hotkey="0"
+                      onSelect={() => onChange("transparent")}
+                    />
+                  ) : null}
+                  {paletteColors.map((color, index) => (
+                    <ColorButton
+                      key={color}
+                      color={color}
+                      label={`${label} ${color}`}
+                      active={normalizeColor(value) === normalizeColor(color)}
+                      hotkey={hotkeys[index]}
+                      onSelect={() => onChange(color)}
+                    />
+                  ))}
+                </div>
+              </section>
 
-            <section className="asset-color-picker-section">
-              <h3>Shades</h3>
-              <div className="asset-color-picker-grid">
-                {shadeColors.map((color) => (
-                  <ColorButton
-                    key={color}
-                    color={color}
-                    label={`${label} ${color}`}
-                    active={normalizeColor(value) === normalizeColor(color)}
-                    onSelect={() => onChange(color)}
-                  />
-                ))}
-              </div>
-            </section>
+              <section className="asset-color-picker-section">
+                <h3>Shades</h3>
+                <div className="asset-color-picker-grid">
+                  {shadeColors.map((color) => (
+                    <ColorButton
+                      key={color}
+                      color={color}
+                      label={`${label} ${color}`}
+                      active={normalizeColor(value) === normalizeColor(color)}
+                      onSelect={() => onChange(color)}
+                    />
+                  ))}
+                </div>
+              </section>
 
-            <div className="asset-color-picker-hex-row">
-              <span>#</span>
-              <input
-                value={hexValue}
-                maxLength={6}
-                aria-label={`${label} hex color`}
-                onChange={(event) => updateHex(event.target.value)}
-              />
-              <div aria-hidden="true" />
-              <button
-                type="button"
-                aria-label={`Choose custom ${label.toLowerCase()} color`}
-                onClick={() => nativeColorInputRef.current?.click()}
-              >
-                <Pipette aria-hidden="true" />
-              </button>
-              <input
-                ref={nativeColorInputRef}
-                type="color"
-                value={isTransparent ? "#ffffff" : value}
-                hidden
-                onChange={(event) => onChange(event.target.value)}
-              />
+              <div className="asset-color-picker-hex-row">
+                <span>#</span>
+                <input
+                  value={hexValue}
+                  maxLength={6}
+                  aria-label={`${label} hex color`}
+                  onChange={(event) => updateHex(event.target.value)}
+                />
+                <div aria-hidden="true" />
+                <button
+                  type="button"
+                  aria-label={`Choose custom ${label.toLowerCase()} color`}
+                  onClick={() => nativeColorInputRef.current?.click()}
+                >
+                  <Pipette aria-hidden="true" />
+                </button>
+                <input
+                  ref={nativeColorInputRef}
+                  type="color"
+                  value={isTransparent ? "#ffffff" : value}
+                  hidden
+                  onChange={(event) => onChange(event.target.value)}
+                />
+              </div>
             </div>
-          </div>
-        </PopoverContent>
-      </Popover>
+          </PopoverContent>
+        </Popover>
+      </div>
     </fieldset>
   )
 }
