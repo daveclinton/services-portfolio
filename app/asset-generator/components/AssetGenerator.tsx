@@ -1,5 +1,6 @@
 'use client'
 
+import { useCallback, useState } from 'react'
 import Link from 'next/link'
 import {
   Circle,
@@ -10,15 +11,12 @@ import {
   Square,
   Type,
 } from 'lucide-react'
-import { getPrimarySelectedElement } from '../lib/element/selection'
+import { getElementAtPosition, getPrimarySelectedElement } from '../lib/element/selection'
 import { useEditor } from '../lib/editor/useEditor'
+import { AssetCanvasContextMenu } from './AssetCanvasContextMenu'
 import { AssetGeneratorLayout } from './AssetGeneratorLayout'
 import { DevicePreview } from './DevicePreview'
-import { ExportPanel } from './ExportPanel'
-import { FilePanel } from './FilePanel'
 import { HistoryControls } from './HistoryControls'
-import { ImportImageButton } from './ImportImageButton'
-import { LayerControls } from './LayerControls'
 import { SafeAreaStatus } from './SafeAreaStatus'
 import { StaticCanvas } from './canvases/StaticCanvas'
 
@@ -43,6 +41,7 @@ export function AssetGenerator() {
     onPointerMove,
     onPointerUp,
     onCanvasDoubleClick,
+    onCanvasContextMenu,
     updateText,
     undoChange,
     redoChange,
@@ -50,16 +49,26 @@ export function AssetGenerator() {
     saveDocument,
     loadDocument,
     importImage,
+    deleteSelected,
+    duplicateSelected,
+    selectAll,
   } = useEditor()
 
+  const [contextMenuTarget, setContextMenuTarget] = useState<'canvas' | 'element'>('canvas')
   const selectedCount = Object.keys(appState.selectedElementIds).length
   const selectedElement = getPrimarySelectedElement(elements, appState.selectedElementIds)
   const selectionLabel =
     selectedCount > 1
       ? `${selectedCount} selected`
       : selectedElement
-        ? selectedElement.type
-        : 'None'
+      ? selectedElement.type
+      : 'None'
+
+  const handleCanvasContextMenu = useCallback((x: number, y: number) => {
+    const hit = getElementAtPosition(elements, x, y)
+    setContextMenuTarget(hit ? 'element' : 'canvas')
+    onCanvasContextMenu(x, y)
+  }, [elements, onCanvasContextMenu])
 
   return (
     <AssetGeneratorLayout
@@ -134,14 +143,16 @@ export function AssetGenerator() {
             <span>Elements</span>
             <strong>{elements.length}</strong>
           </div>
-          {selectedElement ? (
-            <LayerControls
-              onBringForward={() => changeZOrder('forward')}
-              onSendBackward={() => changeZOrder('backward')}
-              onBringToFront={() => changeZOrder('front')}
-              onSendToBack={() => changeZOrder('back')}
+          <label className="asset-excalidraw-sidebar-section asset-export-field">
+            <span>Project name</span>
+            <input
+              type="text"
+              value={appState.projectName}
+              onChange={(event) => updateAppState({ projectName: event.target.value })}
+              placeholder="my-app"
+              aria-label="Project name for export files"
             />
-          ) : null}
+          </label>
           <label className="asset-excalidraw-sidebar-section asset-excalidraw-color-field">
             <span>Fill</span>
             <input
@@ -153,18 +164,6 @@ export function AssetGenerator() {
               aria-label="Fill color"
             />
           </label>
-          <div className="asset-export-actions">
-            <ImportImageButton onImport={importImage} />
-          </div>
-          <FilePanel onSave={saveDocument} onLoad={loadDocument} />
-          <ExportPanel
-            elements={elements}
-            files={files}
-            backgroundColor={appState.viewBackgroundColor}
-            projectName={appState.projectName}
-            previewPlatform={appState.previewPlatform}
-            onProjectNameChange={(projectName) => updateAppState({ projectName })}
-          />
         </>
       }
       preview={
@@ -177,16 +176,37 @@ export function AssetGenerator() {
         />
       }
       canvas={
-        <StaticCanvas
-          appState={appState}
+        <AssetCanvasContextMenu
+          target={contextMenuTarget}
+          selectedCount={selectedCount}
           elements={elements}
           files={files}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onDoubleClick={onCanvasDoubleClick}
-          onTextCommit={updateText}
-        />
+          backgroundColor={appState.viewBackgroundColor}
+          projectName={appState.projectName}
+          previewPlatform={appState.previewPlatform}
+          onImportImage={importImage}
+          onLoadDocument={loadDocument}
+          onSaveDocument={saveDocument}
+          onSelectAll={selectAll}
+          onDuplicateSelected={duplicateSelected}
+          onDeleteSelected={deleteSelected}
+          onBringForward={() => changeZOrder('forward')}
+          onSendBackward={() => changeZOrder('backward')}
+          onBringToFront={() => changeZOrder('front')}
+          onSendToBack={() => changeZOrder('back')}
+        >
+          <StaticCanvas
+            appState={appState}
+            elements={elements}
+            files={files}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onContextMenu={handleCanvasContextMenu}
+            onDoubleClick={onCanvasDoubleClick}
+            onTextCommit={updateText}
+          />
+        </AssetCanvasContextMenu>
       }
     />
   )

@@ -33,6 +33,19 @@ pnpm build
 
 ## Completed (borrowed from Excalidraw)
 
+### Current status snapshot (2026-06-22)
+- **Phase A — Selection tool:** complete.
+- **Phase B — Shape tools:** complete for app-icon scope.
+- **Context menu / chrome work:** started early and functional.
+- **Next recommended chunk:** Phase C — text polish.
+
+**Latest verification:**
+
+```bash
+pnpm test:run app/asset-generator  # 11 files, 53 tests passing
+pnpm build                         # passing
+```
+
 ### Foundations
 - Element model, nanoid IDs, immutable `newElementWith`
 - Scene renderer + PNG export sharing one code path
@@ -62,6 +75,55 @@ Borrowed from `packages/excalidraw/components/App.tsx`, `wysiwyg/textWysiwyg.tsx
 
 **Key files:** `lib/editor/updateScene.ts`, `lib/element/text.ts`, `components/TextEditor.tsx`, `components/canvases/StaticCanvas.tsx`
 
+### Selection tool (Phase A complete)
+Borrowed from `App.tsx` (`handleSelectionOnPointerDown`, `handleSelectionOnPointerUp`), `cursor.ts`, `packages/element/src/selection.ts`, `packages/element/src/resizeTest.ts`:
+
+| Pattern | Status |
+|---------|--------|
+| 4px drag threshold before element movement | Done |
+| `grabbing` cursor during active drag | Done |
+| Marquee / box selection from empty canvas drag | Done |
+| Shift+marquee adds to existing selection | Done |
+| Empty canvas click deselects | Done |
+| Multi-select suppresses resize handles | Done |
+| Top-most hit-test priority follows z-order | Done |
+| Cursor constants mirror Excalidraw shape (`TEXT`, `CROSSHAIR`, `MOVE`, `GRABBING`, `AUTO`) | Done |
+| Resize handle cursors (`nwse-resize`, `nesw-resize`, `ns-resize`, `ew-resize`) | Done |
+
+**Key files:** `lib/editor/updateScene.ts`, `lib/element/selection.ts`, `lib/element/text.ts`, `lib/element/transformHandles.ts`, `components/canvases/StaticCanvas.tsx`
+
+### Shape tools (Phase B complete)
+Borrowed from `App.tsx` (`createGenericElementOnPointerDown`), `packages/element/src/dragElements.ts`, `packages/element/src/resizeElements.ts`, `transformHandles.ts`:
+
+| Pattern | Status |
+|---------|--------|
+| Minimum size on commit via `MIN_ELEMENT_SIZE` | Done |
+| Alt/Option while drawing creates from center | Done |
+| Shift while drawing locks aspect ratio | Done |
+| Shift+Alt/Option combines centered + aspect-locked drawing | Done |
+| Shape commit switches back to selection tool | Done |
+| Crosshair cursor for shape drawing | Done |
+| Shift while resizing maintains proportions | Done |
+
+**Key files:** `lib/editor/updateScene.ts`, `lib/element/transform.ts`, `lib/element/transformHandles.ts`, `components/canvases/StaticCanvas.tsx`
+
+### Context menu / editor chrome (started)
+Borrowed from `App.tsx` (`handleCanvasContextMenu`, `getContextMenuItems`) and `components/ContextMenu.tsx`:
+
+| Pattern | Status |
+|---------|--------|
+| Right-click opens Radix context menu | Done |
+| Right-click hit element is selected before element actions show | Done |
+| Right-click empty canvas preserves existing selection | Done |
+| Canvas menu: import image, save/load JSON, export platform, export all, select all | Done |
+| Element menu: duplicate, layer submenu, delete | Done |
+| Cmd+D duplicate | Done |
+| Cmd+A select all | Done |
+| Sidebar reduced to status/settings instead of file/export/layer actions | Done |
+| Context-menu surface visually distinct from white canvas | Done |
+
+**Key files:** `components/AssetCanvasContextMenu.tsx`, `components/AssetGenerator.tsx`, `components/canvases/StaticCanvas.tsx`, `components/ui/context-menu.tsx`, `lib/editor/useEditor.ts`, `lib/editor/updateScene.ts`, `app/global.css`
+
 ---
 
 ## Recommended next steps (borrow from Excalidraw)
@@ -80,6 +142,8 @@ Work through these **in order**. For each tool, read the Excalidraw source first
 | A4 | **Click outside canvas** — deselect (already partial; verify all UI paths) | Matches Excalidraw deselect behavior |
 | A5 | **Suppress handles during multi-select** | Already done; add test coverage |
 | A6 | **Hit-test priority** — top-most element, consistent with z-order | Verify matches Excalidraw `getElementAtPosition` semantics |
+
+**Status:** Done. Keep this section as historical reference.
 
 **Touch files:** `lib/editor/updateScene.ts`, `lib/element/selection.ts`, `lib/element/text.ts` (`getCanvasCursor`), `components/canvases/StaticCanvas.tsx`
 
@@ -101,6 +165,8 @@ Work through these **in order**. For each tool, read the Excalidraw source first
 | B6 | **Resize handle cursors** — `nwse-resize`, `nesw-resize`, `ns-resize`, `ew-resize` per handle | Excalidraw sets per-handle cursor on hover |
 | B7 | **Maintain proportions with Shift during resize** | Excalidraw `resizeElements` shift behavior |
 
+**Status:** Done. Keep this section as historical reference.
+
 **Touch files:** `lib/editor/updateScene.ts`, `lib/element/transform.ts`, `lib/element/transformHandles.ts`, `lib/scene/interactiveScene.ts`
 
 **Tests to add:** shift-aspect lock, alt-from-center, min-size discard, post-commit tool switch
@@ -108,6 +174,8 @@ Work through these **in order**. For each tool, read the Excalidraw source first
 ---
 
 ### Phase C — Text tool polish (remaining gaps)
+
+**Status:** Next recommended chunk.
 
 **Excalidraw refs:** `textWysiwyg.tsx`, `packages/element/src/textElement.ts`, `refreshTextDimensions`
 
@@ -153,6 +221,8 @@ Work through these **in order**. For each tool, read the Excalidraw source first
 | E5 | **Properties panel** — show stroke/fill/opacity for selected element | Excalidraw sidebar reflects selection, not just global defaults |
 | E6 | **Locked tools** — double-click tool to lock (Excalidraw `activeTool.locked`) | Optional; already have `locked` in type |
 
+**Status:** Partially done. Cmd+D, Cmd+A, and right-click element/canvas action menus are implemented. Tool shortcuts, arrow-key nudge, properties panel, and locked tools remain.
+
 **Touch files:** `lib/editor/useEditor.ts`, `components/AssetGenerator.tsx`, new `PropertiesPanel.tsx`
 
 ---
@@ -190,8 +260,8 @@ For each item above:
 ## Suggested PR-sized chunks
 
 ```
-PR 1 — Selection tool: drag threshold, cursors, tests
-PR 2 — Shape tools: shift-aspect, alt-center, handle cursors, tool switch on commit
+PR 1 — Selection tool: drag threshold, cursors, tests ✅ done
+PR 2 — Shape tools: shift-aspect, alt-center, handle cursors, tool switch on commit ✅ done
 PR 3 — Text polish: auto-resize, multiline render, font size control
 PR 4 — Image: drag-drop, paste, onload repaint
 PR 5 — Keyboard shortcuts + properties panel for selection

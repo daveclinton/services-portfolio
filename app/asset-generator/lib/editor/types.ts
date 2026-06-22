@@ -62,4 +62,5 @@ export type PointerPayload = {
   x: number
   y: number
   shiftKey?: boolean
+  altKey?: boolean
 }

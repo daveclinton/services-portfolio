@@ -4,6 +4,7 @@ import {
   TEXT_DRAG_THRESHOLD,
 } from '../common/constants'
 import { DEFAULT_FONT_SIZE } from '../common/defaults'
+import { randomId, randomSeed } from '../common/random'
 import { newElementForTool, newTextElement, normalizeRect } from '../element/newElement'
 import {
   getDefaultTextDimensions,
@@ -83,6 +84,44 @@ function pointerTravelSq(
   const dx = x - origin.x
   const dy = y - origin.y
   return dx * dx + dy * dy
+}
+
+function getConstrainedShapeRect(
+  originX: number,
+  originY: number,
+  currentX: number,
+  currentY: number,
+  maintainAspectRatio = false,
+  resizeFromCenter = false,
+) {
+  const dx = currentX - originX
+  const dy = currentY - originY
+  const directionX = dx < 0 ? -1 : 1
+  const directionY = dy < 0 ? -1 : 1
+  let width = Math.abs(dx)
+  let height = Math.abs(dy)
+
+  if (maintainAspectRatio) {
+    const size = Math.max(width, height)
+    width = size
+    height = size
+  }
+
+  if (resizeFromCenter) {
+    return {
+      x: originX - width,
+      y: originY - height,
+      width: width * 2,
+      height: height * 2,
+    }
+  }
+
+  return normalizeRect(
+    originX,
+    originY,
+    originX + width * directionX,
+    originY + height * directionY,
+  )
 }
 
 function handleTextPointerDown(
@@ -252,6 +291,8 @@ function commitDraftElement(
   elements: readonly AssetElement[],
   x: number,
   y: number,
+  shiftKey = false,
+  altKey = false,
 ) {
   if (!appState.newElement || !appState.pointerOrigin) {
     return {
@@ -261,11 +302,13 @@ function commitDraftElement(
   }
 
   const committed = newElementWith(appState.newElement, {
-    ...normalizeRect(
+    ...getConstrainedShapeRect(
       appState.pointerOrigin.x,
       appState.pointerOrigin.y,
       x,
       y,
+      shiftKey,
+      altKey,
     ),
   })
 
@@ -281,7 +324,7 @@ function commitDraftElement(
 
   return {
     appState: {
-      ...resetInteraction(appState),
+      ...switchToSelectionTool(resetInteraction(appState)),
       selectedElementIds: { [committed.id]: true as const },
     },
     elements: [...elements, committed],
@@ -418,6 +461,7 @@ function handleSelectionPointerMove(
   elements: readonly AssetElement[],
   x: number,
   y: number,
+  shiftKey = false,
 ): Pick<EditorSnapshot, 'appState' | 'elements'> {
   if (appState.interaction === 'marquee' && appState.pointerOrigin) {
     if (
@@ -513,6 +557,7 @@ function handleSelectionPointerMove(
       x,
       y,
       appState.originalElement,
+      shiftKey,
     )
 
     return {
@@ -554,6 +599,83 @@ export function deleteSelectedElements(snapshot: EditorSnapshot): EditorSnapshot
     },
     elements,
     files,
+  }
+}
+
+export function duplicateSelectedElements(snapshot: EditorSnapshot): EditorSnapshot {
+  const selectedIds = new Set(Object.keys(snapshot.appState.selectedElementIds))
+
+  if (selectedIds.size === 0) {
+    return snapshot
+  }
+
+  const duplicatedElements = snapshot.elements
+    .filter((element) => selectedIds.has(element.id))
+    .map((element) => ({
+      ...element,
+      id: randomId(),
+      x: element.x + 24,
+      y: element.y + 24,
+      version: 1,
+      seed: randomSeed(),
+    }))
+
+  return {
+    ...snapshot,
+    elements: [...snapshot.elements, ...duplicatedElements],
+    appState: {
+      ...resetInteraction(snapshot.appState),
+      selectedElementIds: Object.fromEntries(
+        duplicatedElements.map((element) => [element.id, true as const]),
+      ),
+      editingElementId: null,
+    },
+  }
+}
+
+export function selectElementForContextMenu(
+  snapshot: EditorSnapshot,
+  x: number,
+  y: number,
+): EditorSnapshot {
+  const hit = getElementAtPosition(snapshot.elements, x, y)
+
+  if (!hit || snapshot.appState.selectedElementIds[hit.id]) {
+    return {
+      ...snapshot,
+      appState: {
+        ...resetInteraction(snapshot.appState),
+        selectedElementIds: snapshot.appState.selectedElementIds,
+        editingElementId: null,
+      },
+    }
+  }
+
+  return {
+    ...snapshot,
+    appState: {
+      ...resetInteraction(snapshot.appState),
+      activeTool: { type: 'selection', locked: false },
+      selectedElementIds: { [hit.id]: true as const },
+      editingElementId: null,
+    },
+  }
+}
+
+export function selectAllElements(snapshot: EditorSnapshot): EditorSnapshot {
+  if (snapshot.elements.length === 0) {
+    return snapshot
+  }
+
+  return {
+    ...snapshot,
+    appState: {
+      ...resetInteraction(snapshot.appState),
+      selectedElementIds: Object.fromEntries(
+        snapshot.elements.map((element) => [element.id, true as const]),
+      ),
+      editingElementId: null,
+    },
   }
 }
 
@@ -642,7 +764,13 @@ export function updateScene(
 
     if (appState.activeTool.type === 'selection') {
       return {
-        ...handleSelectionPointerMove(appState, elements, pointer.x, pointer.y),
+        ...handleSelectionPointerMove(
+          appState,
+          elements,
+          pointer.x,
+          pointer.y,
+          pointer.shiftKey,
+        ),
         files,
       }
     }
@@ -651,11 +779,13 @@ export function updateScene(
       return { appState, elements, files }
     }
 
-    const rect = normalizeRect(
+    const rect = getConstrainedShapeRect(
       appState.pointerOrigin.x,
       appState.pointerOrigin.y,
       pointer.x,
       pointer.y,
+      pointer.shiftKey,
+      pointer.altKey,
     )
 
     const nextDraft = newElementWith(appState.newElement, rect)
@@ -697,7 +827,14 @@ export function updateScene(
   }
 
   return {
-    ...commitDraftElement(appState, elements, pointer.x, pointer.y),
+    ...commitDraftElement(
+      appState,
+      elements,
+      pointer.x,
+      pointer.y,
+      pointer.shiftKey,
+      pointer.altKey,
+    ),
     files,
   }
 }

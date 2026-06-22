@@ -44,6 +44,34 @@ describe('transform', () => {
     })
   })
 
+  it('maintains proportions while resizing from a corner with shift', () => {
+    resetTestIds()
+    const element = newRectangleElement(baseOpts)
+
+    const next = resizeElement(element, 'se', 360, 180, element, true)
+
+    expect(next).toMatchObject({
+      x: 100,
+      y: 100,
+      width: 260,
+      height: 156,
+    })
+  })
+
+  it('maintains proportions while resizing from a side with shift', () => {
+    resetTestIds()
+    const element = newRectangleElement(baseOpts)
+
+    const next = resizeElement(element, 'e', 400, 160, element, true)
+
+    expect(next).toMatchObject({
+      x: 100,
+      y: 70,
+      width: 300,
+      height: 180,
+    })
+  })
+
   it('normalizes negative resize dimensions', () => {
     resetTestIds()
     const element = newRectangleElement(baseOpts)

@@ -6,6 +6,8 @@ import { newRectangleElement, newTextElement } from '../element/newElement'
 import {
   createInitialSnapshot,
   deleteSelectedElements,
+  duplicateSelectedElements,
+  selectElementForContextMenu,
   updateScene,
 } from './updateScene'
 
@@ -58,6 +60,84 @@ describe('updateScene', () => {
       height: 140,
     })
     expect(snapshot.appState.selectedElementIds[snapshot.elements[0].id]).toBe(true)
+    expect(snapshot.appState.activeTool.type).toBe('selection')
+  })
+
+  it('locks shape aspect ratio while drawing with shift', () => {
+    resetTestIds()
+
+    let snapshot = updateScene(createInitialSnapshot(), {
+      appState: {
+        activeTool: { type: 'ellipse', locked: false },
+      },
+    })
+
+    snapshot = updateScene(snapshot, {}, { phase: 'down', x: 100, y: 120 })
+    snapshot = updateScene(snapshot, {}, { phase: 'move', x: 180, y: 260, shiftKey: true })
+
+    expect(snapshot.appState.newElement).toMatchObject({
+      type: 'ellipse',
+      x: 100,
+      y: 120,
+      width: 140,
+      height: 140,
+    })
+
+    snapshot = updateScene(snapshot, {}, { phase: 'up', x: 180, y: 260, shiftKey: true })
+
+    expect(snapshot.elements[0]).toMatchObject({
+      type: 'ellipse',
+      x: 100,
+      y: 120,
+      width: 140,
+      height: 140,
+    })
+  })
+
+  it('draws shapes from center while holding alt', () => {
+    resetTestIds()
+
+    let snapshot = updateScene(createInitialSnapshot(), {
+      appState: {
+        activeTool: { type: 'diamond', locked: false },
+      },
+    })
+
+    snapshot = updateScene(snapshot, {}, { phase: 'down', x: 300, y: 300 })
+    snapshot = updateScene(snapshot, {}, { phase: 'move', x: 360, y: 340, altKey: true })
+    snapshot = updateScene(snapshot, {}, { phase: 'up', x: 360, y: 340, altKey: true })
+
+    expect(snapshot.elements[0]).toMatchObject({
+      type: 'diamond',
+      x: 240,
+      y: 260,
+      width: 120,
+      height: 80,
+    })
+  })
+
+  it('combines shift and alt while drawing centered shapes', () => {
+    resetTestIds()
+
+    let snapshot = updateScene(createInitialSnapshot(), {
+      appState: {
+        activeTool: { type: 'rectangle', locked: false },
+      },
+    })
+
+    snapshot = updateScene(snapshot, {}, { phase: 'down', x: 300, y: 300 })
+    snapshot = updateScene(
+      snapshot,
+      {},
+      { phase: 'up', x: 360, y: 340, shiftKey: true, altKey: true },
+    )
+
+    expect(snapshot.elements[0]).toMatchObject({
+      x: 240,
+      y: 240,
+      width: 120,
+      height: 120,
+    })
   })
 
   it('drags a selected element', () => {
@@ -148,6 +228,98 @@ describe('updateScene', () => {
 
     expect(snapshot.elements).toHaveLength(0)
     expect(snapshot.appState.selectedElementIds).toEqual({})
+  })
+
+  it('duplicates selected elements with new ids and offset positions', () => {
+    resetTestIds()
+
+    const element = newRectangleElement({
+      ...baseOpts,
+      x: 100,
+      y: 100,
+      width: 120,
+      height: 80,
+    })
+
+    const snapshot = duplicateSelectedElements({
+      ...createInitialSnapshot(),
+      appState: {
+        ...createInitialSnapshot().appState,
+        selectedElementIds: { [element.id]: true },
+      },
+      elements: [element],
+    })
+
+    expect(snapshot.elements).toHaveLength(2)
+    expect(snapshot.elements[1]).toMatchObject({
+      id: 'id1',
+      x: 124,
+      y: 124,
+      width: 120,
+      height: 80,
+    })
+    expect(snapshot.appState.selectedElementIds).toEqual({ id1: true })
+  })
+
+  it('selects the right-clicked element before opening an element context menu', () => {
+    resetTestIds()
+
+    const first = newRectangleElement({
+      ...baseOpts,
+      x: 20,
+      y: 20,
+      width: 100,
+      height: 100,
+    })
+    const second = newRectangleElement({
+      ...baseOpts,
+      x: 220,
+      y: 220,
+      width: 100,
+      height: 100,
+    })
+
+    const snapshot = selectElementForContextMenu(
+      {
+        ...createInitialSnapshot(),
+        appState: {
+          ...createInitialSnapshot().appState,
+          selectedElementIds: { [first.id]: true },
+        },
+        elements: [first, second],
+      },
+      240,
+      240,
+    )
+
+    expect(snapshot.appState.selectedElementIds).toEqual({ [second.id]: true })
+  })
+
+  it('preserves selection when opening the canvas context menu', () => {
+    resetTestIds()
+
+    const element = newRectangleElement({
+      ...baseOpts,
+      x: 100,
+      y: 100,
+      width: 120,
+      height: 80,
+    })
+
+    const snapshot = selectElementForContextMenu(
+      {
+        ...createInitialSnapshot(),
+        appState: {
+          ...createInitialSnapshot().appState,
+          selectedElementIds: { [element.id]: true },
+        },
+        elements: [element],
+      },
+      10,
+      10,
+    )
+
+    expect(snapshot.appState.selectedElementIds).toEqual({ [element.id]: true })
   })
 
   it('toggles selection with shift+click', () => {

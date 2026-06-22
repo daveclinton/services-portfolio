@@ -27,12 +27,66 @@ function normalizeDimensions(x: number, y: number, width: number, height: number
   }
 }
 
+function constrainResizeToAspectRatio(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  handle: TransformHandleDirection,
+  origin: AssetElement,
+) {
+  const aspectRatio = origin.width / origin.height
+
+  if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) {
+    return { x, y, width, height }
+  }
+
+  const widthSign = width < 0 ? -1 : 1
+  const heightSign = height < 0 ? -1 : 1
+  let nextWidth = Math.abs(width)
+  let nextHeight = Math.abs(height)
+
+  if (handle === 'e' || handle === 'w') {
+    nextHeight = nextWidth / aspectRatio
+  } else if (handle === 'n' || handle === 's') {
+    nextWidth = nextHeight * aspectRatio
+  } else if (nextWidth / Math.max(nextHeight, 1) > aspectRatio) {
+    nextHeight = nextWidth / aspectRatio
+  } else {
+    nextWidth = nextHeight * aspectRatio
+  }
+
+  if (handle === 'e' || handle === 'w') {
+    y = origin.y + origin.height / 2 - nextHeight / 2
+  }
+
+  if (handle === 'n' || handle === 's') {
+    x = origin.x + origin.width / 2 - nextWidth / 2
+  }
+
+  if (handle.includes('w')) {
+    x = origin.x + origin.width - nextWidth * widthSign
+  }
+
+  if (handle.includes('n')) {
+    y = origin.y + origin.height - nextHeight * heightSign
+  }
+
+  return {
+    x,
+    y,
+    width: nextWidth * widthSign,
+    height: nextHeight * heightSign,
+  }
+}
+
 export function resizeElement(
   element: AssetElement,
   handle: TransformHandleDirection,
   pointerX: number,
   pointerY: number,
   origin: AssetElement,
+  maintainAspectRatio = false,
 ): AssetElement {
   let { x, y, width, height } = origin
 
@@ -54,6 +108,21 @@ export function resizeElement(
     const nextY = pointerY
     height = origin.y + origin.height - nextY
     y = nextY
+  }
+
+  if (maintainAspectRatio) {
+    const constrained = constrainResizeToAspectRatio(
+      x,
+      y,
+      width,
+      height,
+      handle,
+      origin,
+    )
+    x = constrained.x
+    y = constrained.y
+    width = constrained.width
+    height = constrained.height
   }
 
   return newElementWith(element, normalizeDimensions(x, y, width, height))

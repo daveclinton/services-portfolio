@@ -999,6 +999,106 @@ a {
   height: 0.95rem;
 }
 
+.asset-context-menu-trigger {
+  display: contents;
+}
+
+.asset-context-menu-content {
+  z-index: 90;
+  min-width: 13.5rem;
+  padding: 0.35rem;
+  border: 1px solid var(--asset-border-strong, #d6d6e7);
+  border-radius: 0.625rem;
+  background: var(--asset-ui-raised, #f8f7ff);
+  color: var(--asset-text, #1b1b1f);
+  box-shadow:
+    0 0 0 1px rgb(255 255 255 / 0.95) inset,
+    0 16px 42px rgb(29 27 62 / 0.18),
+    0 4px 12px rgb(29 27 62 / 0.12);
+}
+
+.asset-context-menu-content--asset {
+  min-width: 14.5rem;
+}
+
+.asset-context-menu-item,
+.asset-context-menu-label {
+  min-height: 2rem;
+  padding: 0.35rem 0.45rem;
+  font-size: 0.82rem;
+}
+
+.asset-context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 0.35rem;
+  outline: none;
+  cursor: default;
+  user-select: none;
+}
+
+.asset-context-menu-item[data-highlighted] {
+  background: var(--asset-control, #ecebff);
+}
+
+.asset-context-menu-item[data-disabled] {
+  color: var(--asset-muted, #7a7a7a);
+  pointer-events: none;
+}
+
+.asset-context-menu-item.is-destructive {
+  color: #c92a2a;
+}
+
+.asset-context-menu-item.is-destructive[data-highlighted] {
+  background: #fff5f5;
+}
+
+.asset-context-menu-item.is-inset,
+.asset-context-menu-label.is-inset {
+  padding-left: 1.75rem;
+}
+
+.asset-context-menu-item svg,
+.asset-context-menu-chevron,
+.asset-context-menu-indicator svg {
+  width: 0.95rem;
+  height: 0.95rem;
+  flex: 0 0 auto;
+}
+
+.asset-context-menu-chevron,
+.asset-context-menu-shortcut {
+  margin-left: auto;
+  color: var(--asset-muted, #7a7a7a);
+}
+
+.asset-context-menu-shortcut {
+  padding-left: 1rem;
+  font-size: 0.72rem;
+}
+
+.asset-context-menu-separator {
+  height: 1px;
+  margin: 0.3rem;
+  background: var(--asset-border-strong, #d6d6e7);
+}
+
+.asset-context-menu-label {
+  display: flex;
+  align-items: center;
+  color: var(--asset-muted, #7a7a7a);
+  font-weight: 600;
+}
+
+.asset-context-menu-indicator {
+  display: inline-flex;
+  width: 1rem;
+  align-items: center;
+  justify-content: center;
+}
+
 .asset-history-controls {
   display: flex;
   align-items: center;

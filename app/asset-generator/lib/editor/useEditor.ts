@@ -23,6 +23,9 @@ import {
 import {
   createInitialSnapshot,
   deleteSelectedElements,
+  duplicateSelectedElements,
+  selectAllElements,
+  selectElementForContextMenu,
   updateElementInScene,
   updateScene,
 } from './updateScene'
@@ -40,6 +43,7 @@ type EditorAction =
       x: number
       y: number
       shiftKey?: boolean
+      altKey?: boolean
     }
   | {
       type: 'import-image'
@@ -48,8 +52,11 @@ type EditorAction =
       file: AssetFile
     }
   | { type: 'delete-selected' }
+  | { type: 'duplicate-selected' }
+  | { type: 'select-all' }
   | { type: 'update-text'; elementId: string; text: string; viaKeyboard?: boolean }
   | { type: 'z-order'; direction: ZOrderAction }
+  | { type: 'context-menu'; x: number; y: number }
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'replace'; snapshot: EditorSnapshot }
@@ -153,6 +160,26 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         present,
         gestureCheckpoint: null,
       }
+    }
+    case 'duplicate-selected': {
+      const present = duplicateSelectedElements(state.present)
+      if (snapshotsEqual(state.present, present)) {
+        return state
+      }
+
+      return {
+        ...pushUndo(state, state.present),
+        present,
+        gestureCheckpoint: null,
+      }
+    }
+    case 'select-all': {
+      const present = selectAllElements(state.present)
+      return { ...state, present, gestureCheckpoint: null }
+    }
+    case 'context-menu': {
+      const present = selectElementForContextMenu(state.present, action.x, action.y)
+      return { ...state, present, gestureCheckpoint: null }
     }
     case 'update-text': {
       const trimmed = action.text.trim()
@@ -290,16 +317,16 @@ export function useEditor() {
     })
   }, [])
 
-  const onPointerDown = useCallback((x: number, y: number, shiftKey = false) => {
-    dispatch({ type: 'pointer', phase: 'down', x, y, shiftKey })
+  const onPointerDown = useCallback((x: number, y: number, shiftKey = false, altKey = false) => {
+    dispatch({ type: 'pointer', phase: 'down', x, y, shiftKey, altKey })
   }, [])
 
-  const onPointerMove = useCallback((x: number, y: number, shiftKey = false) => {
-    dispatch({ type: 'pointer', phase: 'move', x, y, shiftKey })
+  const onPointerMove = useCallback((x: number, y: number, shiftKey = false, altKey = false) => {
+    dispatch({ type: 'pointer', phase: 'move', x, y, shiftKey, altKey })
   }, [])
 
-  const onPointerUp = useCallback((x: number, y: number, shiftKey = false) => {
-    dispatch({ type: 'pointer', phase: 'up', x, y, shiftKey })
+  const onPointerUp = useCallback((x: number, y: number, shiftKey = false, altKey = false) => {
+    dispatch({ type: 'pointer', phase: 'up', x, y, shiftKey, altKey })
   }, [])
 
   const importImage = useCallback(async (file: File) => {
@@ -309,6 +336,14 @@ export function useEditor() {
 
   const deleteSelected = useCallback(() => {
     dispatch({ type: 'delete-selected' })
+  }, [])
+
+  const duplicateSelected = useCallback(() => {
+    dispatch({ type: 'duplicate-selected' })
+  }, [])
+
+  const selectAll = useCallback(() => {
+    dispatch({ type: 'select-all' })
   }, [])
 
   const undoChange = useCallback(() => {
@@ -356,6 +391,10 @@ export function useEditor() {
     dispatch({ type: 'update-text', elementId, text, viaKeyboard })
   }, [])
 
+  const handleCanvasContextMenu = useCallback((x: number, y: number) => {
+    dispatch({ type: 'context-menu', x, y })
+  }, [])
+
   const handleCanvasDoubleClick = useCallback((x: number, y: number) => {
     if (snapshot.appState.activeTool.type !== 'selection') {
       return
@@ -398,6 +437,18 @@ export function useEditor() {
         return
       }
 
+      if (isMeta && event.key.toLowerCase() === 'a') {
+        event.preventDefault()
+        selectAll()
+        return
+      }
+
+      if (isMeta && event.key.toLowerCase() === 'd') {
+        event.preventDefault()
+        duplicateSelected()
+        return
+      }
+
       if (event.key === 'Enter') {
         const selectedIds = Object.keys(snapshot.appState.selectedElementIds)
         if (selectedIds.length === 1) {
@@ -433,7 +484,9 @@ export function useEditor() {
   }, [
     changeZOrder,
     deleteSelected,
+    duplicateSelected,
     redoChange,
+    selectAll,
     snapshot.appState.selectedElementIds,
     snapshot.elements,
     startTextEditing,
@@ -452,9 +505,12 @@ export function useEditor() {
     onPointerMove,
     onPointerUp,
     onCanvasDoubleClick: handleCanvasDoubleClick,
+    onCanvasContextMenu: handleCanvasContextMenu,
     startTextEditing,
     updateText,
     deleteSelected,
+    duplicateSelected,
+    selectAll,
     undoChange,
     redoChange,
     changeZOrder,

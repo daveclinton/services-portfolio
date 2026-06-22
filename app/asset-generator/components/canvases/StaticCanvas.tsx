@@ -14,9 +14,10 @@ type StaticCanvasProps = {
   appState: AppState
   elements: readonly AssetElement[]
   files: Record<string, AssetFile>
-  onPointerDown: (x: number, y: number, shiftKey?: boolean) => void
-  onPointerMove: (x: number, y: number, shiftKey?: boolean) => void
-  onPointerUp: (x: number, y: number, shiftKey?: boolean) => void
+  onPointerDown: (x: number, y: number, shiftKey?: boolean, altKey?: boolean) => void
+  onPointerMove: (x: number, y: number, shiftKey?: boolean, altKey?: boolean) => void
+  onPointerUp: (x: number, y: number, shiftKey?: boolean, altKey?: boolean) => void
+  onContextMenu?: (x: number, y: number) => void
   onDoubleClick: (x: number, y: number) => void
   onTextCommit: (elementId: string, text: string, viaKeyboard?: boolean) => void
 }
@@ -28,6 +29,7 @@ export function StaticCanvas({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onContextMenu = () => {},
   onDoubleClick,
   onTextCommit,
 }: StaticCanvasProps) {
@@ -88,6 +90,7 @@ export function StaticCanvas({
         style={{ cursor }}
         onPointerDown={(event) => {
           if (!canvasRef.current) return
+          if (event.button !== 0) return
 
           if (appState.editingElementId) {
             const active = document.activeElement
@@ -100,7 +103,7 @@ export function StaticCanvas({
           isDrawingRef.current = true
           canvasRef.current.setPointerCapture(event.pointerId)
           const point = getCanvasPoint(canvasRef.current, event.clientX, event.clientY)
-          onPointerDown(point.x, point.y, event.shiftKey)
+          onPointerDown(point.x, point.y, event.shiftKey, event.altKey)
         }}
         onPointerMove={(event) => {
           if (!canvasRef.current) return
@@ -109,14 +112,19 @@ export function StaticCanvas({
           setHoverPoint(point)
 
           if (!isDrawingRef.current) return
-          onPointerMove(point.x, point.y, event.shiftKey)
+          onPointerMove(point.x, point.y, event.shiftKey, event.altKey)
         }}
         onPointerUp={(event) => {
           if (!canvasRef.current) return
           isDrawingRef.current = false
           canvasRef.current.releasePointerCapture(event.pointerId)
           const point = getCanvasPoint(canvasRef.current, event.clientX, event.clientY)
-          onPointerUp(point.x, point.y, event.shiftKey)
+          onPointerUp(point.x, point.y, event.shiftKey, event.altKey)
+        }}
+        onContextMenu={(event) => {
+          if (!canvasRef.current) return
+          const point = getCanvasPoint(canvasRef.current, event.clientX, event.clientY)
+          onContextMenu(point.x, point.y)
         }}
         onPointerLeave={() => {
           setHoverPoint(null)

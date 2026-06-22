@@ -10,6 +10,7 @@
     "seo:check": "node scripts/seo-check.mjs"
   },
   "dependencies": {
+    "@radix-ui/react-context-menu": "^2.3.1",
     "@radix-ui/react-slot": "^1.2.5",
     "@radix-ui/react-tabs": "^1.1.14",
     "@tailwindcss/postcss": "4.0.0-alpha.13",
