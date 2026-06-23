@@ -6,5 +6,7 @@ export const DEFAULT_ELEMENT_PROPS = {
 } as const
 
 export const DEFAULT_CANVAS_BACKGROUND = '#ffffff'
-export const DEFAULT_FONT_SIZE = 64
+export const DEFAULT_FONT_SIZE = 96
+export const DEFAULT_FONT_FAMILY = 'normal'
+export const DEFAULT_FONT_STYLE = 'bold'
 export const DEFAULT_EXPORT_PADDING = 0

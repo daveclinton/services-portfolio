@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { ICON_SIZE } from '../lib/common/constants'
+import { DEFAULT_FONT_SIZE } from '../lib/common/defaults'
+import { getAssetFontOption, getAssetFontStyleOption } from '../lib/element/fonts'
 import type { AssetElement } from '../lib/element/types'
 
 type TextEditorProps = {
@@ -13,6 +15,7 @@ type TextEditorProps = {
 export function TextEditor({ element, onChange, onCommit }: TextEditorProps) {
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const [blurEnabled, setBlurEnabled] = useState(false)
+  const fontStyle = getAssetFontStyleOption(element.fontStyle)
 
   useEffect(() => {
     const input = inputRef.current
@@ -48,7 +51,10 @@ export function TextEditor({ element, onChange, onCommit }: TextEditorProps) {
         top: `${(element.y / ICON_SIZE) * 100}%`,
         width: `${(element.width / ICON_SIZE) * 100}%`,
         height: `${(element.height / ICON_SIZE) * 100}%`,
-        fontSize: `calc(100cqw * ${element.fontSize ?? 64} / ${ICON_SIZE})`,
+        fontSize: `calc(100cqw * ${element.fontSize ?? DEFAULT_FONT_SIZE} / ${ICON_SIZE})`,
+        fontFamily: getAssetFontOption(element.fontFamily).css,
+        fontStyle: fontStyle.fontStyle,
+        fontWeight: fontStyle.fontWeight,
         color: element.strokeColor,
       }}
       onChange={(event) => onChange(event.currentTarget.value)}

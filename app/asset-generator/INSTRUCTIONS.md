@@ -128,7 +128,9 @@ Borrowed from `App.tsx` (`handleCanvasContextMenu`, `getContextMenuItems`) and `
 | Sidebar reduced to controls only instead of file/export/layer/status actions | Done |
 | Sidebar restyled as Excalidraw-like floating properties popup with swatches | Done |
 | Sidebar property controls edit the selected element, falling back to new-item defaults | Done |
-| Color controls show inline top-picks plus active swatch that opens side Popover picker | Done |
+| Color controls mirror Excalidraw top-picks, palette, shades, and most-used custom color logic | Done |
+| Font family uses Excalidraw-like inline picks plus side Popover font list | Done |
+| Font size uses Excalidraw-like quick picks tuned for app-icon readability | Done |
 | Project name moved to top-left chrome; duplicate top Background control removed | Done |
 | Tool/selection/elements shown in a minimalist bottom status bar | Done |
 | Safe-area warning moved to export-time confirmation | Done |
@@ -187,7 +189,7 @@ Work through these **in order**. For each tool, read the Excalidraw source first
 
 ### Phase C — Text tool polish
 
-**Status:** Core complete. C1-C4 are implemented; C5-C6 remain optional/review-level.
+**Status:** Core complete. C1-C4 and the Excalidraw-style font family/size/style controls are implemented; C5-C6 remain optional/review-level.
 
 **Excalidraw refs:** `textWysiwyg.tsx`, `packages/element/src/textElement.ts`, `refreshTextDimensions`
 
@@ -199,6 +201,7 @@ Work through these **in order**. For each tool, read the Excalidraw source first
 | C4 | **Live preview while typing** — element updates before commit (optional) | Excalidraw updates scene on every keystroke |
 | C5 | **Click-outside commit without re-select** — blur commit keeps selection loose | Excalidraw: keyboard commit re-selects, pointer-outside does not |
 | C6 | **Touch double-tap** — ~35px proximity threshold before entering edit | Prevents accidental edit during drag on mobile |
+| C7 | **Font controls** — family, style, and app-icon-sized presets apply to selected text or next text | Keeps typography contextual like Excalidraw |
 
 **Touch files:** `components/TextEditor.tsx`, `lib/scene/renderElement.ts`, `lib/editor/appState.ts`, `components/AssetGenerator.tsx` (font size control)
 

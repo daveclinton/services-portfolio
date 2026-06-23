@@ -742,9 +742,11 @@ a {
   gap: 1rem;
   overflow-y: auto;
   overflow-x: hidden;
-  width: 200px;
+  width: max-content;
+  min-width: 14rem;
+  max-width: min(18rem, calc(100vw - 1.5rem));
   max-height: min(28rem, calc(100vh - 8rem));
-  padding: 12px;
+  padding: 14px 18px 14px 14px;
   border: 0;
   border-radius: 8px;
   background: #ffffff;
@@ -939,10 +941,20 @@ a {
   gap: 6px;
 }
 
+.asset-color-picker-empty-shades {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 32px;
+  color: #7a7a7a;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
 .asset-color-picker-inline {
   --asset-inline-swatch-size: 22px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 20px var(--asset-inline-swatch-size);
+  grid-template-columns: max-content 10px var(--asset-inline-swatch-size);
   align-items: center;
   min-width: 0;
   padding: 0.25rem 0;
@@ -964,7 +976,7 @@ a {
 .asset-color-picker-inline-divider {
   width: 1px;
   height: 1rem;
-  margin: 0 auto;
+  margin: 0 4px;
   background: #c5c5d0;
 }
 
@@ -1001,21 +1013,7 @@ a {
   pointer-events: none;
 }
 
-.asset-color-picker-swatch:hover {
-  box-shadow:
-    0 0 0 1px rgb(27 27 31 / 0.16) inset,
-    0 0 0 3px #f1f0ff;
-}
 
-.asset-color-picker-swatch:active {
-  transform: scale(0.94);
-}
-
-.asset-color-picker-swatch[data-active='true'] {
-  box-shadow:
-    0 0 0 1px rgb(255 255 255 / 0.92) inset,
-    0 0 0 2px #6965db;
-}
 
 .asset-color-picker-swatch[data-transparent='true']::after {
   content: '';
@@ -1093,6 +1091,234 @@ a {
 .asset-color-picker-hex-row svg {
   width: 0.95rem;
   height: 0.95rem;
+}
+
+.asset-font-picker-inline {
+  --asset-font-control-size: 32px;
+  display: grid;
+  grid-template-columns: max-content 12px var(--asset-font-control-size);
+  align-items: center;
+  min-width: 0;
+  padding: 0.25rem 0;
+}
+
+.asset-font-picker-button-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.asset-font-picker-button-list button,
+.asset-font-picker-trigger {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  width: var(--asset-font-control-size);
+  height: var(--asset-font-control-size);
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #1b1b1f;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease-out,
+    color 140ms ease-out,
+    transform 120ms ease-out;
+}
+
+.asset-font-picker-button-list button:hover,
+.asset-font-picker-trigger:hover,
+.asset-font-picker-trigger[data-state='open'] {
+  background: #f1f0ff;
+}
+
+.asset-font-picker-button-list button:active,
+.asset-font-picker-trigger:active {
+  transform: scale(0.94);
+}
+
+.asset-font-picker-button-list button.is-active,
+.asset-font-picker-trigger[data-font-family='hand-drawn'],
+.asset-font-picker-trigger[data-font-family='normal'],
+.asset-font-picker-trigger[data-font-family='code'] {
+  background: #6965db;
+  color: #ffffff;
+}
+
+.asset-font-picker-button-list svg,
+.asset-font-picker-trigger svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.asset-font-picker-divider {
+  width: 1px;
+  height: 1rem;
+  margin: 0 auto;
+  background: #c5c5d0;
+}
+
+.asset-font-picker-island {
+  display: grid;
+  gap: 0.65rem;
+  width: 15rem;
+  padding: 12px;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1b1b1f;
+  box-shadow:
+    0 0 1px rgb(0 0 0 / 0.17),
+    0 0 3px rgb(0 0 0 / 0.08),
+    0 7px 14px rgb(0 0 0 / 0.05);
+}
+
+.asset-font-picker-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 32px;
+  padding: 0 0.5rem;
+  border-radius: 6px;
+  background: #f6f6f9;
+  color: #5c5c5c;
+}
+
+.asset-font-picker-search svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.asset-font-picker-search input {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #1b1b1f;
+  font: inherit;
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.asset-font-picker-list {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.asset-font-picker-list p {
+  margin: 0;
+  padding: 0.2rem 0.35rem;
+  color: #7a7a7a;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.asset-font-picker-list button {
+  appearance: none;
+  display: grid;
+  grid-template-columns: 1.35rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 32px;
+  padding: 0.35rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #1b1b1f;
+  cursor: pointer;
+  text-align: left;
+}
+
+.asset-font-picker-list button:hover,
+.asset-font-picker-list button.is-selected {
+  background: #f1f0ff;
+}
+
+.asset-font-picker-list span {
+  display: inline-grid;
+  place-items: center;
+}
+
+.asset-font-picker-list svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.asset-font-picker-list strong {
+  overflow: hidden;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-font-size-list,
+.asset-font-style-list {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.25rem 0;
+}
+
+.asset-font-size-list label,
+.asset-font-style-list label {
+  display: inline-grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: transparent;
+  color: #1b1b1f;
+  cursor: pointer;
+  transition:
+    background-color 140ms ease-out,
+    color 140ms ease-out,
+    transform 120ms ease-out;
+}
+
+.asset-font-size-list label:hover,
+.asset-font-style-list label:hover {
+  background: #f1f0ff;
+}
+
+.asset-font-size-list label:active,
+.asset-font-style-list label:active {
+  transform: scale(0.94);
+}
+
+.asset-font-size-list label.is-active,
+.asset-font-style-list label.is-active {
+  background: #6965db;
+  color: #ffffff;
+}
+
+.asset-font-size-list input,
+.asset-font-style-list input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.asset-font-size-list svg,
+.asset-font-style-list svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.asset-font-style-combo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.asset-font-style-combo svg {
+  width: 0.82rem;
+  height: 0.82rem;
+}
+
+.asset-font-style-combo svg + svg {
+  margin-left: -0.18rem;
 }
 
 .asset-excalidraw-statusbar {
@@ -1611,7 +1837,9 @@ a {
     right: auto;
     bottom: auto;
     left: 0.75rem;
-    width: 200px;
+    width: max-content;
+    min-width: 14rem;
+    max-width: min(18rem, calc(100vw - 1.5rem));
     grid-template-columns: minmax(0, 1fr);
   }
 

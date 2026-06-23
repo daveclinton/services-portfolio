@@ -17,6 +17,8 @@ export type AssetElement = {
   seed: number
   text?: string
   fontSize?: number
+  fontFamily?: string
+  fontStyle?: string
   fileId?: string
 }
 

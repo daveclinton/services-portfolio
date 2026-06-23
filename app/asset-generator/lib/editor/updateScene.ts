@@ -162,6 +162,8 @@ function handleTextPointerDown(
     height: getTextLineHeightInPx(fontSize),
     text: '',
     fontSize,
+    fontFamily: appState.currentItemFontFamily,
+    fontStyle: appState.currentItemFontStyle,
     strokeColor: appState.currentItemStrokeColor,
   })
 
@@ -697,6 +699,8 @@ export function updateElementInScene(
         const supportedUpdates = { ...updates }
         delete supportedUpdates.text
         delete supportedUpdates.fontSize
+        delete supportedUpdates.fontFamily
+        delete supportedUpdates.fontStyle
         return Object.keys(supportedUpdates).length > 0
           ? newElementWith(element, supportedUpdates)
           : element

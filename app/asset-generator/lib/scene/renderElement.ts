@@ -1,4 +1,6 @@
 import type { AssetFile } from '../editor/types'
+import { DEFAULT_FONT_SIZE } from '../common/defaults'
+import { getCanvasFont } from '../element/fonts'
 import { getTextLineHeightInPx, getTextLines } from '../element/text'
 import { getReadyImage } from './imageCache'
 import type { AssetElement } from '../element/types'
@@ -100,11 +102,15 @@ export function renderElement(
   } else if (element.type === 'text') {
     const label = element.text?.trim()
     if (label) {
-      const fontSize = element.fontSize ?? 64
+      const fontSize = element.fontSize ?? DEFAULT_FONT_SIZE
       const lines = getTextLines(element.text ?? '')
       const lineHeight = getTextLineHeightInPx(fontSize)
       const startY = element.y + element.height / 2 - ((lines.length - 1) * lineHeight) / 2
-      context.font = `700 ${fontSize}px Inter, system-ui, sans-serif`
+      context.font = getCanvasFont({
+        fontFamily: element.fontFamily,
+        fontSize,
+        fontStyle: element.fontStyle,
+      })
       context.textAlign = 'center'
       context.textBaseline = 'middle'
       context.fillStyle = element.strokeColor

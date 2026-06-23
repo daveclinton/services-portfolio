@@ -10,13 +10,18 @@ import {
 } from 'lucide-react'
 import { getElementAtPosition, getPrimarySelectedElement } from '../lib/element/selection'
 import { useEditor } from '../lib/editor/useEditor'
+import { DEFAULT_FONT_SIZE } from '../lib/common/defaults'
 import { AssetColorPicker } from './AssetColorPicker'
 import { AssetCanvasContextMenu } from './AssetCanvasContextMenu'
+import { AssetFontPicker } from './AssetFontPicker'
+import { AssetFontSizePicker } from './AssetFontSizePicker'
+import { AssetFontStylePicker } from './AssetFontStylePicker'
 import { AssetGeneratorLayout } from './AssetGeneratorLayout'
 import { AssetMainMenu } from './AssetMainMenu'
 import { DevicePreview } from './DevicePreview'
 import { HistoryControls } from './HistoryControls'
 import { StaticCanvas } from './canvases/StaticCanvas'
+import type { AssetFontFamily, AssetFontStyle } from '../lib/element/fonts'
 
 const tools = [
   { label: 'Select', icon: MousePointer2, type: 'selection' as const },
@@ -25,10 +30,6 @@ const tools = [
   { label: 'Diamond', icon: Diamond, type: 'diamond' as const },
   { label: 'Ellipse', icon: Circle, type: 'ellipse' as const },
 ]
-
-const backgroundSwatches = ['#ffffff', '#f1f0ff', '#1b1b1f']
-const fillSwatches = ['transparent', '#6965db', '#1b1b1f']
-const strokeSwatches = ['#1b1b1f', '#6965db', '#e03131']
 
 export function AssetGenerator() {
   const {
@@ -64,10 +65,12 @@ export function AssetGenerator() {
   const fillValue = selectedElement?.backgroundColor ?? appState.currentItemBackgroundColor
   const strokeValue = selectedElement?.strokeColor ?? appState.currentItemStrokeColor
   const fontSize = Number.isFinite(selectedElement?.fontSize)
-    ? selectedElement?.fontSize ?? 64
+    ? selectedElement?.fontSize ?? DEFAULT_FONT_SIZE
     : Number.isFinite(appState.currentItemFontSize)
     ? appState.currentItemFontSize
-    : 64
+    : DEFAULT_FONT_SIZE
+  const fontFamily = selectedElement?.fontFamily ?? appState.currentItemFontFamily
+  const fontStyle = selectedElement?.fontStyle ?? appState.currentItemFontStyle
   const selectionLabel =
     selectedCount > 1
       ? `${selectedCount} selected`
@@ -105,6 +108,24 @@ export function AssetGenerator() {
     }
 
     updateAppState({ currentItemFontSize: nextFontSize })
+  }, [selectedCount, updateAppState, updateSelectedElements])
+
+  const updateFontFamily = useCallback((nextFontFamily: AssetFontFamily) => {
+    if (selectedCount > 0) {
+      updateSelectedElements({ fontFamily: nextFontFamily })
+      return
+    }
+
+    updateAppState({ currentItemFontFamily: nextFontFamily })
+  }, [selectedCount, updateAppState, updateSelectedElements])
+
+  const updateFontStyle = useCallback((nextFontStyle: AssetFontStyle) => {
+    if (selectedCount > 0) {
+      updateSelectedElements({ fontStyle: nextFontStyle })
+      return
+    }
+
+    updateAppState({ currentItemFontStyle: nextFontStyle })
   }, [selectedCount, updateAppState, updateSelectedElements])
 
   const handleCanvasContextMenu = useCallback((x: number, y: number) => {
@@ -176,15 +197,16 @@ export function AssetGenerator() {
           <AssetColorPicker
             label="Background"
             value={appState.viewBackgroundColor}
-            colors={backgroundSwatches}
+            type="canvasBackground"
+            elements={elements}
             onChange={(viewBackgroundColor) => updateAppState({ viewBackgroundColor })}
           />
           {canShowFill ? (
             <AssetColorPicker
               label="Fill"
               value={fillValue}
-              colors={fillSwatches}
-              allowTransparent
+              type="elementBackground"
+              elements={elements}
               onChange={updateFill}
             />
           ) : null}
@@ -192,26 +214,17 @@ export function AssetGenerator() {
             <AssetColorPicker
               label={selectedElement?.type === 'text' ? 'Text' : 'Stroke'}
               value={strokeValue}
-              colors={strokeSwatches}
+              type="elementStroke"
+              elements={elements}
               onChange={updateStroke}
             />
           ) : null}
           {canShowFontSize ? (
-            <label className="asset-excalidraw-sidebar-section asset-sidebar-input-field">
-              <span>Font size</span>
-              <input
-                type="number"
-                min={16}
-                max={220}
-                step={4}
-                value={fontSize}
-                onChange={(event) => {
-                  const next = Math.min(220, Math.max(16, Number(event.target.value) || 16))
-                  updateFontSize(next)
-                }}
-                aria-label="Font size for new text"
-              />
-            </label>
+            <>
+              <AssetFontPicker value={fontFamily} onChange={updateFontFamily} />
+              <AssetFontStylePicker value={fontStyle} onChange={updateFontStyle} />
+              <AssetFontSizePicker value={fontSize} onChange={updateFontSize} />
+            </>
           ) : null}
         </>
       }

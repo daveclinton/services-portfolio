@@ -1,4 +1,10 @@
-import { DEFAULT_CANVAS_BACKGROUND, DEFAULT_ELEMENT_PROPS, DEFAULT_FONT_SIZE } from '../common/defaults'
+import {
+  DEFAULT_CANVAS_BACKGROUND,
+  DEFAULT_ELEMENT_PROPS,
+  DEFAULT_FONT_FAMILY,
+  DEFAULT_FONT_SIZE,
+  DEFAULT_FONT_STYLE,
+} from '../common/defaults'
 import type { AppState } from './types'
 
 export function getDefaultAppState(): AppState {
@@ -12,6 +18,8 @@ export function getDefaultAppState(): AppState {
     currentItemBackgroundColor: DEFAULT_ELEMENT_PROPS.backgroundColor,
     currentItemStrokeWidth: DEFAULT_ELEMENT_PROPS.strokeWidth,
     currentItemFontSize: DEFAULT_FONT_SIZE,
+    currentItemFontFamily: DEFAULT_FONT_FAMILY,
+    currentItemFontStyle: DEFAULT_FONT_STYLE,
     selectedElementIds: {},
     newElement: null,
     pointerOrigin: null,

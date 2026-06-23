@@ -1,4 +1,4 @@
-import { DEFAULT_ELEMENT_PROPS, DEFAULT_FONT_SIZE } from '../common/defaults'
+import { DEFAULT_ELEMENT_PROPS, DEFAULT_FONT_SIZE, DEFAULT_FONT_STYLE } from '../common/defaults'
 import { randomId, randomSeed } from '../common/random'
 import type { AssetElement, AssetElementType, ToolType } from './types'
 
@@ -32,6 +32,8 @@ type NewElementOpts = {
   height?: number
   text?: string
   fontSize?: number
+  fontFamily?: string
+  fontStyle?: string
   fileId?: string
 }
 
@@ -49,6 +51,8 @@ export function newElement(
     height = 0,
     text,
     fontSize,
+    fontFamily,
+    fontStyle,
     fileId,
   }: NewElementOpts,
 ): AssetElement {
@@ -67,6 +71,8 @@ export function newElement(
     seed: randomSeed(),
     text: type === 'text' ? text ?? '' : undefined,
     fontSize: type === 'text' ? fontSize ?? DEFAULT_FONT_SIZE : undefined,
+    fontFamily: type === 'text' ? fontFamily : undefined,
+    fontStyle: type === 'text' ? fontStyle ?? DEFAULT_FONT_STYLE : undefined,
     fileId: type === 'image' ? fileId : undefined,
   }
 }

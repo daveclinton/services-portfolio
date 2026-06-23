@@ -44,6 +44,8 @@ export function DevicePreview({
           opacity: element.opacity,
           text: element.text,
           fontSize: element.fontSize,
+          fontFamily: element.fontFamily,
+          fontStyle: element.fontStyle,
           fileId: element.fileId,
           version: element.version,
         })),

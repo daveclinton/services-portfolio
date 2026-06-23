@@ -10,6 +10,8 @@ describe('asset document json', () => {
       appState: {
         ...createInitialSnapshot().appState,
         currentItemFontSize: 88,
+        currentItemFontFamily: 'code',
+        currentItemFontStyle: 'italic',
       },
     }
     const restored = parseDocument(serializeDocument(snapshot))
@@ -18,6 +20,8 @@ describe('asset document json', () => {
     expect(restored.appState.projectName).toBe(snapshot.appState.projectName)
     expect(restored.appState.viewBackgroundColor).toBe(snapshot.appState.viewBackgroundColor)
     expect(restored.appState.currentItemFontSize).toBe(88)
+    expect(restored.appState.currentItemFontFamily).toBe('code')
+    expect(restored.appState.currentItemFontStyle).toBe('italic')
   })
 
   it('rejects unsupported documents', () => {

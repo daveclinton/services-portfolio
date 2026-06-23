@@ -12,6 +12,8 @@ export type PersistedAppState = {
   currentItemBackgroundColor: string
   currentItemStrokeWidth: number
   currentItemFontSize?: number
+  currentItemFontFamily?: string
+  currentItemFontStyle?: string
   projectName: string
   previewPlatform: 'ios' | 'android'
 }
@@ -40,6 +42,8 @@ function pickPersistedAppState(snapshot: EditorSnapshot): PersistedAppState {
     currentItemBackgroundColor: appState.currentItemBackgroundColor,
     currentItemStrokeWidth: appState.currentItemStrokeWidth,
     currentItemFontSize: appState.currentItemFontSize,
+    currentItemFontFamily: appState.currentItemFontFamily,
+    currentItemFontStyle: appState.currentItemFontStyle,
     projectName: appState.projectName,
     previewPlatform: appState.previewPlatform,
   }
