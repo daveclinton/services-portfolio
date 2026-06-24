@@ -72,6 +72,10 @@ function switchToSelectionTool(appState: AppState): AppState {
   }
 }
 
+function switchToolAfterUse(appState: AppState): AppState {
+  return appState.activeTool.locked ? appState : switchToSelectionTool(appState)
+}
+
 function pointerTravelSq(
   origin: { x: number; y: number } | null,
   x: number,
@@ -138,7 +142,7 @@ function handleTextPointerDown(
   if (hit?.type === 'text') {
     return {
       appState: {
-        ...switchToSelectionTool(appState),
+        ...switchToolAfterUse(appState),
         editingElementId: hit.id,
         selectedElementIds: { [hit.id]: true as const },
         interaction: 'idle',
@@ -169,7 +173,7 @@ function handleTextPointerDown(
 
   return {
     appState: {
-      ...switchToSelectionTool(appState),
+      ...appState,
       editingElementId: null,
       selectedElementIds: {},
       newElement: draft,
@@ -245,7 +249,7 @@ function commitTextDraft(
 
   return {
     appState: {
-      ...resetInteraction(appState),
+      ...switchToolAfterUse(resetInteraction(appState)),
       editingElementId: committed.id,
       selectedElementIds: { [committed.id]: true as const },
     },
@@ -258,6 +262,8 @@ function maybeEnterTextEditOnPointerUp(
   elements: readonly AssetElement[],
   x: number,
   y: number,
+  pointerType?: string,
+  isTouchDoubleTap = false,
 ): Pick<EditorSnapshot, 'appState' | 'elements'> | null {
   if (
     appState.activeTool.type !== 'selection' ||
@@ -265,6 +271,10 @@ function maybeEnterTextEditOnPointerUp(
     appState.originalElement?.type !== 'text' ||
     !appState.pointerOrigin
   ) {
+    return null
+  }
+
+  if (pointerType !== 'touch' || !isTouchDoubleTap) {
     return null
   }
 
@@ -328,7 +338,7 @@ function commitDraftElement(
 
   return {
     appState: {
-      ...switchToSelectionTool(resetInteraction(appState)),
+      ...switchToolAfterUse(resetInteraction(appState)),
       selectedElementIds: { [committed.id]: true as const },
     },
     elements: [...elements, committed],
@@ -637,6 +647,35 @@ export function duplicateSelectedElements(snapshot: EditorSnapshot): EditorSnaps
   }
 }
 
+export function nudgeSelectedElements(
+  snapshot: EditorSnapshot,
+  dx: number,
+  dy: number,
+): EditorSnapshot {
+  const selectedIds = snapshot.appState.selectedElementIds
+
+  if (Object.keys(selectedIds).length === 0 || (dx === 0 && dy === 0)) {
+    return snapshot
+  }
+
+  return {
+    ...snapshot,
+    elements: snapshot.elements.map((element) =>
+      selectedIds[element.id]
+        ? newElementWith(element, {
+            x: element.x + dx,
+            y: element.y + dy,
+          })
+        : element,
+    ),
+    appState: {
+      ...resetInteraction(snapshot.appState),
+      selectedElementIds: snapshot.appState.selectedElementIds,
+      editingElementId: null,
+    },
+  }
+}
+
 export function selectElementForContextMenu(
   snapshot: EditorSnapshot,
   x: number,
@@ -839,7 +878,14 @@ export function updateScene(
     }
   }
 
-  const textEdit = maybeEnterTextEditOnPointerUp(appState, elements, pointer.x, pointer.y)
+  const textEdit = maybeEnterTextEditOnPointerUp(
+    appState,
+    elements,
+    pointer.x,
+    pointer.y,
+    pointer.pointerType,
+    pointer.isTouchDoubleTap,
+  )
   if (textEdit) {
     return {
       ...textEdit,

@@ -27,6 +27,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { getElementsOutsideSafeArea } from "../lib/common/safeArea"
+import { withAssetProgress } from "../lib/ui/progress"
 import { exportAllPlatforms, exportPlatformPack } from "../lib/utils/export"
 import type { PreviewPlatform } from "../lib/common/exportPresets"
 import type { AssetFile } from "../lib/editor/types"
@@ -135,7 +136,9 @@ export function AssetMainMenu({
                   return
                 }
 
-                exportPlatformPack(elements, files, backgroundColor, projectName, previewPlatform)
+                void withAssetProgress(() =>
+                  exportPlatformPack(elements, files, backgroundColor, projectName, previewPlatform),
+                )
               }}
             >
               <Download aria-hidden="true" />
@@ -148,7 +151,9 @@ export function AssetMainMenu({
                   return
                 }
 
-                exportAllPlatforms(elements, files, backgroundColor, projectName)
+                void withAssetProgress(() =>
+                  exportAllPlatforms(elements, files, backgroundColor, projectName),
+                )
               }}
             >
               <Files aria-hidden="true" />

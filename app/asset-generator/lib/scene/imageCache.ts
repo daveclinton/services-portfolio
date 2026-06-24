@@ -2,6 +2,21 @@ import type { AssetFile } from '../editor/types'
 
 const cache = new Map<string, HTMLImageElement>()
 const loading = new Map<string, Promise<HTMLImageElement>>()
+const listeners = new Set<() => void>()
+
+function notifyListeners() {
+  for (const listener of Array.from(listeners)) {
+    listener()
+  }
+}
+
+export function subscribeToImageCache(listener: () => void) {
+  listeners.add(listener)
+
+  return () => {
+    listeners.delete(listener)
+  }
+}
 
 export function getCachedImage(fileId: string, file: AssetFile) {
   const cached = cache.get(fileId)
@@ -19,6 +34,7 @@ export function getCachedImage(fileId: string, file: AssetFile) {
     image.onload = () => {
       cache.set(fileId, image)
       loading.delete(fileId)
+      notifyListeners()
       resolve(image)
     }
     image.onerror = () => {

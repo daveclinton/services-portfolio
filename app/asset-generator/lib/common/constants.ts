@@ -10,6 +10,10 @@ export const TEXT_DRAG_THRESHOLD = 36
 export const TEXT_CLICK_THRESHOLD = 4
 export const SELECTION_DRAG_THRESHOLD = 4
 
+// Touch double-tap to edit text: two taps within this time + proximity window.
+export const TOUCH_DOUBLE_TAP_TIMEOUT = 300
+export const TOUCH_DOUBLE_TAP_DISTANCE = 35
+
 export const CURSOR_TYPE = {
   TEXT: 'text',
   CROSSHAIR: 'crosshair',

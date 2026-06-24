@@ -4,6 +4,7 @@ import { useCallback, useEffect, useReducer } from 'react'
 import { ICON_SIZE } from '../common/constants'
 import { downloadDocument, loadDocumentFromFile } from '../data/json'
 import { importImageFile } from '../data/image'
+import { withAssetProgress } from '../ui/progress'
 import { getElementAtPosition, getPrimarySelectedElement } from '../element/selection'
 import {
   bringForward,
@@ -24,6 +25,7 @@ import {
   createInitialSnapshot,
   deleteSelectedElements,
   duplicateSelectedElements,
+  nudgeSelectedElements,
   selectAllElements,
   selectElementForContextMenu,
   updateElementInScene,
@@ -44,6 +46,8 @@ type EditorAction =
       y: number
       shiftKey?: boolean
       altKey?: boolean
+      pointerType?: string
+      isTouchDoubleTap?: boolean
     }
   | {
       type: 'import-image'
@@ -53,6 +57,7 @@ type EditorAction =
     }
   | { type: 'delete-selected' }
   | { type: 'duplicate-selected' }
+  | { type: 'nudge-selected'; dx: number; dy: number }
   | { type: 'select-all' }
   | { type: 'update-selected-elements'; updates: Partial<EditorSnapshot['elements'][number]> }
   | { type: 'update-text-draft'; elementId: string; text: string }
@@ -188,6 +193,19 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         textEditCheckpoint: null,
       }
     }
+    case 'nudge-selected': {
+      const present = nudgeSelectedElements(state.present, action.dx, action.dy)
+      if (snapshotsEqual(state.present, present)) {
+        return state
+      }
+
+      return {
+        ...pushUndo(state, state.present),
+        present,
+        gestureCheckpoint: null,
+        textEditCheckpoint: null,
+      }
+    }
     case 'update-selected-elements': {
       const selectedIds = Object.keys(state.present.appState.selectedElementIds)
       if (selectedIds.length === 0) {
@@ -266,9 +284,7 @@ function editorReducer(state: EditorState, action: EditorAction): EditorState {
         appState: {
           ...updated.appState,
           editingElementId: null,
-          selectedElementIds: action.viaKeyboard
-            ? { [action.elementId]: true as const }
-            : updated.appState.selectedElementIds,
+          selectedElementIds: { [action.elementId]: true as const },
           selectionBox: null,
           selectionOriginIds: null,
         },
@@ -359,12 +375,12 @@ export function useEditor() {
     })
   }, [])
 
-  const setActiveTool = useCallback((type: ToolType) => {
+  const setActiveTool = useCallback((type: ToolType, locked = false) => {
     dispatch({
       type: 'update-scene',
       update: {
         appState: {
-          activeTool: { type, locked: false },
+          activeTool: { type, locked },
           selectedElementIds: {},
           newElement: null,
           pointerOrigin: null,
@@ -388,12 +404,30 @@ export function useEditor() {
     dispatch({ type: 'pointer', phase: 'move', x, y, shiftKey, altKey })
   }, [])
 
-  const onPointerUp = useCallback((x: number, y: number, shiftKey = false, altKey = false) => {
-    dispatch({ type: 'pointer', phase: 'up', x, y, shiftKey, altKey })
+  const onPointerUp = useCallback((
+    x: number,
+    y: number,
+    shiftKey = false,
+    altKey = false,
+    pointerType?: string,
+    isTouchDoubleTap = false,
+  ) => {
+    dispatch({
+      type: 'pointer',
+      phase: 'up',
+      x,
+      y,
+      shiftKey,
+      altKey,
+      pointerType,
+      isTouchDoubleTap,
+    })
   }, [])
 
-  const importImage = useCallback(async (file: File) => {
-    const { element, fileId, file: assetFile } = await importImageFile(file)
+  const importImage = useCallback(async (file: File, center?: { x: number; y: number }) => {
+    const { element, fileId, file: assetFile } = await withAssetProgress(() =>
+      importImageFile(file, center),
+    )
     dispatch({ type: 'import-image', element, fileId, file: assetFile })
   }, [])
 
@@ -403,6 +437,10 @@ export function useEditor() {
 
   const duplicateSelected = useCallback(() => {
     dispatch({ type: 'duplicate-selected' })
+  }, [])
+
+  const nudgeSelected = useCallback((dx: number, dy: number) => {
+    dispatch({ type: 'nudge-selected', dx, dy })
   }, [])
 
   const selectAll = useCallback(() => {
@@ -434,7 +472,7 @@ export function useEditor() {
   }, [snapshot])
 
   const loadDocument = useCallback(async (file: File) => {
-    const loaded = await loadDocumentFromFile(file)
+    const loaded = await withAssetProgress(() => loadDocumentFromFile(file))
     dispatch({ type: 'replace', snapshot: loaded })
   }, [])
 
@@ -523,6 +561,46 @@ export function useEditor() {
         return
       }
 
+      const selectedCount = Object.keys(snapshot.appState.selectedElementIds).length
+
+      if (event.key.startsWith('Arrow') && selectedCount > 0) {
+        const distance = event.shiftKey ? 10 : 1
+        const deltas: Record<string, { dx: number; dy: number }> = {
+          ArrowUp: { dx: 0, dy: -distance },
+          ArrowDown: { dx: 0, dy: distance },
+          ArrowLeft: { dx: -distance, dy: 0 },
+          ArrowRight: { dx: distance, dy: 0 },
+        }
+        const delta = deltas[event.key]
+        if (delta) {
+          event.preventDefault()
+          nudgeSelected(delta.dx, delta.dy)
+          return
+        }
+      }
+
+      if (!isMeta && !event.altKey) {
+        const toolShortcuts: Record<string, ToolType> = {
+          '1': 'selection',
+          v: 'selection',
+          '2': 'rectangle',
+          r: 'rectangle',
+          '3': 'diamond',
+          d: 'diamond',
+          '4': 'ellipse',
+          e: 'ellipse',
+          o: 'ellipse',
+          '5': 'text',
+          t: 'text',
+        }
+        const tool = toolShortcuts[event.key.toLowerCase()]
+        if (tool) {
+          event.preventDefault()
+          setActiveTool(tool, false)
+          return
+        }
+      }
+
       if (event.key === 'Enter') {
         const selectedIds = Object.keys(snapshot.appState.selectedElementIds)
         if (selectedIds.length === 1) {
@@ -559,8 +637,10 @@ export function useEditor() {
     changeZOrder,
     deleteSelected,
     duplicateSelected,
+    nudgeSelected,
     redoChange,
     selectAll,
+    setActiveTool,
     snapshot.appState.selectedElementIds,
     snapshot.elements,
     startTextEditing,

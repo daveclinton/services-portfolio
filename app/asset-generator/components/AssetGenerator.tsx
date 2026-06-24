@@ -9,8 +9,9 @@ import {
   Type,
 } from 'lucide-react'
 import { getElementAtPosition, getPrimarySelectedElement } from '../lib/element/selection'
+import { ThemeToggle } from '@/components/theme-toggle'
 import { useEditor } from '../lib/editor/useEditor'
-import { DEFAULT_FONT_SIZE } from '../lib/common/defaults'
+import { DEFAULT_ELEMENT_PROPS, DEFAULT_FONT_SIZE } from '../lib/common/defaults'
 import { AssetColorPicker } from './AssetColorPicker'
 import { AssetCanvasContextMenu } from './AssetCanvasContextMenu'
 import { AssetFontPicker } from './AssetFontPicker'
@@ -18,6 +19,7 @@ import { AssetFontSizePicker } from './AssetFontSizePicker'
 import { AssetFontStylePicker } from './AssetFontStylePicker'
 import { AssetGeneratorLayout } from './AssetGeneratorLayout'
 import { AssetMainMenu } from './AssetMainMenu'
+import { AssetPropertiesPanel } from './AssetPropertiesPanel'
 import { DevicePreview } from './DevicePreview'
 import { HistoryControls } from './HistoryControls'
 import { StaticCanvas } from './canvases/StaticCanvas'
@@ -62,8 +64,19 @@ export function AssetGenerator() {
   const [contextMenuTarget, setContextMenuTarget] = useState<'canvas' | 'element'>('canvas')
   const selectedCount = Object.keys(appState.selectedElementIds).length
   const selectedElement = getPrimarySelectedElement(elements, appState.selectedElementIds)
+  const hasSelectedShape = elements.some(
+    (element) =>
+      appState.selectedElementIds[element.id] &&
+      (element.type === 'rectangle' || element.type === 'ellipse' || element.type === 'diamond'),
+  )
   const fillValue = selectedElement?.backgroundColor ?? appState.currentItemBackgroundColor
   const strokeValue = selectedElement?.strokeColor ?? appState.currentItemStrokeColor
+  const strokeWidth = Number.isFinite(selectedElement?.strokeWidth)
+    ? selectedElement?.strokeWidth ?? DEFAULT_ELEMENT_PROPS.strokeWidth
+    : appState.currentItemStrokeWidth
+  const opacity = Number.isFinite(selectedElement?.opacity)
+    ? selectedElement?.opacity ?? DEFAULT_ELEMENT_PROPS.opacity
+    : DEFAULT_ELEMENT_PROPS.opacity
   const fontSize = Number.isFinite(selectedElement?.fontSize)
     ? selectedElement?.fontSize ?? DEFAULT_FONT_SIZE
     : Number.isFinite(appState.currentItemFontSize)
@@ -128,6 +141,21 @@ export function AssetGenerator() {
     updateAppState({ currentItemFontStyle: nextFontStyle })
   }, [selectedCount, updateAppState, updateSelectedElements])
 
+  const updateStrokeWidth = useCallback((nextStrokeWidth: number) => {
+    if (selectedCount > 0) {
+      updateSelectedElements({ strokeWidth: nextStrokeWidth })
+      return
+    }
+
+    updateAppState({ currentItemStrokeWidth: nextStrokeWidth })
+  }, [selectedCount, updateAppState, updateSelectedElements])
+
+  const updateOpacity = useCallback((nextOpacity: number) => {
+    if (selectedCount > 0) {
+      updateSelectedElements({ opacity: nextOpacity })
+    }
+  }, [selectedCount, updateSelectedElements])
+
   const handleCanvasContextMenu = useCallback((x: number, y: number) => {
     const hit = getElementAtPosition(elements, x, y)
     setContextMenuTarget(hit ? 'element' : 'canvas')
@@ -174,10 +202,19 @@ export function AssetGenerator() {
             <button
               key={label}
               type="button"
-              className={appState.activeTool.type === type ? 'is-active' : undefined}
-              aria-label={label}
+              className={[
+                appState.activeTool.type === type ? 'is-active' : '',
+                appState.activeTool.type === type && appState.activeTool.locked
+                  ? 'is-locked'
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' ') || undefined}
+              aria-label={`${label}${appState.activeTool.type === type && appState.activeTool.locked ? ' locked' : ''}`}
               aria-pressed={appState.activeTool.type === type}
-              onClick={() => setActiveTool(type)}
+              title={`${label} (${type === 'selection' ? 'V' : type === 'text' ? 'T' : type === 'rectangle' ? 'R' : type === 'diamond' ? 'D' : 'E/O'}). Double-click to lock.`}
+              onClick={() => setActiveTool(type, false)}
+              onDoubleClick={() => setActiveTool(type, true)}
             >
               <Icon aria-hidden="true" />
             </button>
@@ -185,12 +222,15 @@ export function AssetGenerator() {
         </div>
       }
       topRight={
-        <HistoryControls
-          canUndo={canUndo}
-          canRedo={canRedo}
-          onUndo={undoChange}
-          onRedo={redoChange}
-        />
+        <>
+          <ThemeToggle />
+          <HistoryControls
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={undoChange}
+            onRedo={redoChange}
+          />
+        </>
       }
       sidebar={
         <>
@@ -220,18 +260,27 @@ export function AssetGenerator() {
             />
           ) : null}
           {canShowFontSize ? (
-            <>
+            <div className="asset-mobile-text-style-controls">
               <AssetFontPicker value={fontFamily} onChange={updateFontFamily} />
               <AssetFontStylePicker value={fontStyle} onChange={updateFontStyle} />
               <AssetFontSizePicker value={fontSize} onChange={updateFontSize} />
-            </>
+            </div>
+          ) : null}
+          {selectedCount > 0 ? (
+            <AssetPropertiesPanel
+              opacity={opacity}
+              strokeWidth={strokeWidth}
+              showStrokeWidth={hasSelectedShape}
+              onOpacityChange={updateOpacity}
+              onStrokeWidthChange={updateStrokeWidth}
+            />
           ) : null}
         </>
       }
       statusBar={
         <>
           <span>
-            Tool <strong>{appState.activeTool.type}</strong>
+            Tool <strong>{appState.activeTool.type}{appState.activeTool.locked ? ' locked' : ''}</strong>
           </span>
           <span>
             Selection <strong>{selectionLabel}</strong>
@@ -254,6 +303,7 @@ export function AssetGenerator() {
         <AssetCanvasContextMenu
           target={contextMenuTarget}
           selectedCount={selectedCount}
+          selectedElement={selectedElement ?? null}
           elements={elements}
           files={files}
           backgroundColor={appState.viewBackgroundColor}
@@ -269,6 +319,7 @@ export function AssetGenerator() {
           onSendBackward={() => changeZOrder('backward')}
           onBringToFront={() => changeZOrder('front')}
           onSendToBack={() => changeZOrder('back')}
+          onUpdateSelectedElements={updateSelectedElements}
         >
           <StaticCanvas
             appState={appState}
@@ -281,6 +332,7 @@ export function AssetGenerator() {
             onDoubleClick={onCanvasDoubleClick}
             onTextChange={updateTextDraft}
             onTextCommit={updateText}
+            onImportImage={importImage}
           />
         </AssetCanvasContextMenu>
       }

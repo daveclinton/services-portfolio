@@ -7,6 +7,7 @@ import {
   createInitialSnapshot,
   deleteSelectedElements,
   duplicateSelectedElements,
+  nudgeSelectedElements,
   selectElementForContextMenu,
   updateElementInScene,
   updateScene,
@@ -62,6 +63,22 @@ describe('updateScene', () => {
     })
     expect(snapshot.appState.selectedElementIds[snapshot.elements[0].id]).toBe(true)
     expect(snapshot.appState.activeTool.type).toBe('selection')
+  })
+
+  it('keeps a locked shape tool active after commit', () => {
+    resetTestIds()
+
+    let snapshot = updateScene(createInitialSnapshot(), {
+      appState: {
+        activeTool: { type: 'rectangle', locked: true },
+      },
+    })
+
+    snapshot = updateScene(snapshot, {}, { phase: 'down', x: 100, y: 120 })
+    snapshot = updateScene(snapshot, {}, { phase: 'up', x: 220, y: 260 })
+
+    expect(snapshot.elements).toHaveLength(1)
+    expect(snapshot.appState.activeTool).toEqual({ type: 'rectangle', locked: true })
   })
 
   it('locks shape aspect ratio while drawing with shift', () => {
@@ -260,6 +277,42 @@ describe('updateScene', () => {
       height: 80,
     })
     expect(snapshot.appState.selectedElementIds).toEqual({ id1: true })
+  })
+
+  it('nudges selected elements by a precise delta', () => {
+    resetTestIds()
+
+    const selected = newRectangleElement({
+      ...baseOpts,
+      x: 100,
+      y: 100,
+      width: 120,
+      height: 80,
+    })
+    const other = newRectangleElement({
+      ...baseOpts,
+      x: 300,
+      y: 300,
+      width: 120,
+      height: 80,
+    })
+
+    const snapshot = nudgeSelectedElements(
+      {
+        ...createInitialSnapshot(),
+        appState: {
+          ...createInitialSnapshot().appState,
+          selectedElementIds: { [selected.id]: true },
+        },
+        elements: [selected, other],
+      },
+      10,
+      -1,
+    )
+
+    expect(snapshot.elements[0]).toMatchObject({ x: 110, y: 99 })
+    expect(snapshot.elements[1]).toMatchObject({ x: 300, y: 300 })
+    expect(snapshot.appState.selectedElementIds).toEqual({ [selected.id]: true })
   })
 
   it('selects the right-clicked element before opening an element context menu', () => {
@@ -653,7 +706,7 @@ describe('updateScene', () => {
     })
   })
 
-  it('enters edit mode when clicking an already-selected text label', () => {
+  it('keeps an already-selected text label selected on mouse click', () => {
     resetTestIds()
 
     const text = newTextElement({
@@ -677,6 +730,46 @@ describe('updateScene', () => {
 
     snapshot = updateScene(snapshot, {}, { phase: 'down', x: 120, y: 120 })
     snapshot = updateScene(snapshot, {}, { phase: 'up', x: 120, y: 120 })
+
+    expect(snapshot.appState.editingElementId).toBeNull()
+    expect(snapshot.appState.selectedElementIds).toEqual({ [text.id]: true })
+  })
+
+  it('requires touch double-tap before editing selected text', () => {
+    resetTestIds()
+
+    const text = newTextElement({
+      ...baseOpts,
+      x: 100,
+      y: 100,
+      width: 240,
+      height: 96,
+      text: 'Logo',
+    })
+
+    let snapshot = {
+      ...createInitialSnapshot(),
+      appState: {
+        ...createInitialSnapshot().appState,
+        activeTool: { type: 'selection' as const, locked: false },
+        selectedElementIds: { [text.id]: true as const },
+      },
+      elements: [text],
+    }
+
+    snapshot = updateScene(snapshot, {}, { phase: 'down', x: 120, y: 120 })
+    snapshot = updateScene(snapshot, {}, { phase: 'up', x: 120, y: 120, pointerType: 'touch' })
+
+    expect(snapshot.appState.editingElementId).toBeNull()
+
+    snapshot = updateScene(snapshot, {}, { phase: 'down', x: 120, y: 120 })
+    snapshot = updateScene(snapshot, {}, {
+      phase: 'up',
+      x: 120,
+      y: 120,
+      pointerType: 'touch',
+      isTouchDoubleTap: true,
+    })
 
     expect(snapshot.appState.editingElementId).toBe(text.id)
   })

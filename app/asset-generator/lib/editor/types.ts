@@ -66,4 +66,6 @@ export type PointerPayload = {
   y: number
   shiftKey?: boolean
   altKey?: boolean
+  pointerType?: string
+  isTouchDoubleTap?: boolean
 }

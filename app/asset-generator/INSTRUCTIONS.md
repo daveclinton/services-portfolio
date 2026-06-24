@@ -33,17 +33,19 @@ pnpm build
 
 ## Completed (borrowed from Excalidraw)
 
-### Current status snapshot (2026-06-22)
+### Current status snapshot (2026-06-23)
 - **Phase A — Selection tool:** complete.
 - **Phase B — Shape tools:** complete for app-icon scope.
-- **Phase C — Text polish:** core complete.
+- **Phase C — Text polish:** complete for app-icon scope.
+- **Phase D — Image tool polish:** core complete; crop / fit modes remain optional.
+- **Phase E — Editor chrome & keyboard:** complete for app-icon scope.
 - **Context menu / chrome work:** started early and functional.
-- **Next recommended chunk:** Phase D — image tool polish.
+- **Next recommended chunk:** optional crop / fit modes or a broader polish pass.
 
 **Latest verification:**
 
 ```bash
-pnpm test:run app/asset-generator  # 11 files, 57 tests passing
+pnpm test:run app/asset-generator  # 12 files, 66 tests passing
 pnpm build                         # passing
 ```
 
@@ -77,6 +79,8 @@ Borrowed from `packages/excalidraw/components/App.tsx`, `wysiwyg/textWysiwyg.tsx
 | Text elements auto-resize to content while typing | Done |
 | Multiline canvas render | Done |
 | Font size app state + sidebar control for new text | Done |
+| Click-outside / blur commit does not re-select text | Done |
+| Touch double-tap text edit proximity threshold | Done |
 
 **Key files:** `lib/editor/updateScene.ts`, `lib/element/text.ts`, `components/TextEditor.tsx`, `components/canvases/StaticCanvas.tsx`
 
@@ -135,8 +139,26 @@ Borrowed from `App.tsx` (`handleCanvasContextMenu`, `getContextMenuItems`) and `
 | Tool/selection/elements shown in a minimalist bottom status bar | Done |
 | Safe-area warning moved to export-time confirmation | Done |
 | Context-menu surface visually distinct from white canvas | Done |
+| Tool shortcuts (`V`, `T`, `R`, `D`, `E`/`O`, numeric keys) | Done |
+| Arrow-key nudge: 1px, Shift+arrow 10px | Done |
+| Locked tools via double-click toolbar button | Done |
+| Selected-element properties include fill/stroke/opacity/stroke width | Done |
 
 **Key files:** `components/AssetCanvasContextMenu.tsx`, `components/AssetGenerator.tsx`, `components/canvases/StaticCanvas.tsx`, `components/ui/context-menu.tsx`, `lib/editor/useEditor.ts`, `lib/editor/updateScene.ts`, `app/global.css`
+
+### Image tool polish (Phase D core complete)
+Borrowed from `App.tsx` image import, `packages/element/src/image.ts`, file storage patterns:
+
+| Pattern | Status |
+|---------|--------|
+| Drag-drop image onto canvas | Done |
+| Paste image from clipboard | Done |
+| Shift while resizing image maintains proportions | Done |
+| Image cache load triggers canvas + preview repaint | Done |
+| Drop-point image placement centers imported image under pointer | Done |
+| Crop / fit modes | Optional / not implemented |
+
+**Key files:** `lib/data/image.ts`, `lib/scene/imageCache.ts`, `components/canvases/StaticCanvas.tsx`, `components/DevicePreview.tsx`, `lib/element/transform.test.ts`
 
 ---
 
@@ -189,7 +211,7 @@ Work through these **in order**. For each tool, read the Excalidraw source first
 
 ### Phase C — Text tool polish
 
-**Status:** Core complete. C1-C4 and the Excalidraw-style font family/size/style controls are implemented; C5-C6 remain optional/review-level.
+**Status:** Done for app-icon scope. C1-C7 are implemented.
 
 **Excalidraw refs:** `textWysiwyg.tsx`, `packages/element/src/textElement.ts`, `refreshTextDimensions`
 
@@ -203,11 +225,15 @@ Work through these **in order**. For each tool, read the Excalidraw source first
 | C6 | **Touch double-tap** — ~35px proximity threshold before entering edit | Prevents accidental edit during drag on mobile |
 | C7 | **Font controls** — family, style, and app-icon-sized presets apply to selected text or next text | Keeps typography contextual like Excalidraw |
 
+All rows above are implemented. Keep this section as historical reference.
+
 **Touch files:** `components/TextEditor.tsx`, `lib/scene/renderElement.ts`, `lib/editor/appState.ts`, `components/AssetGenerator.tsx` (font size control)
 
 ---
 
 ### Phase D — Image tool polish
+
+**Status:** Core complete. D1-D4 are implemented; D5 remains optional.
 
 **Excalidraw refs:** `App.tsx` image import, `packages/element/src/image.ts`, file storage patterns
 
@@ -219,11 +245,15 @@ Work through these **in order**. For each tool, read the Excalidraw source first
 | D4 | **Re-render when image finishes loading** — `imageCache` onload → trigger scene repaint | Avoid placeholder flash |
 | D5 | **Crop / fit modes** (optional) — cover vs contain within box | Icon-specific; lower priority |
 
+D1-D4 are implemented. Keep D5 as a future optional icon-specific enhancement.
+
 **Touch files:** `lib/data/image.ts`, `lib/scene/imageCache.ts`, `components/canvases/StaticCanvas.tsx`, `components/ImportImageButton.tsx`
 
 ---
 
 ### Phase E — Editor chrome & keyboard
+
+**Status:** Done for app-icon scope.
 
 **Excalidraw refs:** `App.tsx` keyboard shortcuts, `actionProperties.tsx`, `LayerUI.tsx`
 
@@ -236,9 +266,9 @@ Work through these **in order**. For each tool, read the Excalidraw source first
 | E5 | **Properties panel** — show stroke/fill/opacity for selected element | Excalidraw sidebar reflects selection, not just global defaults |
 | E6 | **Locked tools** — double-click tool to lock (Excalidraw `activeTool.locked`) | Optional; already have `locked` in type |
 
-**Status:** Partially done. Cmd+D, Cmd+A, and right-click element/canvas action menus are implemented. Tool shortcuts, arrow-key nudge, properties panel, and locked tools remain.
+All rows above are implemented. Tool shortcuts include `V` selection, `T` text, `R` rectangle, `D` diamond, `E`/`O` ellipse, plus numeric shortcuts. Arrow-key nudge is 1px, or 10px with Shift. Double-clicking a toolbar tool locks it, keeping shape/text tools active after commit until another tool is chosen.
 
-**Touch files:** `lib/editor/useEditor.ts`, `components/AssetGenerator.tsx`, new `PropertiesPanel.tsx`
+**Touch files:** `lib/editor/useEditor.ts`, `lib/editor/updateScene.ts`, `components/AssetGenerator.tsx`, `components/AssetPropertiesPanel.tsx`
 
 ---
 
@@ -278,8 +308,8 @@ For each item above:
 PR 1 — Selection tool: drag threshold, cursors, tests ✅ done
 PR 2 — Shape tools: shift-aspect, alt-center, handle cursors, tool switch on commit ✅ done
 PR 3 — Text polish: auto-resize, multiline render, font size control
-PR 4 — Image: drag-drop, paste, onload repaint
-PR 5 — Keyboard shortcuts + properties panel for selection
+PR 4 — Image: drag-drop, paste, onload repaint ✅ core done
+PR 5 — Keyboard shortcuts + properties panel for selection ✅ done
 ```
 
 ---

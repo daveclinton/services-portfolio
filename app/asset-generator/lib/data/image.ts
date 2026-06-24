@@ -41,7 +41,14 @@ function fitImageDimensions(width: number, height: number) {
   }
 }
 
-export async function importImageFile(file: File) {
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
+export async function importImageFile(
+  file: File,
+  center?: { x: number; y: number },
+) {
   if (!file.type.startsWith('image/')) {
     throw new Error('Only image files are supported')
   }
@@ -50,8 +57,12 @@ export async function importImageFile(file: File) {
   const image = await loadImage(dataURL)
   const fileId = randomId()
   const { width, height } = fitImageDimensions(image.naturalWidth, image.naturalHeight)
-  const x = Math.round((ICON_SIZE - width) / 2)
-  const y = Math.round((ICON_SIZE - height) / 2)
+  const x = Math.round(
+    center ? clamp(center.x - width / 2, 0, ICON_SIZE - width) : (ICON_SIZE - width) / 2,
+  )
+  const y = Math.round(
+    center ? clamp(center.y - height / 2, 0, ICON_SIZE - height) : (ICON_SIZE - height) / 2,
+  )
 
   const assetFile: AssetFile = {
     mimeType: file.type,

@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PreviewPlatform } from '../lib/common/exportPresets'
-import { preloadImages } from '../lib/scene/imageCache'
+import { preloadImages, subscribeToImageCache } from '../lib/scene/imageCache'
 import { renderPreviewIcon } from '../lib/scene/preview'
 import type { AssetFile } from '../lib/editor/types'
 import type { AssetElement } from '../lib/element/types'
@@ -26,6 +26,7 @@ export function DevicePreview({
 }: DevicePreviewProps) {
   const homeIconRef = useRef<HTMLCanvasElement>(null)
   const dockIconRef = useRef<HTMLCanvasElement>(null)
+  const [imageVersion, setImageVersion] = useState(0)
 
   const previewKey = useMemo(
     () =>
@@ -59,6 +60,10 @@ export function DevicePreview({
   }, [files])
 
   useEffect(() => {
+    return subscribeToImageCache(() => setImageVersion((version) => version + 1))
+  }, [])
+
+  useEffect(() => {
     const targets = [homeIconRef.current, dockIconRef.current].filter(
       (canvas): canvas is HTMLCanvasElement => Boolean(canvas),
     )
@@ -66,7 +71,7 @@ export function DevicePreview({
     for (const canvas of targets) {
       renderPreviewIcon(canvas, elements, files, backgroundColor, PREVIEW_ICON_SIZE)
     }
-  }, [previewKey, elements, files, backgroundColor])
+  }, [previewKey, elements, files, backgroundColor, imageVersion])
 
   return (
     <>

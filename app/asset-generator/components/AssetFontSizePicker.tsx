@@ -1,5 +1,9 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { Check, ChevronsUpDown } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+
 const FONT_SIZE_OPTIONS = [
   { id: "small", label: "Small", value: 64 },
   { id: "medium", label: "Medium", value: 96 },
@@ -76,30 +80,105 @@ function getActiveFontSizeId(value: number) {
   }, FONT_SIZE_OPTIONS[0]).id
 }
 
+function clampFontSize(value: number) {
+  return Math.min(Math.max(Math.round(value), 16), 320)
+}
+
 export function AssetFontSizePicker({ value, onChange }: AssetFontSizePickerProps) {
+  const [open, setOpen] = useState(false)
+  const [customValue, setCustomValue] = useState(String(clampFontSize(value)))
   const activeId = getActiveFontSizeId(value)
+  const normalizedValue = clampFontSize(value)
+  const exactOption = FONT_SIZE_OPTIONS.find((option) => option.value === normalizedValue)
+  useEffect(() => {
+    setCustomValue(String(normalizedValue))
+  }, [normalizedValue])
+  const applyCustomValue = () => {
+    const parsed = Number(customValue)
+    if (!Number.isFinite(parsed)) {
+      return
+    }
+
+    onChange(clampFontSize(parsed))
+    setOpen(false)
+  }
 
   return (
     <fieldset className="asset-sidebar-fieldset">
       <legend>Font size</legend>
-      <div className="asset-font-size-list" role="radiogroup" aria-label="Font size">
-        {FONT_SIZE_OPTIONS.map((option) => (
-          <label
-            key={option.id}
-            className={activeId === option.id ? "is-active" : undefined}
-            title={option.label}
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="asset-combobox-trigger"
+            aria-label="Choose font size"
+            aria-expanded={open}
+            role="combobox"
+            data-testid="font-size-combobox"
           >
-            <input
-              type="radio"
-              name="asset-font-size"
-              checked={activeId === option.id}
-              data-testid={`fontSize-${option.id}`}
-              onChange={() => onChange(option.value)}
-            />
-            <SizeIcon id={option.id} />
-          </label>
-        ))}
-      </div>
+            <span>
+              <SizeIcon id={activeId} />
+              <strong>{exactOption?.label ?? "Custom"}</strong>
+              <small>{normalizedValue}px</small>
+            </span>
+            <ChevronsUpDown aria-hidden="true" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          side="right"
+          align="start"
+          sideOffset={10}
+          className="asset-combobox-popover"
+        >
+          <div className="asset-combobox-panel">
+            <div className="asset-combobox-list" role="listbox" aria-label="Font size">
+              {FONT_SIZE_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="option"
+                  aria-selected={normalizedValue === option.value}
+                  className={normalizedValue === option.value ? "is-selected" : undefined}
+                  title={option.label}
+                  onClick={() => {
+                    onChange(option.value)
+                    setCustomValue(String(option.value))
+                    setOpen(false)
+                  }}
+                >
+                  <span>
+                    <SizeIcon id={option.id} />
+                    <strong>{option.label}</strong>
+                    <small>{option.value}px</small>
+                  </span>
+                  {normalizedValue === option.value ? <Check aria-hidden="true" /> : null}
+                </button>
+              ))}
+            </div>
+            <form
+              className="asset-combobox-custom-row"
+              onSubmit={(event) => {
+                event.preventDefault()
+                applyCustomValue()
+              }}
+            >
+              <label>
+                Custom
+                <input
+                  type="number"
+                  min="16"
+                  max="320"
+                  step="1"
+                  value={customValue}
+                  onChange={(event) => setCustomValue(event.currentTarget.value)}
+                  onBlur={() => setCustomValue(String(clampFontSize(Number(customValue))))}
+                />
+              </label>
+              <button type="submit">Apply</button>
+            </form>
+          </div>
+        </PopoverContent>
+      </Popover>
     </fieldset>
   )
 }

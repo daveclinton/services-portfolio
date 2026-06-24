@@ -1,13 +1,12 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Code2, PenLine, Search, Type, WholeWord } from "lucide-react"
+import { Check, ChevronsUpDown, Code2, PenLine, Search, Type } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import {
   ASSET_FONT_OPTIONS,
   getAssetFontOption,
   type AssetFontFamily,
-  type AssetFontOption,
 } from "../lib/element/fonts"
 
 type AssetFontPickerProps = {
@@ -27,29 +26,8 @@ function FontIcon({ id }: { id: AssetFontFamily }) {
   return <Type aria-hidden="true" />
 }
 
-function FontButton({
-  option,
-  active,
-  onSelect,
-}: {
-  option: AssetFontOption
-  active: boolean
-  onSelect: () => void
-}) {
-  return (
-    <button
-      type="button"
-      title={option.label}
-      className={active ? "is-active" : undefined}
-      data-testid={`font-family-${option.id}`}
-      onClick={onSelect}
-    >
-      <FontIcon id={option.id} />
-    </button>
-  )
-}
-
 export function AssetFontPicker({ value, onChange }: AssetFontPickerProps) {
+  const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const activeOption = getAssetFontOption(value)
   const filteredOptions = useMemo(() => {
@@ -66,70 +44,69 @@ export function AssetFontPicker({ value, onChange }: AssetFontPickerProps) {
   return (
     <fieldset className="asset-sidebar-fieldset">
       <legend>Font family</legend>
-      <div className="asset-font-picker-inline" role="group" aria-label="Font family">
-        <div className="asset-font-picker-button-list">
-          {ASSET_FONT_OPTIONS.map((option) => (
-            <FontButton
-              key={option.id}
-              option={option}
-              active={activeOption.id === option.id}
-              onSelect={() => onChange(option.id)}
-            />
-          ))}
-        </div>
-        <div className="asset-font-picker-divider" aria-hidden="true" />
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              className="asset-font-picker-trigger"
-              data-font-family={activeOption.id}
-              title="Show font picker"
-              aria-label="Show font picker"
-              data-testid="font-family-show-fonts"
-            >
-              <WholeWord aria-hidden="true" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent
-            side="right"
-            align="start"
-            sideOffset={10}
-            className="asset-font-picker-popover"
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="asset-combobox-trigger"
+            aria-label="Choose font family"
+            aria-expanded={open}
+            role="combobox"
+            data-testid="font-family-combobox"
           >
-            <div className="asset-font-picker-island">
-              <label className="asset-font-picker-search">
-                <Search aria-hidden="true" />
-                <input
-                  type="text"
-                  value={query}
-                  placeholder="Quick search"
-                  aria-label="Quick search fonts"
-                  onChange={(event) => setQuery(event.target.value)}
-                />
-              </label>
-              <div className="asset-font-picker-list" role="menu">
-                <p>Available fonts</p>
-                {filteredOptions.map((option) => (
+            <span>
+              <FontIcon id={activeOption.id} />
+              <strong style={{ fontFamily: activeOption.css }}>{activeOption.label}</strong>
+            </span>
+            <ChevronsUpDown aria-hidden="true" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          side="right"
+          align="start"
+          sideOffset={10}
+          className="asset-combobox-popover"
+        >
+          <div className="asset-combobox-panel">
+            <label className="asset-combobox-search">
+              <Search aria-hidden="true" />
+              <input
+                type="text"
+                value={query}
+                placeholder="Search fonts"
+                aria-label="Search fonts"
+                onChange={(event) => setQuery(event.target.value)}
+              />
+            </label>
+            <div className="asset-combobox-list" role="listbox" aria-label="Font family">
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map((option) => (
                   <button
                     key={option.id}
                     type="button"
-                    role="menuitem"
+                    role="option"
+                    aria-selected={activeOption.id === option.id}
                     className={activeOption.id === option.id ? "is-selected" : undefined}
                     title={option.label}
-                    onClick={() => onChange(option.id)}
+                    onClick={() => {
+                      onChange(option.id)
+                      setOpen(false)
+                    }}
                   >
                     <span>
                       <FontIcon id={option.id} />
+                      <strong style={{ fontFamily: option.css }}>{option.label}</strong>
                     </span>
-                    <strong style={{ fontFamily: option.css }}>{option.label}</strong>
+                    {activeOption.id === option.id ? <Check aria-hidden="true" /> : null}
                   </button>
-                ))}
-              </div>
+                ))
+              ) : (
+                <p>No fonts found</p>
+              )}
             </div>
-          </PopoverContent>
-        </Popover>
-      </div>
+          </div>
+        </PopoverContent>
+      </Popover>
     </fieldset>
   )
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { resetTestIds } from '../common/random'
-import { newRectangleElement } from './newElement'
+import { newImageElement, newRectangleElement } from './newElement'
 import { DEFAULT_ELEMENT_PROPS } from '../common/defaults'
 import { dragElement, resizeElement } from './transform'
 import { getCursorForResizingHandle } from './transformHandles'
@@ -69,6 +69,27 @@ describe('transform', () => {
       y: 70,
       width: 300,
       height: 180,
+    })
+  })
+
+  it('maintains image proportions while resizing with shift', () => {
+    resetTestIds()
+    const image = newImageElement({
+      x: 100,
+      y: 100,
+      width: 320,
+      height: 160,
+      fileId: 'file0',
+    })
+
+    const next = resizeElement(image, 'se', 500, 220, image, true)
+
+    expect(next).toMatchObject({
+      type: 'image',
+      x: 100,
+      y: 100,
+      width: 400,
+      height: 200,
     })
   })
 
