@@ -1,4 +1,4 @@
-import { FeaturedProjectCard } from "@/components/portfolio/featured-project-card"
+import { FeaturedTweetEmbed } from "@/components/portfolio/featured-tweet-embed"
 import { SectionLabel } from "@/components/portfolio/section-label"
 import { SponsorLink } from "@/components/portfolio/sponsor-link"
 
@@ -8,7 +8,7 @@ export function FeaturedSection() {
       <SectionLabel id="featured">Featured</SectionLabel>
 
       <div className="mt-5">
-        <FeaturedProjectCard />
+        <FeaturedTweetEmbed />
         <SponsorLink />
       </div>
     </section>

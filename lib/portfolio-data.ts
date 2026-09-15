@@ -6,32 +6,55 @@
 export type BrandIconName = "github" | "x" | "zenn"
 
 export const site = {
-  name: "Inori",
-  title: "Inori — CS student & AI engineer",
+  name: "David Clinton",
+  title: "DCH",
   description:
-    "Portfolio of Inori (@lnkiai): a CS student and AI engineer building open-source developer tools like m3e-canvas and chat-panels.",
-  url: "https://github.com/lnkiai",
+    "",
+  url: "https://github.com/daveclinton",
   keywords: [
-    "Inori",
-    "lnkiai",
-    "AI engineer",
-    "CS student",
+    "Clinton",
+    "daveclintonn",
+    "Sofware Engineer",
     "open source",
     "portfolio",
-    "m3e-canvas",
-    "chat-panels",
+    "daveclinton",
+    "",
   ],
 } as const
 
 export const profile = {
-  name: "Inori",
-  handle: "@lnkiai",
-  role: "CS student / AI engineer 🇯🇵",
+  name: "Clinton",
+  handle: "@daveclintonn",
+  role: "Sofware Engineer 🇰🇪",
   initials: "I",
-  /** Drop a photo in `public/` and point this at it, e.g. "/avatar.jpg". */
-  avatarSrc: null as string | null,
+  avatarSrc: "/david.jpg",
   contactHref: "#links",
   contactLabel: "Contact",
+} as const
+
+export const featuredTweet = {
+  name: site.name,
+  handle: profile.handle,
+  avatar: profile.avatarSrc,
+  href: "https://x.com/daveclintonn/status/2099397383477993558",
+  date: "September 14, 2026",
+  dateTime: "2026-09-14",
+  verified: false,
+  content: [
+    "Turns out, doing it yourself can be quite the adventure.",
+    "I recently bought a bare metal Mini PC for $100, installed Ubuntu, and still I couldn’t get the wireless keyboard and mouse to work.",
+    "Now I’ve got the Mini PC running alongside my Mac, with Ubuntu handling my Linux…",
+  ],
+  links: [
+    {
+      label: "https://t.co/g9vtYEhUrC",
+      href: "https://t.co/g9vtYEhUrC",
+    },
+    {
+      label: "pic.twitter.com/4EAK7KDXXH",
+      href: "https://t.co/4EAK7KDXXH",
+    },
+  ],
 } as const
 
 export type Stat = {
@@ -54,7 +77,7 @@ export const featuredProject = {
 
 export const sponsor = {
   label: "Sponsor my open-source work on GitHub",
-  href: "https://github.com/sponsors/lnkiai",
+  href: "https://github.com/sponsors/daveclinton",
 } as const
 
 export type Work = {
@@ -95,25 +118,25 @@ export const backgroundItems: TimelineEntry[] = [
     id: "2026-09",
     date: "2026 Sep",
     description:
-      "Started working on open-source projects in public, shipping small tools every couple of weeks.",
+      "I am currently building internal tools on mobile, web and backend for Mika (an Appliances and Logistics company)",
   },
   {
-    id: "2026-04",
-    date: "2026 Apr",
+    id: "2024 Sept",
+    date: "2025 Jun",
     description:
-      "Began a CS degree and started writing about the systems and models I build along the way.",
+      "Contracted by Givesuite to build modern donation and payment user interfaces that feel right",
   },
   {
-    id: "2025-08",
-    date: "2025 Aug",
+    id: "2022 May",
+    date: "2024 May",
     description:
-      "Started offering an AI chat assistant for small businesses that answers from their own docs.",
+      "I worked on the web platforms team at Untapped. Shipped investor dashboards and data visualization surfaces for investment and operations teams",
   },
   {
-    id: "2023-04",
-    date: "2023 Apr",
+    id: "2021 Jan",
+    date: "2022 Feb",
     description:
-      "Started building AI-powered apps with React and Python, mostly because I wanted to use them.",
+      "I worked at Paperspace, writing developer facing infrastructure Tutorials on Cloud GPU and Applied Machine Learning Topics",
   },
 ]
 
@@ -124,20 +147,20 @@ export type SocialLink = {
 }
 
 export const socialLinks: SocialLink[] = [
-  { label: "X", href: "https://x.com/lnkiai", icon: "x" },
-  { label: "Zenn", href: "https://zenn.dev/lnkiai", icon: "zenn" },
-  { label: "GitHub", href: "https://github.com/lnkiai", icon: "github" },
+  { label: "X", href: "https://x.com/daveclintonn", icon: "x" },
+  { label: "Linkedin", href: "https://www.linkedin.com/in/clintondavid46/", icon: "zenn" },
+  { label: "GitHub", href: "https://github.com/daveclinton", icon: "github" },
 ]
 
 export const email = {
-  label: "info@example.com",
-  href: "mailto:info@example.com",
+  label: "info@me.com",
+  href: "maze-golds-8l@icloud.com",
 } as const
 
 export const aiButton = {
   label: "Ask an AI",
   /** Shown in the tooltip and used as the link's accessible name. */
-  description: "Ask an AI about my work",
+  description: "Ask an AI about my work and experience",
   /** Point this at your own assistant once you have one. */
   href: "https://chatgpt.com/",
 } as const
