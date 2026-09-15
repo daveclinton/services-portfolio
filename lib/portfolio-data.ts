@@ -32,31 +32,6 @@ export const profile = {
   contactLabel: "Contact",
 } as const
 
-export const featuredTweet = {
-  name: site.name,
-  handle: profile.handle,
-  avatar: profile.avatarSrc,
-  href: "https://x.com/daveclintonn/status/2099397383477993558",
-  date: "September 14, 2026",
-  dateTime: "2026-09-14",
-  verified: false,
-  content: [
-    "Turns out, doing it yourself can be quite the adventure.",
-    "I recently bought a bare metal Mini PC for $100, installed Ubuntu, and still I couldn’t get the wireless keyboard and mouse to work.",
-    "Now I’ve got the Mini PC running alongside my Mac, with Ubuntu handling my Linux…",
-  ],
-  links: [
-    {
-      label: "https://t.co/g9vtYEhUrC",
-      href: "https://t.co/g9vtYEhUrC",
-    },
-    {
-      label: "pic.twitter.com/4EAK7KDXXH",
-      href: "https://t.co/4EAK7KDXXH",
-    },
-  ],
-} as const
-
 export type Stat = {
   label: string
   value: string
