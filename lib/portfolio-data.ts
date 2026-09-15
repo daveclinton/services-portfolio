@@ -3,7 +3,7 @@
  * touch copy. Replace these values with your own and the page follows.
  */
 
-export type BrandIconName = "github" | "x" | "zenn"
+export type BrandIconName = "github" | "x" | "linkedin"
 
 export const site = {
   name: "David Clinton",
@@ -123,13 +123,13 @@ export type SocialLink = {
 
 export const socialLinks: SocialLink[] = [
   { label: "X", href: "https://x.com/daveclintonn", icon: "x" },
-  { label: "Linkedin", href: "https://www.linkedin.com/in/clintondavid46/", icon: "zenn" },
+  { label: "Linkedin", href: "https://www.linkedin.com/in/clintondavid46/", icon: "linkedin" },
   { label: "GitHub", href: "https://github.com/daveclinton", icon: "github" },
 ]
 
 export const email = {
   label: "info@me.com",
-  href: "maze-golds-8l@icloud.com",
+  href: "mailto:maze-golds-8l@icloud.com",
 } as const
 
 export const aiButton = {

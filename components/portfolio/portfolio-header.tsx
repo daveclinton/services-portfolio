@@ -7,13 +7,13 @@ export function PortfolioHeader() {
   return (
     <header className="flex items-center gap-4 sm:gap-5">
       <Avatar
-        className="size-14 shrink-0 after:border-border/70 sm:size-[72px]"
+        className="size-14 shrink-0 sm:size-16"
         aria-label={`${profile.name}'s profile picture`}
       >
         {profile.avatarSrc ? (
           <AvatarImage src={profile.avatarSrc} alt={profile.name} />
         ) : null}
-        <AvatarFallback className="bg-card text-lg font-medium text-muted-foreground">
+        <AvatarFallback className="bg-muted text-title font-medium text-muted-foreground">
           {profile.initials}
         </AvatarFallback>
       </Avatar>
@@ -36,7 +36,7 @@ export function PortfolioHeader() {
         href={profile.contactHref}
         className={cn(
           buttonVariants({ variant: "default" }),
-          "h-11 shrink-0 rounded-full px-5 text-body sm:h-12 sm:px-6"
+          "h-10 shrink-0 rounded-lg px-4 sm:h-11"
         )}
       >
         {profile.contactLabel}

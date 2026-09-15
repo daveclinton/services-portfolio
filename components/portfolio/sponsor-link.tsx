@@ -8,9 +8,9 @@ export function SponsorLink() {
       href={sponsor.href}
       target="_blank"
       rel="noreferrer noopener"
-      className="group mt-3 flex items-center gap-3 rounded-full bg-card py-2 pr-4 pl-2 text-body text-muted-foreground transition-colors outline-none hover:bg-card-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
+      className="group mt-6 flex items-center gap-3 rounded-lg border border-border bg-card py-2 pr-4 pl-2 text-body text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
     >
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-background text-foreground">
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-foreground transition-colors group-hover:bg-background">
         <GitHubIcon className="size-4" />
       </span>
       <span className="min-w-0 flex-1">{sponsor.label}</span>

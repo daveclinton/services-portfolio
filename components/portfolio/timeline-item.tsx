@@ -5,7 +5,7 @@ export function TimelineItem({ date, description }: Omit<TimelineEntry, "id">) {
     <li className="relative pl-7">
       <span
         aria-hidden="true"
-        className="absolute top-[5px] left-0 size-[11px] rounded-full bg-foreground/80 ring-4 ring-background"
+        className="absolute top-[5px] left-0 size-[11px] rounded-full bg-accent-green ring-4 ring-background"
       />
 
       <div className="flex flex-col gap-1 sm:flex-row sm:gap-6">

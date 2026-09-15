@@ -10,7 +10,7 @@ export function FeaturedSection() {
       <div className="mt-5">
         <figure
           data-slot="featured-image-card"
-          className="relative h-80 w-full overflow-hidden rounded-xl bg-card ring-1 ring-foreground/5 sm:h-[28rem]"
+          className="relative h-80 w-full overflow-hidden rounded-lg border border-border bg-card sm:h-[28rem]"
         >
           <Image
             src="/workstation.jpg"

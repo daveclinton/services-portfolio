@@ -1,22 +1,14 @@
 import type { Metadata } from "next";
 import type { Viewport } from "next";
-import { Zen_Maru_Gothic } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { site } from "@/lib/portfolio-data";
+import { cn } from "@/lib/utils";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
-/**
- * The reference calls for `Natadecoco`, a licensed rounded display face we
- * don't ship. Zen Maru Gothic is the closest available stand-in: rounded
- * terminals, a warm voice, and full Japanese coverage for the 🇯🇵 line.
- *
- * If the real font file ever lands in `public/fonts/Natadecoco.woff2`, swap
- * this block for `next/font/local` and keep the same CSS variable name.
- */
-const portfolioSans = Zen_Maru_Gothic({
-  variable: "--font-portfolio-sans",
+const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "700"],
-  display: "swap",
+  variable: "--font-sans",
 });
 
 export const metadata: Metadata = {
@@ -45,17 +37,20 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   colorScheme: "light",
-  themeColor: "#FBFAF7",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${portfolioSans.variable} h-full scroll-smooth antialiased`}
+      className={cn(
+        "h-full scroll-smooth antialiased font-sans",
+        inter.variable
+      )}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
-        {children}
+        <TooltipProvider>{children}</TooltipProvider>
       </body>
     </html>
   );
