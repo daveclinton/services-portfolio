@@ -19,11 +19,11 @@ export function PortfolioHeader() {
       </Avatar>
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <h1 className="flex items-baseline gap-2 truncate">
-          <span className="text-name-sm font-medium text-foreground sm:text-name">
+        <h1 className="flex min-w-0 items-baseline gap-1.5">
+          <span className="shrink-0 text-title font-medium text-foreground sm:text-name-sm">
             {profile.name}
           </span>
-          <span className="text-name-sm font-normal text-subtle-foreground sm:text-name">
+          <span className="truncate text-body font-normal text-subtle-foreground sm:text-title">
             {profile.handle}
           </span>
         </h1>

@@ -5,6 +5,10 @@ import "./globals.css";
 import { site } from "@/lib/portfolio-data";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  PortfolioFooter,
+  PortfolioHeader,
+} from "@/components/portfolio";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -50,7 +54,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       )}
     >
       <body className="flex min-h-full flex-col bg-background text-foreground">
-        <TooltipProvider>{children}</TooltipProvider>
+        <TooltipProvider>
+          <main className="flex-1">
+            <div className="mx-auto flex w-full max-w-[680px] flex-col px-4 pt-10 pb-28 sm:px-6 sm:pt-14 sm:pb-32">
+              <PortfolioHeader />
+              {children}
+              <PortfolioFooter />
+            </div>
+          </main>
+        </TooltipProvider>
       </body>
     </html>
   );

@@ -11,7 +11,7 @@ export function Timeline({ items }: { items: TimelineEntry[] }) {
 
       <ol className="flex flex-col gap-6">
         {items.map((item) => (
-          <TimelineItem key={item.id} date={item.date} description={item.description} />
+          <TimelineItem key={item.id} {...item} />
         ))}
       </ol>
     </div>
