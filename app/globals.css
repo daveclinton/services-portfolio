@@ -134,6 +134,47 @@
   ::selection {
     background-color: color-mix(in oklab, var(--accent-green) 22%, transparent);
   }
+  /*
+   * Brand scrollbar: quiet by default (muted gray), brand green on hover.
+   * Native CSS only — no JS overlay library. `scrollbar-*` covers Firefox;
+   * `::-webkit-scrollbar*` covers Chromium/Safari. The track stays
+   * transparent so it blends with the page background in both themes.
+   * (Only `main` scrolls — header/footer are pinned — so both the root
+   * and `main` get the Firefox properties; the WebKit rules below apply
+   * to every scroller automatically.)
+   */
+  html,
+  main {
+    scrollbar-width: thin;
+    scrollbar-color: var(--muted-foreground) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: color-mix(
+      in oklab,
+      var(--muted-foreground) 70%,
+      transparent
+    );
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--accent-green);
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
   @media (prefers-reduced-motion: reduce) {
     html,
     main {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useChat } from "@ai-sdk/react"
 import { createChat } from "@shadcn/helpers/ai-sdk"
 import { SendHorizonal } from "lucide-react"
@@ -80,6 +80,26 @@ export function AskAiChat() {
     transport,
   })
   const isBusy = status === "submitted" || status === "streaming"
+  const hasConversation = messages.length > 0
+
+  /** Keeps the latest message in view while a conversation streams. */
+  const dockRef = useRef<HTMLDivElement | null>(null)
+  useEffect(() => {
+    if (!hasConversation) return
+    const dock = dockRef.current
+    const scroller = dock?.closest("main")
+    if (!dock || !scroller) return
+    const nearBottom =
+      scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 160
+    if (!nearBottom) return
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches
+    dock.scrollIntoView({
+      block: "end",
+      behavior: reduceMotion ? "auto" : "smooth",
+    })
+  }, [messages, status, hasConversation])
 
   function ask(text: string) {
     const question = text.trim()
@@ -88,11 +108,73 @@ export function AskAiChat() {
     setDraft("")
   }
 
+  const suggestions = (
+    <div className="flex flex-wrap gap-2">
+      {subject.questions.map((q) => (
+        <button
+          key={q}
+          type="button"
+          onClick={() => ask(q)}
+          disabled={isBusy}
+          className="rounded-full border border-border bg-background px-3 py-1.5 text-caption text-muted-foreground transition-colors hover:border-ring hover:text-foreground disabled:opacity-50"
+        >
+          {q}
+        </button>
+      ))}
+    </div>
+  )
+
+  const composer = (
+    <form
+      className="flex items-center gap-2 rounded-full border border-border bg-card p-1.5 pl-4 focus-within:border-ring"
+      onSubmit={(e) => {
+        e.preventDefault()
+        ask(draft)
+      }}
+    >
+      <label htmlFor="ask-ai-input" className="sr-only">
+        {subject.inputLabel}
+      </label>
+      <input
+        id="ask-ai-input"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder={subject.placeholder}
+        autoComplete="off"
+        className="min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-muted-foreground"
+      />
+      <Button
+        type="submit"
+        size="icon"
+        aria-label="Send question"
+        disabled={!draft.trim() || isBusy}
+        className="size-9 shrink-0 rounded-full"
+      >
+        <SendHorizonal className="size-4" aria-hidden="true" />
+      </Button>
+    </form>
+  )
+
+  /* Empty state: composer + suggestions centered in the available space. */
+  if (!hasConversation) {
+    return (
+      <div className="flex flex-1 flex-col justify-center py-8">
+        <h2 className="sr-only">{askAi.label}</h2>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-full">{composer}</div>
+          <div className="flex justify-center">{suggestions}</div>
+        </div>
+      </div>
+    )
+  }
+
+  /* Conversation state: messages scroll in `main` while the docked
+     composer stays pinned to the bottom. */
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-1 flex-col">
       <h2 className="sr-only">{askAi.label}</h2>
 
-      <div aria-live="polite" className="mt-6 flex flex-1 flex-col gap-3">
+      <div aria-live="polite" className="flex flex-1 flex-col gap-3 pt-6">
         {messages.map((msg) =>
           msg.role === "user" ? (
             <div key={msg.id} className="flex justify-end">
@@ -118,48 +200,15 @@ export function AskAiChat() {
         )}
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {subject.questions.map((q) => (
-          <button
-            key={q}
-            type="button"
-            onClick={() => ask(q)}
-            disabled={isBusy}
-            className="rounded-full border border-border bg-background px-3 py-1.5 text-caption text-muted-foreground transition-colors hover:border-ring hover:text-foreground disabled:opacity-50"
-          >
-            {q}
-          </button>
-        ))}
-      </div>
-
-      <form
-        className="mt-3 flex items-center gap-2 rounded-full border border-border bg-card p-1.5 pl-4 focus-within:border-ring"
-        onSubmit={(e) => {
-          e.preventDefault()
-          ask(draft)
-        }}
+      <div
+        ref={dockRef}
+        className="sticky bottom-0 z-10 -mx-4 mt-4 -mb-12 bg-background px-4 pt-3 pb-4 sm:-mx-6 sm:-mb-16 sm:px-6 sm:pb-5"
       >
-        <label htmlFor="ask-ai-input" className="sr-only">
-          {subject.inputLabel}
-        </label>
-        <input
-          id="ask-ai-input"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder={subject.placeholder}
-          autoComplete="off"
-          className="min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-muted-foreground"
-        />
-        <Button
-          type="submit"
-          size="icon"
-          aria-label="Send question"
-          disabled={!draft.trim() || isBusy}
-          className="size-9 shrink-0 rounded-full"
-        >
-          <SendHorizonal className="size-4" aria-hidden="true" />
-        </Button>
-      </form>
+        <div className="flex flex-col gap-3">
+          {suggestions}
+          {composer}
+        </div>
+      </div>
     </div>
   )
 }

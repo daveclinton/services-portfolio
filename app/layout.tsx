@@ -61,7 +61,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </div>
 
           <main className="flex min-h-0 flex-1 scroll-smooth flex-col overflow-y-auto">
-            <div className="mx-auto flex w-full max-w-[680px] flex-col px-4 pb-12 sm:px-6 sm:pb-16">
+            <div className="mx-auto flex w-full max-w-[680px] flex-1 flex-col px-4 pb-12 sm:px-6 sm:pb-16">
               {children}
             </div>
           </main>
