@@ -63,6 +63,7 @@ def run_ingestion(
     kb_path: str | Path | None = None,
     dry_run: bool = False,
     only: str | None = None,
+    strict: bool = False,
 ) -> IngestionReport:
     """Parse, validate and ingest the knowledge base.
 
@@ -70,6 +71,10 @@ def run_ingestion(
         and then ``~/professional-knowledge``.
     :param dry_run: parse and validate only, writing nothing to the database.
     :param only: one of ``person | experience | projects | skills | evidence``.
+    :param strict: fail the run when the relationship graph is incomplete
+        (projects without evidence, employments without projects, unlinked
+        evidence, confirmed evidence without a source). Link checks apply to
+        full runs; with ``--only`` only the in-scope evidence checks apply.
     :raises KnowledgeIngestionError: frontmatter is missing, malformed, or
         references something that does not exist.
     """
@@ -133,10 +138,14 @@ def run_ingestion(
     context = IngestionContext(recorder=recorder, dry_run=dry_run)
     if dry_run:
         _execute(context, parsed, only)
+        if strict:
+            _raise_for_strict(context, only, str(root))
     else:
         # A failure anywhere in the run rolls the whole thing back.
         with transaction.atomic():
             _execute(context, parsed, only)
+            if strict:
+                _raise_for_strict(context, only, str(root))
 
     return IngestionReport(
         kb_path=str(root),
@@ -213,6 +222,137 @@ def _execute(
 
 def _active(only: str | None, phase: str) -> bool:
     return only is None or only in PHASE_SCOPES[phase]
+
+
+def _raise_for_strict(ctx: IngestionContext, only: str | None, kb_path: str) -> None:
+    """Fail a ``--strict`` run whose relationship graph is incomplete.
+
+    Link checks (project evidence, employment projects) only make sense for
+    full runs: with ``--only`` the other side is deliberately not ingested.
+    Evidence-level checks apply whenever evidence is in scope.
+    """
+    from knowledge import models as knowledge_models
+
+    problems: list[Problem] = []
+    full_run = only is None
+    evidence_in_scope = only is None or only in ("experience", "projects", "evidence")
+
+    projects = _strict_projects(ctx, knowledge_models)
+    employments = _strict_employments(ctx, knowledge_models)
+    evidence = _strict_evidence(ctx, knowledge_models)
+
+    if full_run:
+        for slug, company_slug in sorted(projects.items(), key=lambda item: item[0]):
+            linked = [
+                entry
+                for entry in evidence
+                if entry["project_slug"] == slug
+            ]
+            if not linked:
+                problems.append(
+                    Problem(
+                        f"project:{slug}",
+                        f"project '{slug}' has no linked evidence",
+                        (
+                            "add knowledge/projects/"
+                            f"{slug}/evidence.md or a knowledge/evidence/<slug>.md "
+                            f"with 'project: {slug}'",
+                        ),
+                    )
+                )
+        for company_slug in sorted(employments):
+            if not any(
+                project_company == company_slug
+                for project_company in projects.values()
+            ):
+                problems.append(
+                    Problem(
+                        f"employment:{company_slug}",
+                        f"employment at '{company_slug}' has no linked project",
+                        (
+                            "list its projects in knowledge/experience/"
+                            f"{company_slug}/projects.md",
+                        ),
+                    )
+                )
+
+    if evidence_in_scope:
+        for entry in sorted(evidence, key=lambda item: item["slug"]):
+            if entry["company_slug"] is None and entry["project_slug"] is None:
+                problems.append(
+                    Problem(
+                        f"evidence:{entry['slug']}",
+                        f"evidence '{entry['slug']}' is linked to neither a "
+                        "project nor an employment",
+                        ("set 'project' and/or 'company' on the evidence entry",),
+                    )
+                )
+            if (
+                entry["confidence"] == "confirmed"
+                and not entry["source_url"]
+                and not entry["source_path"]
+            ):
+                problems.append(
+                    Problem(
+                        f"evidence:{entry['slug']}",
+                        f"confirmed evidence '{entry['slug']}' has no source",
+                        ("set 'source_url' and/or 'source_path' on the evidence entry",),
+                    )
+                )
+
+    if problems:
+        raise KnowledgeIngestionError(problems, kb_path=kb_path)
+
+
+def _strict_projects(ctx: IngestionContext, models: Any) -> dict[str, str | None]:
+    """Project slug -> employing company slug (None when unlinked)."""
+    merged: dict[str, str | None] = {
+        project.slug: _employment_company_slug(project.employment)
+        for project in models.Project.objects.select_related(
+            "employment", "employment__company"
+        ).all()
+    }
+    for slug, project in ctx.state.projects.items():
+        merged[slug] = _employment_company_slug(project.employment)
+    return merged
+
+
+def _strict_employments(ctx: IngestionContext, models: Any) -> set[str]:
+    """Company slugs that have an Employment row."""
+    merged = {
+        employment.company.slug
+        for employment in models.Employment.objects.select_related("company").all()
+    }
+    merged.update(ctx.state.employments.keys())
+    return merged
+
+
+def _strict_evidence(ctx: IngestionContext, models: Any) -> list[dict[str, Any]]:
+    """Every evidence row, preferring the in-run version on slug conflicts."""
+    merged: dict[str, dict[str, Any]] = {}
+    for row in models.Evidence.objects.select_related(
+        "project", "employment", "employment__company"
+    ).all():
+        merged[row.slug] = {
+            "slug": row.slug,
+            "confidence": row.confidence,
+            "source_url": row.source_url,
+            "source_path": row.source_path,
+            "company_slug": (
+                row.employment.company.slug if row.employment_id else None
+            ),
+            "project_slug": row.project.slug if row.project_id else None,
+        }
+    for entry in ctx.state.evidence:
+        merged[entry["slug"]] = entry
+    return list(merged.values())
+
+
+def _employment_company_slug(employment: Any | None) -> str | None:
+    if employment is None:
+        return None
+    company = getattr(employment, "company", None)
+    return getattr(company, "slug", None)
 
 
 def _duplicate_key_problems(parsed: list[dict[str, Any]]) -> list[Problem]:

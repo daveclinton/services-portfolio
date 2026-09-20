@@ -42,8 +42,8 @@ class ProjectAdmin(admin.ModelAdmin):
 
 @admin.register(Evidence)
 class EvidenceAdmin(admin.ModelAdmin):
-    list_display = ("claim", "confidence", "project", "employment")
-    list_filter = ("confidence",)
+    list_display = ("title", "evidence_type", "confidence", "project", "employment")
+    list_filter = ("confidence", "evidence_type")
 
 @admin.register(KnowledgeChunk)
 class KnowledgeChunkAdmin(admin.ModelAdmin):

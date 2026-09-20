@@ -146,6 +146,12 @@ def test_happy_path_ingests_the_fixture_knowledgebase(kb_copy: Path):
     standalone = Evidence.objects.get(slug="difference-engine-throughput")
     assert standalone.project == project
     assert standalone.employment == employment
+    assert standalone.evidence_type == "metric"
+    assert standalone.title == "Billing batch runtime cut by 89%"
+    assert standalone.description.startswith("Nightly billing runtime before")
+    assert standalone.external_id == "scheduler-sharding"
+    assert standalone.verified_at is not None
+    assert standalone.verified_at.date() == dt.date(2024, 7, 1)
     assert Evidence.objects.count() == 5
 
     # One KnowledgeChunk per file with a body; embeddings are a later phase.
@@ -172,6 +178,11 @@ def test_happy_path_ingests_the_fixture_knowledgebase(kb_copy: Path):
     assert report.counts["KnowledgeChunk"]["created"] == expected_chunks
     assert report.warnings == []
     assert "documents parsed: 13" in report.render()
+
+    # the fixture graph is complete, so --strict passes on it
+    strict_report = run_ingestion(kb_copy, strict=True)
+    assert strict_report.created() == 0
+    assert strict_report.updated() == 0
 
 
 # --------------------------------------------------------------------------- #
@@ -276,6 +287,7 @@ def test_duplicate_natural_keys_are_rejected(kb_copy: Path):
         "type: evidence\n"
         "slug: difference-engine-runtime\n"
         "claim: Duplicated slug.\n"
+        "project: difference-engine\n"
         "---\n\nnotes\n",
     )
 

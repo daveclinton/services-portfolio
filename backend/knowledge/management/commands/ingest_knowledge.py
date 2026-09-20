@@ -6,6 +6,7 @@ Examples::
     python manage.py ingest_knowledge --kb-path ~/professional-knowledge
     python manage.py ingest_knowledge --dry-run
     python manage.py ingest_knowledge --only projects
+    python manage.py ingest_knowledge --strict
 """
 
 from __future__ import annotations
@@ -36,6 +37,17 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
+            "--strict",
+            dest="strict",
+            action="store_true",
+            help=(
+                "Fail the run when the relationship graph is incomplete: "
+                "a project with no evidence, an employment with no project, "
+                "evidence linked to neither, or confirmed evidence with no "
+                "source. Run this before deploying; the default stays lenient."
+            ),
+        )
+        parser.add_argument(
             "--dry-run",
             dest="dry_run",
             action="store_true",
@@ -61,6 +73,7 @@ class Command(BaseCommand):
                 kb_path=options["kb_path"],
                 dry_run=options["dry_run"],
                 only=options["only"],
+                strict=options["strict"],
             )
         except KnowledgeIngestionError as exc:
             raise CommandError(str(exc))

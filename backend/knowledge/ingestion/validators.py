@@ -42,6 +42,17 @@ SlugString = Annotated[
 
 Confidence = Literal["confirmed", "probable", "unverified"]
 
+EvidenceType = Literal[
+    "project",
+    "repository",
+    "article",
+    "talk",
+    "documentation",
+    "certificate",
+    "metric",
+    "screenshot",
+]
+
 
 class StrictModel(BaseModel):
     """Base class: unknown keys are errors, strings are trimmed."""
@@ -68,6 +79,11 @@ class EvidenceItem(StrictModel):
     slug: SlugString
     claim: str = Field(min_length=1)
     confidence: Confidence = "confirmed"
+    evidence_type: EvidenceType = "documentation"
+    title: str = Field(default="", max_length=200)
+    description: str = ""
+    verified_at: dt.datetime | dt.date | None = None
+    external_id: str = Field(default="", max_length=500)
     source_url: str = Field(default="", max_length=200)
     source_path: str = Field(default="", max_length=500)
 
@@ -167,10 +183,21 @@ class EvidenceFrontmatter(StrictModel):
     slug: SlugString
     claim: str = Field(min_length=1)
     confidence: Confidence = "confirmed"
+    evidence_type: EvidenceType = "documentation"
+    title: str = Field(default="", max_length=200)
+    description: str = ""
+    verified_at: dt.datetime | dt.date | None = None
+    external_id: str = Field(default="", max_length=500)
     company: SlugString | None = None
     project: SlugString | None = None
     source_url: str = Field(default="", max_length=200)
     source_path: str = Field(default="", max_length=500)
+
+    @model_validator(mode="after")
+    def _needs_a_link(self) -> "EvidenceFrontmatter":
+        if self.company is None and self.project is None:
+            raise ValueError("at least one of 'company' or 'project' is required")
+        return self
 
 
 #: file type (matching the frontmatter ``type`` key) -> schema

@@ -46,6 +46,8 @@ class IngestionState:
     employments: dict[str, Employment] = field(default_factory=dict)  # company slug
     projects: dict[str, Project] = field(default_factory=dict)  # project slug
     technologies: dict[str, list[Technology]] = field(default_factory=dict)  # company slug
+    #: evidence written in this run, for --strict checks without re-querying
+    evidence: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -608,7 +610,7 @@ def upsert_evidence(
     project: Project | None,
     source_path: str,
 ) -> Evidence:
-    return _upsert(
+    row = _upsert(
         ctx,
         Evidence,
         entry["slug"],
@@ -616,6 +618,11 @@ def upsert_evidence(
         {
             "claim": entry["claim"],
             "confidence": entry["confidence"],
+            "evidence_type": entry.get("evidence_type", "documentation"),
+            "title": entry.get("title", ""),
+            "description": entry.get("description", ""),
+            "verified_at": entry.get("verified_at"),
+            "external_id": entry.get("external_id", ""),
             "source_url": entry["source_url"],
             "source_path": entry["source_path"],
             "employment": employment,
@@ -623,6 +630,19 @@ def upsert_evidence(
         },
         source_path,
     )
+    company_slug = employment.company.slug if employment is not None else None
+    project_slug = project.slug if project is not None else None
+    tracked = {
+        "slug": entry["slug"],
+        "confidence": entry["confidence"],
+        "source_url": entry["source_url"],
+        "source_path": entry["source_path"],
+        "company_slug": company_slug,
+        "project_slug": project_slug,
+    }
+    if all(previous["slug"] != tracked["slug"] for previous in ctx.state.evidence):
+        ctx.state.evidence.append(tracked)
+    return row
 
 
 def upsert_evidence_document(

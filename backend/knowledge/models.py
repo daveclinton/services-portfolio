@@ -102,11 +102,32 @@ class Evidence(models.Model):
         ("unverified", "Unverified"),
     ]
 
+    EVIDENCE_TYPE_CHOICES = [
+        ("project", "Project"),
+        ("repository", "Repository"),
+        ("article", "Article"),
+        ("talk", "Talk"),
+        ("documentation", "Documentation"),
+        ("certificate", "Certificate"),
+        ("metric", "Metric"),
+        ("screenshot", "Screenshot"),
+    ]
+
     # Natural key: matches knowledge/evidence/<evidence-slug>.md and the slugs
     # declared in accomplishments.md / projects/<slug>/evidence.md.
     slug = models.SlugField(unique=True)
     claim = models.TextField()
     confidence = models.CharField(max_length=20, choices=CONFIDENCE_CHOICES, default="confirmed")
+
+    # Phase 4 evidence layer: what kind of source backs this claim, and a
+    # short label plus free-text details for admin/AI display.
+    evidence_type = models.CharField(
+        max_length=20, choices=EVIDENCE_TYPE_CHOICES, default="documentation"
+    )
+    title = models.CharField(max_length=200, blank=True)
+    description = models.TextField(blank=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    external_id = models.CharField(max_length=500, blank=True)
 
     project = models.ForeignKey(Project, null=True, blank=True, on_delete=models.CASCADE, related_name="evidence")
     employment = models.ForeignKey(Employment, null=True, blank=True, on_delete=models.CASCADE, related_name="evidence")
@@ -115,7 +136,7 @@ class Evidence(models.Model):
     source_path = models.CharField(max_length=500, blank=True)
 
     def __str__(self):
-        return self.claim[:60]
+        return self.title or self.claim[:60]
 
 
 class KnowledgeChunk(models.Model):

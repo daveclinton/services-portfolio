@@ -207,6 +207,10 @@ Each accomplishment:
 | `source_url` | no | URL | defaults to `""` |
 | `source_path` | no | repo-relative path | e.g. `sources/documents/review.pdf` |
 
+Accomplishments also accept the optional Phase 4 keys
+(`evidence_type`, `title`, `description`, `verified_at`, `external_id`) —
+see §14. The same applies to the `claims` lists in §12.
+
 ```markdown
 ---
 type: experience-accomplishments
@@ -413,13 +417,125 @@ cuts across an employment and a project.
 | --- | --- | --- | --- |
 | `type` | yes | `evidence` | |
 | `slug` | yes | slug | must equal the file name |
-| `claim` | yes | string | |
+| `claim` | yes | string | the claim, one sentence, no hedging |
 | `confidence` | no | `confirmed` \| `probable` \| `unverified` | defaults to `confirmed` |
-| `company` | no | slug | links to the employment at that company |
-| `project` | no | slug | links to the project |
+| `evidence_type` | no | one of the 8 types below | defaults to `documentation` |
+| `title` | no | string ≤ 200 chars | short label; defaults to `""` |
+| `description` | no | prose | details; defaults to the file body |
+| `verified_at` | no | ISO date (`YYYY-MM-DD`) | when last confirmed; defaults to `null` |
+| `external_id` | no | string | e.g. a repo full name or article slug; defaults to `""` |
+| `company` | no* | slug | links to the employment at that company |
+| `project` | no* | slug | links to the project |
 | `source_url` | no | URL | defaults to `""` |
 | `source_path` | no | repo-relative path | defaults to `""` |
-| _body_ | no | prose | notes only; stored as a knowledge chunk |
+| _body_ | no | prose | notes; stored as a knowledge chunk |
+
+\* At least one of `company` or `project` is required — an unlinked claim is
+an ingestion error, not a warning. A `confirmed` claim should also carry a
+`source_url` or a `source_path` (required under `--strict`).
+
+The inline claims in `accomplishments.md` (§7) and `projects/<slug>/evidence.md`
+(§12) accept the same optional keys (`evidence_type`, `title`, `description`,
+`verified_at`, `external_id`); they are linked by position, so they need no
+`company`/`project` keys.
+
+### Evidence types
+
+| `evidence_type` | Use it for | Example |
+| --- | --- | --- |
+| `project` | shipped work inside this portfolio | the scheduler rewrite itself |
+| `repository` | a public code repo backing the claim | a GitHub repo |
+| `article` | a written piece (blog, tutorial, docs) | the sharding blog post |
+| `talk` | a talk or workshop recording | a conference talk |
+| `documentation` | general written backing (default) | a design doc |
+| `certificate` | a credential or certification | a course certificate |
+| `metric` | a measured number | batch runtime 6h → 40min |
+| `screenshot` | a visual capture | a dashboard screenshot |
+
+One realistic example per type (bodies shortened; every file also carries the
+`company`/`project` link and the prose body):
+
+```markdown
+---
+type: evidence
+slug: difference-engine-shipped
+claim: Shipped the sharded Difference Engine scheduler to production.
+confidence: confirmed
+evidence_type: project
+title: Difference Engine shipped
+project: difference-engine
+company: analytical-engines
+---
+```
+
+```markdown
+---
+type: evidence
+slug: difference-engine-repo
+claim: The scheduler rewrite is developed in the open with CI green.
+confidence: probable
+evidence_type: repository
+title: difference-engine on GitHub
+external_id: davidclinton/difference-engine
+project: difference-engine
+source_url: https://github.com/davidclinton/difference-engine
+---
+```
+
+```markdown
+---
+type: evidence
+slug: difference-engine-sharding-post
+claim: The sharding scheme is written up for other engineers to reuse.
+confidence: confirmed
+evidence_type: article
+title: Scheduler sharding, blog post
+verified_at: 2024-07-01
+external_id: scheduler-sharding
+project: difference-engine
+source_url: https://analytical-engines.example.com/blog/scheduler-sharding
+---
+```
+
+```markdown
+---
+type: evidence
+slug: difference-engine-talk
+claim: Presented the scheduler rewrite and its incident history.
+confidence: probable
+evidence_type: talk
+title: Scheduling at scale, meetup talk
+project: difference-engine
+source_url: https://example.com/talks/scheduling-at-scale
+---
+```
+
+```markdown
+---
+type: evidence
+slug: difference-engine-design-doc
+claim: The sharding design was reviewed before implementation.
+confidence: confirmed
+evidence_type: documentation
+title: Sharding design doc
+source_path: sources/documents/sharding-design.pdf
+project: difference-engine
+---
+```
+
+```markdown
+---
+type: evidence
+slug: postgres-certified
+claim: Holds an advanced PostgreSQL operations certificate.
+confidence: confirmed
+evidence_type: certificate
+title: PostgreSQL operations certificate
+verified_at: 2023-11-15
+external_id: postgresql-ops-2023
+company: analytical-engines
+---
+```
 
 ```markdown
 ---
@@ -427,13 +543,26 @@ type: evidence
 slug: difference-engine-throughput
 claim: Reduced nightly billing job runtime by 89% (six hours to forty minutes).
 confidence: confirmed
+evidence_type: metric
+title: Billing batch runtime cut by 89%
+verified_at: 2024-07-01
 company: analytical-engines
 project: difference-engine
 source_url: https://analytical-engines.example.com/blog/scheduler-sharding
 ---
+```
 
-The six hours to forty minutes figure appears in both the 2023 performance
-review and the engineering blog post about scheduler sharding.
+```markdown
+---
+type: evidence
+slug: difference-engine-dashboard-shot
+claim: The incident-free billing dashboard for H1 2024.
+confidence: probable
+evidence_type: screenshot
+title: H1 billing dashboard
+source_path: sources/screenshots/billing-dashboard-h1.png
+project: difference-engine
+---
 ```
 
 ## 15. Ingest order and idempotency

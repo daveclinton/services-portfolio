@@ -235,12 +235,30 @@ def _normalize_references(items: list[v.Reference]) -> list[dict[str, Any]]:
     return normalized
 
 
+def _coerce_verified_at(value: dt.datetime | dt.date | None) -> dt.datetime | None:
+    """Normalize frontmatter ``verified_at`` to a timezone-aware datetime."""
+    import datetime as _dt
+
+    if value is None:
+        return None
+    if isinstance(value, _dt.datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=_dt.timezone.utc)
+        return value
+    return _dt.datetime(value.year, value.month, value.day, tzinfo=_dt.timezone.utc)
+
+
 def _normalize_evidence(items: list[v.EvidenceItem]) -> list[dict[str, Any]]:
     return [
         {
             "slug": item.slug,
             "claim": item.claim,
             "confidence": item.confidence,
+            "evidence_type": item.evidence_type,
+            "title": item.title,
+            "description": item.description,
+            "verified_at": _coerce_verified_at(item.verified_at),
+            "external_id": item.external_id,
             "source_url": item.source_url,
             "source_path": item.source_path,
         }
@@ -483,6 +501,13 @@ def parse_evidence(document: DiscoveredDocument) -> dict[str, Any]:
                 "slug": data.slug,
                 "claim": data.claim,
                 "confidence": data.confidence,
+                "evidence_type": data.evidence_type,
+                "title": data.title,
+                # the notes body doubles as the description when no explicit
+                # description is given
+                "description": data.description or body,
+                "verified_at": _coerce_verified_at(data.verified_at),
+                "external_id": data.external_id,
                 "source_url": data.source_url,
                 "source_path": data.source_path,
                 "company_slug": data.company,
