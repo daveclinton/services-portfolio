@@ -51,6 +51,7 @@ INSTALLED_APPS = [
 
     # local
     'api',
+    'knowledge',
 ]
 
 MIDDLEWARE = [
@@ -152,3 +153,10 @@ REST_FRAMEWORK = {
 
 # CORS
 CORS_ALLOWED_ORIGINS = [o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',') if o.strip()]
+
+# Markdown knowledge base consumed by `manage.py ingest_knowledge` (Phase 2).
+# The command resolves the path as: --kb-path -> KNOWLEDGE_BASE_PATH env var ->
+# this setting -> ~/professional-knowledge.
+KNOWLEDGE_BASE_PATH = Path(
+    os.environ.get('KNOWLEDGE_BASE_PATH', Path.home() / 'professional-knowledge')
+).expanduser()

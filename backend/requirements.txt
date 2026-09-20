@@ -4,3 +4,11 @@ pgvector==0.5.0
 psycopg[binary]==3.3.6
 python-dotenv==1.2.3
 django-cors-headers==4.9.0
+
+# Knowledge ingestion (Phase 2)
+python-frontmatter==1.3.0
+pydantic==2.13.5
+
+# Tests
+pytest==9.1.1
+pytest-django==4.14.0
