@@ -2,9 +2,10 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Sparkles, X } from "lucide-react"
+import { Sparkles } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { buttonVariants } from "@/components/ui/button"
+import { BackHomeButton } from "@/components/portfolio/back-home-button"
 import { askAi, profile } from "@/lib/portfolio-data"
 import { cn } from "@/lib/utils"
 
@@ -54,18 +55,7 @@ export function PortfolioHeader() {
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        {isHome ? null : (
-          <Link
-            href="/"
-            aria-label="Close and return to the portfolio"
-            className={cn(
-              buttonVariants({ variant: "outline", size: "icon" }),
-              "size-10 rounded-full sm:size-11"
-            )}
-          >
-            <X className="size-4" aria-hidden="true" />
-          </Link>
-        )}
+        {isHome ? null : <BackHomeButton />}
         <a
           href={isHome ? profile.contactHref : `/${profile.contactHref}`}
           className={cn(

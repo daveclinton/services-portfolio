@@ -158,9 +158,9 @@ export function AskAiChat() {
   /* Empty state: composer + suggestions centered in the available space. */
   if (!hasConversation) {
     return (
-      <div className="flex flex-1 flex-col justify-center py-8">
+      <div className="flex flex-1 flex-col">
         <h2 className="sr-only">{askAi.label}</h2>
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 py-8">
           <div className="w-full">{composer}</div>
           <div className="flex justify-center">{suggestions}</div>
         </div>
