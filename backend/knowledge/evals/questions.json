@@ -1,0 +1,279 @@
+{
+  "version": 1,
+  "notes": "Hand-written retrieval questions. Expectations name the row that must rank in the top k; 'strings' checks for a literal phrase inside the chunk body. Keep this file in sync with professional-knowledge: after adding a project, add a question for it.",
+  "questions": [
+    {
+      "id": "mika-warranty-sap-documents",
+      "question": "How did the warranty app produce the right SAP service documents?",
+      "expect": { "project_slug": ["mika-warranty-app"] },
+      "tags": ["projects", "mika"]
+    },
+    {
+      "id": "mika-warranty-attendance",
+      "question": "Which project integrated ZKTeco systems for staff attendance?",
+      "expect": { "project_slug": ["mika-warranty-app"] },
+      "tags": ["projects", "mika"]
+    },
+    {
+      "id": "mika-warranty-outlets",
+      "question": "What app did outlet stores use for warranty registration?",
+      "expect": { "project_slug": ["mika-warranty-app"] },
+      "tags": ["projects", "mika"]
+    },
+    {
+      "id": "mika-warehouse-kotlin",
+      "question": "Which warehouse app was built in Kotlin with Jetpack Compose?",
+      "expect": { "project_slug": ["mika-warehouse-system"] },
+      "tags": ["projects", "mika", "android"]
+    },
+    {
+      "id": "mika-warehouse-scanners",
+      "question": "What barcode scanning hardware was integrated into the warehouse app?",
+      "expect": {
+        "project_slug": ["mika-warehouse-system"],
+        "strings": ["Honeywell"]
+      },
+      "tags": ["projects", "mika"]
+    },
+    {
+      "id": "mika-warehouse-roles",
+      "question": "Which roles did the warehouse mobile flows cover?",
+      "expect": { "project_slug": ["mika-warehouse-system"] },
+      "tags": ["projects", "mika"]
+    },
+    {
+      "id": "mika-warehouse-backend",
+      "question": "What backend stack does the warehouse management system use?",
+      "expect": {
+        "project_slug": ["mika-warehouse-system"],
+        "strings": ["FastAPI"]
+      },
+      "tags": ["projects", "mika", "backend"]
+    },
+    {
+      "id": "mika-warehouse-sap",
+      "question": "How does the warehouse system talk to SAP Business One?",
+      "expect": { "project_slug": ["mika-warehouse-system"] },
+      "tags": ["projects", "mika"]
+    },
+    {
+      "id": "tai-ora-stack",
+      "question": "What stack were the Tai Ora wellbeing apps built with?",
+      "expect": { "project_slug": ["tai-ora-apps"] },
+      "tags": ["projects", "tai-ora"]
+    },
+    {
+      "id": "tai-ora-brands",
+      "question": "Which apps make up the Tai Ora ecosystem?",
+      "expect": {
+        "project_slug": ["tai-ora-apps"],
+        "strings": ["Veevu"]
+      },
+      "tags": ["projects", "tai-ora"]
+    },
+    {
+      "id": "tai-ora-django",
+      "question": "Which backend framework powered the Tai Ora apps?",
+      "expect": {
+        "project_slug": ["tai-ora-apps"],
+        "strings": ["Django"]
+      },
+      "tags": ["projects", "tai-ora", "backend"]
+    },
+    {
+      "id": "app-store-shipping",
+      "question": "Did he ship any apps to the App Store or Google Play?",
+      "expect": { "source_path": ["knowledge/evidence/app-store-and-play-store-shipping.md"] },
+      "tags": ["evidence", "mobile"]
+    },
+    {
+      "id": "element-pay-frontend-scope",
+      "question": "What surfaces did the Element Pay frontend cover?",
+      "expect": { "project_slug": ["element-pay-frontend"] },
+      "tags": ["projects", "element-pay"]
+    },
+    {
+      "id": "element-pay-console",
+      "question": "Was there an API console or demo flow built for Element Pay?",
+      "expect": {
+        "project_slug": ["element-pay-frontend"],
+        "strings": ["API console"]
+      },
+      "tags": ["projects", "element-pay"]
+    },
+    {
+      "id": "element-pay-nextjs",
+      "question": "Which project used Next.js for stablecoin payment rails?",
+      "expect": { "project_slug": ["element-pay-frontend"] },
+      "tags": ["projects", "element-pay"]
+    },
+    {
+      "id": "givesuite-migration",
+      "question": "Which project migrated a donor payment system off SAP HANA?",
+      "expect": { "project_slug": ["givesuite-platform"] },
+      "tags": ["projects", "givesuite"]
+    },
+    {
+      "id": "givesuite-scale",
+      "question": "What transaction volume did the payments platform have to handle?",
+      "expect": {
+        "project_slug": ["givesuite-platform"],
+        "strings": ["10,000"]
+      },
+      "tags": ["projects", "givesuite"]
+    },
+    {
+      "id": "givesuite-crm",
+      "question": "Was AI-assisted CRM work part of the GiveSuite engagement?",
+      "expect": { "project_slug": ["givesuite-platform"] },
+      "tags": ["projects", "givesuite"]
+    },
+    {
+      "id": "givesuite-deployment",
+      "question": "Which deployment pipelines were used for the GiveSuite platform?",
+      "expect": {
+        "project_slug": ["givesuite-platform"],
+        "strings": ["Azure DevOps"]
+      },
+      "tags": ["projects", "givesuite"]
+    },
+    {
+      "id": "paperspace-gpu-topics",
+      "question": "What GPU topics did the Paperspace tutorials cover?",
+      "expect": { "project_slug": ["paperspace-gpu-tutorials"] },
+      "tags": ["projects", "paperspace"]
+    },
+    {
+      "id": "paperspace-mlops",
+      "question": "Who wrote MLOps and machine learning tutorials for developers?",
+      "expect": { "project_slug": ["paperspace-gpu-tutorials"] },
+      "tags": ["projects", "paperspace"]
+    },
+    {
+      "id": "paperspace-company",
+      "question": "What did he do during his time at Paperspace?",
+      "expect": { "company_slug": ["paperspace"] },
+      "tags": ["experience", "paperspace"]
+    },
+    {
+      "id": "studio1hq-devrel-work",
+      "question": "What kind of work was done for Studio1HQ?",
+      "expect": { "project_slug": ["studio1hq-devrel"] },
+      "tags": ["projects", "studio1hq"]
+    },
+    {
+      "id": "studio1hq-adoption",
+      "question": "Which engagement focused on developer adoption and documentation?",
+      "expect": { "project_slug": ["studio1hq-devrel"] },
+      "tags": ["projects", "studio1hq"]
+    },
+    {
+      "id": "untapped-dashboards",
+      "question": "What was built for investment and operations teams at Untapped Global?",
+      "expect": { "project_slug": ["untapped-investor-dashboards"] },
+      "tags": ["projects", "untapped"]
+    },
+    {
+      "id": "untapped-superset",
+      "question": "Which project used Apache Superset for exploration?",
+      "expect": { "project_slug": ["untapped-investor-dashboards"] },
+      "tags": ["projects", "untapped"]
+    },
+    {
+      "id": "untapped-company",
+      "question": "What did he work on at Untapped Global?",
+      "expect": { "company_slug": ["untapped-global"] },
+      "tags": ["experience", "untapped"]
+    },
+    {
+      "id": "mika-company",
+      "question": "What does he do at Mika Ideal Appliances?",
+      "expect": { "company_slug": ["mika"] },
+      "tags": ["experience", "mika"]
+    },
+    {
+      "id": "tai-ora-company",
+      "question": "What is his role at Tai Ora?",
+      "expect": { "company_slug": ["tai-ora"] },
+      "tags": ["experience", "tai-ora"]
+    },
+    {
+      "id": "element-pay-company",
+      "question": "What did he do at Element Pay?",
+      "expect": { "company_slug": ["element-pay"] },
+      "tags": ["experience", "element-pay"]
+    },
+    {
+      "id": "givesuite-company",
+      "question": "What was his engagement at GiveSuite?",
+      "expect": { "company_slug": ["givesuite"] },
+      "tags": ["experience", "givesuite"]
+    },
+    {
+      "id": "studio1hq-company",
+      "question": "What was his role at Studio1HQ?",
+      "expect": { "company_slug": ["studio1hq"] },
+      "tags": ["experience", "studio1hq"]
+    },
+    {
+      "id": "skill-mobile-development",
+      "question": "Does he have mobile development experience?",
+      "expect": { "skill_slug": ["mobile-development"] },
+      "tags": ["skills"]
+    },
+    {
+      "id": "skill-technical-writing",
+      "question": "Does he do technical writing?",
+      "expect": { "skill_slug": ["technical-writing"] },
+      "tags": ["skills"]
+    },
+    {
+      "id": "skill-developer-relations",
+      "question": "What is his developer relations experience?",
+      "expect": { "skill_slug": ["developer-relations"] },
+      "tags": ["skills"]
+    },
+    {
+      "id": "skill-frontend-development",
+      "question": "What frontend development work has he done?",
+      "expect": { "skill_slug": ["frontend-development"] },
+      "tags": ["skills"]
+    },
+    {
+      "id": "skill-data-visualization",
+      "question": "What data visualization experience does he have?",
+      "expect": { "skill_slug": ["data-visualization"] },
+      "tags": ["skills"]
+    },
+    {
+      "id": "skill-full-stack-development",
+      "question": "What full stack development experience does he have?",
+      "expect": { "skill_slug": ["full-stack-development"] },
+      "tags": ["skills"]
+    },
+    {
+      "id": "profile-location",
+      "question": "Where is he based?",
+      "expect": { "strings": ["Kenya"] },
+      "tags": ["profile"]
+    },
+    {
+      "id": "profile-specializations",
+      "question": "What are his main specializations?",
+      "expect": { "source_path": ["knowledge/person/profile.md"] },
+      "tags": ["profile"]
+    },
+    {
+      "id": "profile-experience-years",
+      "question": "How many years of experience does he have?",
+      "expect": { "source_path": ["knowledge/person/profile.md"] },
+      "tags": ["profile"]
+    },
+    {
+      "id": "parallel-consulting",
+      "question": "Did he ever consult for several companies at the same time?",
+      "expect": { "source_path": ["knowledge/evidence/parallel-consulting-delivery.md"] },
+      "tags": ["evidence"]
+    }
+  ]
+}

@@ -180,6 +180,18 @@ export const askAi = {
   /** Used as the link's accessible name. */
   description: "Ask an AI about my background, work, and experience",
   href: "/ask-ai",
+  placeholder: "Ask about my work…",
+  inputLabel: "Ask about my work",
+  /**
+   * Starter questions. Every one of these is answerable from the knowledge
+   * base, so the first thing a visitor taps always gets a cited answer.
+   */
+  suggestions: [
+    "What does he work on at Mika?",
+    "Has he shipped mobile apps to the app stores?",
+    "What did he do at Paperspace?",
+    "What's his experience with dashboards and data visualization?",
+  ],
 } as const
 
 export const footer = {

@@ -44,6 +44,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Enables Postgres full-text search lookups used by the retrieval layer
+    # (Phase 6). Ships with Django; no extra dependency.
+    'django.contrib.postgres',
 
     # third-party
     'rest_framework',
@@ -204,3 +207,11 @@ CORS_ALLOWED_ORIGINS = [o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS'
 KNOWLEDGE_BASE_PATH = Path(
     os.environ.get('KNOWLEDGE_BASE_PATH', Path.home() / 'professional-knowledge')
 ).expanduser()
+
+# AI features (Phases 5-9). Both are optional: with no OPENAI_API_KEY the
+# retrieval API still serves structured search and the embed command is the
+# only thing that fails, with an actionable message.
+OPENAI_EMBEDDING_MODEL = os.environ.get(
+    'OPENAI_EMBEDDING_MODEL', 'text-embedding-3-small'
+)
+OPENAI_CHAT_MODEL = os.environ.get('OPENAI_CHAT_MODEL', 'gpt-4o-mini')

@@ -60,8 +60,44 @@ merging treats it as font size rather than colour.
    Maru Gothic as the closest available stand-in; if you license the real file,
    put it in `public/fonts/` and switch `app/layout.tsx` to `next/font/local`
    using the same `--font-portfolio-sans` variable.
-5. **Ask an AI** — `aiButton.href` in `lib/portfolio-data.ts` currently points at
-   a generic assistant. Point it at your own endpoint when you have one.
+5. **Ask an AI** — the `/ask-ai` page talks to the Django backend. See below.
+
+## Ask AI
+
+`/ask-ai` is a real retrieval-augmented chat, not a scripted demo. The browser
+posts to `POST /api/ai/chat/` on the Django backend, reads the answer as
+Server-Sent Events, and renders the evidence behind each reply.
+
+```txt
+browser  ──POST /api/ai/chat/──▶  Django
+                                  ├─ retrieval over KnowledgeChunk (structured + semantic, RRF)
+                                  ├─ citations resolved to Evidence rows
+                                  └─ OpenAI, grounded on those chunks only
+browser  ◀── event: citations ───
+         ◀── event: delta × n ───
+         ◀── event: done ────────
+```
+
+Every answer carries a **Sources** strip. Each chip links to `/evidence/<slug>`,
+a page that renders that `Evidence` row — its claim, confidence, type, linked
+project/company and the original source URL. That round trip is the point: an
+answer you cannot check is not worth generating.
+
+Point the browser at the backend with `NEXT_PUBLIC_API_BASE_URL` (defaults to
+`http://localhost:8000`):
+
+```bash
+# .env.local
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+```
+
+The backend needs `OPENAI_API_KEY` for the grounded answer itself (see
+`backend/.env.example`). Without it the UI still works — the server streams an
+`error` event explaining what is missing, and retrieval-only features such as
+`/api/ai/search/` and `/api/ai/job-fit/` keep working.
+
+The starter questions in `askAi.suggestions` (`lib/portfolio-data.ts`) are
+chosen because the knowledge base can actually answer them.
 
 ## Accessibility notes
 

@@ -1,86 +1,44 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
-import { useChat } from "@ai-sdk/react"
-import { createChat } from "@shadcn/helpers/ai-sdk"
+import { useEffect, useRef, useState } from "react"
 import { SendHorizonal } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  askAi,
-  backgroundItems,
-  formatRoleDates,
-  profile,
-} from "@/lib/portfolio-data"
+import { EvidenceCitations } from "@/components/portfolio/evidence-citations"
+import { AiApiError, streamChat, type AiSource, type ChatTurn } from "@/lib/ai-client"
+import { askAi } from "@/lib/portfolio-data"
 
-type AskAiScript = {
-  placeholder: string
-  inputLabel: string
-  reasoning: string
-  questions: readonly [string, string, string]
-  answers: readonly [string, string, string]
+type Turn = {
+  id: string
+  role: "user" | "assistant"
+  content: string
+  sources: AiSource[]
+  notes: string[]
+  status: "streaming" | "done" | "error"
+  error?: string
 }
 
-/** The scripted demo behind the general "ask me anything" chat. */
-function buildScript(): AskAiScript {
-  const [current, ...earlier] = backgroundItems
-  const history = [current, ...earlier]
-    .map((item) => `${formatRoleDates(item)}: ${item.description}.`)
-    .join(" ")
+let turnCounter = 0
 
-  return {
-    placeholder: "Ask about me…",
-    inputLabel: "Ask about me",
-    reasoning: "Reading back through the background timeline.",
-    questions: [
-      "What does he work on?",
-      "What's his background?",
-      "What is he working on now?",
-    ],
-    answers: [
-      `${profile.name} is a ${profile.role}, building products and internal tools across mobile, web, and backend. Right now: ${current.description}.`,
-      `His background, most recent first — ${history}`,
-      `${current.description}. For specifics such as stack, team, or scope, hit the Contact button and he'll fill you in.`,
-    ],
-  }
+function nextId(role: Turn["role"]) {
+  turnCounter += 1
+  return `${role}-${turnCounter}`
+}
+
+function replaceTurn(turns: Turn[], id: string, update: (turn: Turn) => Turn): Turn[] {
+  return turns.map((turn) => (turn.id === id ? update(turn) : turn))
 }
 
 export function AskAiChat() {
+  const [turns, setTurns] = useState<Turn[]>([])
   const [draft, setDraft] = useState("")
+  const [isStreaming, setIsStreaming] = useState(false)
+  const abortRef = useRef<AbortController | null>(null)
 
-  const subject = useMemo(() => buildScript(), [])
+  const hasConversation = turns.length > 0
 
-  const script = useMemo(() => {
-    const [question1, question2, question3] = subject.questions
-    const [answer1, answer2, answer3] = subject.answers
-
-    const chat = createChat().user(question1).assistant(answer1)
-    return chat
-      .user(question2)
-      .assistant(({ writer }) => {
-        writer.reasoning(subject.reasoning)
-        writer.text(answer2)
-      })
-      .user(question3)
-      .assistant(answer3)
-  }, [subject])
-
-  const transport = useMemo(
-    () =>
-      script.transport({
-        fallback:
-          "This demo only covers the suggested questions above. Connect a model to answer anything else.",
-      }),
-    [script]
-  )
-
-  const initialMessages = useMemo(() => script.get(0), [script])
-
-  const { messages, sendMessage, status } = useChat({
-    messages: initialMessages,
-    transport,
-  })
-  const isBusy = status === "submitted" || status === "streaming"
-  const hasConversation = messages.length > 0
+  useEffect(() => {
+    return () => abortRef.current?.abort()
+  }, [])
 
   /** Keeps the latest message in view while a conversation streams. */
   const dockRef = useRef<HTMLDivElement | null>(null)
@@ -99,26 +57,121 @@ export function AskAiChat() {
       block: "end",
       behavior: reduceMotion ? "auto" : "smooth",
     })
-  }, [messages, status, hasConversation])
+  }, [turns, hasConversation])
 
-  function ask(text: string) {
+  async function ask(text: string) {
     const question = text.trim()
-    if (!question || isBusy) return
-    void sendMessage({ text: question })
+    if (!question || isStreaming) return
+
+    const userTurn: Turn = {
+      id: nextId("user"),
+      role: "user",
+      content: question,
+      sources: [],
+      notes: [],
+      status: "done",
+    }
+    const assistantTurn: Turn = {
+      id: nextId("assistant"),
+      role: "assistant",
+      content: "",
+      sources: [],
+      notes: [],
+      status: "streaming",
+    }
+
+    // History is everything already on screen plus the new question. The
+    // empty assistant placeholder is deliberately not sent to the model.
+    const history: ChatTurn[] = [...turns, userTurn].map((turn) => ({
+      role: turn.role,
+      content: turn.content,
+    }))
+
+    setTurns((previous) => [...previous, userTurn, assistantTurn])
     setDraft("")
+    setIsStreaming(true)
+
+    abortRef.current?.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    try {
+      for await (const event of streamChat({
+        messages: history,
+        signal: controller.signal,
+      })) {
+        if (event.type === "retrieval") {
+          setTurns((previous) =>
+            replaceTurn(previous, assistantTurn.id, (turn) => ({
+              ...turn,
+              notes: event.notes,
+            }))
+          )
+        } else if (event.type === "citations") {
+          setTurns((previous) =>
+            replaceTurn(previous, assistantTurn.id, (turn) => ({
+              ...turn,
+              sources: event.sources,
+            }))
+          )
+        } else if (event.type === "delta") {
+          setTurns((previous) =>
+            replaceTurn(previous, assistantTurn.id, (turn) => ({
+              ...turn,
+              content: turn.content + event.text,
+            }))
+          )
+        } else if (event.type === "error") {
+          setTurns((previous) =>
+            replaceTurn(previous, assistantTurn.id, (turn) => ({
+              ...turn,
+              status: "error",
+              error: event.detail,
+            }))
+          )
+        } else if (event.type === "done") {
+          setTurns((previous) =>
+            replaceTurn(previous, assistantTurn.id, (turn) => ({
+              ...turn,
+              status: "done",
+            }))
+          )
+        }
+      }
+    } catch (error) {
+      if ((error as Error)?.name === "AbortError") return
+      const detail =
+        error instanceof AiApiError
+          ? error.message
+          : "Something went wrong while answering. Try again."
+      setTurns((previous) =>
+        replaceTurn(previous, assistantTurn.id, (turn) => ({
+          ...turn,
+          status: "error",
+          error: detail,
+        }))
+      )
+    } finally {
+      setIsStreaming(false)
+      setTurns((previous) =>
+        replaceTurn(previous, assistantTurn.id, (turn) =>
+          turn.status === "streaming" ? { ...turn, status: "done" } : turn
+        )
+      )
+    }
   }
 
   const suggestions = (
     <div className="flex flex-wrap gap-2">
-      {subject.questions.map((q) => (
+      {askAi.suggestions.map((question) => (
         <button
-          key={q}
+          key={question}
           type="button"
-          onClick={() => ask(q)}
-          disabled={isBusy}
+          onClick={() => void ask(question)}
+          disabled={isStreaming}
           className="rounded-full border border-border bg-background px-3 py-1.5 text-caption text-muted-foreground transition-colors hover:border-ring hover:text-foreground disabled:opacity-50"
         >
-          {q}
+          {question}
         </button>
       ))}
     </div>
@@ -127,19 +180,19 @@ export function AskAiChat() {
   const composer = (
     <form
       className="flex items-center gap-2 rounded-full border border-border bg-card p-1.5 pl-4 focus-within:border-ring"
-      onSubmit={(e) => {
-        e.preventDefault()
-        ask(draft)
+      onSubmit={(event) => {
+        event.preventDefault()
+        void ask(draft)
       }}
     >
       <label htmlFor="ask-ai-input" className="sr-only">
-        {subject.inputLabel}
+        {askAi.inputLabel}
       </label>
       <input
         id="ask-ai-input"
         value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        placeholder={subject.placeholder}
+        onChange={(event) => setDraft(event.target.value)}
+        placeholder={askAi.placeholder}
         autoComplete="off"
         className="min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-muted-foreground"
       />
@@ -147,7 +200,7 @@ export function AskAiChat() {
         type="submit"
         size="icon"
         aria-label="Send question"
-        disabled={!draft.trim() || isBusy}
+        disabled={!draft.trim() || isStreaming}
         className="size-9 shrink-0 rounded-full"
       >
         <SendHorizonal className="size-4" aria-hidden="true" />
@@ -163,6 +216,10 @@ export function AskAiChat() {
         <div className="flex flex-1 flex-col items-center justify-center gap-4 py-8">
           <div className="w-full">{composer}</div>
           <div className="flex justify-center">{suggestions}</div>
+          <p className="max-w-sm text-center text-caption text-subtle-foreground">
+            Answers come from a curated knowledge base and cite the evidence
+            behind every claim.
+          </p>
         </div>
       </div>
     )
@@ -175,26 +232,38 @@ export function AskAiChat() {
       <h2 className="sr-only">{askAi.label}</h2>
 
       <div aria-live="polite" className="flex flex-1 flex-col gap-3 pt-6">
-        {messages.map((msg) =>
-          msg.role === "user" ? (
-            <div key={msg.id} className="flex justify-end">
+        {turns.map((turn) =>
+          turn.role === "user" ? (
+            <div key={turn.id} className="flex justify-end">
               <p className="max-w-[80%] rounded-2xl rounded-br-md bg-primary px-3.5 py-2.5 text-body whitespace-pre-wrap text-primary-foreground">
-                {msg.parts
-                  .filter((part) => part.type === "text")
-                  .map((part, i) => (
-                    <span key={`${msg.id}-part-${i}`}>{part.text}</span>
-                  ))}
+                {turn.content}
               </p>
             </div>
           ) : (
-            <div key={msg.id} className="flex justify-start">
-              <p className="max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-muted/50 px-3.5 py-2.5 text-body whitespace-pre-wrap text-foreground/90">
-                {msg.parts
-                  .filter((part) => part.type === "text")
-                  .map((part, i) => (
-                    <span key={`${msg.id}-part-${i}`}>{part.text}</span>
-                  ))}
-              </p>
+            <div key={turn.id} className="flex justify-start">
+              <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-muted/50 px-3.5 py-2.5">
+                {turn.content ? (
+                  <p className="text-body whitespace-pre-wrap text-foreground/90">
+                    {turn.content}
+                  </p>
+                ) : turn.status === "streaming" ? (
+                  <p className="text-body text-muted-foreground">
+                    Reading the knowledge base…
+                  </p>
+                ) : null}
+
+                {turn.error ? (
+                  <p className="mt-2 text-caption text-destructive">{turn.error}</p>
+                ) : null}
+
+                {turn.notes.map((note) => (
+                  <p key={note} className="mt-2 text-caption text-subtle-foreground">
+                    {note}
+                  </p>
+                ))}
+
+                <EvidenceCitations sources={turn.sources} />
+              </div>
             </div>
           )
         )}
