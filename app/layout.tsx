@@ -66,8 +66,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </div>
           </main>
 
-          <div className="shrink-0 border-t border-border bg-background">
-            <div className="mx-auto w-full max-w-[680px] px-4 py-4 sm:px-6 sm:py-5">
+          <div className="flex h-8 shrink-0 items-center overflow-hidden border-t border-border bg-background">
+            <div className="mx-auto flex w-full max-w-[680px] items-center px-4 sm:px-6">
               <PortfolioFooter />
             </div>
           </div>

@@ -84,6 +84,12 @@ export const works: Work[] = [
 
 export type TimelineEntry = {
   id: string
+  /** Employer or client, e.g. "Mika". */
+  company: string
+  /** Where the work happened, e.g. "Mombasa, Kenya". Omitted when unknown. */
+  location?: string
+  /** How the work happened, e.g. "Hybrid". Omitted when not stated. */
+  arrangement?: string
   /** When the role started, e.g. "2021 Jan". */
   start: string
   /** When it ended, e.g. "2022 Feb". Omitted while the role is ongoing. */
@@ -104,27 +110,35 @@ export function formatRoleDates({
 
 export const backgroundItems: TimelineEntry[] = [
   {
-    id: "2026-09",
-    start: "2026 Sep",
+    id: "2025-10",
+    company: "Mika (Ideal Appliances)",
+    location: "Mombasa, Kenya",
+    start: "2025 Oct",
     description:
-      "I am currently building internal tools on mobile, web and backend for Mika (an Appliances and Logistics company)",
+      "I am currently building internal tools for Mika (Ideal Appliances, an Appliances and Logistics company) covering Logistics, Aftersales Customer Service, Employee Management, and Warehouse across mobile, web, and backend",
   },
   {
     id: "2024-09",
+    company: "Givesuite · Elemet Pay · Studio1HQ",
     start: "2024 Sep",
     end: "2025 Jun",
     description:
-      "Contracted by Givesuite to build modern donation and payment user interfaces that feel right",
+      "Consulted for three firms at the same time while looking for a new full-time role: Full-Stack Developer at Givesuite, Frontend Developer at Elemet Pay, and DevRel at Studio1HQ",
   },
   {
     id: "2022-05",
+    company: "Untapped Global",
+    location: "Nairobi, Kenya",
+    arrangement: "Hybrid",
     start: "2022 May",
     end: "2024 May",
     description:
-      "I worked on the web platforms team at Untapped. Shipped investor dashboards and data visualization surfaces for investment and operations teams",
+      "I worked on the web platforms team at Untapped Global. Shipped investor dashboards and data visualization surfaces for investment and operations teams",
   },
   {
     id: "2021-01",
+    company: "Paperspace (now DigitalOcean)",
+    arrangement: "Remote",
     start: "2021 Jan",
     end: "2022 Feb",
     description:

@@ -1,7 +1,16 @@
 import { ongoingRoleLabel } from "@/lib/portfolio-data"
 import type { TimelineEntry } from "@/lib/portfolio-data"
 
-export function TimelineItem({ start, end, description }: TimelineEntry) {
+export function TimelineItem({
+  company,
+  location,
+  arrangement,
+  start,
+  end,
+  description,
+}: TimelineEntry) {
+  const meta = [location, arrangement].filter(Boolean).join(" · ")
+
   return (
     <li className="relative pl-7">
       <span
@@ -14,9 +23,17 @@ export function TimelineItem({ start, end, description }: TimelineEntry) {
           <span className="whitespace-nowrap">{start} –</span>{" "}
           <span className="whitespace-nowrap">{end ?? ongoingRoleLabel}</span>
         </time>
-        <p className="min-w-0 max-w-[52ch] text-body text-foreground/80">
-          {description}
-        </p>
+        <div className="flex min-w-0 flex-col gap-1">
+          <p className="text-body font-medium text-foreground uppercase">
+            {company}
+          </p>
+          {meta ? (
+            <p className="text-caption text-muted-foreground">{meta}</p>
+          ) : null}
+          <p className="max-w-[52ch] text-body text-foreground/80">
+            {description}
+          </p>
+        </div>
       </div>
     </li>
   )
