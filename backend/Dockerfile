@@ -34,8 +34,13 @@ EXPOSE 8000
 
 # Threads matter here: a grounded answer holds its worker for the length of the
 # OpenAI stream, so --timeout is generous and gthread keeps other requests alive.
+#
+# Bind IPv6-any, not 0.0.0.0: Fly's proxy and its health checks reach a machine
+# over its 6PN IPv6 address, and an IPv4-only socket answers them with
+# "connection refused". On Linux `::` also accepts IPv4 (v4-mapped), so one
+# socket still covers both families.
 CMD ["gunicorn", "config.wsgi:application", \
-     "--bind", "0.0.0.0:8000", \
+     "--bind", "[::]:8000", \
      "--workers", "2", \
      "--threads", "4", \
      "--worker-class", "gthread", \
