@@ -123,7 +123,7 @@ export const backgroundItems: TimelineEntry[] = [
     start: "2024 Sep",
     end: "2025 Jun",
     description:
-      "Consulted for three firms at the same time while looking for a new full-time role: Full-Stack Developer at Givesuite, Frontend Developer at Elemet Pay, and DevRel at Studio1HQ",
+      "Consulted for three firms at the same time while looking for a new full-time role: Full-Stack Developer at Givesuite, Frontend Developer at Element Pay, and DevRel at Studio1HQ",
   },
   {
     id: "2022-05",
