@@ -135,7 +135,8 @@
     background-color: color-mix(in oklab, var(--accent-green) 22%, transparent);
   }
   @media (prefers-reduced-motion: reduce) {
-    html {
+    html,
+    main {
       scroll-behavior: auto;
     }
   }

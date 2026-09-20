@@ -1,42 +1,68 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import Link from "next/link"
 import { useChat } from "@ai-sdk/react"
 import { createChat } from "@shadcn/helpers/ai-sdk"
-import { ArrowLeft, SendHorizonal, Sparkles } from "lucide-react"
+import { SendHorizonal } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { TimelineEntry } from "@/lib/portfolio-data"
+import {
+  askAi,
+  backgroundItems,
+  formatRoleDates,
+  profile,
+} from "@/lib/portfolio-data"
 
-const QUESTIONS = [
-  "What did he work on in this role?",
-  "What skills did this role involve?",
-  "How is this relevant to my project?",
-] as const
-
-function answersFor(entry: TimelineEntry): string[] {
-  return [
-    `In this role (${entry.date}): ${entry.description}`,
-    `What's listed for this role is: ${entry.description} For specifics such as stack or team size, reach out via the Contact button and he'll fill in the details.`,
-    `If your project overlaps with this (${entry.description}), there's likely direct relevance — send the details via Contact and he'll tell you straight.`,
-  ]
+type AskAiScript = {
+  placeholder: string
+  inputLabel: string
+  reasoning: string
+  questions: readonly [string, string, string]
+  answers: readonly [string, string, string]
 }
 
-export function AskAiChat({ entry }: { entry: TimelineEntry }) {
+/** The scripted demo behind the general "ask me anything" chat. */
+function buildScript(): AskAiScript {
+  const [current, ...earlier] = backgroundItems
+  const history = [current, ...earlier]
+    .map((item) => `${formatRoleDates(item)}: ${item.description}.`)
+    .join(" ")
+
+  return {
+    placeholder: "Ask about me…",
+    inputLabel: "Ask about me",
+    reasoning: "Reading back through the background timeline.",
+    questions: [
+      "What does he work on?",
+      "What's his background?",
+      "What is he working on now?",
+    ],
+    answers: [
+      `${profile.name} is a ${profile.role}, building products and internal tools across mobile, web, and backend. Right now: ${current.description}.`,
+      `His background, most recent first — ${history}`,
+      `${current.description}. For specifics such as stack, team, or scope, hit the Contact button and he'll fill you in.`,
+    ],
+  }
+}
+
+export function AskAiChat() {
   const [draft, setDraft] = useState("")
 
+  const subject = useMemo(() => buildScript(), [])
+
   const script = useMemo(() => {
-    const answers = answersFor(entry)
-    const chat = createChat().user(QUESTIONS[0]).assistant(answers[0])
+    const [question1, question2, question3] = subject.questions
+    const [answer1, answer2, answer3] = subject.answers
+
+    const chat = createChat().user(question1).assistant(answer1)
     return chat
-      .user(QUESTIONS[1])
+      .user(question2)
       .assistant(({ writer }) => {
-        writer.reasoning("Recalling what this role involved.")
-        writer.text(answers[1])
+        writer.reasoning(subject.reasoning)
+        writer.text(answer2)
       })
-      .user(QUESTIONS[2])
-      .assistant(answers[2])
-  }, [entry])
+      .user(question3)
+      .assistant(answer3)
+  }, [subject])
 
   const transport = useMemo(
     () =>
@@ -64,35 +90,9 @@ export function AskAiChat({ entry }: { entry: TimelineEntry }) {
 
   return (
     <div className="flex flex-col">
-      <Link
-        href="/"
-        className="mt-6 inline-flex w-fit items-center gap-1.5 text-caption font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="size-3.5" aria-hidden="true" />
-        Back to portfolio
-      </Link>
-
-      <header className="mt-4 rounded-lg border border-border bg-card p-4 sm:p-5">
-        <p className="flex items-center gap-1.5 text-label font-medium tracking-widest text-muted-foreground uppercase">
-          <Sparkles className="size-3.5 text-accent-green" aria-hidden="true" />
-          Ask AI about this role
-        </p>
-        <p className="mt-2 text-caption font-medium text-muted-foreground tabular-nums">
-          {entry.date}
-        </p>
-        <p className="mt-1 max-w-[52ch] text-body text-foreground/80">
-          {entry.description}
-        </p>
-      </header>
+      <h2 className="sr-only">{askAi.label}</h2>
 
       <div aria-live="polite" className="mt-6 flex flex-1 flex-col gap-3">
-        {messages.length === 0 ? (
-          <div className="flex justify-start">
-            <p className="max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-muted/50 px-3.5 py-2.5 text-body text-foreground/90">
-              Ask me anything about this role — or tap a suggestion below.
-            </p>
-          </div>
-        ) : null}
         {messages.map((msg) =>
           msg.role === "user" ? (
             <div key={msg.id} className="flex justify-end">
@@ -119,7 +119,7 @@ export function AskAiChat({ entry }: { entry: TimelineEntry }) {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {QUESTIONS.map((q) => (
+        {subject.questions.map((q) => (
           <button
             key={q}
             type="button"
@@ -140,13 +140,13 @@ export function AskAiChat({ entry }: { entry: TimelineEntry }) {
         }}
       >
         <label htmlFor="ask-ai-input" className="sr-only">
-          Ask about this role
+          {subject.inputLabel}
         </label>
         <input
           id="ask-ai-input"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Ask about this role…"
+          placeholder={subject.placeholder}
           autoComplete="off"
           className="min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-muted-foreground"
         />

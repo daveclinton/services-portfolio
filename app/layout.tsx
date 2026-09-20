@@ -48,20 +48,29 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={cn(
-        "h-full scroll-smooth antialiased font-sans",
-        inter.variable
-      )}
+      className={cn("h-full antialiased font-sans", inter.variable)}
     >
-      <body className="flex min-h-full flex-col bg-background text-foreground">
+      <body className="flex h-dvh flex-col bg-background text-foreground">
         <TooltipProvider>
-          <main className="flex-1">
-            <div className="mx-auto flex w-full max-w-[680px] flex-col px-4 pt-10 pb-28 sm:px-6 sm:pt-14 sm:pb-32">
+          {/* The header and footer are pinned to the viewport; only the
+              middle column between them scrolls. */}
+          <div className="shrink-0 bg-background">
+            <div className="mx-auto w-full max-w-[680px] px-4 pt-10 pb-4 sm:px-6 sm:pt-14 sm:pb-5">
               <PortfolioHeader />
+            </div>
+          </div>
+
+          <main className="flex min-h-0 flex-1 scroll-smooth flex-col overflow-y-auto">
+            <div className="mx-auto flex w-full max-w-[680px] flex-col px-4 pb-12 sm:px-6 sm:pb-16">
               {children}
-              <PortfolioFooter />
             </div>
           </main>
+
+          <div className="shrink-0 border-t border-border bg-background">
+            <div className="mx-auto w-full max-w-[680px] px-4 py-4 sm:px-6 sm:py-5">
+              <PortfolioFooter />
+            </div>
+          </div>
         </TooltipProvider>
       </body>
     </html>

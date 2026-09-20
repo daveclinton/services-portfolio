@@ -84,32 +84,49 @@ export const works: Work[] = [
 
 export type TimelineEntry = {
   id: string
-  date: string
+  /** When the role started, e.g. "2021 Jan". */
+  start: string
+  /** When it ended, e.g. "2022 Feb". Omitted while the role is ongoing. */
+  end?: string
   description: string
+}
+
+/** Rendered as the end of the range for the role that is still ongoing. */
+export const ongoingRoleLabel = "Currently in this role"
+
+/** "2021 Jan – 2022 Feb", or "2026 Sep – Currently in this role" when ongoing. */
+export function formatRoleDates({
+  start,
+  end,
+}: Pick<TimelineEntry, "start" | "end">) {
+  return `${start} – ${end ?? ongoingRoleLabel}`
 }
 
 export const backgroundItems: TimelineEntry[] = [
   {
     id: "2026-09",
-    date: "2026 Sep",
+    start: "2026 Sep",
     description:
       "I am currently building internal tools on mobile, web and backend for Mika (an Appliances and Logistics company)",
   },
   {
-    id: "2024 Sept",
-    date: "2025 Jun",
+    id: "2024-09",
+    start: "2024 Sep",
+    end: "2025 Jun",
     description:
       "Contracted by Givesuite to build modern donation and payment user interfaces that feel right",
   },
   {
-    id: "2022 May",
-    date: "2024 May",
+    id: "2022-05",
+    start: "2022 May",
+    end: "2024 May",
     description:
       "I worked on the web platforms team at Untapped. Shipped investor dashboards and data visualization surfaces for investment and operations teams",
   },
   {
-    id: "2021 Jan",
-    date: "2022 Feb",
+    id: "2021-01",
+    start: "2021 Jan",
+    end: "2022 Feb",
     description:
       "I worked at Paperspace, writing developer facing infrastructure Tutorials on Cloud GPU and Applied Machine Learning Topics",
   },
@@ -138,6 +155,17 @@ export const aiButton = {
   description: "Ask an AI about my work and experience",
   /** Point this at your own assistant once you have one. */
   href: "https://chatgpt.com/",
+} as const
+
+/**
+ * The homepage entry point that opens the in-app "ask me anything" chat.
+ * Rendered directly under the role in the header.
+ */
+export const askAi = {
+  label: "Ask AI about me",
+  /** Used as the link's accessible name. */
+  description: "Ask an AI about my background, work, and experience",
+  href: "/ask-ai",
 } as const
 
 export const footer = {

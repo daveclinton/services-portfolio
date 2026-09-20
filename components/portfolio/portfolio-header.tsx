@@ -1,9 +1,17 @@
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import { Sparkles, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { buttonVariants } from "@/components/ui/button"
-import { profile } from "@/lib/portfolio-data"
+import { askAi, profile } from "@/lib/portfolio-data"
 import { cn } from "@/lib/utils"
 
 export function PortfolioHeader() {
+  const pathname = usePathname()
+  const isHome = pathname === "/"
+
   return (
     <header className="flex items-center gap-4 sm:gap-5">
       <Avatar
@@ -30,17 +38,44 @@ export function PortfolioHeader() {
         <p className="text-caption text-muted-foreground sm:text-body">
           {profile.role}
         </p>
+        {isHome ? (
+          <Link
+            href={askAi.href}
+            aria-label={askAi.description}
+            className="mt-1.5 inline-flex w-fit items-center gap-1.5 text-caption font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <Sparkles
+              className="size-3.5 shrink-0 text-accent-green"
+              aria-hidden="true"
+            />
+            {askAi.label}
+          </Link>
+        ) : null}
       </div>
 
-      <a
-        href={profile.contactHref}
-        className={cn(
-          buttonVariants({ variant: "default" }),
-          "h-10 shrink-0 rounded-lg px-4 sm:h-11"
+      <div className="flex shrink-0 items-center gap-2">
+        {isHome ? null : (
+          <Link
+            href="/"
+            aria-label="Close and return to the portfolio"
+            className={cn(
+              buttonVariants({ variant: "outline", size: "icon" }),
+              "size-10 rounded-full sm:size-11"
+            )}
+          >
+            <X className="size-4" aria-hidden="true" />
+          </Link>
         )}
-      >
-        {profile.contactLabel}
-      </a>
+        <a
+          href={isHome ? profile.contactHref : `/${profile.contactHref}`}
+          className={cn(
+            buttonVariants({ variant: "default" }),
+            "h-10 shrink-0 rounded-lg px-4 sm:h-11"
+          )}
+        >
+          {profile.contactLabel}
+        </a>
+      </div>
     </header>
   )
 }
