@@ -1,0 +1,14 @@
+# Local environment and secrets must never enter the image.
+.venv/
+.env
+.env.*
+
+# Test / build artefacts
+.pytest_cache/
+__pycache__/
+*.py[cod]
+staticfiles/
+*.log
+
+# Editor noise
+.DS_Store

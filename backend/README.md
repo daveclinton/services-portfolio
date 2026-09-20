@@ -423,3 +423,25 @@ python -m pytest
 `pytest.ini` points `DJANGO_SETTINGS_MODULE` at `config.settings` and runs the
 `knowledge` and `api` suites. The test database (`test_<POSTGRES_DB>`) is
 created and destroyed automatically.
+
+## Deploying (Fly.io)
+
+The full walkthrough — secrets, database, knowledge ingestion, CORS pairing with
+the Vercel frontend — lives in the root `README.md` under "Deploying". What this
+directory ships for it:
+
+| File | What it does |
+| :--- | :--- |
+| `Dockerfile` | `python:3.12-slim`, installs `requirements.txt`, runs `collectstatic`, then serves with gunicorn (`gthread`, 2 workers, 120s timeout — long-lived SSE answers need both). |
+| `.dockerignore` | Keeps `.venv`, `.env` and test caches out of the image. |
+| `fly.toml` | Port 8000, `force_https`, health check on `/api/health/`, `release_command = "python manage.py migrate --noinput"`, one machine kept warm. |
+
+Two behaviours to know about before the first deploy:
+
+* With `DEBUG=False` the process refuses to start without `SECRET_KEY` (by
+  design — the old fallback key was a production hazard), and `ALLOWED_HOSTS`
+  must list the Fly hostname or the health check and API return 400.
+* The Markdown knowledge base is a separate repo and is not copied into the
+  image, so the deployed database needs `ingest_knowledge` + `embed_knowledge`
+  run against it once (from your machine, with `DATABASE_URL` pointed at the
+  production database).

@@ -119,7 +119,7 @@ export const backgroundItems: TimelineEntry[] = [
   },
   {
     id: "2024-09",
-    company: "Givesuite · Elemet Pay · Studio1HQ",
+    company: "Givesuite · Element Pay · Studio1HQ",
     start: "2024 Sep",
     end: "2025 Jun",
     description:

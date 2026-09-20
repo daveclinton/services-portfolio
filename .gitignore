@@ -44,6 +44,7 @@ next-env.d.t.
 
 # Django / Python
 backend/.venv/
+backend/staticfiles/
 backend/__pycache__/
 backend/**/__pycache__/
 backend/*.py[cod]

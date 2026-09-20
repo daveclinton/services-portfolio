@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -21,18 +22,43 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
 
+def _env_bool(name: str, default: bool) -> bool:
+    """Read a boolean env var; anything except 1/true/yes/on is False."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+def _env_list(name: str, default: str = '') -> list[str]:
+    """Read a comma-separated env var into a list, dropping blanks."""
+    return [item.strip() for item in os.environ.get(name, default).split(',') if item.strip()]
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-8-qtd)rspprf))f-6i#g1!4))$l93xansf7ncde!-4m7m8tmtc')
+# Secure by default: DEBUG is off unless a .env / environment turns it on, and a
+# deployed process refuses to boot without a real secret. Set SECRET_KEY in
+# backend/.env for local work (see .env.example) or via `fly secrets set`.
+DEBUG = _env_bool('DEBUG', False)
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+SECRET_KEY = os.environ.get('SECRET_KEY', '').strip()
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-dev-only-not-for-deployment'
+    else:
+        raise ImproperlyConfigured(
+            'SECRET_KEY is required when DEBUG is False. Generate one with '
+            '`python -c "from django.core.management.utils import '
+            'get_random_secret_key as k; print(k())"`, then set it in the '
+            'environment (fly secrets set SECRET_KEY=...) or backend/.env.'
+        )
 
-ALLOWED_HOSTS = [h for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h]
-
-CORS_ALLOWED_ORIGINS = [o for o in os.environ.get('CORS_ALLOWED_ORIGINS', '').split(',') if o]
+# Django rejects requests whose Host header is not listed here (400 in prod).
+# Fly health checks and the app's own hostname must both be present, e.g.
+# `ALLOWED_HOSTS=dch-api.fly.dev,.daveclinton.dev`.
+ALLOWED_HOSTS = _env_list('ALLOWED_HOSTS', 'localhost,127.0.0.1' if DEBUG else '')
 
 
 # Application definition
@@ -60,6 +86,9 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",          # <- must be near top
     "django.middleware.security.SecurityMiddleware",
+    # Serves the Django admin / DRF static files straight from gunicorn, so the
+    # Fly container needs no separate static host or CDN.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -147,6 +176,11 @@ DATABASES = {
     'default': _database_config(),
 }
 
+# Hosted Postgres (Neon) pays a TLS handshake per connection, so production keeps
+# a pooled connection alive between requests instead of reconnecting every time.
+# Left at 0 locally (fly.toml sets 60) so the test database drops cleanly.
+DATABASES['default']['CONN_MAX_AGE'] = int(os.environ.get('DB_CONN_MAX_AGE', '0'))
+
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
@@ -182,6 +216,13 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+# WhiteNoise compresses and serves what `collectstatic` writes; the Docker build
+# runs collectstatic so the image ships its own admin/DRF assets.
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+}
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -192,14 +233,35 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
-        'rest_framework.renderers.BrowsableAPIRenderer',
+        # The browsable HTML API is a development affordance; production serves
+        # JSON only.
+        *(['rest_framework.renderers.BrowsableAPIRenderer'] if DEBUG else []),
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
 }
 
-# CORS
-CORS_ALLOWED_ORIGINS = [o.strip() for o in os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000').split(',') if o.strip()]
+# CORS: the browser calls this API directly (see lib/ai-client.ts), so the
+# deployed frontend origins must be listed exactly — scheme + host, no trailing
+# slash, e.g. `CORS_ALLOWED_ORIGINS=https://dch.vercel.app,https://daveclinton.dev`.
+CORS_ALLOWED_ORIGINS = _env_list(
+    'CORS_ALLOWED_ORIGINS', 'http://localhost:3000' if DEBUG else ''
+)
+
+# CSRF-protected views (the Django admin) must trust the same origins. Fly
+# terminates TLS, so Django only knows the request was https via this header.
+CSRF_TRUSTED_ORIGINS = _env_list('CSRF_TRUSTED_ORIGINS') or CORS_ALLOWED_ORIGINS
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+
+# Fly terminates TLS and redirects plain HTTP at its proxy (`force_https` in
+# fly.toml), so Django never sees the plain-HTTP leg. Turn the corresponding two
+# deployment warnings off; add SECURE_SSL_REDIRECT/HSTS here if you ever put the
+# app behind a proxy that does not do that for you.
+SILENCED_SYSTEM_CHECKS = ['security.W004', 'security.W008']
 
 # Markdown knowledge base consumed by `manage.py ingest_knowledge` (Phase 2).
 # The command resolves the path as: --kb-path -> KNOWLEDGE_BASE_PATH env var ->

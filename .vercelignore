@@ -1,0 +1,4 @@
+# The Django backend deploys separately (see "Deploying" in README.md) — keep it
+# out of the Vercel upload, including the local virtualenv and its secrets.
+backend/
+.github/

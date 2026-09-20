@@ -1,0 +1,52 @@
+# Fly.io configuration for the Django backend.
+#
+# `fly launch` run from this directory fills in `app` below and keeps the rest of
+# this file. To deploy by hand instead:
+#   fly apps create <name>   # then put that name in `app = "<name>"` here
+#   fly deploy
+#
+# The `app = "<name>"` line is intentionally omitted: `fly launch` writes it.
+# If you deploy with `fly deploy` instead, add `app = "<your-app-name>"` here
+# (it must be the first key, before any [table] header).
+
+# Top-level keys must come before the first [table] header.
+# Johannesburg is the closest Fly region to Nairobi — move it next to your
+# database region instead if the database lives elsewhere (Neon, for example).
+primary_region = "jnb"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[deploy]
+  # Runs in a one-off machine before traffic switches to the new release.
+  release_command = "python manage.py migrate --noinput"
+
+[env]
+  # DEBUG must stay false in production; it is also the default in settings.py.
+  DEBUG = "False"
+  # Keep Postgres connections alive between requests (Neon pays a TLS handshake
+  # per connection). Local development leaves this at the 0 default.
+  DB_CONN_MAX_AGE = "60"
+  PYTHONUNBUFFERED = "1"
+  PORT = "8000"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  # A grounded answer streams for tens of seconds. Suspending machines would cut
+  # live streams and pay a cold-start on the next question, so keep one warm.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/api/health/"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
