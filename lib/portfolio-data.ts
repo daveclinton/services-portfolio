@@ -115,7 +115,7 @@ export const backgroundItems: TimelineEntry[] = [
     location: "Mombasa, Kenya",
     start: "2025 Oct",
     description:
-      "I am currently building internal tools for Mika (Ideal Appliances, an Appliances and Logistics company) covering Logistics, Aftersales Customer Service, Employee Management, and Warehouse across mobile, web, and backend",
+      "I am currently building internal tools for Mika covering Logistics, Aftersales Customer Service, Employee Management, and Warehouse across mobile, web, and backend",
   },
   {
     id: "2024-09",
