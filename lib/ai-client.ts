@@ -10,57 +10,21 @@ export const aiApiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"
 ).replace(/\/+$/, "")
 
-export type AiCitation = {
-  slug: string
-  title: string
-  claim: string
-  evidence_type: string
-  confidence: "confirmed" | "probable" | "unverified"
-  project_slug: string
-  company_slug: string
-  source_url: string
-  source_path: string
-}
-
-export type AiSource = {
-  index: number
-  chunk_id: number
-  source_type: string
-  source_path: string
-  project_slug: string
-  company_slug: string
-  skill_slug: string
-  excerpt: string
-  citations: AiCitation[]
-}
-
 export type ChatTurn = { role: "user" | "assistant"; content: string }
 
 export type ChatEvent =
-  | { type: "retrieval"; notes: string[]; strategies: Record<string, number> }
-  | { type: "citations"; sources: AiSource[] }
   | { type: "delta"; text: string }
   | { type: "done"; finish_reason: string }
   | { type: "error"; detail: string }
 
-export type EvidenceDetail = {
-  slug: string
-  title: string
-  claim: string
-  description: string
-  evidence_type: string
-  confidence: "confirmed" | "probable" | "unverified"
-  verified_at: string | null
-  external_id: string
-  source_url: string
-  source_path: string
-  project: { slug: string; name: string } | null
-  company: { slug: string; name: string } | null
-}
-
 export class AiApiError extends Error {}
 
-/** Parse one `event:` / `data:` block from a text/event-stream body. */
+/**
+ * Parse one `event:` / `data:` block from a text/event-stream body.
+ *
+ * The backend also streams `retrieval` and `citations` frames; the UI only
+ * renders the answer text, so those frames are dropped here.
+ */
 function parseFrame(frame: string): ChatEvent | null {
   let name = "message"
   const data: string[] = []
@@ -80,14 +44,6 @@ function parseFrame(frame: string): ChatEvent | null {
   const payload = JSON.parse(data.join("\n")) as Record<string, unknown>
 
   switch (name) {
-    case "retrieval":
-      return {
-        type: "retrieval",
-        notes: (payload.notes as string[]) ?? [],
-        strategies: (payload.strategies as Record<string, number>) ?? {},
-      }
-    case "citations":
-      return { type: "citations", sources: (payload.sources as AiSource[]) ?? [] }
     case "delta":
       return { type: "delta", text: (payload.text as string) ?? "" }
     case "done":
@@ -116,11 +72,8 @@ async function readError(response: Response): Promise<string> {
 }
 
 /**
- * Stream a grounded answer.
- *
- * Yields `citations` first (so the UI can show sources while the text is still
- * arriving), then `delta` events, then `done` — or `error` if the backend has
- * no API key configured.
+ * Stream an answer as `delta` events, then `done` — or `error` if the backend
+ * has no API key configured.
  */
 export async function* streamChat({
   messages,
@@ -174,19 +127,5 @@ export async function* streamChat({
     } catch {
       // nothing to release; the reader is already closing
     }
-  }
-}
-
-/** Fetch one evidence row for the `/evidence/[slug]` page. */
-export async function fetchEvidence(slug: string): Promise<EvidenceDetail | null> {
-  try {
-    const response = await fetch(
-      `${aiApiBaseUrl}/api/evidence/${encodeURIComponent(slug)}/`,
-      { cache: "no-store" }
-    )
-    if (!response.ok) return null
-    return (await response.json()) as EvidenceDetail
-  } catch {
-    return null
   }
 }

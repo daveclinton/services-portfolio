@@ -3,16 +3,13 @@
 import { useEffect, useRef, useState } from "react"
 import { SendHorizonal } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { EvidenceCitations } from "@/components/portfolio/evidence-citations"
-import { AiApiError, streamChat, type AiSource, type ChatTurn } from "@/lib/ai-client"
+import { AiApiError, streamChat, type ChatTurn } from "@/lib/ai-client"
 import { askAi } from "@/lib/portfolio-data"
 
 type Turn = {
   id: string
   role: "user" | "assistant"
   content: string
-  sources: AiSource[]
-  notes: string[]
   status: "streaming" | "done" | "error"
   error?: string
 }
@@ -67,16 +64,12 @@ export function AskAiChat() {
       id: nextId("user"),
       role: "user",
       content: question,
-      sources: [],
-      notes: [],
       status: "done",
     }
     const assistantTurn: Turn = {
       id: nextId("assistant"),
       role: "assistant",
       content: "",
-      sources: [],
-      notes: [],
       status: "streaming",
     }
 
@@ -100,21 +93,7 @@ export function AskAiChat() {
         messages: history,
         signal: controller.signal,
       })) {
-        if (event.type === "retrieval") {
-          setTurns((previous) =>
-            replaceTurn(previous, assistantTurn.id, (turn) => ({
-              ...turn,
-              notes: event.notes,
-            }))
-          )
-        } else if (event.type === "citations") {
-          setTurns((previous) =>
-            replaceTurn(previous, assistantTurn.id, (turn) => ({
-              ...turn,
-              sources: event.sources,
-            }))
-          )
-        } else if (event.type === "delta") {
+        if (event.type === "delta") {
           setTurns((previous) =>
             replaceTurn(previous, assistantTurn.id, (turn) => ({
               ...turn,
@@ -161,22 +140,6 @@ export function AskAiChat() {
     }
   }
 
-  const suggestions = (
-    <div className="flex flex-wrap gap-2">
-      {askAi.suggestions.map((question) => (
-        <button
-          key={question}
-          type="button"
-          onClick={() => void ask(question)}
-          disabled={isStreaming}
-          className="rounded-full border border-border bg-background px-3 py-1.5 text-caption text-muted-foreground transition-colors hover:border-ring hover:text-foreground disabled:opacity-50"
-        >
-          {question}
-        </button>
-      ))}
-    </div>
-  )
-
   const composer = (
     <form
       className="flex items-center gap-2 rounded-full border border-border bg-card p-1.5 pl-4 focus-within:border-ring"
@@ -208,17 +171,23 @@ export function AskAiChat() {
     </form>
   )
 
-  /* Empty state: composer + suggestions centered in the available space. */
+  /* Empty state: prompt + composer centered in the available space. */
   if (!hasConversation) {
     return (
-      <div className="flex flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <h2 className="sr-only">{askAi.label}</h2>
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 py-8">
+        {/* `justify-center-safe` falls back to `flex-start` when the content is
+            taller than the viewport (software keyboards), so the composer can
+            still be reached. The safe-area padding keeps it clear of notches
+            and home indicators inside in-app browsers. */}
+        <div className="flex min-h-min flex-1 flex-col items-center justify-center-safe gap-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]">
+          <p className="max-w-[17.5rem] text-balance break-words text-center text-name-sm text-foreground">
+            {askAi.title}
+          </p>
           <div className="w-full">{composer}</div>
-          <div className="flex justify-center">{suggestions}</div>
           <p className="max-w-sm text-center text-caption text-subtle-foreground">
-            Answers come from a curated knowledge base and cite the evidence
-            behind every claim.
+            Answers come from a curated knowledge base of the projects, roles
+            and skills on this site.
           </p>
         </div>
       </div>
@@ -228,7 +197,7 @@ export function AskAiChat() {
   /* Conversation state: messages scroll in `main` while the docked
      composer stays pinned to the bottom. */
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <h2 className="sr-only">{askAi.label}</h2>
 
       <div aria-live="polite" className="flex flex-1 flex-col gap-3 pt-6">
@@ -256,13 +225,6 @@ export function AskAiChat() {
                   <p className="mt-2 text-caption text-destructive">{turn.error}</p>
                 ) : null}
 
-                {turn.notes.map((note) => (
-                  <p key={note} className="mt-2 text-caption text-subtle-foreground">
-                    {note}
-                  </p>
-                ))}
-
-                <EvidenceCitations sources={turn.sources} />
               </div>
             </div>
           )
@@ -273,10 +235,7 @@ export function AskAiChat() {
         ref={dockRef}
         className="sticky bottom-0 z-10 -mx-4 mt-4 -mb-12 bg-background px-4 pt-3 pb-4 sm:-mx-6 sm:-mb-16 sm:px-6 sm:pb-5"
       >
-        <div className="flex flex-col gap-3">
-          {suggestions}
-          {composer}
-        </div>
+        {composer}
       </div>
     </div>
   )

@@ -66,22 +66,21 @@ merging treats it as font size rather than colour.
 
 `/ask-ai` is a real retrieval-augmented chat, not a scripted demo. The browser
 posts to `POST /api/ai/chat/` on the Django backend, reads the answer as
-Server-Sent Events, and renders the evidence behind each reply.
+Server-Sent Events, and streams the answer text into the conversation.
 
 ```txt
 browser  ──POST /api/ai/chat/──▶  Django
                                   ├─ retrieval over KnowledgeChunk (structured + semantic, RRF)
                                   ├─ citations resolved to Evidence rows
                                   └─ OpenAI, grounded on those chunks only
-browser  ◀── event: citations ───
-         ◀── event: delta × n ───
+browser  ◀── event: delta × n ───
          ◀── event: done ────────
 ```
 
-Every answer carries a **Sources** strip. Each chip links to `/evidence/<slug>`,
-a page that renders that `Evidence` row — its claim, confidence, type, linked
-project/company and the original source URL. That round trip is the point: an
-answer you cannot check is not worth generating.
+The backend still streams `retrieval` and `citations` frames (the Django API and
+`/api/evidence/<slug>/` are unchanged), but the frontend drops them: the page
+shows the answer only, with no source chips. Everything shown comes from the
+curated knowledge base in `backend/knowledge/`.
 
 Point the browser at the backend with `NEXT_PUBLIC_API_BASE_URL` (defaults to
 `http://localhost:8000`):
@@ -96,8 +95,8 @@ The backend needs `OPENAI_API_KEY` for the grounded answer itself (see
 `error` event explaining what is missing, and retrieval-only features such as
 `/api/ai/search/` and `/api/ai/job-fit/` keep working.
 
-The starter questions in `askAi.suggestions` (`lib/portfolio-data.ts`) are
-chosen because the knowledge base can actually answer them.
+The page is composer-only: no starter chips, no source chips — a visitor asks a
+question and reads the answer.
 
 ## Accessibility notes
 

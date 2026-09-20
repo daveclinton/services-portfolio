@@ -42,6 +42,9 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   colorScheme: "light",
   themeColor: "#ffffff",
+  // Required for `env(safe-area-inset-*)` to report real values on iOS. Without
+  // `cover`, in-app browsers letterbox the page instead of exposing the notch.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -55,7 +58,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           {/* The header and footer are pinned to the viewport; only the
               middle column between them scrolls. */}
           <div className="shrink-0 bg-background">
-            <div className="mx-auto w-full max-w-[680px] px-4 pt-10 pb-4 sm:px-6 sm:pt-14 sm:pb-5">
+            <div className="mx-auto w-full max-w-[680px] px-4 pt-[max(2.5rem,env(safe-area-inset-top))] pb-4 sm:px-6 sm:pt-14 sm:pb-5">
               <PortfolioHeader />
             </div>
           </div>
@@ -66,7 +69,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             </div>
           </main>
 
-          <div className="flex h-8 shrink-0 items-center overflow-hidden border-t border-border bg-background">
+          <div className="flex h-[calc(2rem+env(safe-area-inset-bottom))] shrink-0 items-center overflow-hidden border-t border-border bg-background pb-[env(safe-area-inset-bottom)]">
             <div className="mx-auto flex w-full max-w-[680px] items-center px-4 sm:px-6">
               <PortfolioFooter />
             </div>
