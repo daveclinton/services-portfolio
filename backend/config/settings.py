@@ -35,6 +35,16 @@ def _env_list(name: str, default: str = '') -> list[str]:
     return [item.strip() for item in os.environ.get(name, default).split(',') if item.strip()]
 
 
+def _env_origins(name: str, default: str = '') -> list[str]:
+    """Read origin URLs for CORS / CSRF.
+
+    ``django-cors-headers`` rejects an origin that carries a path, and a pasted
+    ``https://example.com/`` is the usual way to hit that check — which fails the
+    release command mid-deploy. Trim the slash instead of shipping the mistake.
+    """
+    return [origin.rstrip('/') for origin in _env_list(name, default)]
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -244,13 +254,13 @@ REST_FRAMEWORK = {
 # CORS: the browser calls this API directly (see lib/ai-client.ts), so the
 # deployed frontend origins must be listed exactly — scheme + host, no trailing
 # slash, e.g. `CORS_ALLOWED_ORIGINS=https://dch.vercel.app,https://daveclinton.dev`.
-CORS_ALLOWED_ORIGINS = _env_list(
+CORS_ALLOWED_ORIGINS = _env_origins(
     'CORS_ALLOWED_ORIGINS', 'http://localhost:3000' if DEBUG else ''
 )
 
 # CSRF-protected views (the Django admin) must trust the same origins. Fly
 # terminates TLS, so Django only knows the request was https via this header.
-CSRF_TRUSTED_ORIGINS = _env_list('CSRF_TRUSTED_ORIGINS') or CORS_ALLOWED_ORIGINS
+CSRF_TRUSTED_ORIGINS = _env_origins('CSRF_TRUSTED_ORIGINS') or CORS_ALLOWED_ORIGINS
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 if not DEBUG:
