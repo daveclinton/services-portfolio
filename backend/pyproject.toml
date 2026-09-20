@@ -1,5 +1,26 @@
 # Backend (Django). Fly.io is the primary target (see fly.toml / Dockerfile);
-# this [tool.vercel] section additionally lets the same directory deploy as a
-# Vercel project with Root Directory = backend.
+# this file additionally lets the same directory deploy as a Vercel project
+# with Root Directory = backend: Vercel installs deps with `uv lock`, which
+# requires the [project] table below. Runtime deps mirror requirements.txt
+# (dev/test-only packages like pytest stay in requirements.txt).
+[project]
+name = "portfolio-backend"
+version = "0.1.0"
+description = "Django + DRF backend for AI-powered portfolio"
+requires-python = ">=3.12"
+dependencies = [
+  "Django==6.1.1",
+  "djangorestframework==3.18.1",
+  "pgvector==0.5.0",
+  "psycopg[binary]==3.3.6",
+  "python-dotenv==1.2.3",
+  "django-cors-headers==4.9.0",
+  "gunicorn==23.0.0",
+  "whitenoise==6.11.0",
+  "python-frontmatter==1.3.0",
+  "pydantic==2.13.5",
+  "openai==3.16.2",
+]
+
 [tool.vercel]
 entrypoint = "config.wsgi:application"
