@@ -1,4 +1,14 @@
-# The Django backend deploys separately (see "Deploying" in README.md) — keep it
-# out of the Vercel upload, including the local virtualenv and its secrets.
-backend/
+# NOTE: this file is read from the repository root for every Vercel project in
+# this repo — including the backend project whose Root Directory is `backend`.
+# So it must NOT blanket-ignore `backend/` (that empties the backend deploy).
+# Instead, exclude only the backend's local artefacts and secrets; the frontend
+# project uploads the backend source (~90 small files, unused by `next build`).
 .github/
+backend/.venv/
+backend/.env
+backend/.env.*
+backend/.pytest_cache/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/staticfiles/
+backend/*.log

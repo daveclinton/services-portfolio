@@ -1,0 +1,5 @@
+# Backend (Django). Fly.io is the primary target (see fly.toml / Dockerfile);
+# this [tool.vercel] section additionally lets the same directory deploy as a
+# Vercel project with Root Directory = backend.
+[tool.vercel]
+entrypoint = "config.wsgi:application"
