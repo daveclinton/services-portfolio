@@ -15,6 +15,7 @@ from knowledge.models import Evidence, KnowledgeChunk, Project
 from knowledge.retrieval import SearchFilters, search
 from knowledge.retrieval.citations import citations_for_chunks
 from knowledge.retrieval.fusion import reciprocal_rank_fusion
+from knowledge.retrieval.intent import classify_question
 from knowledge.retrieval.semantic import SemanticUnavailable, search_semantic
 from knowledge.retrieval.structured import search_structured
 from knowledge.retrieval.text import tokenize
@@ -231,6 +232,86 @@ def test_semantic_mode_returns_an_empty_result_set_with_a_note():
 def test_search_rejects_an_unknown_mode():
     with pytest.raises(ValueError, match="mode must be one of"):
         search("anything", mode="magic")
+
+
+def test_question_intents_cover_common_portfolio_questions():
+    assert classify_question("What does David do?").name == "biography"
+    assert classify_question("What is his technology stack?").name == "technologies"
+    assert classify_question("Which projects has he shipped?").name == "projects"
+    assert classify_question("What measurable impact did he have?").name == "outcomes"
+    assert classify_question("What does he charge per hour?").name == "rates"
+    assert classify_question("Where has he worked?").name == "experience"
+    assert classify_question("What are his strongest skills?").name == "skills"
+
+
+def test_biography_search_anchors_profile_and_deprioritizes_technology_lists():
+    profile = make_chunk(
+        "David is a software engineer who builds enterprise systems.",
+        source_type="person-profile",
+        source_path="knowledge/person/profile.md",
+        source_group="person",
+    )
+    project = make_chunk(
+        "David built a warehouse platform that automated operational documents.",
+        project_slug="warehouse",
+        source_type="project-overview",
+    )
+    technologies = make_chunk(
+        "React Next.js Rust Expo technology inventory for David.",
+        company_slug="studio",
+        source_type="experience-technologies",
+        source_group="experience",
+    )
+
+    outcome = search("What does David do?", mode="structured", limit=3)
+
+    assert outcome.intent.name == "biography"
+    assert outcome.results[0].chunk == profile
+    assert outcome.results[1].chunk == project
+    assert outcome.results[-1].chunk == technologies
+
+
+def test_rates_search_anchors_rate_record():
+    rate = make_chunk(
+        "Direct and marketplace rates are documented separately.",
+        source_type="evidence",
+        source_path="knowledge/evidence/contracting-rate-2026.md",
+        source_group="evidence",
+    )
+    make_chunk("Unrelated project details.", project_slug="other")
+
+    outcome = search("How much does David charge?", mode="structured", limit=2)
+
+    assert outcome.intent.name == "rates"
+    assert outcome.results[0].chunk == rate
+
+
+def test_outcome_search_prefers_projects_with_confirmed_metrics():
+    measured_project = Project.objects.create(
+        slug="measured", name="Measured", overview="Measured outcome"
+    )
+    Evidence.objects.create(
+        slug="measured-users",
+        claim="Rolled out to three schools.",
+        project=measured_project,
+        confidence="confirmed",
+        evidence_type="metric",
+    )
+    measured = make_chunk(
+        "David delivered measurable impact to schools.",
+        project_slug="measured",
+        source_type="project-evidence",
+    )
+    unmeasured = make_chunk(
+        "David's impact metrics are not yet available.",
+        project_slug="unmeasured",
+        source_type="project-evidence",
+    )
+
+    outcome = search("What measurable impact has David had?", mode="structured", limit=2)
+
+    assert outcome.results[0].chunk == measured
+    assert outcome.results[1].chunk == unmeasured
 
 
 # --------------------------------------------------------------------------- #

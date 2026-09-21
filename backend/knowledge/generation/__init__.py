@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Any, Iterable, Iterator
 
 from knowledge.retrieval.service import SearchOutcome, SearchResult
+from knowledge.retrieval.intent import classify_question
 
 DEFAULT_MODEL = "gpt-4o-mini"
 
@@ -37,6 +38,11 @@ evidence for it and stop. Never guess.
 not in the sources.
 5. Write in the third person about {name}, not in their voice.
 6. Be concise: 2-5 sentences unless the question asks for detail.
+7. Follow the question-intent guidance below. Do not substitute a technology
+inventory when the user asked about identity, work, projects, or impact.
+
+Question intent: {intent}
+Intent guidance: {intent_guidance}
 
 Sources:
 {context}
@@ -82,6 +88,9 @@ def build_sources(results: Iterable[SearchResult]) -> list[Source]:
     sources = []
     for index, result in enumerate(results, start=1):
         chunk = result.chunk
+        excerpt_limit = (
+            1_500 if chunk.source_path == "knowledge/person/profile.md" else 900
+        )
         sources.append(
             Source(
                 index=index,
@@ -91,7 +100,7 @@ def build_sources(results: Iterable[SearchResult]) -> list[Source]:
                 project_slug=chunk.project_slug,
                 company_slug=chunk.company_slug,
                 skill_slug=chunk.skill_slug,
-                excerpt=_excerpt(chunk.content),
+                excerpt=_excerpt(chunk.content, limit=excerpt_limit),
                 citations=result.citations,
             )
         )
@@ -103,8 +112,18 @@ def format_context(sources: Iterable[Source]) -> str:
     for source in sources:
         label = source.project_slug or source.company_slug or source.skill_slug
         location = f" — {label}" if label else ""
+        evidence = ""
+        if source.citations:
+            claims = [
+                citation["claim"]
+                for citation in source.citations[:3]
+                if citation.get("confidence") == "confirmed"
+            ]
+            if claims:
+                evidence = "\nVerified claims: " + " | ".join(claims)
         blocks.append(
-            f"[{source.index}] ({source.source_type}{location})\n{source.excerpt}"
+            f"[{source.index}] ({source.source_type}{location})\n"
+            f"{source.excerpt}{evidence}"
         )
     return "\n\n".join(blocks) if blocks else "(no sources retrieved)"
 
@@ -117,11 +136,15 @@ def build_messages(
     history: list[dict] | None = None,
 ) -> list[dict]:
     """Assemble the chat-completions message list."""
+    intent = classify_question(question)
     messages: list[dict] = [
         {
             "role": "system",
             "content": SYSTEM_PROMPT.format(
-                name=person_name, context=format_context(sources)
+                name=person_name,
+                context=format_context(sources),
+                intent=intent.name,
+                intent_guidance=intent.guidance,
             ),
         }
     ]

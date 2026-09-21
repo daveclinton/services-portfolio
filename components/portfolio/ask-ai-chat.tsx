@@ -7,9 +7,10 @@ import {
   AiApiError,
   streamChat,
   stripCitationMarkers,
+  type ChatIntent,
   type ChatTurn,
 } from "@/lib/ai-client"
-import { askAi } from "@/lib/portfolio-data"
+import { askAi, askAiStatus } from "@/lib/portfolio-data"
 import { MatrixOrb } from "@/components/portfolio/matrix-orb"
 
 type Turn = {
@@ -18,6 +19,8 @@ type Turn = {
   content: string
   status: "streaming" | "done" | "error"
   error?: string
+  /** How the server read the question, from the `retrieval` frame. */
+  intent?: ChatIntent
 }
 
 let turnCounter = 0
@@ -105,6 +108,13 @@ export function AskAiChat() {
             replaceTurn(previous, assistantTurn.id, (turn) => ({
               ...turn,
               content: stripCitationMarkers(turn.content + event.text),
+            }))
+          )
+        } else if (event.type === "retrieval") {
+          setTurns((previous) =>
+            replaceTurn(previous, assistantTurn.id, (turn) => ({
+              ...turn,
+              intent: event.intent,
             }))
           )
         } else if (event.type === "error") {
@@ -252,7 +262,7 @@ export function AskAiChat() {
                     state="thinking"
                     size={88}
                     dots={9}
-                    labels={{ thinking: "Thinking…" }}
+                    labels={{ thinking: askAiStatus[turn.intent ?? "general"] }}
                     className="gap-2 py-1"
                   />
                 ) : null}

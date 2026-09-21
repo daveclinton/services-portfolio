@@ -8,16 +8,22 @@
  * same-origin, which is the default.
  */
 
+import { INTENT_NAMES, type IntentName } from "./knowledge/intent"
+
 export const aiApiBaseUrl = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? ""
 ).replace(/\/+$/, "")
 
 export type ChatTurn = { role: "user" | "assistant"; content: string }
 
+/** Which kind of portfolio question the server read this as. */
+export type ChatIntent = IntentName
+
 export type ChatEvent =
   | { type: "delta"; text: string }
   | { type: "done"; finish_reason: string }
   | { type: "error"; detail: string }
+  | { type: "retrieval"; intent: ChatIntent; notes: string[]; strategies: Record<string, number> }
 
 export class AiApiError extends Error {}
 
@@ -29,8 +35,8 @@ export function stripCitationMarkers(text: string): string {
 /**
  * Parse one `event:` / `data:` block from a text/event-stream body.
  *
- * The backend also streams `retrieval` and `citations` frames; the UI only
- * renders the answer text, so those frames are dropped here.
+ * The API also streams `citations` frames; the UI renders the answer text plus
+ * the intent the server read the question as, so citations are dropped here.
  */
 function parseFrame(frame: string): ChatEvent | null {
   let name = "message"
@@ -51,6 +57,16 @@ function parseFrame(frame: string): ChatEvent | null {
   const payload = JSON.parse(data.join("\n")) as Record<string, unknown>
 
   switch (name) {
+    case "retrieval":
+      return {
+        type: "retrieval",
+        intent: asIntent(payload.intent),
+        notes: Array.isArray(payload.notes) ? payload.notes.map(String) : [],
+        strategies:
+          typeof payload.strategies === "object" && payload.strategies !== null
+            ? (payload.strategies as Record<string, number>)
+            : {},
+      }
     case "delta":
       return { type: "delta", text: (payload.text as string) ?? "" }
     case "done":
@@ -66,6 +82,13 @@ function parseFrame(frame: string): ChatEvent | null {
     default:
       return null
   }
+}
+
+/** Unknown or missing intents degrade to `general` rather than throwing. */
+function asIntent(value: unknown): ChatIntent {
+  return typeof value === "string" && (INTENT_NAMES as readonly string[]).includes(value)
+    ? (value as IntentName)
+    : "general"
 }
 
 async function readError(response: Response): Promise<string> {

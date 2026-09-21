@@ -133,7 +133,13 @@ export async function POST(request: Request): Promise<Response> {
     async start(controller) {
       const enqueue = (frame: string) => controller.enqueue(frame)
       try {
-        enqueue(sse("retrieval", { notes: outcome.notes, strategies: outcome.strategies }))
+        enqueue(
+          sse("retrieval", {
+            notes: outcome.notes,
+            strategies: outcome.strategies,
+            intent: outcome.intent,
+          }),
+        )
         enqueue(sse("citations", { sources }))
 
         if (sources.length === 0) {

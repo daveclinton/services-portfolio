@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 from knowledge import generation
-from knowledge.models import KnowledgeChunk
+from knowledge.models import Evidence, KnowledgeChunk, Project
 from knowledge.retrieval import search
 
 pytestmark = pytest.mark.django_db
@@ -63,6 +63,26 @@ def test_build_sources_numbers_the_retrieved_chunks():
     assert sources[0].project_slug == "warranty"
 
 
+def test_profile_source_gets_more_context_than_regular_chunks():
+    profile_text = "P" * 1_200
+    project_text = "David " + ("X" * 1_200)
+    KnowledgeChunk.objects.create(
+        content=profile_text,
+        source_type="person-profile",
+        source_path="knowledge/person/profile.md",
+        metadata={"source_group": "person"},
+    )
+    make_chunk(project_text, project_slug="long-project")
+
+    outcome = search("What does David do?", mode="structured", limit=2)
+    sources = generation.build_sources(outcome.results)
+
+    profile = next(source for source in sources if source.source_type == "person-profile")
+    project = next(source for source in sources if source.project_slug == "long-project")
+    assert len(profile.excerpt) == 1_200
+    assert len(project.excerpt) == 900
+
+
 def test_system_prompt_carries_the_sources_and_the_hard_rules():
     make_chunk("Warranty app shipped.", project_slug="warranty")
     outcome = search("warranty", mode="structured", limit=5)
@@ -75,10 +95,41 @@ def test_system_prompt_carries_the_sources_and_the_hard_rules():
     assert "[1]" in system
     assert "Answer ONLY from the numbered sources" in system
     assert "do not include source numbers" in system
+    assert "Question intent:" in system
     assert messages[-1] == {
         "role": "user",
         "content": "Did he ship a warranty app?",
     }
+
+
+def test_biography_prompt_tells_model_not_to_return_a_stack_inventory():
+    make_chunk("David builds products with React and Rust.", project_slug="portfolio")
+    outcome = search("What does David do?", mode="structured", limit=5)
+
+    messages = generation.build_messages(
+        "What does David do?", generation.build_sources(outcome.results)
+    )
+
+    system = messages[0]["content"]
+    assert "Question intent: biography" in system
+    assert "do not answer with a stack list" in system
+
+
+def test_context_includes_confirmed_evidence_claims_not_only_markdown_body():
+    project = Project.objects.create(slug="warehouse", name="Warehouse", overview="…")
+    Evidence.objects.create(
+        slug="warehouse-impact",
+        claim="Automated delivery notes and goods issues after document scans.",
+        project=project,
+        confidence="confirmed",
+    )
+    make_chunk("Implementation notes.", project_slug="warehouse")
+    outcome = search("implementation", mode="structured", limit=5)
+
+    context = generation.format_context(generation.build_sources(outcome.results))
+
+    assert "Verified claims:" in context
+    assert "Automated delivery notes" in context
 
 
 def test_history_is_included_before_the_new_question():

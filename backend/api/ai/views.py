@@ -139,7 +139,14 @@ def chat_view(request):
         )
 
     def event_stream() -> Iterator[str]:
-        yield _sse("retrieval", {"notes": outcome.notes, "strategies": outcome.strategies})
+        yield _sse(
+            "retrieval",
+            {
+                "notes": outcome.notes,
+                "strategies": outcome.strategies,
+                "intent": outcome.intent.name,
+            },
+        )
         yield _sse(
             "citations",
             {"sources": [source.as_dict() for source in sources]},

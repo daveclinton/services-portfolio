@@ -10,6 +10,7 @@ from knowledge.models import KnowledgeChunk
 from .citations import citations_for_chunks
 from .filters import SearchFilters
 from .fusion import reciprocal_rank_fusion
+from .intent import GENERAL, QuestionIntent, classify_question, rerank_for_intent
 from .semantic import SemanticUnavailable, search_semantic
 from .structured import search_structured
 
@@ -64,6 +65,7 @@ class SearchOutcome:
     results: list[SearchResult]
     notes: list[str] = field(default_factory=list)
     strategies: dict[str, int] = field(default_factory=dict)
+    intent: QuestionIntent = GENERAL
 
     @property
     def semantic_used(self) -> bool:
@@ -77,6 +79,7 @@ class SearchOutcome:
             "filters": self.filters.as_dict(),
             "strategies": self.strategies,
             "notes": self.notes,
+            "intent": self.intent.name,
             "results": [
                 result.as_dict(include_content=include_content)
                 for result in self.results
@@ -105,6 +108,8 @@ def search(
 
     if isinstance(filters, dict) or filters is None:
         filters = SearchFilters.from_payload(filters)
+
+    intent = classify_question(query)
 
     pool = max(limit * CANDIDATE_MULTIPLIER, MIN_CANDIDATE_POOL)
     notes: list[str] = []
@@ -137,6 +142,7 @@ def search(
                     results=[],
                     notes=notes,
                     strategies=strategies,
+                    intent=intent,
                 )
 
     if mode == "structured":
@@ -150,7 +156,7 @@ def search(
     else:
         results = _fuse(structured_ranked, semantic_ranked, distances)
 
-    results = results[:limit]
+    results = rerank_for_intent(results, intent, limit=limit)
     citations = citations_for_chunks([result.chunk for result in results])
     for result in results:
         result.citations = citations.get(result.chunk.pk, [])
@@ -161,6 +167,7 @@ def search(
         results=results,
         notes=notes,
         strategies=strategies,
+        intent=intent,
     )
 
 

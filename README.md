@@ -60,43 +60,56 @@ merging treats it as font size rather than colour.
    Maru Gothic as the closest available stand-in; if you license the real file,
    put it in `public/fonts/` and switch `app/layout.tsx` to `next/font/local`
    using the same `--font-portfolio-sans` variable.
-5. **Ask an AI** — the `/ask-ai` page talks to the Django backend. See below.
+5. **Ask an AI** — the `/ask-ai` page talks to this site's own API routes. See
+   below.
 
 ## Ask AI
 
 `/ask-ai` is a real retrieval-augmented chat, not a scripted demo. The browser
-posts to `POST /api/ai/chat/` on the Django backend, reads the answer as
-Server-Sent Events, and streams the answer text into the conversation.
+posts to `POST /api/chat`, reads the answer as Server-Sent Events, and streams
+the answer text into the conversation.
 
 ```txt
-browser  ──POST /api/ai/chat/──▶  Django
-                                  ├─ retrieval over KnowledgeChunk (structured + semantic, RRF)
-                                  ├─ citations resolved to Evidence rows
-                                  └─ OpenAI, grounded on those chunks only
-browser  ◀── event: delta × n ───
-         ◀── event: done ────────
+browser  ──POST /api/chat───▶  Next.js route handler
+                               ├─ retrieval over KnowledgeChunk (structured + semantic, RRF)
+                               ├─ question intent → anchors, ordering, prompt guidance
+                               ├─ citations resolved to Evidence rows
+                               └─ OpenAI, grounded on those chunks only
+browser  ◀── event: retrieval ─  (intent, strategies, notes)
+         ◀── event: citations ─
+         ◀── event: delta × n ─
+         ◀── event: done ──────
 ```
 
-The backend still streams `retrieval` and `citations` frames (the Django API and
-`/api/evidence/<slug>/` are unchanged), but the frontend drops them: the page
-shows the answer only, with no source chips. Everything shown comes from the
-curated knowledge base in `backend/knowledge/`.
+`app/api/chat/route.ts` and `app/api/search/route.ts` are ports of Django's
+`/api/ai/chat/` and `/api/ai/search/`: same request validation, same JSON
+shapes, same event frames, and the same tables. Both read the knowledge base
+through `lib/knowledge/`, so the Django API on Fly.io stays a working
+alternative and the two cannot drift apart without a visible diff.
 
-Point the browser at the backend with `NEXT_PUBLIC_API_BASE_URL` (defaults to
-`http://localhost:8000`):
+Before answering, the server classifies the question (biography, rates,
+projects, outcomes, …) in `lib/knowledge/intent.ts`, the port of
+`backend/knowledge/retrieval/intent.py`. That intent adds the files a broad
+question must see, orders the retrieved chunks toward the kind of evidence the
+question asks for, and tells the model what shape of answer to write. The
+`retrieval` frame carries the intent so the page can name what it is looking
+up while the answer streams. The page is still composer-only: no starter chips,
+no source chips — a visitor asks a question and reads the answer.
+
+The routes talk to the same database as the Django API, so set `DATABASE_URL`
+in `.env.local` (locally) or in the Vercel project (Production *and* Preview):
 
 ```bash
 # .env.local
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+DATABASE_URL=postgresql://...   # the Neon URL the knowledge base was ingested into
+OPENAI_API_KEY=sk-...
 ```
 
-The backend needs `OPENAI_API_KEY` for the grounded answer itself (see
-`backend/.env.example`). Without it the UI still works — the server streams an
-`error` event explaining what is missing, and retrieval-only features such as
-`/api/ai/search/` and `/api/ai/job-fit/` keep working.
-
-The page is composer-only: no starter chips, no source chips — a visitor asks a
-question and reads the answer.
+`OPENAI_API_KEY` is needed for the grounded answer itself. Without it the UI
+still works — the route streams an `error` event explaining what is missing —
+and `POST /api/search` keeps answering with retrieval only. Setting
+`NEXT_PUBLIC_API_BASE_URL` points the chat back at the Django API instead of
+the same-origin routes; it is unset by default.
 
 ## Deploying
 

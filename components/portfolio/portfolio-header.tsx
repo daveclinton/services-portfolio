@@ -38,7 +38,7 @@ export function PortfolioHeader() {
           {profile.role}
         </p>
         <a
-          href={profile.contactHref}
+          href={isHome ? profile.contactHref : `/${profile.contactHref}`}
           className="mt-1.5 inline-flex w-fit text-caption font-medium text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           {profile.contactLabel}

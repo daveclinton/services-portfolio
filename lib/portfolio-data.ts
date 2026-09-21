@@ -3,6 +3,8 @@
  * touch copy. Replace these values with your own and the page follows.
  */
 
+import type { IntentName as AskAiIntent } from "@/lib/knowledge/intent"
+
 export type BrandIconName = "github" | "x" | "linkedin"
 
 export const site = {
@@ -193,6 +195,22 @@ export const askAi = {
   placeholder: "Ask about my work…",
   inputLabel: "Ask about my work",
 } as const
+
+/**
+ * What the orb says while the answer is being retrieved and written. The
+ * server classifies each question (see `lib/knowledge/intent.ts`), so the wait
+ * can name what is being looked up instead of a generic "Thinking…".
+ */
+export const askAiStatus: Record<AskAiIntent, string> = {
+  general: "Thinking…",
+  biography: "Reading the profile…",
+  rates: "Checking the rates…",
+  experience: "Reviewing roles and companies…",
+  projects: "Gathering projects…",
+  skills: "Reviewing skills…",
+  technologies: "Listing technologies…",
+  outcomes: "Pulling together outcomes…",
+}
 
 export const footer = {
   name: profile.name,

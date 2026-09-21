@@ -8,6 +8,12 @@
  */
 
 import { sql } from "./db"
+import {
+  classifyQuestion,
+  rerankForIntent,
+  type IntentName,
+  type QuestionIntent,
+} from "./intent"
 import { tokenize } from "./text"
 
 export const MODES = ["structured", "semantic", "hybrid"] as const
@@ -379,6 +385,45 @@ async function citationsForChunks(
 /* Outcome                                                             */
 /* ------------------------------------------------------------------ */
 
+/** Chunks for the files an intent must always see, keyed by source path. */
+async function chunksBySourcePath(paths: readonly string[]): Promise<Map<string, ChunkRow>> {
+  if (paths.length === 0) return new Map()
+  const rows = (await sql().query(
+    `SELECT ${CHUNK_COLUMNS} FROM knowledge_knowledgechunk WHERE source_path = ANY($1)`,
+    [paths as string[]],
+  )) as Record<string, unknown>[]
+  const byPath = new Map<string, ChunkRow>()
+  for (const row of rows) {
+    const chunk = toChunkRow(row)
+    // First writer wins, matching Django's `{chunk.source_path: chunk ...}`.
+    if (!byPath.has(chunk.source_path)) byPath.set(chunk.source_path, chunk)
+  }
+  return byPath
+}
+
+/** Entity slugs that carry at least one confirmed metric, used by outcomes. */
+async function confirmedMetricSlugs(): Promise<{
+  projects: string[]
+  companies: string[]
+}> {
+  const rows = (await sql().query(
+    `SELECT p.slug AS project_slug, c.slug AS company_slug
+       FROM knowledge_evidence e
+       LEFT JOIN knowledge_project p ON p.id = e.project_id
+       LEFT JOIN knowledge_employment em ON em.id = e.employment_id
+       LEFT JOIN knowledge_company c ON c.id = em.company_id
+      WHERE e.confidence = 'confirmed' AND e.evidence_type = 'metric'`,
+    [],
+  )) as Record<string, unknown>[]
+  const projects = new Set<string>()
+  const companies = new Set<string>()
+  for (const row of rows) {
+    if (row.project_slug) projects.add(String(row.project_slug))
+    if (row.company_slug) companies.add(String(row.company_slug))
+  }
+  return { projects: [...projects], companies: [...companies] }
+}
+
 export interface SearchResult {
   rank: number
   score: number
@@ -404,6 +449,7 @@ export interface SearchOutcome {
   filters: Record<string, string[]>
   strategies: Record<string, number>
   notes: string[]
+  intent: IntentName
   results: SearchResult[]
 }
 
@@ -466,6 +512,7 @@ export async function search(
   if (limit < 1) throw new Error("limit must be at least 1")
 
   const filters = filtersFromPayload(options?.filters ?? null)
+  const intent = classifyQuestion(query)
   const pool = Math.max(limit * CANDIDATE_MULTIPLIER, MIN_CANDIDATE_POOL)
   const notes: string[] = []
   const strategies: Record<string, number> = {}
@@ -497,11 +544,17 @@ export async function search(
           filters: filtersAsDict(filters),
           strategies,
           notes,
+          intent: intent.name,
           results: [],
         }
       }
     }
   }
+
+  // Every retrieved chunk, so citations and intent anchors can resolve later.
+  const chunksById = new Map<number, ChunkRow>()
+  for (const chunk of structuredRanked) chunksById.set(chunk.id, chunk)
+  for (const { chunk } of semanticRanked) chunksById.set(chunk.id, chunk)
 
   let ranked: SearchResult[]
   if (mode === "hybrid") {
@@ -530,9 +583,17 @@ export async function search(
     })
   }
 
-  ranked = ranked.slice(0, limit)
+  ranked = await applyIntent(ranked, intent, {
+    limit,
+    includeContent,
+    chunksById,
+  })
   const citations = await citationsForChunks(
-    ranked.map((r) => chunkById(r, structuredRanked, semanticRanked)),
+    ranked.map((result) => {
+      const chunk = chunksById.get(result.chunk_id)
+      if (!chunk) throw new Error(`chunk ${result.chunk_id} missing from rankings`)
+      return chunk
+    }),
   )
   for (const result of ranked) {
     result.citations = citations[result.chunk_id] ?? []
@@ -545,8 +606,63 @@ export async function search(
     filters: filtersAsDict(filters),
     strategies,
     notes,
+    intent: intent.name,
     results: ranked,
   }
+}
+
+/**
+ * Fetch an intent's anchors, then rerank in place — Django's
+ * `rerank_for_intent(results, intent, limit=limit)`.
+ */
+async function applyIntent(
+  ranked: SearchResult[],
+  intent: QuestionIntent,
+  context: {
+    limit: number
+    includeContent: boolean
+    chunksById: Map<number, ChunkRow>
+  },
+): Promise<SearchResult[]> {
+  const { limit, includeContent, chunksById } = context
+  const anchorResults: SearchResult[] = []
+  if (intent.anchorPaths.length > 0) {
+    const anchors = await chunksBySourcePath(intent.anchorPaths)
+    for (const path of intent.anchorPaths) {
+      const chunk = anchors.get(path)
+      if (!chunk) continue
+      chunksById.set(chunk.id, chunk)
+      const existing = ranked.find((result) => result.chunk_id === chunk.id)
+      anchorResults.push(
+        existing ??
+          toResultDict(
+            chunk,
+            {
+              rank: 0,
+              score: 1,
+              matched_by: ["intent"],
+              structured_rank: null,
+              semantic_rank: null,
+              distance: null,
+              citations: [],
+            },
+            includeContent,
+          ),
+      )
+    }
+  }
+
+  const metrics =
+    intent.name === "outcomes"
+      ? await confirmedMetricSlugs()
+      : { projects: [] as string[], companies: [] as string[] }
+
+  return rerankForIntent(ranked, intent, {
+    limit,
+    anchors: anchorResults,
+    metricProjectSlugs: metrics.projects,
+    metricCompanySlugs: metrics.companies,
+  })
 }
 
 function filtersAsDict(filters: SearchFilters): Record<string, string[]> {
@@ -557,18 +673,6 @@ function filtersAsDict(filters: SearchFilters): Record<string, string[]> {
     company_slug: filters.company_slug,
     skill_slug: filters.skill_slug,
   }
-}
-
-function chunkById(
-  result: SearchResult,
-  structured: ChunkRow[],
-  semantic: Array<{ chunk: ChunkRow; distance: number }>,
-): ChunkRow {
-  const fromStructured = structured.find((c) => c.id === result.chunk_id)
-  if (fromStructured) return fromStructured
-  const fromSemantic = semantic.find((r) => r.chunk.id === result.chunk_id)
-  if (fromSemantic) return fromSemantic.chunk
-  throw new Error(`chunk ${result.chunk_id} missing from rankings`)
 }
 
 async function fuse(

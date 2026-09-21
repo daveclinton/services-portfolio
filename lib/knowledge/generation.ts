@@ -7,6 +7,7 @@
  */
 
 import { sql } from "./db"
+import { classifyQuestion } from "./intent"
 import type { SearchResult } from "./retrieval"
 
 export const DEFAULT_MODEL = "gpt-4o-mini"
@@ -31,6 +32,11 @@ evidence for it and stop. Never guess.
 not in the sources.
 5. Write in the third person about {name}, not in their voice.
 6. Be concise: 2-5 sentences unless the question asks for detail.
+7. Follow the question-intent guidance below. Do not substitute a technology \
+inventory when the user asked about identity, work, projects, or impact.
+
+Question intent: {intent}
+Intent guidance: {intent_guidance}
 
 Sources:
 {context}`;
@@ -53,6 +59,9 @@ function excerpt(text: string, limit = 700): string {
   return collapsed.slice(0, limit - 1).replace(/\s+$/, "") + "…"
 }
 
+/** The profile file is the anchor for broad questions, so it gets more room. */
+const PROFILE_SOURCE_PATH = "knowledge/person/profile.md"
+
 /** Number the results for the model, keeping each chunk's citations. */
 export function buildSources(results: SearchResult[]): Source[] {
   return results.map((result, i) => ({
@@ -63,18 +72,33 @@ export function buildSources(results: SearchResult[]): Source[] {
     project_slug: result.project_slug,
     company_slug: result.company_slug,
     skill_slug: result.skill_slug,
-    excerpt: excerpt(result.content ?? ""),
+    excerpt: excerpt(
+      result.content ?? "",
+      result.source_path === PROFILE_SOURCE_PATH ? 1500 : 900,
+    ),
     citations: result.citations,
   }))
 }
 
-function formatContext(sources: Source[]): string {
+/**
+ * Render the numbered sources, appending the confirmed claims behind each one:
+ * the markdown body alone can describe an artifact without stating its result.
+ */
+export function formatContext(sources: Source[]): string {
   if (sources.length === 0) return "(no sources retrieved)"
   return sources
     .map((source) => {
       const label = source.project_slug || source.company_slug || source.skill_slug
       const location = label ? ` — ${label}` : ""
-      return `[${source.index}] (${source.source_type}${location})\n${source.excerpt}`
+      const claims = source.citations
+        .slice(0, 3)
+        .filter((citation) => citation.confidence === "confirmed")
+        .map((citation) => citation.claim)
+      const evidence = claims.length > 0 ? `\nVerified claims: ${claims.join(" | ")}` : ""
+      return (
+        `[${source.index}] (${source.source_type}${location})\n` +
+        `${source.excerpt}${evidence}`
+      )
     })
     .join("\n\n")
 }
@@ -96,13 +120,16 @@ export function buildMessages(
   options?: { personName?: string; history?: ChatTurn[] },
 ): ModelMessage[] {
   const name = options?.personName ?? "the candidate"
+  const intent = classifyQuestion(question)
   const messages: ModelMessage[] = [
     {
       role: "system",
-      content: SYSTEM_PROMPT.replaceAll("{name}", name).replace(
-        "{context}",
-        formatContext(sources),
-      ),
+      // Sources are substituted last so excerpt text can never be rescanned
+      // for the prompt's own placeholder tokens.
+      content: SYSTEM_PROMPT.replaceAll("{name}", name)
+        .replaceAll("{intent_guidance}", intent.guidance)
+        .replaceAll("{intent}", intent.name)
+        .replaceAll("{context}", formatContext(sources)),
     },
   ]
   for (const turn of options?.history ?? []) {
