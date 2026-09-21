@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState } from "react"
 import { SendHorizonal } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { AiApiError, streamChat, type ChatTurn } from "@/lib/ai-client"
+import {
+  AiApiError,
+  streamChat,
+  stripCitationMarkers,
+  type ChatTurn,
+} from "@/lib/ai-client"
 import { askAi } from "@/lib/portfolio-data"
 import { MatrixOrb } from "@/components/portfolio/matrix-orb"
 
@@ -98,7 +103,7 @@ export function AskAiChat() {
           setTurns((previous) =>
             replaceTurn(previous, assistantTurn.id, (turn) => ({
               ...turn,
-              content: turn.content + event.text,
+              content: stripCitationMarkers(turn.content + event.text),
             }))
           )
         } else if (event.type === "error") {

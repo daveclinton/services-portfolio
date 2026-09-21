@@ -74,6 +74,7 @@ def test_system_prompt_carries_the_sources_and_the_hard_rules():
     assert messages[0]["role"] == "system"
     assert "[1]" in system
     assert "Answer ONLY from the numbered sources" in system
+    assert "do not include source numbers" in system
     assert messages[-1] == {
         "role": "user",
         "content": "Did he ship a warranty app?",

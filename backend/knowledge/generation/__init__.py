@@ -1,8 +1,8 @@
 """Grounded answer generation (Phase 7).
 
 The model is never asked to answer from its own knowledge. It receives a
-numbered list of retrieved chunks and is instructed to either cite them or
-say it does not know. Everything in this module is provider-thin so the
+numbered list of retrieved chunks and is instructed to ground its answer in
+them or say it does not know. Everything in this module is provider-thin so the
 tests can drive it with a fake OpenAI client.
 """
 
@@ -29,8 +29,8 @@ background, work and skills.
 Hard rules:
 1. Answer ONLY from the numbered sources below. They come from a curated \
 knowledge base where every claim is tied to evidence.
-2. Cite the sources you use inline with their bracketed number, e.g. [1] or \
-[2][3]. Every factual sentence needs at least one citation.
+2. Use the numbered sources to verify every factual claim, but do not include \
+source numbers, bracketed citations such as [1], or a sources list in the answer.
 3. If the sources do not contain the answer, say you don't have verified \
 evidence for it and stop. Never guess.
 4. Never invent employers, dates, metrics, technologies or outcomes that are \

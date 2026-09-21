@@ -21,6 +21,11 @@ export type ChatEvent =
 
 export class AiApiError extends Error {}
 
+/** Keep internal source references out of the conversational answer text. */
+export function stripCitationMarkers(text: string): string {
+  return text.replace(/\s*(?:\[\d+\])+/g, "")
+}
+
 /**
  * Parse one `event:` / `data:` block from a text/event-stream body.
  *
