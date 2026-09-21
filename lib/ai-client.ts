@@ -3,16 +3,10 @@
  *
  * The OpenAI key and `DATABASE_URL` live server-side only (plain env vars,
  * never `NEXT_PUBLIC_*`), so the browser only ever talks to our own
- * same-origin routes. `NEXT_PUBLIC_API_BASE_URL` is an optional override for
- * setups that still proxy to an external API host; unset it to use
- * same-origin, which is the default.
+ * same-origin routes.
  */
 
 import { INTENT_NAMES, type IntentName } from "./knowledge/intent"
-
-export const aiApiBaseUrl = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? ""
-).replace(/\/+$/, "")
 
 export type ChatTurn = { role: "user" | "assistant"; content: string }
 
@@ -102,7 +96,7 @@ async function readError(response: Response): Promise<string> {
 }
 
 /**
- * Stream an answer as `delta` events, then `done` — or `error` if the backend
+ * Stream an answer as `delta` events, then `done` — or `error` if the server
  * has no API key configured.
  */
 export async function* streamChat({
@@ -114,7 +108,7 @@ export async function* streamChat({
 }): AsyncGenerator<ChatEvent> {
   let response: Response
   try {
-    response = await fetch(`${aiApiBaseUrl}/api/chat`, {
+    response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages }),

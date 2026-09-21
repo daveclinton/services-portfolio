@@ -1,10 +1,8 @@
 /**
  * `POST /api/chat` — retrieval + grounded answer, streamed as SSE.
  *
- * Next.js port of Django's `chat_view` (`backend/api/ai/views.py`). The event
- * frames (`retrieval`, `citations`, `delta`, `done`, `error`) are byte-for-byte
- * compatible with the existing `lib/ai-client.ts` parser, so the chat UI is
- * untouched. Generation streams through the Vercel AI SDK (`streamText`).
+ * Emits `retrieval`, `citations`, `delta`, `done`, and `error` frames for
+ * `lib/ai-client.ts`. Generation streams through the Vercel AI SDK (`streamText`).
  */
 
 import { streamText } from "ai"
@@ -46,7 +44,7 @@ function badRequest(detail: string, errors?: unknown): Response {
   return Response.json({ detail, errors }, { status: 400 })
 }
 
-/** Shape validation mirroring `ChatRequestSerializer`. */
+/** Validate the chat request before retrieval or generation. */
 function parseRequest(body: unknown): ChatRequest | Response {
   if (typeof body !== "object" || body === null) {
     return badRequest("request body must be a JSON object")

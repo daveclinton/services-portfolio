@@ -1,9 +1,9 @@
 /**
- * Grounded answer generation (Phase 7 port).
+ * Grounded answer generation for the Next.js chat route.
  *
  * The model is never asked to answer from its own knowledge: it receives a
  * numbered list of retrieved chunks and must cite them or say it does not
- * know. Mirrors `backend/knowledge/generation/__init__.py`.
+ * know.
  */
 
 import { sql } from "./db"

@@ -81,121 +81,96 @@ browser  ◀── event: retrieval ─  (intent, strategies, notes)
          ◀── event: done ──────
 ```
 
-`app/api/chat/route.ts` and `app/api/search/route.ts` are ports of Django's
-`/api/ai/chat/` and `/api/ai/search/`: same request validation, same JSON
-shapes, same event frames, and the same tables. Both read the knowledge base
-through `lib/knowledge/`, so the Django API on Fly.io stays a working
-alternative and the two cannot drift apart without a visible diff.
+The Next.js app owns all client-facing HTTP behavior:
+
+| Route | Purpose |
+| --- | --- |
+| `POST /api/chat` | Retrieve evidence and stream a grounded answer. |
+| `POST /api/search` | Return ranked knowledge chunks and their evidence. |
+
+Both routes query Postgres directly through `lib/knowledge/`. The browser uses
+same-origin `/api/*` URLs; it needs no backend hostname or public API URL setting.
 
 Before answering, the server classifies the question (biography, rates,
-projects, outcomes, …) in `lib/knowledge/intent.ts`, the port of
-`backend/knowledge/retrieval/intent.py`. That intent adds the files a broad
-question must see, orders the retrieved chunks toward the kind of evidence the
+projects, outcomes, …) in `lib/knowledge/intent.ts`. That intent adds the files a
+broad question must see, orders the retrieved chunks toward the evidence the
 question asks for, and tells the model what shape of answer to write. The
-`retrieval` frame carries the intent so the page can name what it is looking
-up while the answer streams. The page is still composer-only: no starter chips,
-no source chips — a visitor asks a question and reads the answer.
+`retrieval` frame carries the intent so the page can name what it is looking up
+while the answer streams.
 
-The routes talk to the same database as the Django API, so set `DATABASE_URL`
-in `.env.local` (locally) or in the Vercel project (Production *and* Preview):
+The Python code in `backend/` is an offline workspace for the knowledge and
+model pipeline: ingestion, embedding generation, audits, retrieval evaluation,
+and database migrations. It has no API, admin, or HTTP deployment.
+`python manage.py runserver` is disabled. See [the pipeline guide](backend/README.md).
+
+## Setup and deployment
+
+Only the Next.js app needs to be deployed, on Vercel or another Node.js host.
+The offline pipeline prepares the same Postgres database that the routes read.
+
+### 1. Prepare the database
+
+Use Postgres with the `vector` and `pg_trgm` extensions available. The Next.js
+routes use Neon's HTTP driver, so the deployed database must support that driver.
+Copy a direct connection string into `backend/.env` as `DATABASE_URL`.
 
 ```bash
-# .env.local
-DATABASE_URL=postgresql://...   # the Neon URL the knowledge base was ingested into
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # set DATABASE_URL, KNOWLEDGE_BASE_PATH, OPENAI_API_KEY
+
+python manage.py migrate
+python manage.py ingest_knowledge --strict
+python manage.py embed_knowledge
+python manage.py audit_knowledge
+```
+
+Migrations create the required extensions and tables. The extension migration
+lives in `backend/database/migrations/` and retains its historical `api` app
+label so existing migration records remain valid. No existing data or tables
+need to be removed.
+
+The Markdown knowledge base is a separate repository. Run these commands
+locally or in a job with access to that checkout and the database; no Python web
+service is needed. Existing workflows generate embeddings and evaluate
+retrieval; there is currently no separate model-training command.
+
+### 2. Configure and deploy Next.js
+
+Copy `.env.example` to `.env.local` for local development. For Vercel, import
+the repository with the root directory unchanged and set these server-only
+variables for Production and Preview:
+
+```dotenv
+DATABASE_URL=postgresql://...   # the database prepared by the Python pipeline
 OPENAI_API_KEY=sk-...
 ```
 
-`OPENAI_API_KEY` is needed for the grounded answer itself. Without it the UI
-still works — the route streams an `error` event explaining what is missing —
-and `POST /api/search` keeps answering with retrieval only. Setting
-`NEXT_PUBLIC_API_BASE_URL` points the chat back at the Django API instead of
-the same-origin routes; it is unset by default.
+`OPENAI_API_KEY` is needed for grounded answers and semantic query embeddings.
+Without it, search can fall back to structured retrieval and chat reports the
+missing key when an answer would require generation.
 
-## Deploying
+`.vercelignore` excludes `backend/`; Python runs separately as command-line jobs.
+Remove any old `NEXT_PUBLIC_API_BASE_URL` deployment variable; it is no longer
+read. The former Fly.io/Python API deployment is no longer used by this app and
+can be retired separately.
 
-Two pieces, two hosts: the Django API on **Fly.io**, the Next.js site on
-**Vercel**. The browser calls the API directly, so the API must be reachable
-over https and must allow the site's origin (CORS).
-
-Order matters — database first, then API, then frontend.
-
-### 1. Database
-
-Create a Postgres that can run `CREATE EXTENSION vector` (Neon does; the first
-migration, `backend/api/migrations/0001_enable_pgvector.py`, needs it). Copy the
-**direct** (5432) connection string — not the pooled one — so migrations run.
-
-### 2. Backend on Fly.io
+### 3. Smoke test
 
 ```bash
-cd backend
-fly launch            # picks up fly.toml + Dockerfile, writes the app name
-
-fly secrets set \
-  SECRET_KEY="$(.venv/bin/python -c 'from django.core.management.utils import get_random_secret_key as k; print(k())')" \
-  DEBUG=False \
-  ALLOWED_HOSTS=<app>.fly.dev \
-  CORS_ALLOWED_ORIGINS=https://<your-site>.vercel.app \
-  DATABASE_URL='postgresql://...' \
-  OPENAI_API_KEY=sk-...
-
-fly deploy            # release_command runs `manage.py migrate`
-fly open /api/health/ # expect {"status":"ok"}
-```
-
-| Secret | Why |
-| :--- | :--- |
-| `SECRET_KEY` | Required whenever `DEBUG=False`; the app refuses to boot without it. |
-| `DEBUG` | Keep `False`. `fly.toml` already sets it. |
-| `ALLOWED_HOSTS` | Comma-separated. Django answers 400 for any host not listed. |
-| `CORS_ALLOWED_ORIGINS` | The frontend origins allowed to call the API, scheme + host, no trailing slash. |
-| `DATABASE_URL` | Direct Neon URL. `POSTGRES_*` also works if you prefer. |
-| `OPENAI_API_KEY` | Without it the API still answers, streaming an `error` explaining what is missing. |
-| `CSRF_TRUSTED_ORIGINS` | Optional; defaults to `CORS_ALLOWED_ORIGINS`. |
-
-The Markdown knowledge base is its own repository and is **not** copied into the
-image, so the deployed database starts empty. Fill it from your machine:
-
-```bash
-cd backend
-DATABASE_URL='postgresql://<direct-prod-url>' .venv/bin/python manage.py ingest_knowledge --strict
-DATABASE_URL='postgresql://<direct-prod-url>' .venv/bin/python manage.py embed_knowledge
-```
-
-`ingest_knowledge --strict` is the pre-deploy gate (a broken knowledge-base
-relationship fails it); `embed_knowledge` is what makes semantic retrieval
-work.
-
-### 3. Frontend on Vercel
-
-Import the repo, keep the root directory, and set one variable for Production
-*and* Preview **before** the first build:
-
-```bash
-NEXT_PUBLIC_API_BASE_URL=https://<app>.fly.dev
-```
-
-`NEXT_PUBLIC_*` is inlined at build time, so changing it needs a redeploy, not
-just a restart. `.vercelignore` keeps `backend/` out of the upload.
-
-### 4. Smoke test
-
-```bash
-curl -sS -N -D - -X POST https://<app>.fly.dev/api/ai/chat/ \
+curl -sS https://<your-site>/api/search \
   -H 'Content-Type: application/json' \
-  -H 'Origin: https://<your-site>.vercel.app' \
+  -d '{"query":"mobile apps","mode":"structured","limit":5}'
+
+curl -sS -N https://<your-site>/api/chat \
+  -H 'Content-Type: application/json' \
   -d '{"messages":[{"role":"user","content":"What does he work on at Mika?"}]}'
 ```
 
-Expect `access-control-allow-origin: https://<your-site>.vercel.app` in the
-headers and `event: delta` frames arriving progressively. Then open `/ask-ai` on
-the deployed site and ask a question.
-
-Notes: `fly.toml` keeps one machine warm (`min_machines_running = 1`,
-auto-stop off) because a grounded answer holds a request open for the length of
-the model stream. TLS and the http→https redirect happen at Fly's proxy, so
-Django sets `SECURE_PROXY_SSL_HEADER` and leaves `SECURE_SSL_REDIRECT` alone
-(setting it can send the health check into a redirect loop).
+Expect a JSON search response and streamed `retrieval`, `citations`, `delta`,
+and `done` events for chat. Then open `/ask-ai` and ask a question.
 
 ## Accessibility notes
 

@@ -12,8 +12,7 @@ on:
     - cron: "0 6 * * 1"
   push:
     paths:
-      - "backend/knowledge/**"
-      - "backend/config/**"
+      - "backend/**"
       - ".github/workflows/knowledge-pipeline.yml"
 
 jobs:
@@ -37,9 +36,6 @@ jobs:
           --health-retries 20
 
     env:
-      SECRET_KEY: ci-only-not-a-secret
-      DEBUG: "True"
-      ALLOWED_HOSTS: localhost,127.0.0.1
       POSTGRES_DB: portfolio
       POSTGRES_USER: portfolio_owner
       POSTGRES_PASSWORD: portfolio_password

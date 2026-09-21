@@ -1,10 +1,8 @@
 /**
  * Retrieval over `KnowledgeChunk`: lexical, vector, or hybrid with RRF fusion.
  *
- * Port of `backend/knowledge/retrieval/` (service, structured, semantic,
- * fusion, filters, citations). JSON shapes intentionally match
- * `SearchOutcome.as_dict()` / `SearchResult.as_dict()` so clients cannot tell
- * the Django API and the Next.js routes apart.
+ * Serves the Next.js API routes directly. The Python counterpart in
+ * `backend/knowledge/retrieval/` supports offline retrieval evaluation.
  */
 
 import { sql } from "./db"

@@ -1,8 +1,7 @@
 /**
  * `POST /api/search` — retrieval only, no LLM.
  *
- * Next.js port of Django's `search_view` (`backend/api/ai/views.py`).
- * Response shape matches `SearchOutcome.as_dict()`.
+ * Returns ranked knowledge chunks and their supporting evidence.
  */
 
 import {
