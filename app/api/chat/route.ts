@@ -152,9 +152,12 @@ export async function POST(request: Request): Promise<Response> {
           personName: await personName(),
           history,
         })
+        // AI SDK v7 takes the system prompt via `instructions`, not `messages`.
+        const [systemMessage, ...conversation] = prompt
         const result = streamText({
           model: openai(model ?? DEFAULT_MODEL),
-          messages: prompt,
+          instructions: systemMessage.content,
+          messages: conversation,
           temperature: 0.2,
         })
         for await (const text of result.textStream) {
