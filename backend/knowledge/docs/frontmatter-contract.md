@@ -46,9 +46,12 @@ a warning and skipped.
    after the file (`overview.md` → `overview`, `architecture.md` →
    `architecture`, and so on). It is stored verbatim, so write Markdown lists
    as Markdown lists.
-7. **Bodies become knowledge chunks.** Every file with a non-empty body gets one
-   `KnowledgeChunk` row (`content` = body, `embedding` = `NULL` in this phase).
-   Frontmatter-only files are fine and produce no chunk.
+7. **Prose and frontmatter become knowledge chunks.** Each recognized document
+   gets one `KnowledgeChunk` containing its body plus searchable recorded facts
+   (including names, dates, technologies, and confidence-labelled claims).
+   Frontmatter-only inventories are indexed too. Source paths and the original
+   frontmatter remain in metadata. Changed searchable text clears its embedding;
+   run `embed_knowledge` after ingestion to refresh those vectors.
 8. **Dates are ISO `YYYY-MM-DD`.** Omit `end_date` (or write `null`) for a
    current role.
 9. **Every row keeps the file path it came from**, so the database can always

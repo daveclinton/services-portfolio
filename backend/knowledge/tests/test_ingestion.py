@@ -10,6 +10,7 @@ import pytest
 
 from knowledge.ingestion import KnowledgeIngestionError, resolve_kb_path, run_ingestion
 from knowledge.ingestion import upserters
+from knowledge.ingestion.parsers import discover_documents
 from knowledge.models import (
     Company,
     Employment,
@@ -27,15 +28,6 @@ pytestmark = pytest.mark.django_db
 # --------------------------------------------------------------------------- #
 # helpers
 # --------------------------------------------------------------------------- #
-
-
-def _documents_with_body(kb_path: Path) -> list[Path]:
-    """Files whose Markdown body is non-empty (independent of the parsers)."""
-    return [
-        path
-        for path in sorted(kb_path.glob("knowledge/**/*.md"))
-        if (frontmatter.load(str(path)).content or "").strip()
-    ]
 
 
 def _write(path: Path, text: str) -> None:
@@ -154,8 +146,8 @@ def test_happy_path_ingests_the_fixture_knowledgebase(kb_copy: Path):
     assert standalone.verified_at.date() == dt.date(2024, 7, 1)
     assert Evidence.objects.count() == 5
 
-    # One KnowledgeChunk per file with a body; embeddings are a later phase.
-    expected_chunks = len(_documents_with_body(kb_copy))
+    # Frontmatter-only inventories must be searchable as well as prose files.
+    expected_chunks = len(discover_documents(kb_copy))
     assert KnowledgeChunk.objects.count() == expected_chunks
     assert not KnowledgeChunk.objects.exclude(embedding=None).exists()
     profile_chunk = KnowledgeChunk.objects.get(source_path="knowledge/person/profile.md")
@@ -183,6 +175,41 @@ def test_happy_path_ingests_the_fixture_knowledgebase(kb_copy: Path):
     strict_report = run_ingestion(kb_copy, strict=True)
     assert strict_report.created() == 0
     assert strict_report.updated() == 0
+
+
+def test_frontmatter_only_technologies_and_claim_confidence_are_indexed(kb_copy):
+    run_ingestion(kb_copy)
+    technologies = KnowledgeChunk.objects.get(
+        source_path="knowledge/experience/analytical-engines/technologies.md"
+    )
+    assert all(name in technologies.content for name in ("Python", "Django", "PostgreSQL"))
+    evidence = KnowledgeChunk.objects.get(
+        source_path="knowledge/projects/difference-engine/evidence.md"
+    )
+    assert '"confidence": "probable"' in evidence.content
+    assert "Duplicate invoices" in evidence.content
+
+
+def test_changed_facts_invalidate_embeddings_but_unchanged_ingestion_does_not(kb_copy):
+    run_ingestion(kb_copy)
+    path = "knowledge/experience/analytical-engines/technologies.md"
+    chunk = KnowledgeChunk.objects.get(source_path=path)
+    chunk.embedding = [0.1] * 1536
+    chunk.save()
+    run_ingestion(kb_copy)
+    chunk.refresh_from_db()
+    assert chunk.embedding is not None
+
+    document = frontmatter.load(str(kb_copy / path))
+    document["technologies"].append({"slug": "typescript", "name": "TypeScript"})
+    _write(kb_copy / path, frontmatter.dumps(document))
+    run_ingestion(kb_copy, dry_run=True)
+    chunk.refresh_from_db()
+    assert chunk.embedding is not None
+    run_ingestion(kb_copy)
+    chunk.refresh_from_db()
+    assert "TypeScript" in chunk.content
+    assert chunk.embedding is None
 
 
 # --------------------------------------------------------------------------- #

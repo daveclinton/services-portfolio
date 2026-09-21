@@ -25,6 +25,7 @@ from knowledge.models import (
 )
 
 from .errors import KnowledgeIngestionError, Problem
+from .chunks import chunk_content
 from .report import Recorder
 
 MODELS_BY_NAME = {
@@ -761,15 +762,15 @@ def _same_employment(candidate: Employment | None, employment: Employment) -> bo
 
 
 # --------------------------------------------------------------------------- #
-# knowledge chunks (text only: embeddings are a later phase)
+# knowledge chunks (body plus indexed frontmatter facts; content changes clear embeddings)
 # --------------------------------------------------------------------------- #
 
 
 def upsert_knowledge_chunk(
     ctx: IngestionContext, document: dict[str, Any]
 ) -> KnowledgeChunk | None:
-    """One row per Markdown file; ``embedding`` stays NULL in this phase."""
-    content = document["body"].strip()
+    """One searchable row per document, including frontmatter-only facts."""
+    content = chunk_content(document)
     if not content:
         return None
 
@@ -801,6 +802,10 @@ def upsert_knowledge_chunk(
 
     changed = _differs(existing, defaults)
     if changed and not ctx.dry_run:
+        if existing.content != content:
+            # embed_knowledge processes NULL embeddings, so changed documents
+            # must re-enter that queue instead of keeping a stale vector.
+            existing.embedding = None
         _apply(existing, defaults)
         existing.save()
     ctx.recorder.record("KnowledgeChunk", key, "updated" if changed else "skipped")
