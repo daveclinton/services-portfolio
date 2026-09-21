@@ -29,7 +29,7 @@ export const profile = {
   initials: "I",
   avatarSrc: "/david.jpg",
   contactHref: "#links",
-  contactLabel: "Contact",
+  contactLabel: "Contact Me",
 } as const
 
 export type Stat = {

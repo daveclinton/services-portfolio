@@ -5,10 +5,7 @@ import "./globals.css";
 import { site } from "@/lib/portfolio-data";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import {
-  PortfolioFooter,
-  PortfolioHeader,
-} from "@/components/portfolio";
+import { PortfolioHeader } from "@/components/portfolio";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -51,29 +48,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={cn("h-full antialiased font-sans", inter.variable)}
+      data-scroll-behavior="smooth"
+      className={cn("min-h-full scroll-smooth antialiased font-sans", inter.variable)}
     >
-      <body className="flex h-dvh flex-col bg-background text-foreground">
+      <body className="mt-[10px] mb-[20px] grid min-h-[calc(100dvh-30px)] grid-rows-[auto_1fr] bg-background text-foreground">
         <TooltipProvider>
-          {/* The header and footer are pinned to the viewport; only the
-              middle column between them scrolls. */}
-          <div className="shrink-0 bg-background">
-            <div className="mx-auto w-full max-w-[680px] px-4 pt-[max(2.5rem,env(safe-area-inset-top))] pb-4 sm:px-6 sm:pt-14 sm:pb-5">
+          <div className="sticky top-0 z-20 bg-background">
+            <div className="mx-auto w-full max-w-[680px] px-4 pt-[max(0.75rem,env(safe-area-inset-top))] pb-3 sm:px-6 sm:pt-4 sm:pb-3">
               <PortfolioHeader />
             </div>
           </div>
 
-          <main className="flex min-h-0 flex-1 scroll-smooth flex-col overflow-y-auto">
-            <div className="mx-auto flex w-full max-w-[680px] flex-1 flex-col px-4 pb-12 sm:px-6 sm:pb-16">
-              {children}
-            </div>
+          <main className="mx-auto flex min-h-0 w-full max-w-[680px] flex-col px-4 sm:px-6">
+            {children}
           </main>
-
-          <div className="flex h-[calc(2rem+env(safe-area-inset-bottom))] shrink-0 items-center overflow-hidden border-t border-border bg-background pb-[env(safe-area-inset-bottom)]">
-            <div className="mx-auto flex w-full max-w-[680px] items-center px-4 sm:px-6">
-              <PortfolioFooter />
-            </div>
-          </div>
         </TooltipProvider>
       </body>
     </html>

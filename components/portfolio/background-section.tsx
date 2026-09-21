@@ -4,8 +4,8 @@ import { backgroundItems } from "@/lib/portfolio-data"
 
 export function BackgroundSection() {
   return (
-    <section aria-labelledby="background" className="mt-12 sm:mt-14">
-      <SectionLabel id="background">Background</SectionLabel>
+    <section aria-labelledby="background" className="mt-10">
+      <SectionLabel id="background">WORK EXPERIENCE</SectionLabel>
       <Timeline items={backgroundItems} />
     </section>
   )

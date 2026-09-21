@@ -40,31 +40,42 @@ export function PortfolioHeader() {
           {profile.role}
         </p>
         {isHome ? (
-          <Link
-            href={askAi.href}
-            aria-label={askAi.description}
-            className="mt-1.5 inline-flex w-fit items-center gap-1.5 text-caption font-medium text-muted-foreground transition-colors hover:text-foreground"
+          <a
+            href={profile.contactHref}
+            className="mt-1.5 inline-flex w-fit text-caption font-medium text-muted-foreground transition-colors hover:text-foreground"
           >
-            <Sparkles
-              className="size-3.5 shrink-0 text-accent-green"
-              aria-hidden="true"
-            />
-            {askAi.label}
-          </Link>
+            {profile.contactLabel}
+          </a>
         ) : null}
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        {isHome ? null : <BackHomeButton />}
-        <a
-          href={isHome ? profile.contactHref : `/${profile.contactHref}`}
-          className={cn(
-            buttonVariants({ variant: "default" }),
-            "h-10 shrink-0 rounded-lg px-4 sm:h-11"
-          )}
-        >
-          {profile.contactLabel}
-        </a>
+        {isHome ? (
+          <Link
+            href={askAi.href}
+            aria-label={askAi.description}
+            title={askAi.label}
+            className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-1 text-xs font-medium text-foreground outline-none transition-transform active:translate-y-px focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <span className="ai-glow-button relative inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-white text-neutral-900">
+              <Sparkles className="size-4" aria-hidden="true" />
+            </span>
+            <span>Ask AI</span>
+          </Link>
+        ) : (
+          <>
+            <BackHomeButton />
+            <a
+              href={`/${profile.contactHref}`}
+              className={cn(
+                buttonVariants({ variant: "default" }),
+                "h-10 shrink-0 rounded-lg px-4 sm:h-11"
+              )}
+            >
+              {profile.contactLabel}
+            </a>
+          </>
+        )}
       </div>
     </header>
   )

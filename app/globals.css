@@ -134,17 +134,55 @@
   ::selection {
     background-color: color-mix(in oklab, var(--accent-green) 22%, transparent);
   }
-  /*
-   * Brand scrollbar: quiet by default (muted gray), brand green on hover.
-   * Native CSS only — no JS overlay library. `scrollbar-*` covers Firefox;
-   * `::-webkit-scrollbar*` covers Chromium/Safari. The track stays
-   * transparent so it blends with the page background in both themes.
-   * (Only `main` scrolls — header/footer are pinned — so both the root
-   * and `main` get the Firefox properties; the WebKit rules below apply
-   * to every scroller automatically.)
-   */
-  html,
-  main {
+
+  .ai-glow-button {
+    isolation: isolate;
+    overflow: visible;
+  }
+
+  .ai-glow-button::before,
+  .ai-glow-button::after {
+    position: absolute;
+    z-index: -1;
+    border-radius: inherit;
+    background: conic-gradient(
+      from 160deg,
+      transparent 20%,
+      rgb(49 134 255 / 73%) 34%,
+      #9378ff 39%,
+      #fc413d 48%,
+      #ff6b2b 50%,
+      #fec700 54%,
+      #88de42 59%,
+      #0ebc5f 65%,
+      #00a9bb 72%,
+      transparent 95%
+    );
+    content: "";
+    pointer-events: none;
+  }
+
+  .ai-glow-button::before {
+    inset: -2px;
+    animation: ai-glow-rotate 8s linear infinite;
+    opacity: 0.9;
+  }
+
+  .ai-glow-button::after {
+    inset: -5px;
+    animation: ai-glow-rotate 8s linear infinite;
+    filter: blur(7px);
+    opacity: 0.55;
+  }
+
+  @keyframes ai-glow-rotate {
+    to {
+      rotate: 1turn;
+    }
+  }
+
+  /* The document scrolls normally; the header remains sticky above it. */
+  html {
     scrollbar-width: thin;
     scrollbar-color: var(--muted-foreground) transparent;
   }
@@ -176,9 +214,12 @@
     background: transparent;
   }
   @media (prefers-reduced-motion: reduce) {
-    html,
-    main {
+    html {
       scroll-behavior: auto;
+    }
+    .ai-glow-button::before,
+    .ai-glow-button::after {
+      animation: none;
     }
   }
 }

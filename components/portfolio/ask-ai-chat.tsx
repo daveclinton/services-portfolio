@@ -5,6 +5,7 @@ import { SendHorizonal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { AiApiError, streamChat, type ChatTurn } from "@/lib/ai-client"
 import { askAi } from "@/lib/portfolio-data"
+import { MatrixOrb } from "@/components/portfolio/matrix-orb"
 
 type Turn = {
   id: string
@@ -181,6 +182,7 @@ export function AskAiChat() {
             still be reached. The safe-area padding keeps it clear of notches
             and home indicators inside in-app browsers. */}
         <div className="flex min-h-min flex-1 flex-col items-center justify-center-safe gap-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]">
+          <MatrixOrb state="idle" size={160} />
           <p className="text-balance break-words text-center text-name-sm text-foreground">
             {askAi.title}?
           </p>
@@ -212,9 +214,13 @@ export function AskAiChat() {
                     {turn.content}
                   </p>
                 ) : turn.status === "streaming" ? (
-                  <p className="text-body text-muted-foreground">
-                    Reading the knowledge base…
-                  </p>
+                  <MatrixOrb
+                    state="thinking"
+                    size={88}
+                    dots={9}
+                    labels={{ thinking: "Thinking…" }}
+                    className="gap-2 py-1"
+                  />
                 ) : null}
 
                 {turn.error ? (
@@ -229,7 +235,7 @@ export function AskAiChat() {
 
       <div
         ref={dockRef}
-        className="sticky bottom-0 z-10 -mx-4 mt-4 -mb-12 bg-background px-4 pt-3 pb-4 sm:-mx-6 sm:-mb-16 sm:px-6 sm:pb-5"
+        className="sticky bottom-0 z-10 -mx-4 mt-4 bg-background px-4 pt-3 pb-4 sm:-mx-6 sm:px-6 sm:pb-5"
       >
         {composer}
       </div>
