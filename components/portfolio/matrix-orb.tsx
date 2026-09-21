@@ -91,8 +91,9 @@ function useDevicePixelRatio() {
 }
 
 // canvas fillStyle can't resolve var(), so read the theme token into a plain color
-const THEME_VAR = '--accent-green'
-const THEME_FALLBACK = '#4f9a6a'
+// (the fallback is the light-mode --primary value, for pre-hydration paint only)
+const THEME_VAR = '--primary'
+const THEME_FALLBACK = '#171717'
 
 function subscribeToTheme(onChange: () => void) {
   const observer = new MutationObserver(onChange)

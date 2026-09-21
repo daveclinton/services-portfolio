@@ -39,7 +39,7 @@ export function PortfolioHeader() {
         </p>
         <a
           href={profile.contactHref}
-          className="mt-1.5 inline-flex w-fit text-caption font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className="mt-1.5 inline-flex w-fit text-caption font-medium text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
         >
           {profile.contactLabel}
         </a>
@@ -53,7 +53,7 @@ export function PortfolioHeader() {
             title={askAi.label}
             className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full px-1 text-xs font-medium text-foreground outline-none transition-transform active:translate-y-px focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            <span className="ai-glow-button relative inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-white text-neutral-900">
+            <span className="relative inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <Sparkles className="size-4" aria-hidden="true" />
             </span>
             <span>Ask AI</span>

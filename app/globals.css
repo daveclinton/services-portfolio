@@ -135,49 +135,6 @@
     background-color: color-mix(in oklab, var(--accent-green) 22%, transparent);
   }
 
-  .ai-glow-button {
-    isolation: isolate;
-    overflow: visible;
-  }
-
-  .ai-glow-button::before,
-  .ai-glow-button::after {
-    position: absolute;
-    z-index: -1;
-    border-radius: inherit;
-    background: conic-gradient(
-      from 160deg,
-      transparent 20%,
-      rgb(79 154 106 / 72%) 34%,
-      #4f9a6a 42%,
-      #32b89a 52%,
-      #76c893 62%,
-      #32b89a 70%,
-      transparent 95%
-    );
-    content: "";
-    pointer-events: none;
-  }
-
-  .ai-glow-button::before {
-    inset: -2px;
-    animation: ai-glow-rotate 8s linear infinite;
-    opacity: 0.9;
-  }
-
-  .ai-glow-button::after {
-    inset: -5px;
-    animation: ai-glow-rotate 8s linear infinite;
-    filter: blur(7px);
-    opacity: 0.55;
-  }
-
-  @keyframes ai-glow-rotate {
-    to {
-      rotate: 1turn;
-    }
-  }
-
   /* The document scrolls normally; the header remains sticky above it. */
   html {
     scrollbar-width: thin;
@@ -213,10 +170,6 @@
   @media (prefers-reduced-motion: reduce) {
     html {
       scroll-behavior: auto;
-    }
-    .ai-glow-button::before,
-    .ai-glow-button::after {
-      animation: none;
     }
   }
 }
