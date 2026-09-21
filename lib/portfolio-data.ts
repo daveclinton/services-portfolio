@@ -163,9 +163,9 @@ export type SocialLink = {
 }
 
 export const socialLinks: SocialLink[] = [
-  { label: "X", href: "https://x.com/daveclintonn", icon: "x" },
-  { label: "Linkedin", href: "https://www.linkedin.com/in/clintondavid46/", icon: "linkedin" },
   { label: "GitHub", href: "https://github.com/daveclinton", icon: "github" },
+  { label: "LinkedIn", href: "https://www.linkedin.com/in/clintondavid46/", icon: "linkedin" },
+  { label: "Twitter / X", href: "https://x.com/daveclintonn", icon: "x" },
 ]
 
 export const email = {

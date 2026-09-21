@@ -11,7 +11,7 @@ export function ContactSection() {
     >
       <SectionLabel id="links-heading">Links / Contact</SectionLabel>
 
-      <div className="mt-5">
+      <div className="mt-5 flex items-center gap-3 sm:gap-4">
         <SocialLinks />
         <EmailLink />
       </div>

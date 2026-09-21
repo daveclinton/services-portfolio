@@ -4,18 +4,18 @@ import { socialLinks } from "@/lib/portfolio-data"
 export function SocialLinks() {
   return (
     <nav aria-label="Social links">
-      <ul className="grid grid-cols-1 divide-y divide-border overflow-hidden rounded-lg border border-border bg-card sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+      <ul className="flex items-center gap-3 sm:gap-4">
         {socialLinks.map((link) => (
           <li key={link.label} className="flex">
             <a
               href={link.href}
               target="_blank"
               rel="noreferrer noopener"
-              className="flex h-12 flex-1 items-center justify-center gap-2 text-body text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/40"
+              title={link.label}
+              className="flex size-12 shrink-0 items-center justify-center rounded-md transition-opacity outline-none hover:opacity-75 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
-              <BrandIcon name={link.icon} className="size-[18px]" />
-              {link.label}
-              <span className="sr-only"> (opens in a new tab)</span>
+              <BrandIcon name={link.icon} className="size-8" />
+              <span className="sr-only">{link.label} (opens in a new tab)</span>
             </a>
           </li>
         ))}
