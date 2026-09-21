@@ -36,6 +36,7 @@ export function AskAiChat() {
   const [draft, setDraft] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+  const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
   const hasConversation = turns.length > 0
 
@@ -146,31 +147,47 @@ export function AskAiChat() {
     }
   }
 
+  const submitDraft = () => void ask(draft)
+
   const composer = (
     <form
-      className="flex items-center gap-2 rounded-full border border-border bg-card p-1.5 pl-4 focus-within:border-ring"
+      className="group/composer flex w-full min-w-0 items-end gap-1.5 rounded-[1.35rem] border border-input bg-card p-1.5 pl-3 shadow-sm transition-[border-color,box-shadow,background-color] hover:border-foreground/25 focus-within:border-ring focus-within:bg-background focus-within:ring-3 focus-within:ring-ring/20 sm:gap-2 sm:rounded-[1.5rem] sm:pl-4"
       onSubmit={(event) => {
         event.preventDefault()
-        void ask(draft)
+        submitDraft()
       }}
     >
       <label htmlFor="ask-ai-input" className="sr-only">
         {askAi.inputLabel}
       </label>
-      <input
+      <textarea
+        ref={inputRef}
         id="ask-ai-input"
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
+            return
+          }
+          event.preventDefault()
+          submitDraft()
+        }}
         placeholder={askAi.placeholder}
         autoComplete="off"
-        className="min-w-0 flex-1 bg-transparent text-body text-foreground outline-none placeholder:text-muted-foreground"
+        enterKeyHint="send"
+        rows={1}
+        aria-describedby="ask-ai-input-hint"
+        className="min-h-9 max-h-28 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-base leading-6 text-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:max-h-32 sm:text-body sm:leading-[1.375rem]"
       />
+      <span id="ask-ai-input-hint" className="sr-only">
+        Press Enter to send. Press Shift and Enter for a new line.
+      </span>
       <Button
         type="submit"
         size="icon"
         aria-label="Send question"
         disabled={!draft.trim() || isStreaming}
-        className="size-9 shrink-0 rounded-full"
+        className="size-9 shrink-0 rounded-full transition-[transform,background-color,opacity] active:scale-95 active:translate-y-0 disabled:scale-100 sm:size-10"
       >
         <SendHorizonal className="size-4" aria-hidden="true" />
       </Button>
@@ -180,18 +197,20 @@ export function AskAiChat() {
   /* Empty state: prompt + composer centered in the available space. */
   if (!hasConversation) {
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <h2 className="sr-only">{askAi.label}</h2>
         {/* `justify-center-safe` falls back to `flex-start` when the content is
             taller than the viewport (software keyboards), so the composer can
             still be reached. The safe-area padding keeps it clear of notches
             and home indicators inside in-app browsers. */}
-        <div className="flex min-h-min flex-1 flex-col items-center justify-center-safe gap-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]">
-          <MatrixOrb state="idle" size={160} />
-          <p className="text-balance break-words text-center text-name-sm text-foreground">
+        <div className="flex min-h-min flex-1 flex-col items-center justify-center-safe gap-3 py-[clamp(1.25rem,7dvh,3.5rem)] sm:gap-4">
+          <div className="w-[clamp(7rem,34vw,10rem)]">
+            <MatrixOrb state="idle" size={160} />
+          </div>
+          <p className="max-w-[24rem] text-balance break-words text-center text-xl leading-7 font-medium text-foreground sm:text-name-sm sm:leading-8">
             {askAi.title}?
           </p>
-          <div className="w-full">{composer}</div>
+          <div className="w-full max-w-[38rem]">{composer}</div>
         </div>
       </div>
     )
@@ -200,22 +219,26 @@ export function AskAiChat() {
   /* Conversation state: messages scroll in `main` while the docked
      composer stays pinned to the bottom. */
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <h2 className="sr-only">{askAi.label}</h2>
 
-      <div aria-live="polite" className="flex flex-1 flex-col gap-3 pt-6">
+      <div
+        aria-live="polite"
+        aria-relevant="additions text"
+        className="flex min-w-0 flex-1 flex-col gap-2.5 pt-4 sm:gap-3 sm:pt-6"
+      >
         {turns.map((turn) =>
           turn.role === "user" ? (
-            <div key={turn.id} className="flex justify-end">
-              <p className="max-w-[80%] rounded-2xl rounded-br-md bg-primary px-3.5 py-2.5 text-body whitespace-pre-wrap text-primary-foreground">
+            <div key={turn.id} className="flex min-w-0 justify-end pl-8 sm:pl-16">
+              <p className="min-w-0 max-w-full overflow-hidden rounded-2xl rounded-br-md bg-primary px-3.5 py-2.5 text-body break-words whitespace-pre-wrap [overflow-wrap:anywhere] text-primary-foreground sm:max-w-[85%]">
                 {turn.content}
               </p>
             </div>
           ) : (
-            <div key={turn.id} className="flex justify-start">
-              <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-muted/50 px-3.5 py-2.5">
+            <div key={turn.id} className="flex min-w-0 justify-start pr-5 sm:pr-12">
+              <div className="min-w-0 max-w-full overflow-hidden rounded-2xl rounded-bl-md border border-border bg-muted/50 px-3.5 py-2.5 sm:max-w-[90%]">
                 {turn.content ? (
-                  <p className="text-body whitespace-pre-wrap text-foreground/90">
+                  <p className="text-body break-words whitespace-pre-wrap [overflow-wrap:anywhere] text-foreground/90">
                     {turn.content}
                   </p>
                 ) : turn.status === "streaming" ? (
@@ -229,7 +252,7 @@ export function AskAiChat() {
                 ) : null}
 
                 {turn.error ? (
-                  <p className="mt-2 text-caption text-destructive">{turn.error}</p>
+                  <p className="mt-2 text-caption break-words [overflow-wrap:anywhere] text-destructive">{turn.error}</p>
                 ) : null}
 
               </div>
@@ -240,7 +263,7 @@ export function AskAiChat() {
 
       <div
         ref={dockRef}
-        className="sticky bottom-0 z-10 -mx-4 mt-4 bg-background px-4 pt-3 pb-4 sm:-mx-6 sm:px-6 sm:pb-5"
+        className="sticky bottom-0 z-10 -mx-4 mt-3 bg-gradient-to-t from-background via-background via-80% to-transparent px-4 pt-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:mt-4 sm:px-6 sm:pt-6 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
       >
         {composer}
       </div>

@@ -271,8 +271,8 @@ export const MatrixOrb = ({
       <canvas
         ref={canvasRef}
         aria-hidden
-        className="block"
-        style={{ width: size, height: size }}
+        className="block max-w-full"
+        style={{ width: size, height: 'auto', aspectRatio: '1 / 1' }}
       />
       {state !== 'idle' && (
         <span role="status" aria-live="polite" className="text-sm text-foreground/70">

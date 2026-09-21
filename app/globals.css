@@ -148,14 +148,11 @@
     background: conic-gradient(
       from 160deg,
       transparent 20%,
-      rgb(49 134 255 / 73%) 34%,
-      #9378ff 39%,
-      #fc413d 48%,
-      #ff6b2b 50%,
-      #fec700 54%,
-      #88de42 59%,
-      #0ebc5f 65%,
-      #00a9bb 72%,
+      rgb(79 154 106 / 72%) 34%,
+      #4f9a6a 42%,
+      #32b89a 52%,
+      #76c893 62%,
+      #32b89a 70%,
       transparent 95%
     );
     content: "";
