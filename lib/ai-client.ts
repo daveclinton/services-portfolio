@@ -1,13 +1,15 @@
 /**
- * Browser client for the Django AI API in `portfolio/backend/api/ai/`.
+ * Browser client for the Next.js AI routes in `app/api/`.
  *
- * The OpenAI key lives on the backend, so the browser only ever talks to
- * Django. Point `NEXT_PUBLIC_API_BASE_URL` at the deployed API in production;
- * in development it defaults to the local `runserver` port.
+ * The OpenAI key and `DATABASE_URL` live server-side only (plain env vars,
+ * never `NEXT_PUBLIC_*`), so the browser only ever talks to our own
+ * same-origin routes. `NEXT_PUBLIC_API_BASE_URL` is an optional override for
+ * setups that still proxy to an external API host; unset it to use
+ * same-origin, which is the default.
  */
 
 export const aiApiBaseUrl = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? ""
 ).replace(/\/+$/, "")
 
 export type ChatTurn = { role: "user" | "assistant"; content: string }
@@ -84,7 +86,7 @@ export async function* streamChat({
 }): AsyncGenerator<ChatEvent> {
   let response: Response
   try {
-    response = await fetch(`${aiApiBaseUrl}/api/ai/chat/`, {
+    response = await fetch(`${aiApiBaseUrl}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages }),
@@ -93,7 +95,7 @@ export async function* streamChat({
   } catch (error) {
     if ((error as Error)?.name === "AbortError") throw error
     throw new AiApiError(
-      "Could not reach the assistant API. Is the Django server running?"
+      "Could not reach the assistant API. Is the app server reachable?"
     )
   }
 

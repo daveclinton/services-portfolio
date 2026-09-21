@@ -181,7 +181,7 @@ export const askAi = {
   description: "Ask an AI about my background, work, and experience",
   href: "/ask-ai",
   /** Centered prompt above the composer before the first question is asked. */
-  title: `What do you want to know about ${profile.name}`,
+  title: `What do you want to know`,
   placeholder: "Ask about my work…",
   inputLabel: "Ask about my work",
 } as const

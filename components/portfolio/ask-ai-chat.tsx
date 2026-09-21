@@ -181,14 +181,10 @@ export function AskAiChat() {
             still be reached. The safe-area padding keeps it clear of notches
             and home indicators inside in-app browsers. */}
         <div className="flex min-h-min flex-1 flex-col items-center justify-center-safe gap-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))]">
-          <p className="max-w-[17.5rem] text-balance break-words text-center text-name-sm text-foreground">
-            {askAi.title}
+          <p className="text-balance break-words text-center text-name-sm text-foreground">
+            {askAi.title}?
           </p>
           <div className="w-full">{composer}</div>
-          <p className="max-w-sm text-center text-caption text-subtle-foreground">
-            Answers come from a curated knowledge base of the projects, roles
-            and skills on this site.
-          </p>
         </div>
       </div>
     )
