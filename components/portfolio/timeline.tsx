@@ -6,7 +6,7 @@ export function Timeline({ items }: { items: TimelineEntry[] }) {
     <div className="relative mt-5">
       <span
         aria-hidden="true"
-        className="absolute top-2 bottom-2 left-[5px] w-px bg-border"
+        className="absolute top-4 bottom-4 left-[15px] w-px bg-border"
       />
 
       <ol className="flex flex-col gap-6">

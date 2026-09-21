@@ -86,6 +86,10 @@ export type TimelineEntry = {
   id: string
   /** Employer or client, e.g. "Mika". */
   company: string
+  /** Optional square app icon shown beside the role, e.g. "/companies/mika.png". */
+  iconSrc?: string
+  /** Initials used for a grouped avatar when one entry represents several companies. */
+  iconInitials?: string[]
   /** Where the work happened, e.g. "Mombasa, Kenya". Omitted when unknown. */
   location?: string
   /** How the work happened, e.g. "Hybrid". Omitted when not stated. */
@@ -112,6 +116,7 @@ export const backgroundItems: TimelineEntry[] = [
   {
     id: "2025-10",
     company: "Mika (Ideal Appliances)",
+    iconSrc: "/mika.webp",
     location: "Mombasa, Kenya",
     start: "2025 Oct",
     description:
@@ -120,6 +125,7 @@ export const backgroundItems: TimelineEntry[] = [
   {
     id: "2024-09",
     company: "Givesuite · Element Pay · Studio1HQ",
+    iconInitials: ["G", "E", "S"],
     start: "2024 Sep",
     end: "2025 Jun",
     description:
@@ -128,6 +134,7 @@ export const backgroundItems: TimelineEntry[] = [
   {
     id: "2022-05",
     company: "Untapped Global",
+    iconSrc: "/untapped.png",
     location: "Nairobi, Kenya",
     arrangement: "Hybrid",
     start: "2022 May",
@@ -138,6 +145,7 @@ export const backgroundItems: TimelineEntry[] = [
   {
     id: "2021-01",
     company: "Paperspace (now DigitalOcean)",
+    iconSrc: "/paperspace.webp",
     arrangement: "Remote",
     start: "2021 Jan",
     end: "2022 Feb",
