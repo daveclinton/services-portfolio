@@ -236,7 +236,13 @@ export function AskAiChat() {
             </div>
           ) : (
             <div key={turn.id} className="flex min-w-0 justify-start pr-5 sm:pr-12">
-              <div className="min-w-0 max-w-full overflow-hidden rounded-2xl rounded-bl-md border border-border bg-muted/50 px-3.5 py-2.5 sm:max-w-[90%]">
+              <div
+                className={
+                  !turn.content && turn.status === "streaming" && !turn.error
+                    ? "min-w-0 max-w-full"
+                    : "min-w-0 max-w-full overflow-hidden rounded-2xl rounded-bl-md border border-border bg-muted/50 px-3.5 py-2.5 sm:max-w-[90%]"
+                }
+              >
                 {turn.content ? (
                   <p className="text-body break-words whitespace-pre-wrap [overflow-wrap:anywhere] text-foreground/90">
                     {turn.content}
