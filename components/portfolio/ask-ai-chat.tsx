@@ -42,8 +42,10 @@ export function AskAiChat() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null)
   const [improvementLogging, setImprovementLogging] = useState(false)
+  const [showConsentError, setShowConsentError] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  const consentRef = useRef<HTMLInputElement | null>(null)
   const conversationIdRef = useRef<string | null>(null)
   const reducedMotion = useReducedMotion()
 
@@ -172,7 +174,15 @@ export function AskAiChat() {
     }
   }
 
-  const submitDraft = () => void ask(draft)
+  const submitDraft = () => {
+    if (draft.trim() && !improvementLogging) {
+      setShowConsentError(true)
+      consentRef.current?.focus()
+      return
+    }
+    setShowConsentError(false)
+    void ask(draft)
+  }
 
   const composer = (
     <div>
@@ -212,7 +222,7 @@ export function AskAiChat() {
           type="submit"
           size="icon"
           aria-label="Send question"
-          disabled={!draft.trim() || !improvementLogging || isStreaming}
+          disabled={!draft.trim() || isStreaming}
           className="size-9 shrink-0 rounded-full transition-[transform,background-color,opacity] active:scale-95 active:translate-y-0 disabled:scale-100 sm:size-10"
         >
           <SendHorizonal className="size-4" aria-hidden="true" />
@@ -234,16 +244,19 @@ export function AskAiChat() {
             className="flex cursor-pointer items-start gap-2 overflow-hidden px-1 text-caption text-muted-foreground"
           >
             <input
+              ref={consentRef}
               type="checkbox"
               checked={improvementLogging}
               disabled={isStreaming}
-              onChange={(event) => setImprovementLogging(event.target.checked)}
+              onChange={(event) => {
+                setImprovementLogging(event.target.checked)
+                if (event.target.checked) setShowConsentError(false)
+              }}
+              aria-describedby={showConsentError ? "conversation-consent-error" : undefined}
               className="mt-0.5 size-3.5 shrink-0 accent-foreground"
             />
             <span>
-              I opt in to storing this conversation for 30 days to help improve the assistant.
-              General device information is included; raw IP addresses are not stored. Don&apos;t
-              include private information. {" "}
+              I consent to storing this conversation for 30 days to help improve the assistant.
               <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
                 Privacy details
               </Link>
@@ -251,6 +264,15 @@ export function AskAiChat() {
           </motion.label>
         ) : null}
       </AnimatePresence>
+      {showConsentError && draft.trim() ? (
+        <p
+          id="conversation-consent-error"
+          role="alert"
+          className="mt-1.5 px-1 text-caption text-destructive"
+        >
+          Please check the box to consent before sending your question.
+        </p>
+      ) : null}
     </div>
   )
 
