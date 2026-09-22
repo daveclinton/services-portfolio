@@ -44,6 +44,43 @@ export const maxDuration = 60
 
 const MISSING_KEY_DETAIL =
   "OPENAI_API_KEY is not configured on the server, so grounded answers cannot be generated"
+const CREDITS_EXHAUSTED_DETAIL =
+  "My OpenAI credits are exhausted. While I top them up, you can contact me or explore the homepage."
+const GENERATION_UNAVAILABLE_DETAIL =
+  "Ask AI could not complete that response. Please try again later, contact me, or explore the homepage."
+
+function errorText(error: unknown): string {
+  const parts: string[] = []
+  let current: unknown = error
+  const seen = new Set<unknown>()
+  while (current && !seen.has(current)) {
+    seen.add(current)
+    if (current instanceof Error) parts.push(current.message)
+    if (typeof current === "object") {
+      const value = current as Record<string, unknown>
+      for (const key of ["code", "type", "responseBody"]) {
+        if (typeof value[key] === "string") parts.push(value[key])
+      }
+      current = value.cause
+    } else {
+      parts.push(String(current))
+      break
+    }
+  }
+  return parts.join(" ").toLowerCase()
+}
+
+function isCreditExhaustionError(error: unknown): boolean {
+  const detail = errorText(error)
+  return [
+    "credit_balance_exhausted",
+    "insufficient_quota",
+    "organization_usage_limit_exceeded",
+    "organization_spend_limit_exceeded",
+    "project_spend_limit_exceeded",
+    "exceeded your current quota",
+  ].some((marker) => detail.includes(marker))
+}
 
 function sse(event: string, payload: unknown): string {
   return `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`
@@ -356,8 +393,15 @@ export async function POST(request: NextRequest): Promise<Response> {
         loggedStatus = "completed"
         enqueue(sse("done", { finish_reason: "stop" }))
       } catch (error) {
-        enqueue(sse("error", { detail: `generation failed: ${(error as Error)?.message ?? error}` }))
-        enqueue(sse("done", { finish_reason: "stop" }))
+        console.error("Chat generation failed", error)
+        enqueue(
+          sse("error", {
+            detail: isCreditExhaustionError(error)
+              ? CREDITS_EXHAUSTED_DETAIL
+              : GENERATION_UNAVAILABLE_DETAIL,
+          }),
+        )
+        enqueue(sse("done", { finish_reason: "error" }))
       } finally {
         finishLog({ answer: loggedAnswer, status: loggedStatus, model: loggedModel })
         controller.close()
