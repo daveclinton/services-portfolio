@@ -32,6 +32,8 @@ class AIConversationModelsTest(TestCase):
             answer="He has built operational software.",
             status="completed",
             intent="projects",
+            intent_source="model",
+            intent_confidence=0.91,
             model="gpt-4o-mini",
             source_count=3,
             latency_ms=120,
@@ -41,6 +43,8 @@ class AIConversationModelsTest(TestCase):
         self.assertEqual(conversation.network_hash, "a" * 64)
         self.assertEqual(conversation.consent_version, "2026-09-22")
         self.assertEqual(turn.status, "completed")
+        self.assertEqual(turn.intent_source, "model")
+        self.assertEqual(turn.intent_confidence, 0.91)
         self.assertNotIn("ip", {field.name for field in conversation._meta.fields})
 
 

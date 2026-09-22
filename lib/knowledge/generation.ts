@@ -7,15 +7,16 @@
  */
 
 import { sql } from "./db"
-import { classifyQuestion } from "./intent"
+import { classifyQuestion, type QuestionIntent } from "./intent"
 import type { SearchResult } from "./retrieval"
 
 export const DEFAULT_MODEL = "gpt-4o-mini"
 
 /** Returned verbatim (no model call) when retrieval finds nothing to stand on. */
 export const NO_EVIDENCE_MESSAGE =
-  "I don't have verified evidence in the knowledge base that answers that. " +
-  "Try asking about a specific project, company, or technology from the timeline."
+  "This assistant is designed to answer questions about David Clinton's work, " +
+  "experience, projects, and skills. For other topics, try Google or the relevant " +
+  "official documentation."
 
 const SYSTEM_PROMPT = `\
 You are the portfolio assistant for {name}. You answer questions about their \
@@ -26,8 +27,8 @@ Hard rules:
 knowledge base where every claim is tied to evidence.
 2. Use the numbered sources to verify every factual claim, but do not include \
 source numbers, bracketed citations such as [1], or a sources list in the answer.
-3. If the sources do not contain the answer, say you don't have verified \
-evidence for it and stop. Never guess.
+3. If the sources do not support an answer, return this scope message exactly \
+and stop: "{fallback_message}" Never guess.
 4. Never invent employers, dates, metrics, technologies or outcomes that are \
 not in the sources.
 5. Write in the third person about {name}, not in their voice.
@@ -123,10 +124,10 @@ export interface ModelMessage {
 export function buildMessages(
   question: string,
   sources: Source[],
-  options?: { personName?: string; history?: ChatTurn[] },
+  options?: { personName?: string; history?: ChatTurn[]; intent?: QuestionIntent },
 ): ModelMessage[] {
   const name = options?.personName ?? "the candidate"
-  const intent = classifyQuestion(question)
+  const intent = options?.intent ?? classifyQuestion(question)
   const messages: ModelMessage[] = [
     {
       role: "system",
@@ -135,6 +136,7 @@ export function buildMessages(
       content: SYSTEM_PROMPT.replaceAll("{name}", name)
         .replaceAll("{intent_guidance}", intent.guidance)
         .replaceAll("{intent}", intent.name)
+        .replaceAll("{fallback_message}", NO_EVIDENCE_MESSAGE)
         .replaceAll("{context}", formatContext(sources)),
     },
   ]

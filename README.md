@@ -72,7 +72,8 @@ the answer text into the conversation.
 ```txt
 browser  ──POST /api/chat───▶  Next.js route handler
                                ├─ retrieval over KnowledgeChunk (structured + semantic, RRF)
-                               ├─ question intent → anchors, ordering, prompt guidance
+                               ├─ rules or semantic intent classifier
+                               │  └─ anchors, ordering, prompt guidance
                                ├─ citations resolved to Evidence rows
                                └─ OpenAI, grounded on those chunks only
 browser  ◀── event: retrieval ─  (intent, strategies, notes)
@@ -92,11 +93,12 @@ Both routes query Postgres directly through `lib/knowledge/`. The browser uses
 same-origin `/api/*` URLs; it needs no backend hostname or public API URL setting.
 
 Before answering, the server classifies the question (biography, rates,
-projects, outcomes, …) in `lib/knowledge/intent.ts`. That intent adds the files a
-broad question must see, orders the retrieved chunks toward the evidence the
-question asks for, and tells the model what shape of answer to write. The
-`retrieval` frame carries the intent so the page can name what it is looking up
-while the answer streams.
+projects, outcomes, …). Explicit wording uses the deterministic fast path in
+`lib/knowledge/intent.ts`; ambiguous wording uses the structured-output model in
+`lib/knowledge/intent-classifier.ts`. The selected intent adds the files a broad
+question must see, orders the retrieved chunks toward the evidence the question
+asks for, and tells the answer model what shape to write. Its source and
+confidence are stored with opted-in conversation turns for later evaluation.
 
 The Python code in `backend/` is an offline workspace for the knowledge and
 model pipeline: ingestion, embedding generation, audits, retrieval evaluation,

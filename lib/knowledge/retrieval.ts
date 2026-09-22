@@ -499,6 +499,7 @@ export async function search(
     filters?: FiltersPayload | null
     limit?: number
     includeContent?: boolean
+    intent?: QuestionIntent
   },
 ): Promise<SearchOutcome> {
   const mode = options?.mode ?? "hybrid"
@@ -510,7 +511,7 @@ export async function search(
   if (limit < 1) throw new Error("limit must be at least 1")
 
   const filters = filtersFromPayload(options?.filters ?? null)
-  const intent = classifyQuestion(query)
+  const intent = options?.intent ?? classifyQuestion(query)
   const pool = Math.max(limit * CANDIDATE_MULTIPLIER, MIN_CANDIDATE_POOL)
   const notes: string[] = []
   const strategies: Record<string, number> = {}

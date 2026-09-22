@@ -202,6 +202,8 @@ class AIConversationTurn(models.Model):
     answer = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES)
     intent = models.CharField(max_length=50, blank=True)
+    intent_source = models.CharField(max_length=20, blank=True)
+    intent_confidence = models.FloatField(null=True, blank=True)
     model = models.CharField(max_length=100, blank=True)
     source_count = models.PositiveIntegerField(default=0)
     latency_ms = models.PositiveIntegerField(null=True, blank=True)

@@ -1,10 +1,9 @@
 /**
  * Question intent detection and intent-aware result ordering.
  *
- * Port of `backend/knowledge/retrieval/intent.py`. Deliberately deterministic:
- * broad portfolio questions need different sources from technology, rate,
- * project or impact questions, and asking the model to repair a poor retrieval
- * set is too late — it can only see the sources it was handed.
+ * Port of `backend/knowledge/retrieval/intent.py`. These deterministic rules
+ * are the fast path for explicit questions. Ambiguous questions are handled by
+ * the server-only semantic classifier before retrieval.
  *
  * This module is pure (no database, no provider client) so the browser client
  * can import its types and labels without pulling the server runtime in.
@@ -30,6 +29,38 @@ export interface QuestionIntent {
   guidance: string
   /** Knowledge files that must appear in a result set for this intent. */
   anchorPaths: readonly string[]
+}
+
+export type ChatWorkflow =
+  | { action: "reply"; intent: "general"; response: string }
+  | { action: "retrieve" }
+
+const CONVERSATIONAL_REPLIES: ReadonlyArray<readonly [RegExp, string]> = [
+  [
+    /^(hi|hello|hey|hiya|howdy)( there)?[!.?]*$/,
+    "Hi! I can answer questions about David's work, experience, projects, and skills. What would you like to know?",
+  ],
+  [
+    /^(good morning|good afternoon|good evening)[!.?]*$/,
+    "Hello! Ask me anything about David's professional background, projects, or skills.",
+  ],
+  [
+    /^(thanks|thank you|thank you very much|cheers)[!.?]*$/,
+    "You're welcome. Feel free to ask another question about David's work.",
+  ],
+  [
+    /^(how are you|how's it going|how are things)[!.?]*$/,
+    "I'm ready to help. You can ask me about David's experience, projects, skills, or availability.",
+  ],
+]
+
+/** Route small-talk without paying for retrieval or generation. */
+export function selectChatWorkflow(question: string): ChatWorkflow {
+  const text = (question ?? "").toLowerCase().split(/\s+/).join(" ").trim()
+  for (const [pattern, response] of CONVERSATIONAL_REPLIES) {
+    if (pattern.test(text)) return { action: "reply", intent: "general", response }
+  }
+  return { action: "retrieve" }
 }
 
 export const GENERAL: QuestionIntent = {
@@ -62,7 +93,7 @@ export const INTENTS: Record<Exclude<IntentName, "general">, QuestionIntent> = {
     guidance:
       "Prioritize roles, companies, responsibilities, dates and contributions. " +
       "Use projects and technologies only as supporting detail.",
-    anchorPaths: [],
+    anchorPaths: ["knowledge/person/profile.md"],
   },
   projects: {
     name: "projects",
@@ -92,6 +123,10 @@ export const INTENTS: Record<Exclude<IntentName, "general">, QuestionIntent> = {
       "metrics from qualitative outcomes.",
     anchorPaths: [],
   },
+}
+
+export function intentByName(name: IntentName): QuestionIntent {
+  return name === "general" ? GENERAL : INTENTS[name]
 }
 
 /**
@@ -128,7 +163,7 @@ const ORDERED_PATTERNS: ReadonlyArray<readonly [Exclude<IntentName, "general">, 
   [
     "experience",
     [
-      /\b(experience|career|employment|employer|company|companies|role|roles)\b/,
+      /\b(experience|experiences|experiance|experiances|career|employment|employer|company|companies|role|roles)\b/,
       /\b(worked at|work history|background|where (has|did) (he|david) work(?:ed)?)\b/,
     ],
   ],
@@ -146,6 +181,8 @@ const ORDERED_PATTERNS: ReadonlyArray<readonly [Exclude<IntentName, "general">, 
       /\bwhat does david do\b/,
       /\bwhat can david do\b/,
       /\btell me about david\b/,
+      /\btell me about you\b/,
+      /\bwho are you\b/,
       /\btell me about (him|the candidate)\b/,
       /\b(introduce|summari[sz]e|overview) david\b/,
       /^what does (he|the candidate) do\??$/,

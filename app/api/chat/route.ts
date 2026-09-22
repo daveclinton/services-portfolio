@@ -29,6 +29,8 @@ import {
   type FiltersPayload,
   type SearchMode,
 } from "@/lib/knowledge/retrieval"
+import { selectChatWorkflow } from "@/lib/knowledge/intent"
+import { classifyQuestionHybrid } from "@/lib/knowledge/intent-classifier"
 import {
   acquireChatLock,
   enforceRateLimit,
@@ -185,6 +187,55 @@ export async function POST(request: NextRequest): Promise<Response> {
   const { messages, mode, limit, logging } = parsed
   const question = messages[messages.length - 1].content
   const history = messages.slice(0, -1)
+  const workflow = selectChatWorkflow(question)
+
+  if (workflow.action === "reply") {
+    const requestContext = conversationLogContext(request)
+    const latencyMs = Math.max(0, Date.now() - startedAt)
+    after(async () => {
+      await logConversationTurn({
+        ...requestContext,
+        ...logging,
+        question,
+        answer: workflow.response,
+        status: "completed",
+        intent: workflow.intent,
+        intentSource: "rules",
+        intentConfidence: 1,
+        model: "",
+        sourceCount: 0,
+        latencyMs,
+      }).catch((error) => {
+        console.error("Failed to store conversational reply", error)
+      })
+    })
+
+    const stream = new ReadableStream<string>({
+      start(controller) {
+        controller.enqueue(
+          sse("retrieval", {
+            notes: ["Handled by the conversational workflow."],
+            strategies: { conversational: 1 },
+            intent: workflow.intent,
+          }),
+        )
+        controller.enqueue(sse("citations", { sources: [] }))
+        controller.enqueue(sse("delta", { text: workflow.response }))
+        controller.enqueue(sse("done", { finish_reason: "conversation" }))
+        controller.close()
+      },
+    })
+    return withRateLimitHeaders(
+      new Response(stream, {
+        headers: {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "X-Accel-Buffering": "no",
+        },
+      }),
+      gate,
+    )
+  }
 
   let lockToken: string | null
   try {
@@ -209,9 +260,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     )
   }
 
+  const intentDecision = await classifyQuestionHybrid(question, history)
   let outcome
   try {
-    outcome = await search(question, { mode, limit })
+    outcome = await search(question, { mode, limit, intent: intentDecision.intent })
   } catch (error) {
     await releaseChatLock(gate.visitorId, lockToken).catch((releaseError) => {
       console.error("Failed to release chat lock", releaseError)
@@ -240,6 +292,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       ...completed,
       question,
       intent: outcome.intent,
+      intentSource: intentDecision.source,
+      intentConfidence: intentDecision.confidence,
       sourceCount: sources.length,
       latencyMs: Math.max(0, Date.now() - startedAt),
     }).catch((error) => {
@@ -256,7 +310,10 @@ export async function POST(request: NextRequest): Promise<Response> {
       try {
         enqueue(
           sse("retrieval", {
-            notes: outcome.notes,
+            notes: [
+              ...outcome.notes,
+              `Intent selected by ${intentDecision.source}.`,
+            ],
             strategies: outcome.strategies,
             intent: outcome.intent,
           }),
@@ -280,6 +337,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         const prompt = buildMessages(question, sources, {
           personName: await personName(),
           history,
+          intent: intentDecision.intent,
         })
         // AI SDK v7 takes the system prompt via `instructions`, not `messages`.
         const [systemMessage, ...conversation] = prompt

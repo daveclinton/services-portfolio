@@ -20,6 +20,8 @@ export type ConversationTurnLog = ConversationLogContext & {
   answer: string
   status: "completed" | "no_evidence" | "error"
   intent: string
+  intentSource: "rules" | "model" | "fallback"
+  intentConfidence: number
   model: string
   sourceCount: number
   latencyMs: number
@@ -109,9 +111,9 @@ export async function logConversationTurn(entry: ConversationTurnLog): Promise<v
        RETURNING id
      )
      INSERT INTO knowledge_aiconversationturn
-       (id, conversation_id, question, answer, status, intent, model,
-        source_count, latency_ms, created_at)
-     SELECT $7::uuid, id, $8, $9, $10, $11, $12, $13, $14, NOW()
+       (id, conversation_id, question, answer, status, intent, intent_source,
+        intent_confidence, model, source_count, latency_ms, created_at)
+     SELECT $7::uuid, id, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW()
        FROM conversation
      ON CONFLICT (id) DO NOTHING`,
     [
@@ -126,6 +128,8 @@ export async function logConversationTurn(entry: ConversationTurnLog): Promise<v
       entry.answer,
       entry.status,
       entry.intent,
+      entry.intentSource,
+      entry.intentConfidence,
       entry.model,
       entry.sourceCount,
       entry.latencyMs,

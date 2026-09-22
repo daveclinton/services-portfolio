@@ -51,6 +51,7 @@ INTENTS = {
         "experience",
         "Prioritize roles, companies, responsibilities, dates and contributions. "
         "Use projects and technologies only as supporting detail.",
+        ("knowledge/person/profile.md",),
     ),
     "projects": QuestionIntent(
         "projects",
@@ -116,7 +117,7 @@ def classify_question(question: str) -> QuestionIntent:
         (
             "experience",
             (
-                r"\b(experience|career|employment|employer|company|companies|role|roles)\b",
+                r"\b(experience|experiences|experiance|experiances|career|employment|employer|company|companies|role|roles)\b",
                 r"\b(worked at|work history|background|where (has|did) (he|david) work(?:ed)?)\b",
             ),
         ),
@@ -134,6 +135,8 @@ def classify_question(question: str) -> QuestionIntent:
                 r"\bwhat does david do\b",
                 r"\bwhat can david do\b",
                 r"\btell me about david\b",
+                r"\btell me about you\b",
+                r"\bwho are you\b",
                 r"\btell me about (him|the candidate)\b",
                 r"\b(introduce|summari[sz]e|overview) david\b",
                 r"^what does (he|the candidate) do\??$",

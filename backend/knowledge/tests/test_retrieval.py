@@ -236,6 +236,8 @@ def test_search_rejects_an_unknown_mode():
 
 def test_question_intents_cover_common_portfolio_questions():
     assert classify_question("What does David do?").name == "biography"
+    assert classify_question("Tell me about you").name == "biography"
+    assert classify_question("What experiances do you have?").name == "experience"
     assert classify_question("What is his technology stack?").name == "technologies"
     assert classify_question("Which projects has he shipped?").name == "projects"
     assert classify_question("What measurable impact did he have?").name == "outcomes"
