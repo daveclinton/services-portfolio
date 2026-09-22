@@ -38,6 +38,7 @@ export function AskAiChat() {
   const [turns, setTurns] = useState<Turn[]>([])
   const [draft, setDraft] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
+  const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
 
@@ -117,6 +118,8 @@ export function AskAiChat() {
               intent: event.intent,
             }))
           )
+        } else if (event.type === "rate_limit") {
+          setQuestionsRemaining(event.remaining)
         } else if (event.type === "error") {
           setTurns((previous) =>
             replaceTurn(previous, assistantTurn.id, (turn) => ({
@@ -160,48 +163,55 @@ export function AskAiChat() {
   const submitDraft = () => void ask(draft)
 
   const composer = (
-    <form
-      className="group/composer flex w-full min-w-0 items-end gap-1.5 rounded-[1.35rem] border border-input bg-card p-1.5 pl-3 shadow-sm transition-[border-color,box-shadow,background-color] hover:border-foreground/25 focus-within:border-ring focus-within:bg-background focus-within:ring-3 focus-within:ring-ring/20 sm:gap-2 sm:rounded-[1.5rem] sm:pl-4"
-      onSubmit={(event) => {
-        event.preventDefault()
-        submitDraft()
-      }}
-    >
-      <label htmlFor="ask-ai-input" className="sr-only">
-        {askAi.inputLabel}
-      </label>
-      <textarea
-        ref={inputRef}
-        id="ask-ai-input"
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
-            return
-          }
+    <div>
+      <form
+        className="group/composer flex w-full min-w-0 items-end gap-1.5 rounded-[1.35rem] border border-input bg-card p-1.5 pl-3 shadow-sm transition-[border-color,box-shadow,background-color] hover:border-foreground/25 focus-within:border-ring focus-within:bg-background focus-within:ring-3 focus-within:ring-ring/20 sm:gap-2 sm:rounded-[1.5rem] sm:pl-4"
+        onSubmit={(event) => {
           event.preventDefault()
           submitDraft()
         }}
-        placeholder={askAi.placeholder}
-        autoComplete="off"
-        enterKeyHint="send"
-        rows={1}
-        aria-describedby="ask-ai-input-hint"
-        className="min-h-9 max-h-28 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-base leading-6 text-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:max-h-32 sm:text-body sm:leading-[1.375rem]"
-      />
-      <span id="ask-ai-input-hint" className="sr-only">
-        Press Enter to send. Press Shift and Enter for a new line.
-      </span>
-      <Button
-        type="submit"
-        size="icon"
-        aria-label="Send question"
-        disabled={!draft.trim() || isStreaming}
-        className="size-9 shrink-0 rounded-full transition-[transform,background-color,opacity] active:scale-95 active:translate-y-0 disabled:scale-100 sm:size-10"
       >
-        <SendHorizonal className="size-4" aria-hidden="true" />
-      </Button>
-    </form>
+        <label htmlFor="ask-ai-input" className="sr-only">
+          {askAi.inputLabel}
+        </label>
+        <textarea
+          ref={inputRef}
+          id="ask-ai-input"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
+              return
+            }
+            event.preventDefault()
+            submitDraft()
+          }}
+          placeholder={askAi.placeholder}
+          autoComplete="off"
+          enterKeyHint="send"
+          rows={1}
+          aria-describedby="ask-ai-input-hint"
+          className="min-h-9 max-h-28 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-base leading-6 text-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:max-h-32 sm:text-body sm:leading-[1.375rem]"
+        />
+        <span id="ask-ai-input-hint" className="sr-only">
+          Press Enter to send. Press Shift and Enter for a new line.
+        </span>
+        <Button
+          type="submit"
+          size="icon"
+          aria-label="Send question"
+          disabled={!draft.trim() || isStreaming}
+          className="size-9 shrink-0 rounded-full transition-[transform,background-color,opacity] active:scale-95 active:translate-y-0 disabled:scale-100 sm:size-10"
+        >
+          <SendHorizonal className="size-4" aria-hidden="true" />
+        </Button>
+      </form>
+      {questionsRemaining !== null ? (
+        <p className="mt-1.5 text-center text-caption text-muted-foreground" aria-live="polite">
+          {questionsRemaining} question{questionsRemaining === 1 ? "" : "s"} remaining today
+        </p>
+      ) : null}
+    </div>
   )
 
   /* Empty state: prompt + composer centered in the available space. */

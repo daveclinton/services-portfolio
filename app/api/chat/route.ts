@@ -7,6 +7,7 @@
 
 import { streamText } from "ai"
 import { openai } from "@ai-sdk/openai"
+import type { NextRequest } from "next/server"
 
 import {
   buildMessages,
@@ -22,6 +23,13 @@ import {
   type FiltersPayload,
   type SearchMode,
 } from "@/lib/knowledge/retrieval"
+import {
+  acquireChatLock,
+  enforceRateLimit,
+  rateLimitResponse,
+  releaseChatLock,
+  withRateLimitHeaders,
+} from "@/lib/rate-limit"
 
 export const runtime = "nodejs"
 export const maxDuration = 60
@@ -37,8 +45,13 @@ interface ChatRequest {
   messages: ChatTurn[]
   mode: SearchMode
   limit: number
-  model?: string
 }
+
+const MAX_TURNS = 12
+const MAX_MESSAGE_CHARS = 8_000
+const MAX_CONVERSATION_CHARS = 24_000
+const MAX_REQUEST_CHARS = 32_000
+const MAX_OUTPUT_TOKENS = 500
 
 function badRequest(detail: string, errors?: unknown): Response {
   return Response.json({ detail, errors }, { status: 400 })
@@ -55,7 +68,13 @@ function parseRequest(body: unknown): ChatRequest | Response {
   if (!Array.isArray(messages) || messages.length === 0) {
     return badRequest("invalid request", { messages: ["at least one message is required"] })
   }
+  if (messages.length > MAX_TURNS) {
+    return badRequest("invalid request", {
+      messages: [`conversation is too long (max ${MAX_TURNS} turns)`],
+    })
+  }
   const turns: ChatTurn[] = []
+  let conversationChars = 0
   for (const turn of messages) {
     if (typeof turn !== "object" || turn === null) {
       return badRequest("invalid request", { messages: ["each message needs a role and content"] })
@@ -67,10 +86,18 @@ function parseRequest(body: unknown): ChatRequest | Response {
     if (typeof content !== "string" || content.trim().length === 0) {
       return badRequest("invalid request", { messages: ["content must not be blank"] })
     }
-    if (content.length > 8000) {
-      return badRequest("invalid request", { messages: ["content is too long (max 8000 chars)"] })
+    if (content.length > MAX_MESSAGE_CHARS) {
+      return badRequest("invalid request", {
+        messages: [`content is too long (max ${MAX_MESSAGE_CHARS} chars)`],
+      })
     }
+    conversationChars += content.length
     turns.push({ role, content })
+  }
+  if (conversationChars > MAX_CONVERSATION_CHARS) {
+    return badRequest("invalid request", {
+      messages: [`conversation is too large (max ${MAX_CONVERSATION_CHARS} chars)`],
+    })
   }
   if (turns[turns.length - 1].role !== "user") {
     return badRequest("invalid request", { messages: ["the last message must come from the user"] })
@@ -86,42 +113,78 @@ function parseRequest(body: unknown): ChatRequest | Response {
     return badRequest("invalid request", { limit: ["limit must be an integer between 1 and 20"] })
   }
 
-  let model: string | undefined
-  if (payload.model !== undefined) {
-    if (typeof payload.model !== "string" || payload.model.trim().length === 0) {
-      return badRequest("invalid request", { model: ["model must be a non-empty string"] })
-    }
-    if (payload.model.length > 100) {
-      return badRequest("invalid request", { model: ["model is too long (max 100 chars)"] })
-    }
-    model = payload.model
-  }
-
-  return { messages: turns, mode: mode as SearchMode, limit, model }
+  return { messages: turns, mode: mode as SearchMode, limit }
 }
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(request: NextRequest): Promise<Response> {
+  let gate
+  try {
+    gate = await enforceRateLimit(request, "chat")
+  } catch (error) {
+    console.error("Chat rate limiting is unavailable", error)
+    return Response.json(
+      { detail: "The assistant is temporarily unavailable. Please try again shortly." },
+      { status: 503, headers: { "Retry-After": "30" } },
+    )
+  }
+  if (!gate.allowed) return rateLimitResponse(gate)
+
   let body: unknown
   try {
-    body = await request.json()
+    const contentLength = Number(request.headers.get("content-length") ?? 0)
+    if (contentLength > MAX_REQUEST_CHARS) {
+      return withRateLimitHeaders(badRequest("request body is too large"), gate)
+    }
+    const rawBody = await request.text()
+    if (rawBody.length > MAX_REQUEST_CHARS) {
+      return withRateLimitHeaders(badRequest("request body is too large"), gate)
+    }
+    body = JSON.parse(rawBody)
   } catch {
-    return badRequest("request body must be valid JSON")
+    return withRateLimitHeaders(badRequest("request body must be valid JSON"), gate)
   }
 
   const parsed = parseRequest(body)
-  if (parsed instanceof Response) return parsed
+  if (parsed instanceof Response) return withRateLimitHeaders(parsed, gate)
 
-  const { messages, mode, limit, model } = parsed
+  const { messages, mode, limit } = parsed
   const question = messages[messages.length - 1].content
   const history = messages.slice(0, -1)
+
+  let lockToken: string | null
+  try {
+    lockToken = await acquireChatLock(gate.visitorId)
+  } catch (error) {
+    console.error("Chat concurrency control is unavailable", error)
+    return withRateLimitHeaders(
+      Response.json(
+        { detail: "The assistant is temporarily unavailable. Please try again shortly." },
+        { status: 503, headers: { "Retry-After": "30" } },
+      ),
+      gate,
+    )
+  }
+  if (!lockToken) {
+    return withRateLimitHeaders(
+      Response.json(
+        { detail: "A response is already being generated. Please wait for it to finish." },
+        { status: 429, headers: { "Retry-After": "2" } },
+      ),
+      gate,
+    )
+  }
 
   let outcome
   try {
     outcome = await search(question, { mode, limit })
   } catch (error) {
-    return Response.json(
-      { detail: `retrieval failed: ${(error as Error)?.message ?? error}` },
-      { status: 500 },
+    await releaseChatLock(gate.visitorId, lockToken).catch((releaseError) => {
+      console.error("Failed to release chat lock", releaseError)
+    })
+    console.error("Chat retrieval failed", error)
+    return withRateLimitHeaders(
+      Response.json({ detail: "The assistant could not retrieve an answer." }, { status: 500 }),
+      gate,
     )
   }
 
@@ -159,10 +222,11 @@ export async function POST(request: Request): Promise<Response> {
         // AI SDK v7 takes the system prompt via `instructions`, not `messages`.
         const [systemMessage, ...conversation] = prompt
         const result = streamText({
-          model: openai(model ?? DEFAULT_MODEL),
+          model: openai(DEFAULT_MODEL),
           instructions: systemMessage.content,
           messages: conversation,
           temperature: 0.2,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
         })
         for await (const text of result.textStream) {
           enqueue(sse("delta", { text }))
@@ -173,17 +237,20 @@ export async function POST(request: Request): Promise<Response> {
         enqueue(sse("done", { finish_reason: "stop" }))
       } finally {
         controller.close()
+        await releaseChatLock(gate.visitorId, lockToken).catch((error) => {
+          console.error("Failed to release chat lock", error)
+        })
       }
     },
   })
 
-  return new Response(stream, {
+  return withRateLimitHeaders(new Response(stream, {
     headers: {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       "X-Accel-Buffering": "no",
     },
-  })
+  }), gate)
 }
 
 export type { FiltersPayload }

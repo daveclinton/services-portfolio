@@ -17,6 +17,7 @@ export type ChatEvent =
   | { type: "delta"; text: string }
   | { type: "done"; finish_reason: string }
   | { type: "error"; detail: string }
+  | { type: "rate_limit"; remaining: number; limit: number; reset: number }
   | { type: "retrieval"; intent: ChatIntent; notes: string[]; strategies: Record<string, number> }
 
 export class AiApiError extends Error {}
@@ -86,12 +87,21 @@ function asIntent(value: unknown): ChatIntent {
 }
 
 async function readError(response: Response): Promise<string> {
+  let detail: string | undefined
   try {
     const body = (await response.json()) as { detail?: string }
-    if (body?.detail) return body.detail
+    detail = body?.detail
   } catch {
     // fall through to the generic message
   }
+  if (response.status === 429) {
+    const seconds = Number(response.headers.get("Retry-After"))
+    if (Number.isFinite(seconds) && seconds > 0) {
+      const wait = seconds < 60 ? `${Math.ceil(seconds)} seconds` : `${Math.ceil(seconds / 60)} minutes`
+      return `${detail ?? "Too many questions."} Try again in ${wait}.`
+    }
+  }
+  if (detail) return detail
   return `The assistant API answered ${response.status}.`
 }
 
@@ -123,6 +133,13 @@ export async function* streamChat({
 
   if (!response.ok) throw new AiApiError(await readError(response))
   if (!response.body) throw new AiApiError("This browser cannot stream responses.")
+
+  const remaining = Number(response.headers.get("X-RateLimit-Remaining"))
+  const limit = Number(response.headers.get("X-RateLimit-Limit"))
+  const reset = Number(response.headers.get("X-RateLimit-Reset"))
+  if ([remaining, limit, reset].every(Number.isFinite)) {
+    yield { type: "rate_limit", remaining, limit, reset }
+  }
 
   const reader = response.body.getReader()
   const decoder = new TextDecoder()

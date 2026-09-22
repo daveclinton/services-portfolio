@@ -146,11 +146,22 @@ variables for Production and Preview:
 ```dotenv
 DATABASE_URL=postgresql://...   # the database prepared by the Python pipeline
 OPENAI_API_KEY=sk-...
+UPSTASH_REDIS_REST_URL=https://...
+UPSTASH_REDIS_REST_TOKEN=...
+RATE_LIMIT_SECRET=...           # random value, at least 32 characters
+AI_GLOBAL_DAILY_LIMIT=200       # optional circuit breaker
+SEARCH_GLOBAL_DAILY_LIMIT=2000  # optional circuit breaker
 ```
 
 `OPENAI_API_KEY` is needed for grounded answers and semantic query embeddings.
 Without it, search can fall back to structured retrieval and chat reports the
 missing key when an answer would require generation.
+
+The public AI routes fail closed when Upstash or `RATE_LIMIT_SECRET` is missing.
+Chat allows 3 questions per minute, 15 per hour and 30 per day per signed
+anonymous visitor, plus 40 per hour per hashed IP. Only one answer can be
+generated per visitor at a time. `/api/search` has separate, higher limits.
+Both routes also have configurable site-wide daily ceilings.
 
 `.vercelignore` excludes `backend/`; Python runs separately as command-line jobs.
 Remove any old `NEXT_PUBLIC_API_BASE_URL` deployment variable; it is no longer

@@ -14,6 +14,8 @@
     "@base-ui/react": "^1.8.0",
     "@neondatabase/serverless": "^1.1.0",
     "@shadcn/helpers": "^0.2.0",
+    "@upstash/ratelimit": "^2.1.0",
+    "@upstash/redis": "^1.38.4",
     "ai": "^7.0.106",
     "class-variance-authority": "^0.7.1",
     "cn": "^0.3.0",
