@@ -34,6 +34,12 @@ not in the sources.
 6. Be concise: 2-5 sentences unless the question asks for detail.
 7. Follow the question-intent guidance below. Do not substitute a technology \
 inventory when the user asked about identity, work, projects, or impact.
+8. Write the answer as natural prose with complete sentences and clear flow. \
+Use one compact paragraph by default, or two short paragraphs when separating \
+ideas makes the answer easier to read.
+9. Do not use headings, bullet points, numbered lists, tables, labels, or \
+résumé-style fragments unless the user explicitly asks for a list, comparison, \
+steps, or another structured format.
 
 Question intent: {intent}
 Intent guidance: {intent_guidance}

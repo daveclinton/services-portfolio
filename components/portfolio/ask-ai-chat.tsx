@@ -26,6 +26,8 @@ type Turn = {
 }
 
 let turnCounter = 0
+const CONSENT_VERSION = "2026-09-22"
+const CONSENT_STORAGE_KEY = "ask-ai:conversation-storage-consent"
 
 function nextId(role: Turn["role"]) {
   turnCounter += 1
@@ -53,6 +55,15 @@ export function AskAiChat() {
 
   useEffect(() => {
     return () => abortRef.current?.abort()
+  }, [])
+
+  useEffect(() => {
+    const syncConsent = () => {
+      setImprovementLogging(localStorage.getItem(CONSENT_STORAGE_KEY) === CONSENT_VERSION)
+    }
+    syncConsent()
+    window.addEventListener("storage", syncConsent)
+    return () => window.removeEventListener("storage", syncConsent)
   }, [])
 
   /** Keeps the latest message in view while a conversation streams. */
@@ -249,8 +260,14 @@ export function AskAiChat() {
               checked={improvementLogging}
               disabled={isStreaming}
               onChange={(event) => {
-                setImprovementLogging(event.target.checked)
-                if (event.target.checked) setShowConsentError(false)
+                const checked = event.target.checked
+                setImprovementLogging(checked)
+                if (checked) {
+                  localStorage.setItem(CONSENT_STORAGE_KEY, CONSENT_VERSION)
+                  setShowConsentError(false)
+                } else {
+                  localStorage.removeItem(CONSENT_STORAGE_KEY)
+                }
               }}
               aria-describedby={showConsentError ? "conversation-consent-error" : undefined}
               className="mt-0.5 size-3.5 shrink-0 accent-foreground"
