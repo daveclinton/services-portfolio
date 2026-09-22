@@ -151,6 +151,7 @@ UPSTASH_REDIS_REST_TOKEN=...
 RATE_LIMIT_SECRET=...           # random value, at least 32 characters
 AI_GLOBAL_DAILY_LIMIT=200       # optional circuit breaker
 SEARCH_GLOBAL_DAILY_LIMIT=2000  # optional circuit breaker
+CRON_SECRET=...                 # random value, at least 16 characters
 ```
 
 `OPENAI_API_KEY` is needed for grounded answers and semantic query embeddings.
@@ -162,6 +163,15 @@ Chat allows 3 questions per minute, 15 per hour and 30 per day per signed
 anonymous visitor, plus 40 per hour per hashed IP. Only one answer can be
 generated per visitor at a time. `/api/search` has separate, higher limits.
 Both routes also have configurable site-wide daily ceilings.
+
+Ask AI requires explicit conversation-storage consent before a question can be
+sent. When a visitor selects the consent checkbox, questions and responses are stored in
+`knowledge_aiconversation` and `knowledge_aiconversationturn` for 30 days.
+Only coarse device categories and a daily rotating network hash are retained;
+raw IP addresses and full user-agent strings are not stored. Apply the Django
+migrations before deploying this feature. A protected Vercel cron job deletes
+expired conversations every day; `CRON_SECRET` is sent by Vercel in its
+authorization header.
 
 `.vercelignore` excludes `backend/`; Python runs separately as command-line jobs.
 Remove any old `NEXT_PUBLIC_API_BASE_URL` deployment variable; it is no longer

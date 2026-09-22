@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react"
 import { SendHorizonal } from "lucide-react"
+import Link from "next/link"
+import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { Button } from "@/components/ui/button"
 import {
   AiApiError,
@@ -39,8 +41,11 @@ export function AskAiChat() {
   const [draft, setDraft] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
   const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null)
+  const [improvementLogging, setImprovementLogging] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  const conversationIdRef = useRef<string | null>(null)
+  const reducedMotion = useReducedMotion()
 
   const hasConversation = turns.length > 0
 
@@ -69,7 +74,7 @@ export function AskAiChat() {
 
   async function ask(text: string) {
     const question = text.trim()
-    if (!question || isStreaming) return
+    if (!question || !improvementLogging || isStreaming) return
 
     const userTurn: Turn = {
       id: nextId("user"),
@@ -99,10 +104,17 @@ export function AskAiChat() {
     const controller = new AbortController()
     abortRef.current = controller
 
+    if (!conversationIdRef.current) {
+      conversationIdRef.current = crypto.randomUUID()
+    }
+
     try {
       for await (const event of streamChat({
         messages: history,
         signal: controller.signal,
+        improvementLogging: true,
+        conversationId: conversationIdRef.current ?? undefined,
+        turnId: crypto.randomUUID(),
       })) {
         if (event.type === "delta") {
           setTurns((previous) =>
@@ -200,7 +212,7 @@ export function AskAiChat() {
           type="submit"
           size="icon"
           aria-label="Send question"
-          disabled={!draft.trim() || isStreaming}
+          disabled={!draft.trim() || !improvementLogging || isStreaming}
           className="size-9 shrink-0 rounded-full transition-[transform,background-color,opacity] active:scale-95 active:translate-y-0 disabled:scale-100 sm:size-10"
         >
           <SendHorizonal className="size-4" aria-hidden="true" />
@@ -211,6 +223,34 @@ export function AskAiChat() {
           {questionsRemaining} question{questionsRemaining === 1 ? "" : "s"} remaining today
         </p>
       ) : null}
+      <AnimatePresence initial>
+        {draft.trim() ? (
+          <motion.label
+            key="conversation-consent"
+            initial={reducedMotion ? { opacity: 1 } : { height: 0, marginTop: 0, opacity: 0, y: -4 }}
+            animate={{ height: "auto", marginTop: 8, opacity: 1, y: 0 }}
+            exit={reducedMotion ? { opacity: 0 } : { height: 0, marginTop: 0, opacity: 0, y: -4 }}
+            transition={{ duration: reducedMotion ? 0 : 0.17, ease: [0.22, 1, 0.36, 1] }}
+            className="flex cursor-pointer items-start gap-2 overflow-hidden px-1 text-caption text-muted-foreground"
+          >
+            <input
+              type="checkbox"
+              checked={improvementLogging}
+              disabled={isStreaming}
+              onChange={(event) => setImprovementLogging(event.target.checked)}
+              className="mt-0.5 size-3.5 shrink-0 accent-foreground"
+            />
+            <span>
+              I opt in to storing this conversation for 30 days to help improve the assistant.
+              General device information is included; raw IP addresses are not stored. Don&apos;t
+              include private information. {" "}
+              <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+                Privacy details
+              </Link>
+            </span>
+          </motion.label>
+        ) : null}
+      </AnimatePresence>
     </div>
   )
 

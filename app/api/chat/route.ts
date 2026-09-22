@@ -7,7 +7,13 @@
 
 import { streamText } from "ai"
 import { openai } from "@ai-sdk/openai"
-import type { NextRequest } from "next/server"
+import { after, type NextRequest } from "next/server"
+
+import {
+  conversationLogContext,
+  logConversationTurn,
+  type ConversationTurnLog,
+} from "@/lib/conversation-logging"
 
 import {
   buildMessages,
@@ -45,6 +51,7 @@ interface ChatRequest {
   messages: ChatTurn[]
   mode: SearchMode
   limit: number
+  logging: { conversationId: string; turnId: string }
 }
 
 const MAX_TURNS = 12
@@ -52,6 +59,8 @@ const MAX_MESSAGE_CHARS = 8_000
 const MAX_CONVERSATION_CHARS = 24_000
 const MAX_REQUEST_CHARS = 32_000
 const MAX_OUTPUT_TOKENS = 500
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function badRequest(detail: string, errors?: unknown): Response {
   return Response.json({ detail, errors }, { status: 400 })
@@ -113,10 +122,36 @@ function parseRequest(body: unknown): ChatRequest | Response {
     return badRequest("invalid request", { limit: ["limit must be an integer between 1 and 20"] })
   }
 
-  return { messages: turns, mode: mode as SearchMode, limit }
+  const improvementLogging = payload.improvementLogging
+  if (improvementLogging !== true) {
+    return badRequest("invalid request", {
+      improvementLogging: ["conversation-storage consent is required to use Ask AI"],
+    })
+  }
+
+  const conversationId = payload.conversationId
+  const turnId = payload.turnId
+  if (
+    typeof conversationId !== "string" ||
+    typeof turnId !== "string" ||
+    !UUID_PATTERN.test(conversationId) ||
+    !UUID_PATTERN.test(turnId)
+  ) {
+    return badRequest("invalid request", {
+      logging: ["valid conversationId and turnId UUIDs are required"],
+    })
+  }
+
+  return {
+    messages: turns,
+    mode: mode as SearchMode,
+    limit,
+    logging: { conversationId, turnId },
+  }
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
+  const startedAt = Date.now()
   let gate
   try {
     gate = await enforceRateLimit(request, "chat")
@@ -147,7 +182,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const parsed = parseRequest(body)
   if (parsed instanceof Response) return withRateLimitHeaders(parsed, gate)
 
-  const { messages, mode, limit } = parsed
+  const { messages, mode, limit, logging } = parsed
   const question = messages[messages.length - 1].content
   const history = messages.slice(0, -1)
 
@@ -190,9 +225,34 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const sources = buildSources(outcome.results)
 
+  let finishLog: (result: Pick<ConversationTurnLog, "answer" | "status" | "model">) => void
+  const requestContext = conversationLogContext(request)
+  const completion = new Promise<Pick<ConversationTurnLog, "answer" | "status" | "model">>(
+    (resolve) => {
+      finishLog = resolve
+    },
+  )
+  after(async () => {
+    const completed = await completion
+    await logConversationTurn({
+      ...requestContext,
+      ...logging,
+      ...completed,
+      question,
+      intent: outcome.intent,
+      sourceCount: sources.length,
+      latencyMs: Math.max(0, Date.now() - startedAt),
+    }).catch((error) => {
+      console.error("Failed to store opted-in conversation", error)
+    })
+  })
+
   const stream = new ReadableStream<string>({
     async start(controller) {
       const enqueue = (frame: string) => controller.enqueue(frame)
+      let loggedAnswer = ""
+      let loggedStatus: ConversationTurnLog["status"] = "error"
+      let loggedModel = ""
       try {
         enqueue(
           sse("retrieval", {
@@ -204,6 +264,8 @@ export async function POST(request: NextRequest): Promise<Response> {
         enqueue(sse("citations", { sources }))
 
         if (sources.length === 0) {
+          loggedAnswer = NO_EVIDENCE_MESSAGE
+          loggedStatus = "no_evidence"
           enqueue(sse("delta", { text: NO_EVIDENCE_MESSAGE }))
           enqueue(sse("done", { finish_reason: "no_evidence" }))
           return
@@ -228,14 +290,18 @@ export async function POST(request: NextRequest): Promise<Response> {
           temperature: 0.2,
           maxOutputTokens: MAX_OUTPUT_TOKENS,
         })
+        loggedModel = DEFAULT_MODEL
         for await (const text of result.textStream) {
+          loggedAnswer += text
           enqueue(sse("delta", { text }))
         }
+        loggedStatus = "completed"
         enqueue(sse("done", { finish_reason: "stop" }))
       } catch (error) {
         enqueue(sse("error", { detail: `generation failed: ${(error as Error)?.message ?? error}` }))
         enqueue(sse("done", { finish_reason: "stop" }))
       } finally {
+        finishLog({ answer: loggedAnswer, status: loggedStatus, model: loggedModel })
         controller.close()
         await releaseChatLock(gate.visitorId, lockToken).catch((error) => {
           console.error("Failed to release chat lock", error)

@@ -1,6 +1,11 @@
+from datetime import timedelta
+
 from django.test import TestCase
+from django.utils import timezone
 
 from knowledge.models import (
+    AIConversation,
+    AIConversationTurn,
     Company,
     Employment,
     Evidence,
@@ -10,6 +15,33 @@ from knowledge.models import (
     Skill,
     Technology,
 )
+
+
+class AIConversationModelsTest(TestCase):
+    def test_conversation_keeps_pseudonymous_metadata_and_turns(self):
+        conversation = AIConversation.objects.create(
+            network_hash="a" * 64,
+            device_type="mobile",
+            browser_family="Safari",
+            os_family="iOS",
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+        turn = AIConversationTurn.objects.create(
+            conversation=conversation,
+            question="What has David built?",
+            answer="He has built operational software.",
+            status="completed",
+            intent="projects",
+            model="gpt-4o-mini",
+            source_count=3,
+            latency_ms=120,
+        )
+
+        self.assertEqual(conversation.turns.get(), turn)
+        self.assertEqual(conversation.network_hash, "a" * 64)
+        self.assertEqual(conversation.consent_version, "2026-09-22")
+        self.assertEqual(turn.status, "completed")
+        self.assertNotIn("ip", {field.name for field in conversation._meta.fields})
 
 
 class KnowledgeModelsTest(TestCase):

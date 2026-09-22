@@ -112,16 +112,26 @@ async function readError(response: Response): Promise<string> {
 export async function* streamChat({
   messages,
   signal,
+  improvementLogging = false,
+  conversationId,
+  turnId,
 }: {
   messages: ChatTurn[]
   signal?: AbortSignal
+  improvementLogging?: boolean
+  conversationId?: string
+  turnId?: string
 }): AsyncGenerator<ChatEvent> {
   let response: Response
   try {
     response = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({
+        messages,
+        improvementLogging,
+        ...(improvementLogging ? { conversationId, turnId } : {}),
+      }),
       signal,
     })
   } catch (error) {

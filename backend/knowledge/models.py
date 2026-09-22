@@ -1,3 +1,5 @@
+import uuid
+
 from django.db import models
 from pgvector.django import VectorField
 
@@ -162,3 +164,51 @@ class KnowledgeChunk(models.Model):
 
     def __str__(self):
         return f"{self.source_type}: {self.content[:40]}"
+
+
+class AIConversation(models.Model):
+    """An explicitly opted-in, pseudonymous Ask AI conversation."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    network_hash = models.CharField(max_length=64)
+    device_type = models.CharField(max_length=20, default="unknown")
+    browser_family = models.CharField(max_length=40, default="unknown")
+    os_family = models.CharField(max_length=40, default="unknown")
+    consent_version = models.CharField(max_length=20, default="2026-09-22")
+    consented_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    expires_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"AI conversation {self.id}"
+
+
+class AIConversationTurn(models.Model):
+    STATUS_CHOICES = [
+        ("completed", "Completed"),
+        ("no_evidence", "No evidence"),
+        ("error", "Error"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    conversation = models.ForeignKey(
+        AIConversation, on_delete=models.CASCADE, related_name="turns"
+    )
+    question = models.TextField()
+    answer = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    intent = models.CharField(max_length=50, blank=True)
+    model = models.CharField(max_length=100, blank=True)
+    source_count = models.PositiveIntegerField(default=0)
+    latency_ms = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.status}: {self.question[:60]}"
