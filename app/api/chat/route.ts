@@ -14,6 +14,7 @@ import {
   logConversationTurn,
   type ConversationTurnLog,
 } from "@/lib/conversation-logging"
+import { sendConversationAlert } from "@/lib/conversation-alerts"
 
 import {
   buildMessages,
@@ -80,6 +81,19 @@ function isCreditExhaustionError(error: unknown): boolean {
     "project_spend_limit_exceeded",
     "exceeded your current quota",
   ].some((marker) => detail.includes(marker))
+}
+
+async function storeAndAlertConversation(entry: ConversationTurnLog): Promise<void> {
+  const [stored, alerted] = await Promise.allSettled([
+    logConversationTurn(entry),
+    sendConversationAlert(entry),
+  ])
+  if (stored.status === "rejected") {
+    console.error("Failed to store opted-in conversation", stored.reason)
+  }
+  if (alerted.status === "rejected") {
+    console.error("Failed to send conversation alert", alerted.reason)
+  }
 }
 
 function sse(event: string, payload: unknown): string {
@@ -230,7 +244,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     const requestContext = conversationLogContext(request)
     const latencyMs = Math.max(0, Date.now() - startedAt)
     after(async () => {
-      await logConversationTurn({
+      await storeAndAlertConversation({
         ...requestContext,
         ...logging,
         question,
@@ -242,8 +256,6 @@ export async function POST(request: NextRequest): Promise<Response> {
         model: "",
         sourceCount: 0,
         latencyMs,
-      }).catch((error) => {
-        console.error("Failed to store conversational reply", error)
       })
     })
 
@@ -323,7 +335,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   )
   after(async () => {
     const completed = await completion
-    await logConversationTurn({
+    await storeAndAlertConversation({
       ...requestContext,
       ...logging,
       ...completed,
@@ -333,8 +345,6 @@ export async function POST(request: NextRequest): Promise<Response> {
       intentConfidence: intentDecision.confidence,
       sourceCount: sources.length,
       latencyMs: Math.max(0, Date.now() - startedAt),
-    }).catch((error) => {
-      console.error("Failed to store opted-in conversation", error)
     })
   })
 
@@ -366,6 +376,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         }
 
         if (!process.env.OPENAI_API_KEY?.trim()) {
+          loggedAnswer = MISSING_KEY_DETAIL
           enqueue(sse("error", { detail: MISSING_KEY_DETAIL }))
           enqueue(sse("done", { finish_reason: "error" }))
           return
@@ -394,11 +405,12 @@ export async function POST(request: NextRequest): Promise<Response> {
         enqueue(sse("done", { finish_reason: "stop" }))
       } catch (error) {
         console.error("Chat generation failed", error)
+        loggedAnswer = isCreditExhaustionError(error)
+          ? CREDITS_EXHAUSTED_DETAIL
+          : GENERATION_UNAVAILABLE_DETAIL
         enqueue(
           sse("error", {
-            detail: isCreditExhaustionError(error)
-              ? CREDITS_EXHAUSTED_DETAIL
-              : GENERATION_UNAVAILABLE_DETAIL,
+            detail: loggedAnswer,
           }),
         )
         enqueue(sse("done", { finish_reason: "error" }))

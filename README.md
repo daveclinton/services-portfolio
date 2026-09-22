@@ -154,6 +154,10 @@ RATE_LIMIT_SECRET=...           # random value, at least 32 characters
 AI_GLOBAL_DAILY_LIMIT=200       # optional circuit breaker
 SEARCH_GLOBAL_DAILY_LIMIT=2000  # optional circuit breaker
 CRON_SECRET=...                 # random value, at least 16 characters
+BREVO_API_KEY=...               # server-only transactional email key
+BREVO_ALERT_TO_EMAIL=david@daveclintonn.cc
+BREVO_SENDER_EMAIL=david@daveclintonn.cc  # verified Brevo sender
+BREVO_SENDER_NAME=David Clinton Portfolio
 ```
 
 `OPENAI_API_KEY` is needed for grounded answers and semantic query embeddings.
@@ -174,6 +178,12 @@ raw IP addresses and full user-agent strings are not stored. Apply the Django
 migrations before deploying this feature. A protected Vercel cron job deletes
 expired conversations every day; `CRON_SECRET` is sent by Vercel in its
 authorization header.
+
+Each opted-in chat turn also triggers a private Brevo email containing the
+question, response, status, selected intent, source count and coarse device
+information. Email delivery runs after the response and cannot break the
+visitor's chat request. Configure the four `BREVO_*` variables above in every
+deployment environment where alerts should be sent.
 
 `.vercelignore` excludes `backend/`; Python runs separately as command-line jobs.
 Remove any old `NEXT_PUBLIC_API_BASE_URL` deployment variable; it is no longer

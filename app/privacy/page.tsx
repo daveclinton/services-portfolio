@@ -42,6 +42,15 @@ export default function PrivacyPage() {
         </section>
 
         <section>
+          <h2 className="font-semibold text-foreground">Service providers</h2>
+          <p className="mt-2">
+            Conversation text is processed by OpenAI to generate the assistant&apos;s response and
+            sent through Brevo in a private notification so I can review the interaction. These
+            services process the conversation only as part of operating and improving Ask AI.
+          </p>
+        </section>
+
+        <section>
           <h2 className="font-semibold text-foreground">Please avoid private information</h2>
           <p className="mt-2">
             Conversation text may contain personal information if you type it. Do not submit
