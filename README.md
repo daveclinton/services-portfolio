@@ -164,11 +164,13 @@ BREVO_SENDER_NAME=David Clinton Portfolio
 Without it, search can fall back to structured retrieval and chat reports the
 missing key when an answer would require generation.
 
-The public AI routes fail closed when Upstash or `RATE_LIMIT_SECRET` is missing.
-Chat allows 3 questions per minute, 15 per hour and 30 per day per signed
-anonymous visitor, plus 40 per hour per hashed IP. Only one answer can be
-generated per visitor at a time. `/api/search` has separate, higher limits.
-Both routes also have configurable site-wide daily ceilings.
+During local development, leave the Upstash variables and `RATE_LIMIT_SECRET`
+blank to bypass rate checks and the Redis concurrency lock. Production still
+fails closed when any of them is missing. Chat allows 3 questions per minute,
+15 per hour and 30 per day per signed anonymous visitor, plus 40 per hour per
+hashed IP. Only one answer can be generated per visitor at a time.
+`/api/search` has separate, higher limits. Both routes also have configurable
+site-wide daily ceilings.
 
 Ask AI requires explicit conversation-storage consent before a question can be
 sent. When a visitor selects the consent checkbox, questions and responses are stored in
@@ -179,11 +181,13 @@ migrations before deploying this feature. A protected Vercel cron job deletes
 expired conversations every day; `CRON_SECRET` is sent by Vercel in its
 authorization header.
 
-Each opted-in chat turn also triggers a private Brevo email containing the
-question, response, status, selected intent, source count and coarse device
-information. Email delivery runs after the response and cannot break the
-visitor's chat request. Configure the four `BREVO_*` variables above in every
-deployment environment where alerts should be sent.
+Each browser-tab chat session triggers at most one private Brevo email, on its
+first stored turn. A session ID lives in `sessionStorage`, so later turns and
+page reloads in the same tab do not create more alerts; closing the tab ends the
+browser session. All opted-in turns are still stored. Email delivery runs after
+the response and cannot break the visitor's chat request. Configure the four
+`BREVO_*` variables above in every deployment environment where alerts should
+be sent, and apply migrations so `AIConversation.alerted_at` is available.
 
 `.vercelignore` excludes `backend/`; Python runs separately as command-line jobs.
 Remove any old `NEXT_PUBLIC_API_BASE_URL` deployment variable; it is no longer

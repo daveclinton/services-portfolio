@@ -21,7 +21,7 @@ function paragraph(value: string): string {
   return escapeHtml(value || "(no response was generated)").replaceAll("\n", "<br>")
 }
 
-/** Send the owner a private alert for an opted-in Ask AI conversation turn. */
+/** Send the owner one private alert when an opted-in chat-window session begins. */
 export async function sendConversationAlert(entry: ConversationTurnLog): Promise<void> {
   const apiKey = requiredEnv("BREVO_API_KEY")
   const recipient = requiredEnv("BREVO_ALERT_TO_EMAIL")
@@ -43,16 +43,17 @@ export async function sendConversationAlert(entry: ConversationTurnLog): Promise
     body: JSON.stringify({
       sender: { name: senderName, email: sender },
       to: [{ name: "David Clinton", email: recipient }],
-      subject: `Ask AI: ${entry.intent || "general"} · ${entry.status}`,
-      headers: { "Idempotency-Key": `ask-ai-${entry.turnId}` },
+      subject: `Ask AI: new conversation · ${entry.intent || "general"}`,
+      headers: { "Idempotency-Key": `ask-ai-session-${entry.conversationId}` },
       htmlContent: `<!doctype html>
 <html>
   <body style="margin:0;background:#f5f3ef;color:#171717;font-family:Arial,sans-serif">
     <main style="max-width:680px;margin:0 auto;padding:32px 20px">
       <section style="background:#fff;border:1px solid #dedbd5;border-radius:14px;padding:28px">
-        <p style="margin:0 0 8px;color:#6b665e;font-size:13px">ASK AI CONVERSATION ALERT</p>
-        <h1 style="margin:0 0 24px;font-size:24px">A visitor used your portfolio assistant</h1>
-        <p style="margin:0 0 8px"><strong>Question</strong></p>
+        <p style="margin:0 0 8px;color:#6b665e;font-size:13px">ASK AI SESSION ALERT</p>
+        <h1 style="margin:0 0 12px;font-size:24px">A visitor started a conversation</h1>
+        <p style="margin:0 0 24px;color:#6b665e;line-height:1.5">You will receive one email for this chat-window session. Later turns remain available in the stored conversation.</p>
+        <p style="margin:0 0 8px"><strong>Opening question</strong></p>
         <p style="margin:0 0 24px;line-height:1.6">${paragraph(entry.question)}</p>
         <p style="margin:0 0 8px"><strong>Assistant response</strong></p>
         <p style="margin:0 0 24px;line-height:1.6">${paragraph(entry.answer)}</p>

@@ -144,11 +144,16 @@ export async function* streamChat({
   if (!response.ok) throw new AiApiError(await readError(response))
   if (!response.body) throw new AiApiError("This browser cannot stream responses.")
 
-  const remaining = Number(response.headers.get("X-RateLimit-Remaining"))
-  const limit = Number(response.headers.get("X-RateLimit-Limit"))
-  const reset = Number(response.headers.get("X-RateLimit-Reset"))
-  if ([remaining, limit, reset].every(Number.isFinite)) {
-    yield { type: "rate_limit", remaining, limit, reset }
+  const remainingHeader = response.headers.get("X-RateLimit-Remaining")
+  const limitHeader = response.headers.get("X-RateLimit-Limit")
+  const resetHeader = response.headers.get("X-RateLimit-Reset")
+  if (remainingHeader !== null && limitHeader !== null && resetHeader !== null) {
+    const remaining = Number(remainingHeader)
+    const limit = Number(limitHeader)
+    const reset = Number(resetHeader)
+    if ([remaining, limit, reset].every(Number.isFinite)) {
+      yield { type: "rate_limit", remaining, limit, reset }
+    }
   }
 
   const reader = response.body.getReader()

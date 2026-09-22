@@ -178,6 +178,7 @@ class AIConversation(models.Model):
     consented_at = models.DateTimeField(auto_now_add=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    alerted_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(db_index=True)
 
     class Meta:

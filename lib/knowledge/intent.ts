@@ -106,8 +106,11 @@ export const INTENTS: Record<Exclude<IntentName, "general">, QuestionIntent> = {
     name: "skills",
     guidance:
       "Describe capabilities in terms of demonstrated work and representative " +
-      "evidence, not an unexplained keyword list.",
-    anchorPaths: [],
+      "evidence, not an unexplained keyword list. For hiring, role-fit, or suitability " +
+      "questions, explain where the evidence shows a strong fit, avoid making the " +
+      "hiring decision for the user, and invite them to share the role requirements " +
+      "for a more specific comparison.",
+    anchorPaths: ["knowledge/person/profile.md"],
   },
   technologies: {
     name: "technologies",
@@ -158,6 +161,7 @@ const ORDERED_PATTERNS: ReadonlyArray<readonly [Exclude<IntentName, "general">, 
     [
       /\b(skill|skills|expertise|speciali[sz]e[ds]?|capabilit(?:y|ies))\b/,
       /\b(good at|strong at|proficient|strengths?)\b/,
+      /\b(hire|hiring|candidate|suitable|suitability|qualified|qualification|fit for|good fit)\b/,
     ],
   ],
   [

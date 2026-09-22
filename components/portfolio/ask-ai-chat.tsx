@@ -28,6 +28,7 @@ type Turn = {
 let turnCounter = 0
 const CONSENT_VERSION = "2026-09-22"
 const CONSENT_STORAGE_KEY = "ask-ai:conversation-storage-consent"
+const CONVERSATION_SESSION_KEY = "ask-ai:conversation-session-id"
 
 function nextId(role: Turn["role"]) {
   turnCounter += 1
@@ -64,6 +65,15 @@ export function AskAiChat() {
     syncConsent()
     window.addEventListener("storage", syncConsent)
     return () => window.removeEventListener("storage", syncConsent)
+  }, [])
+
+  useEffect(() => {
+    let conversationId = sessionStorage.getItem(CONVERSATION_SESSION_KEY)
+    if (!conversationId) {
+      conversationId = crypto.randomUUID()
+      sessionStorage.setItem(CONVERSATION_SESSION_KEY, conversationId)
+    }
+    conversationIdRef.current = conversationId
   }, [])
 
   /** Keeps the latest message in view while a conversation streams. */
@@ -119,6 +129,7 @@ export function AskAiChat() {
 
     if (!conversationIdRef.current) {
       conversationIdRef.current = crypto.randomUUID()
+      sessionStorage.setItem(CONVERSATION_SESSION_KEY, conversationIdRef.current)
     }
 
     try {

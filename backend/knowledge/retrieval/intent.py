@@ -61,7 +61,10 @@ INTENTS = {
     "skills": QuestionIntent(
         "skills",
         "Describe capabilities in terms of demonstrated work and representative "
-        "evidence, not an unexplained keyword list.",
+        "evidence, not an unexplained keyword list. For hiring, role-fit, or "
+        "suitability questions, explain demonstrated fit without making the hiring "
+        "decision for the user.",
+        ("knowledge/person/profile.md",),
     ),
     "technologies": QuestionIntent(
         "technologies",
@@ -112,6 +115,7 @@ def classify_question(question: str) -> QuestionIntent:
             (
                 r"\b(skill|skills|expertise|speciali[sz]e[ds]?|capabilit(?:y|ies))\b",
                 r"\b(good at|strong at|proficient|strengths?)\b",
+                r"\b(hire|hiring|candidate|suitable|suitability|qualified|qualification|fit for|good fit)\b",
             ),
         ),
         (

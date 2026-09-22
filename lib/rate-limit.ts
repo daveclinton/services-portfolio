@@ -44,6 +44,16 @@ type Limiters = {
 
 let cachedLimiters: Limiters | null = null
 
+/** Local development can run without provisioning external rate-limit infrastructure. */
+function bypassRateLimits(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    (!process.env.UPSTASH_REDIS_REST_URL?.trim() ||
+      !process.env.UPSTASH_REDIS_REST_TOKEN?.trim() ||
+      !process.env.RATE_LIMIT_SECRET?.trim())
+  )
+}
+
 function positiveInteger(value: string | undefined, fallback: number): number {
   const parsed = Number(value)
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
@@ -173,6 +183,10 @@ export async function enforceRateLimit(
   request: NextRequest,
   endpoint: "chat" | "search",
 ): Promise<RateLimitGate> {
+  if (bypassRateLimits()) {
+    return { allowed: true, visitorId: randomUUID() }
+  }
+
   const visitor = readVisitor(request)
   const ip = clientIp(request, visitor.id)
   const configured = limiters()
@@ -229,6 +243,8 @@ export function rateLimitResponse(gate: RateLimitGate): Response {
 }
 
 export async function acquireChatLock(visitorId: string): Promise<string | null> {
+  if (bypassRateLimits()) return randomUUID()
+
   const token = randomUUID()
   const result = await limiters().redis.set(`portfolio:lock:chat:${visitorId}`, token, {
     nx: true,
@@ -238,6 +254,8 @@ export async function acquireChatLock(visitorId: string): Promise<string | null>
 }
 
 export async function releaseChatLock(visitorId: string, token: string): Promise<void> {
+  if (bypassRateLimits()) return
+
   await limiters().redis.eval(
     "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
     [`portfolio:lock:chat:${visitorId}`],

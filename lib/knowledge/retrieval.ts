@@ -21,6 +21,8 @@ export type SearchMode = (typeof MODES)[number]
 const CANDIDATE_MULTIPLIER = 4
 const MIN_CANDIDATE_POOL = 20
 const RRF_K = 60
+const OPENAI_VECTOR_SEARCH_URL = "https://api.openai.com/v1/vector_stores"
+const DEFAULT_VECTOR_SCORE_THRESHOLD = 0.2
 
 export const EMBEDDING_MODEL = "text-embedding-3-small"
 export const EXPECTED_DIMENSIONS = 1536
@@ -238,10 +240,15 @@ async function searchByVector(
 }
 
 async function searchSemantic(
-  query: string,
+  queries: string[],
   filters: SearchFilters,
   limit: number,
 ): Promise<Array<{ chunk: ChunkRow; distance: number }>> {
+  const vectorStoreId = process.env.OPENAI_VECTOR_STORE_ID?.trim()
+  if (vectorStoreId) {
+    return searchOpenAIVectorStore(vectorStoreId, queries, filters, limit)
+  }
+
   const countRows = (await sql().query(
     "SELECT COUNT(*)::int AS n FROM knowledge_knowledgechunk WHERE embedding IS NOT NULL",
     [],
@@ -252,7 +259,157 @@ async function searchSemantic(
         "embeddings yet (run embed_knowledge)",
     )
   }
-  return searchByVector(await embedQuery(query), filters, limit)
+  const rankings = await Promise.all(
+    queries.map(async (query) => searchByVector(await embedQuery(query), filters, limit)),
+  )
+  const bestByChunk = new Map<number, { chunk: ChunkRow; distance: number }>()
+  for (const ranking of rankings) {
+    for (const hit of ranking) {
+      const previous = bestByChunk.get(hit.chunk.id)
+      if (!previous || hit.distance < previous.distance) bestByChunk.set(hit.chunk.id, hit)
+    }
+  }
+  return [...bestByChunk.values()]
+    .sort((left, right) => left.distance - right.distance)
+    .slice(0, limit)
+}
+
+type OpenAIFilter =
+  | { type: "in"; key: string; value: string[] }
+  | { type: "and"; filters: OpenAIFilter[] }
+
+interface OpenAIVectorSearchResult {
+  file_id?: string
+  filename?: string
+  score?: number
+  attributes?: Record<string, string | number | boolean> | null
+  content?: Array<{ type?: string; text?: string }>
+}
+
+interface OpenAIVectorSearchResponse {
+  data?: OpenAIVectorSearchResult[]
+}
+
+function openAIFilter(filters: SearchFilters): OpenAIFilter | undefined {
+  const comparisons: OpenAIFilter[] = []
+  for (const key of [
+    "source_type",
+    "source_group",
+    "project_slug",
+    "company_slug",
+    "skill_slug",
+  ] as const) {
+    if (filters[key].length > 0) {
+      comparisons.push({ type: "in", key, value: filters[key] })
+    }
+  }
+  if (comparisons.length === 0) return undefined
+  return comparisons.length === 1
+    ? comparisons[0]
+    : { type: "and", filters: comparisons }
+}
+
+function scoreThreshold(): number {
+  const configured = Number(process.env.OPENAI_VECTOR_SCORE_THRESHOLD)
+  return Number.isFinite(configured) && configured >= 0 && configured <= 1
+    ? configured
+    : DEFAULT_VECTOR_SCORE_THRESHOLD
+}
+
+/** Stable negative ID for managed-search results, avoiding local database IDs. */
+function externalChunkId(value: string): number {
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return -(Math.abs(hash | 0) + 1)
+}
+
+function attribute(attributes: OpenAIVectorSearchResult["attributes"], key: string): string {
+  const value = attributes?.[key]
+  return typeof value === "string" ? value : ""
+}
+
+async function searchOpenAIVectorStore(
+  vectorStoreId: string,
+  queries: string[],
+  filters: SearchFilters,
+  limit: number,
+): Promise<Array<{ chunk: ChunkRow; distance: number }>> {
+  const apiKey = process.env.OPENAI_API_KEY?.trim()
+  if (!apiKey) {
+    throw new SemanticUnavailable(
+      "managed semantic search is unavailable: OPENAI_API_KEY is not configured",
+    )
+  }
+
+  const filter = openAIFilter(filters)
+  let response: Response
+  try {
+    response = await fetch(
+      `${OPENAI_VECTOR_SEARCH_URL}/${encodeURIComponent(vectorStoreId)}/search`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query: queries.length === 1 ? queries[0] : queries,
+          rewrite_query: true,
+          max_num_results: Math.min(limit, 50),
+          ranking_options: {
+            ranker: "auto",
+            score_threshold: scoreThreshold(),
+          },
+          ...(filter ? { filters: filter } : {}),
+        }),
+        signal: AbortSignal.timeout(15_000),
+      },
+    )
+  } catch (error) {
+    throw new SemanticUnavailable(
+      `managed semantic search is unavailable: ${(error as Error)?.message ?? error}`,
+    )
+  }
+
+  if (!response.ok) {
+    const requestId = response.headers.get("x-request-id")
+    throw new SemanticUnavailable(
+      `managed semantic search is unavailable: OpenAI returned ${response.status}` +
+        (requestId ? ` (request ${requestId})` : ""),
+    )
+  }
+
+  const payload = (await response.json()) as OpenAIVectorSearchResponse
+  return (payload.data ?? []).map((result, index) => {
+    const attributes = result.attributes ?? {}
+    const score = Math.max(0, Math.min(1, Number(result.score) || 0))
+    const sourcePath = attribute(attributes, "source_path") || result.filename || ""
+    const content = (result.content ?? [])
+      .filter((part) => part.type === "text" && typeof part.text === "string")
+      .map((part) => part.text)
+      .join("\n")
+    return {
+      chunk: {
+        id: externalChunkId(`${result.file_id ?? sourcePath}:${index}`),
+        content,
+        source_type: attribute(attributes, "source_type") || "document",
+        source_path: sourcePath,
+        company_slug: attribute(attributes, "company_slug"),
+        project_slug: attribute(attributes, "project_slug"),
+        skill_slug: attribute(attributes, "skill_slug"),
+        metadata: {
+          ...attributes,
+          source_group: attribute(attributes, "source_group"),
+          openai_file_id: result.file_id ?? "",
+          filename: result.filename ?? "",
+        },
+      },
+      distance: 1 - score,
+    }
+  })
 }
 
 /* ------------------------------------------------------------------ */
@@ -500,6 +657,7 @@ export async function search(
     limit?: number
     includeContent?: boolean
     intent?: QuestionIntent
+    retrievalQueries?: string[]
   },
 ): Promise<SearchOutcome> {
   const mode = options?.mode ?? "hybrid"
@@ -512,6 +670,11 @@ export async function search(
 
   const filters = filtersFromPayload(options?.filters ?? null)
   const intent = options?.intent ?? classifyQuestion(query)
+  const retrievalQueries = [...new Set((options?.retrievalQueries ?? [query]).map((item) => item.trim()))]
+    .filter(Boolean)
+    .slice(0, 4)
+  if (retrievalQueries.length === 0) retrievalQueries.push(query)
+  const standaloneQuery = retrievalQueries[0]
   const pool = Math.max(limit * CANDIDATE_MULTIPLIER, MIN_CANDIDATE_POOL)
   const notes: string[] = []
   const strategies: Record<string, number> = {}
@@ -520,17 +683,23 @@ export async function search(
   const distances = new Map<number, number>()
 
   if (mode === "structured" || mode === "hybrid") {
-    structuredRanked = await searchStructured(query, filters, pool)
+    structuredRanked = await searchStructured(standaloneQuery, filters, pool)
     strategies.structured = structuredRanked.length
   }
 
   if (mode === "semantic" || mode === "hybrid") {
     try {
-      semanticRanked = await searchSemantic(query, filters, pool)
+      semanticRanked = await searchSemantic(retrievalQueries, filters, pool)
       for (const { chunk, distance } of semanticRanked) {
         distances.set(chunk.id, distance)
       }
       strategies.semantic = semanticRanked.length
+      if (process.env.OPENAI_VECTOR_STORE_ID?.trim()) {
+        notes.push("Semantic results came from the configured OpenAI vector store.")
+      }
+      if (retrievalQueries.length > 1) {
+        notes.push(`Semantic retrieval used ${retrievalQueries.length} contextual queries.`)
+      }
     } catch (error) {
       if (!(error instanceof SemanticUnavailable)) throw error
       strategies.semantic = 0

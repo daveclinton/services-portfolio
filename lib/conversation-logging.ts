@@ -5,6 +5,8 @@ import type { NextRequest } from "next/server"
 import { sql } from "@/lib/knowledge/db"
 
 const DEFAULT_RETENTION_DAYS = 30
+const DEVELOPMENT_PRIVACY_SECRET =
+  "portfolio-local-development-privacy-secret"
 
 export type ConversationLogContext = {
   networkHash: string
@@ -30,6 +32,7 @@ export type ConversationTurnLog = ConversationLogContext & {
 function privacySecret(): string {
   const value = process.env.RATE_LIMIT_SECRET?.trim()
   if (!value || value.length < 32) {
+    if (process.env.NODE_ENV !== "production") return DEVELOPMENT_PRIVACY_SECRET
     throw new Error("RATE_LIMIT_SECRET must contain at least 32 characters")
   }
   return value
@@ -134,6 +137,26 @@ export async function logConversationTurn(entry: ConversationTurnLog): Promise<v
       entry.sourceCount,
       entry.latencyMs,
     ],
+  )
+}
+
+/** Atomically reserve the one email notification allowed for a conversation session. */
+export async function claimConversationAlert(conversationId: string): Promise<boolean> {
+  const rows = (await sql().query(
+    `UPDATE knowledge_aiconversation
+        SET alerted_at = NOW()
+      WHERE id = $1::uuid AND alerted_at IS NULL
+      RETURNING id`,
+    [conversationId],
+  )) as Array<{ id: string }>
+  return rows.length === 1
+}
+
+/** Make a failed notification eligible for retry on the session's next turn. */
+export async function releaseConversationAlert(conversationId: string): Promise<void> {
+  await sql().query(
+    "UPDATE knowledge_aiconversation SET alerted_at = NULL WHERE id = $1::uuid",
+    [conversationId],
   )
 }
 

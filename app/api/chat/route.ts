@@ -10,8 +10,10 @@ import { openai } from "@ai-sdk/openai"
 import { after, type NextRequest } from "next/server"
 
 import {
+  claimConversationAlert,
   conversationLogContext,
   logConversationTurn,
+  releaseConversationAlert,
   type ConversationTurnLog,
 } from "@/lib/conversation-logging"
 import { sendConversationAlert } from "@/lib/conversation-alerts"
@@ -84,15 +86,25 @@ function isCreditExhaustionError(error: unknown): boolean {
 }
 
 async function storeAndAlertConversation(entry: ConversationTurnLog): Promise<void> {
-  const [stored, alerted] = await Promise.allSettled([
-    logConversationTurn(entry),
-    sendConversationAlert(entry),
-  ])
-  if (stored.status === "rejected") {
-    console.error("Failed to store opted-in conversation", stored.reason)
+  try {
+    await logConversationTurn(entry)
+  } catch (error) {
+    console.error("Failed to store opted-in conversation", error)
+    return
   }
-  if (alerted.status === "rejected") {
-    console.error("Failed to send conversation alert", alerted.reason)
+
+  let claimed = false
+  try {
+    claimed = await claimConversationAlert(entry.conversationId)
+    if (!claimed) return
+    await sendConversationAlert(entry)
+  } catch (error) {
+    console.error("Failed to send conversation-session alert", error)
+    if (claimed) {
+      await releaseConversationAlert(entry.conversationId).catch((releaseError) => {
+        console.error("Failed to release conversation-session alert claim", releaseError)
+      })
+    }
   }
 }
 
@@ -312,7 +324,12 @@ export async function POST(request: NextRequest): Promise<Response> {
   const intentDecision = await classifyQuestionHybrid(question, history)
   let outcome
   try {
-    outcome = await search(question, { mode, limit, intent: intentDecision.intent })
+    outcome = await search(question, {
+      mode,
+      limit,
+      intent: intentDecision.intent,
+      retrievalQueries: intentDecision.plan.retrievalQueries,
+    })
   } catch (error) {
     await releaseChatLock(gate.visitorId, lockToken).catch((releaseError) => {
       console.error("Failed to release chat lock", releaseError)
@@ -359,7 +376,8 @@ export async function POST(request: NextRequest): Promise<Response> {
           sse("retrieval", {
             notes: [
               ...outcome.notes,
-              `Intent selected by ${intentDecision.source}.`,
+              `Response plan selected by ${intentDecision.source}.`,
+              `Goal: ${intentDecision.plan.goal}; response mode: ${intentDecision.plan.responseMode}.`,
             ],
             strategies: outcome.strategies,
             intent: outcome.intent,
@@ -386,6 +404,7 @@ export async function POST(request: NextRequest): Promise<Response> {
           personName: await personName(),
           history,
           intent: intentDecision.intent,
+          plan: intentDecision.plan,
         })
         // AI SDK v7 takes the system prompt via `instructions`, not `messages`.
         const [systemMessage, ...conversation] = prompt

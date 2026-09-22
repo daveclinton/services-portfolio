@@ -16,7 +16,7 @@ export const site = {
   keywords: [
     "Clinton",
     "daveclintonn",
-    "Sofware Engineer",
+    "Software Engineer",
     "open source",
     "portfolio",
     "daveclinton",
@@ -27,7 +27,7 @@ export const site = {
 export const profile = {
   name: "Clinton",
   handle: "@daveclintonn",
-  role: "Sofware Engineer 🇰🇪",
+  role: "Software Engineer 🇰🇪",
   initials: "I",
   avatarSrc: "/david.jpg",
   contactHref: "#links",

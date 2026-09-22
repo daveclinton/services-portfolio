@@ -244,6 +244,8 @@ def test_question_intents_cover_common_portfolio_questions():
     assert classify_question("What does he charge per hour?").name == "rates"
     assert classify_question("Where has he worked?").name == "experience"
     assert classify_question("What are his strongest skills?").name == "skills"
+    assert classify_question("Should I hire him?").name == "skills"
+    assert classify_question("Is David a good fit for this role?").name == "skills"
 
 
 def test_biography_search_anchors_profile_and_deprioritizes_technology_lists():
