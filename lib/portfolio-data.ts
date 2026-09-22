@@ -122,7 +122,7 @@ export const backgroundItems: TimelineEntry[] = [
     location: "Mombasa, Kenya",
     start: "2025 Oct",
     description:
-      "I am currently building internal tools for Mika covering Logistics, Aftersales Customer Service, Employee Management, and Warehouse across mobile, web, and backend",
+      "I help warehouse, delivery, and customer service teams spend less time on manual work by automating paperwork and connecting information across the business.",
   },
   {
     id: "2024-09",
@@ -131,7 +131,7 @@ export const backgroundItems: TimelineEntry[] = [
     start: "2024 Sep",
     end: "2025 Jun",
     description:
-      "Consulted for three firms at the same time while looking for a new full-time role: Full-Stack Developer at Givesuite, Frontend Developer at Element Pay, and DevRel at Studio1HQ",
+      "I improved online payment experiences for GiveSuite and Element Pay and wrote practical guides for developers through Studio1HQ.",
   },
   {
     id: "2022-05",
@@ -142,7 +142,7 @@ export const backgroundItems: TimelineEntry[] = [
     start: "2022 May",
     end: "2024 May",
     description:
-      "I worked on the web platforms team at Untapped Global. Shipped investor dashboards and data visualization surfaces for investment and operations teams",
+      "I turned complex investment data into clear charts so investors and internal teams could understand and explore it.",
   },
   {
     id: "2021-01",
@@ -152,7 +152,7 @@ export const backgroundItems: TimelineEntry[] = [
     start: "2021 Jan",
     end: "2022 Feb",
     description:
-      "I worked at Paperspace, writing developer facing infrastructure Tutorials on Cloud GPU and Applied Machine Learning Topics",
+      "I wrote practical articles that helped developers understand machine learning and make better use of cloud computing.",
   },
 ]
 
