@@ -1,4 +1,5 @@
 import Image from "next/image"
+import { ChevronDown } from "lucide-react"
 
 import { ongoingRoleLabel } from "@/lib/portfolio-data"
 import type { TimelineEntry } from "@/lib/portfolio-data"
@@ -59,12 +60,25 @@ export function TimelineItem({
           <p className="text-body font-medium text-foreground uppercase">
             {company}
           </p>
-          {meta ? (
-            <p className="text-caption text-muted-foreground">{meta}</p>
-          ) : null}
-          <p className="max-w-[52ch] text-body text-foreground/80">
-            {description}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            {meta ? (
+              <p className="text-caption text-muted-foreground">{meta}</p>
+            ) : null}
+            <details className="group">
+              <summary
+                aria-label="Toggle role description"
+                className="flex size-5 cursor-pointer list-none items-center justify-center rounded-sm text-muted-foreground/75 transition-colors marker:hidden hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden"
+              >
+                <ChevronDown
+                  aria-hidden="true"
+                  className="size-3 transition-transform group-open:rotate-180"
+                />
+              </summary>
+              <p className="mt-2 max-w-[52ch] text-body text-foreground/80">
+                {description}
+              </p>
+            </details>
+          </div>
         </div>
       </div>
     </li>
