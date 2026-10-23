@@ -183,7 +183,7 @@
 
 .home-story-portrait {
   display: flex;
-  height: 152px;
+  height: 144px;
   justify-content: center;
 }
 
@@ -208,7 +208,7 @@
 .home-story-article {
   max-width: 640px;
   margin-inline: auto;
-  padding-top: 48px;
+  padding-top: 32px;
   padding-bottom: 16px;
 }
 
