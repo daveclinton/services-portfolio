@@ -110,6 +110,15 @@ export default function Home() {
             <Link href="/experience">work experience</Link>.
           </p>
         </section>
+
+        <section>
+          <h2>About this site</h2>
+          <p>
+            The layout was inspired by{" "}
+            <a href="https://dhh.dk/">David Heinemeier Hansson&apos;s website</a>. I visit
+            his site probably too often.
+          </p>
+        </section>
       </article>
     </main>
   )
