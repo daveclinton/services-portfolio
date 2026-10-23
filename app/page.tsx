@@ -21,7 +21,15 @@ export default function Home() {
             <AvatarFallback>{profile.initials}</AvatarFallback>
           </Avatar>
         </div>
-        <h1>{site.name}</h1>
+        <h1>
+          {site.name.split(" ").map((name, index) => (
+            <span key={name}>
+              {index > 0 ? " " : null}
+              <span className="home-story-initial">{name[0]}</span>
+              {name.slice(1)}
+            </span>
+          ))}
+        </h1>
         <p>
           I am the creator of <a href={introduction.company.href}>{introduction.company.name}</a>,
           creator of its first product <a href={introduction.firstProduct.href}>{introduction.firstProduct.name}</a>

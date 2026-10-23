@@ -5,7 +5,7 @@ import type { IntentName as AskAiIntent } from "@/lib/knowledge/intent"
 export type BrandIconName = "github" | "x" | "linkedin"
 
 export const site = {
-  name: "David Clinton",
+  name: "David Clinton Hellen",
   title: "DCH",
   description:
     "",
@@ -25,7 +25,7 @@ export const profile = {
   name: "Clinton",
   handle: "@daveclintonn",
   role: "Software Engineer 🇰🇪",
-  initials: "I",
+  initials: "DCH",
   avatarSrc: "/david.jpg",
   contactHref: "#links",
   contactLabel: "Contact Me",
