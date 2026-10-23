@@ -91,9 +91,9 @@ function useDevicePixelRatio() {
 }
 
 // canvas fillStyle can't resolve var(), so read the theme token into a plain color
-// (the fallback is the light-mode --primary value, for pre-hydration paint only)
+// Use the fixed dark theme's primary for pre-hydration paint.
 const THEME_VAR = '--primary'
-const THEME_FALLBACK = '#171717'
+const THEME_FALLBACK = 'oklch(0.707 0.165 254.624)'
 
 function subscribeToTheme(onChange: () => void) {
   const observer = new MutationObserver(onChange)
