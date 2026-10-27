@@ -44,7 +44,7 @@ export default function Home() {
       <article className="home-story-article">
         <p id="links">
           I write on <a href={socialLinks[2].href}>X</a> and{" "}
-          <a href={introduction.paperspaceWriting}>my blog</a>. You can find me on{" "}
+          <Link href="/blog">my blog</Link>. You can find me on{" "}
           <a href={socialLinks[1].href}>LinkedIn</a>, <a href={email.href}>email me</a>, or{" "}
           <Link href={askAi.href}>ask AI about me</Link>.
         </p>

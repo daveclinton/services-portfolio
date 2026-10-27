@@ -1,7 +1,16 @@
 import type { NextConfig } from "next";
+import createMDX from "@next/mdx";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  pageExtensions: ["ts", "tsx", "md", "mdx"],
 };
 
-export default nextConfig;
+// Plugins are named as strings so Turbopack can load them (functions can't cross into Rust).
+const withMDX = createMDX({
+  options: {
+    remarkPlugins: ["remark-gfm"],
+    rehypePlugins: [["rehype-pretty-code", { theme: "github-dark-dimmed", keepBackground: false }]],
+  },
+});
+
+export default withMDX(nextConfig);
