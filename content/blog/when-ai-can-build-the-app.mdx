@@ -1,0 +1,53 @@
+export const metadata = {
+  title: "Claude can build the app. Then what?",
+  description: "I've built apps that create transactions in SAP. That experience changes how I hear the claim that AI can build almost any app.",
+  date: "2026-08-11",
+}
+
+*Updated October 27, 2026 with a recent r/ClaudeAI discussion.*
+
+An agency owner on [r/ClaudeAI](https://www.reddit.com/r/ClaudeAI/comments/1xesfpc/if_claude_can_build_almost_any_app_what_is_the/) said he can give Claude a prompt, go to the gym, and come back to a working app. I believe him. I also understand why his next question is uncomfortable: if anyone can do that, what happens to developers?
+
+I thought about the warehouse app I built at Mika. Staff scan source documents, and the system can post delivery notes, goods issues, and goods receipts to SAP Business One. In a demo, that looks like a scan followed by a successful post. In use, a phone can lose its connection. A request can reach SAP and time out before our system gets a reply. Retry carelessly, and the same transaction might land twice.
+
+The fast first version is real. So is the work behind that scan. I keep coming back to the same question the agency owner asked: what are developers selling when a working first version is this easy to make?
+
+## Some apps really can end at version one
+
+One reply in that thread came from a teacher who used Claude to make a classroom name picker. They wanted a particular way to choose students without hunting for a website, creating an account, or putting up with ads. They got a tool that worked for their lesson.
+
+Good. I want more people to be able to do that. I have no interest in arguing that a teacher needs to hire a software team for a name picker.
+
+I also think anyone selling a basic dashboard as though it takes months of special magic is in trouble. I can now get a rough interface and working flows on the screen much faster than I could a few years ago. Clients can see that too. They will ask why the price has not changed.
+
+But I would ask them what happens after the demo. Who will use the app? What data does it touch? What happens when the internet drops or a record is wrong? For a classroom tool, the answers may be simple. For a warehouse or payments system, they usually aren't.
+
+## I have seen where the work goes
+
+The warehouse example is one part of my job. I built an offline queue into the Android app so scans can sync when a connection returns. Elsewhere in Mika's operations platform, I built a transactional outbox for delivery events sent to SAP. It uses stable keys to keep retries from creating duplicate transactions. There are timeouts, errors we can retry, errors we shouldn't retry, and a way to replay failed events.
+
+None of that makes a great five-minute app demo. It matters when staff are using the system every day.
+
+The AI assistant raised a different set of questions. Which company is this user asking about? Which records are they allowed to see? If the assistant gives a number, did it actually look that number up? If it proposes a change, can the user inspect it before anything is written? Those questions shaped the system I built. The model helps people work with the data; the permissions and approval flow decide what it is allowed to do.
+
+AI can help write and check code for both systems. I use it for that. But it can't tell me, on its own, what a warehouse team has agreed should happen after a failed scan or who at the company should approve a warranty registration. I have to find that out from the people doing the work, build it into the software, and check that it behaves as agreed.
+
+## I don't think anyone knows the job numbers yet
+
+There is a lot of confidence in the thread about which jobs will disappear and which ones are safe. I'm less sure.
+
+Even the productivity evidence depends on the task. In a [2025 study](https://metr.org/blog/2025-07-10-early-2025-ai-experienced-os-dev-study/), experienced developers working on mature projects took longer with the AI tools available at the time. The researchers' [2026 update](https://metr.org/blog/2026-02-24-uplift-update/) found signs that newer tools were helping, but they could not reliably measure how much. Meanwhile, [Anthropic's study of Claude Code use](https://www.anthropic.com/research/claude-code-expertise) shows people doing more substantial work with agents, with the user's knowledge still affecting the result.
+
+Those findings fit what I see: a prototype, a small personal tool, and a change to a business system can all be called "building an app," even though they ask very different things of the person doing the work.
+
+I expect some work to get cheaper. I expect people who could never afford custom software to start making it. I would be careful with anyone who claims to know the exact balance between those two changes, or the number of developers they will leave employed.
+
+## What I would offer a client now
+
+If I ran an agency that sold only the first build, I would be worried. I would want to know an industry well enough to spot the problems a prompt misses. I would want to stay involved when a new app has to meet an old database, a payment provider, a warehouse floor, or a support team.
+
+And I would be clear about who answers the phone when something breaks.
+
+That is where I want my own work to go. Give me the fast prototype. I'll use AI to help improve it. Then I'll sit with the people who actually have to use it and ask where it could fail them. I'll make sure the data goes to the right place, a retry doesn't quietly duplicate a transaction, and the next engineer can understand what I built.
+
+Claude has made the first version easier for more people. I think that's worth celebrating. It also means I need to be able to say, plainly, what my work adds after that first version. For me, the answer is in the warehouse scan that survives a bad connection, the ERP action that waits for approval, and the person willing to own the system once it is running.

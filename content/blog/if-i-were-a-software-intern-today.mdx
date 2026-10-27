@@ -1,0 +1,47 @@
+export const metadata = {
+  title: "If I were a software intern today",
+  description: "If I were applying for a software internship now, I'd bring one small project I could explain after the demo was over.",
+  date: "2026-06-24",
+}
+
+*Updated October 27, 2026 with Software Mansion's current internship guide.*
+
+Software Mansion's [internship guide](https://rn.swmansion.com/blog/internships-in-a-nutshell-all-you-need-to-know-about-summer-and-winter-programs-at-software-mansion-and-how-to-get-on-board-1/) explains what applicants can expect, from real project work to the interview stages. One part I like: they ask applicants to describe a project they are proud of and explain which part they built. A personal project counts. So does a team project when you can speak clearly about your contribution.
+
+That is the question I'd prepare for. A clean demo can come out of an AI chat in an afternoon; explaining the decisions behind it takes more. If I were applying for my first software internship now, I'd bring one piece of work I could explain without reopening that chat or hiding behind a list of technologies.
+
+I work in Kenya, where a good first opportunity can draw a lot of applicants. AI makes it easier to produce a polished demo. I want the project to hold up when somebody starts asking what happened before and after that demo.
+
+## Start with somebody else's boring task
+
+Forget the idea of building a whole company as a portfolio project. Find one person who does the same fiddly task every week. Ask them to show you. Maybe they check a spreadsheet for missing product codes. Maybe they copy numbers between two reports. Watch once, then ask where mistakes usually happen.
+
+Take the spreadsheet example. Claude can write a script to highlight empty cells in seconds. But what does an empty product code mean? A new item waiting for approval? A mistake in the source file? A code that was never assigned? The person doing the work knows. Their answer decides what the tool should flag.
+
+Now make a sample file with invented rows. Build the smallest thing that separates the cases. It could be a spreadsheet formula or a short program. Show the person the output and ask what you got wrong. Fix one thing they point out. There is your project: a real task, a working attempt, and a change made after feedback. Use company data only if you have permission.
+
+I say this because I have built integrations where the code was the easy part. At Mika, a scan in a warehouse app can lead to a document being posted in SAP. To make that useful, I had to understand what staff were scanning, which document should be created, and what to do when a request failed. A small student project will have fewer moving parts, but the habit of asking about the work before automating it is the same.
+
+## Make AI earn its place in the project
+
+Use it to explain a CSV parser. Ask for a first test. Let it show you another way to write a function. Then run the code yourself. Feed it a file with a missing column. Change a rule without asking it to make the edit. If you cannot tell why the output changed, stop and work that out before adding features.
+
+There is a reason to be deliberate here. In a [small 2026 study](https://www.anthropic.com/research/AI-assistance-coding-skills), developers learning a new Python library scored lower on a follow-up test when they had AI assistance. The researchers also observed that people who asked questions to understand the work tended to do better than those who handed the task over. That finding will not predict every person's experience. It does make me want to ask a simple question of my own projects: can I explain the part AI wrote?
+
+Software Mansion's engineering internship expects programming basics. A project gives you somewhere to practice those basics: read an error, use Git, trace what happens to an input, and write a test for the case that broke last time. You can learn them while building. You still need to learn them.
+
+## What a team can learn from one small project
+
+[Software Mansion gives interns real project work early](https://rn.swmansion.com/blog/internships-in-a-nutshell-all-you-need-to-know-about-summer-and-winter-programs-at-software-mansion-and-how-to-get-on-board-1/). I like that approach. A beginner gets to work on something somebody needs and see how experienced engineers handle the details.
+
+I have seen how much a safe setup helps in ordinary development work. At Mika, I built a mock server so app developers could work without direct SAP access. The same principle works for a new person: give them sample data, a clear expected result, and room to make mistakes before their work touches a live system.
+
+At work, I share opinions with colleagues who have less experience and those who have more. That is ordinary development. An intern should get to show an early version, hear what is wrong with it, and try again. An applicant can ask about that: What would I work on first? Who can answer questions about it? When will someone look at an early version? Those answers tell you more about the opportunity than a long list of frameworks.
+
+## Take it into the interview
+
+The spreadsheet checker, the sample file, and a short explanation. Here is the task I watched. Here is the rule I got wrong at first. Here is the feedback that changed it. Here is one input the tool still cannot handle. Here is where AI helped, and here is the part I changed myself.
+
+You can have that conversation without pretending to be an expert or having a company name on your CV. It may not get you the internship. There are more applicants than places, and interviews test other skills too. But it gives someone a real piece of your thinking to examine.
+
+If I were starting over, that is what I would build: one small tool for one person, with enough understanding behind it to answer the next question.
