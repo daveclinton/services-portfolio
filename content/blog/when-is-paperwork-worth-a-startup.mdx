@@ -1,0 +1,57 @@
+export const metadata = {
+  title: "When is paperwork worth a startup?",
+  description: "What I learned automating hundreds of SAP orders a day, and how developers can find similar work worth building for.",
+  date: "2026-04-17",
+}
+
+<small className="block text-caption text-subtle-foreground italic">Updated October 27, 2026 with SAP context and firsthand automation examples.</small>
+
+At 6 p.m. on a Saturday, Riyo still had more than 100 paper work orders to enter into a computer. Pallet founder Sushanth Raman [saw the stack when he visited Riyo's trucking company](https://www.pallet.com/blog/series-b). The task took six hours every weekend, and deliveries depended on those orders getting entered.
+
+[Will Phillips spent a day inside Pallet](https://www.youtube.com/watch?v=aqJAbwtXBzg). Watch the people and the systems they work with, rather than just the AI demo.
+
+<YouTubePreview videoId="aqJAbwtXBzg" title="Raw Day Inside Pallet by Will Phillips" />
+
+## Why bring SAP into this?
+
+[SAP](https://www.sap.com/sea/about/company/faq.html) is a German software company; its name stands for Systems, Applications, and Products in Data Processing. It is best known for ERP, or enterprise resource planning: software that keeps a company's sales, purchasing, inventory, and finances connected. An order can affect stock, delivery, and accounting, which is why entering it correctly matters.
+
+This is a large market, and it includes ordinary-sized businesses. SAP reported [€36.8 billion in 2025 revenue](https://www.sap.com/integrated-reports/2025/en/datahub/financial-data/five-year-summary.html) and a [€256 billion stock market value at the end of 2025](https://www.sec.gov/Archives/edgar/data/1000184/000110465926020058/sap-20251231x20f.htm). The stock market figure changes with its share price. SAP says [Business One serves more than 83,000 customers](https://news.sap.com/2025/12/global-success-of-sap-business-one/), mostly small and midsize companies. One partner's customer grew from three employees to 250 while continuing to use it. A growing distributor can be running SAP long before it looks like a giant corporation.
+
+There is no single "SAP system" to integrate with. [Business One can run in the cloud or on premises](https://learning.sap.com/products/business-one). Larger organizations may use [SAP S/4HANA in public cloud, private cloud, or on premises](https://learning.sap.com/courses/customizing-core-settings-in-financial-accounting-in-sap-s4hana/getting-an-overview-of-sap-s-4hana-1). Those are different products and deployment choices. My example uses Business One.
+
+## I have seen the order version of this
+
+I built an automation that turns purchase orders in one SAP company database into sales orders in another. People used to enter them one by one. Now they can work on other things and review the exceptions.
+
+<AutomationFlowVisual flow="orders" />
+
+## The fleet version
+
+I also built a scheduled sync from a fleet tracking system into SAP. Trips can arrive late or change after the first reading; the job has to catch that.
+
+<AutomationFlowVisual flow="fleet" />
+
+## How to start building it
+
+I'd ask someone to show me a few purchase orders and the sales orders they entered from them. Where did they find the matching item? Which cases did they leave for review? Those decisions become the first rules.
+
+Start with a preview of what the job plans to create. Post orders with clear matches, send uncertain ones to a person, and record each result. Before retrying a timed-out write, check whether the order already exists.
+
+When several companies use the product, each job needs a clear source and destination. Keep their records and review queues separate, and decide who can approve a job.
+
+## Where LangChain could help
+
+I didn't use LangChain for either automation; both started with structured records. If your input is an emailed PDF, [LangChain's structured output](https://docs.langchain.com/oss/javascript/langchain/structured-output) could extract its fields before the same checks and review. [LangGraph can pause for approval](https://docs.langchain.com/oss/javascript/langgraph/thinking-in-langgraph) when that workflow grows more complex.
+
+## Find out whether anyone wants it
+
+Count how many orders need correction, how long review takes, and whether anyone still re-enters them in SAP. Hundreds of orders a day can justify an automation inside one business. A startup needs evidence that other businesses share the problem and will pay to solve it.
+
+The business may be in the odd rules. Pallet's CTO [writes about learning customer-specific context](https://www.pallet.com/blog/memory-reasoning-overview) from the way people handle exceptions. For an SAP product, those rules might include item aliases, delivery instructions, and approval paths. I would work with one company until those rules are visible, then try a second to see what repeats.
+
+SAP says [roughly 850 partners support Business One](https://news.sap.com/2025/12/global-success-of-sap-business-one/), and its [partner directory](https://www.sap.com/africa/partners/find.html) gives you a place to find them by product and location. I'd ask an implementation partner where their customers still spend hours moving information by hand. If one customer wants that work changed, the partner knows their SAP setup and I can help build and test a small solution with them.
+
+SAP is one example. The same kind of work happens when someone enters supplier invoices into accounting software, processes applications in a school system, or turns service requests into jobs for a property manager. Look for a task that repeats, a person who can show you how they do it, and a system where the result has to go.
+
+No SAP access yet? You could try the same exercise with sample data in [ERPNext](https://docs.frappe.io/erpnext/integrating-erpnext-with-other-applications), or any system you know well. The hard part is still learning what the person doing the work knows that the record doesn't say.
