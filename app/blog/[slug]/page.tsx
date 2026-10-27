@@ -48,7 +48,6 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
             {formatPostDate(post.date)} · {post.readingMinutes} min read
           </time>
           <h1>{post.title}</h1>
-          <p>{post.description}</p>
         </header>
 
         <div className="blog-prose">

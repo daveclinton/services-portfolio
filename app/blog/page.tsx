@@ -48,7 +48,6 @@ export default async function BlogPage() {
                       <h3>
                         <Link href={`/blog/${post.slug}`}>{post.title}</Link>
                       </h3>
-                      <p>{post.description}</p>
                       <time dateTime={post.date}>
                         {formatPostDate(post.date, "short")} · {post.readingMinutes} min read
                       </time>

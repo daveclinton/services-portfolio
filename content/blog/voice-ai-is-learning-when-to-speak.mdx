@@ -1,71 +1,39 @@
 export const metadata = {
   title: "Voice AI is learning when to speak",
-  description: "I talk to ChatGPT every day. Here's what that experience has taught me to look for in voice AI.",
+  description: "I use ChatGPT Voice every day. A good voice assistant needs to know when to listen, wait, and let me interrupt.",
   date: "2026-10-27",
 }
 
-I talk to ChatGPT every day. One thing I like about voice is that I can start explaining something before I have worked out exactly how to ask it. I can pause to find a word, change direction halfway through, or say, “Wait, that's not quite what I meant.”
+How does a voice assistant know when you're finished speaking?
 
-When the app lets me do that, talking feels easy. When it answers while I am still thinking, or keeps going after I interrupt, I notice immediately.
+A pause could mean you're done. It could mean you're searching for a word. Answer too early and it talks over you; wait too long and the conversation drags.
 
-That everyday experience is the voice AI problem I find interesting. What has to happen for software to hear a messy, changing thought and respond at the right moment?
+A basic voice assistant transcribes what I say, sends the words to a language model, and reads the answer aloud. Each step can work well on its own while the conversation still feels awkward. [OpenAI calls this a chained approach](https://developers.openai.com/api/docs/guides/voice-agents). Newer systems can handle incoming and outgoing audio together, which makes interruptions possible. They still have to decide when to take their turn.
 
-## What developers mean by voice
+I start with Block because it is asking what a model can learn from speech itself. Then I move to the app I use and the companies building different parts of a voice conversation.
 
-“Voice AI” can mean several different things. **Speech recognition** turns audio into words. **Text-to-speech** reads words aloud. Put those around a language model and you have a basic voice assistant: listen, transcribe, decide what to say, then speak. This is often called a *chained* pipeline. [OpenAI’s voice-agent guide](https://developers.openai.com/api/docs/guides/voice-agents) describes it alongside models that handle the conversation more directly.
+## Block and Dessa
 
-The chain is useful because you can inspect the words at every step. If I say “Tuesday” and the transcript says “Thursday,” a developer can see where the mistake happened. The cost is that each stage takes time, and a transcript cannot carry every pause, tone of voice, or half-finished thought.
+Jack Dorsey's Block introduced [Dessa](https://block.xyz/dessa), a research model trained on spoken conversations without written transcripts or a pretrained language model. It can listen while it speaks. In Block's demos, it laughs and makes brief sounds of agreement during another person's turn. That matters because a transcript misses timing and tone. Dessa is still a research preview with limited access, so a demo cannot show how reliably it handles everyday calls.
 
-A live voice model takes in audio and produces speech as the conversation unfolds. Some are **full duplex**: they can listen while speaking, so you can interrupt them. That phrase sounds technical, but the difference is ordinary. If the app is answering and I say, “Wait, go back,” I expect it to stop and hear me.
+## OpenAI and ChatGPT Voice
 
-Even then, the model needs a sense of when your turn is over. A pause may mean you are thinking, or it may mean you are finished. [OpenAI’s voice activity detection guide](https://developers.openai.com/api/docs/guides/realtime-vad) describes how a realtime app detects speech starting and stopping. [ElevenLabs lets developers tune](https://elevenlabs.io/docs/eleven-agents/customization/conversation-flow) how eagerly an agent takes its turn and whether users can interrupt it. These settings sound small until an assistant starts answering while you are still trying to finish a sentence.
+[ChatGPT Voice](https://learn.chatgpt.com/docs/features/voice) is my daily reference point. I can ask something, change my mind midway, and interrupt an answer. OpenAI also gives developers a choice: use a [realtime voice model](https://developers.openai.com/api/docs/guides/voice-agents) for the conversation, or combine transcription, a language model, and [speech generation](https://developers.openai.com/api/docs/guides/audio). The chained approach gives developers a transcript to inspect when something goes wrong.
 
-## How far has it reached?
+## ElevenLabs
 
-I have put these companies in the order of the questions they raise for me. Block starts with a speech-only research experiment. OpenAI comes next because ChatGPT is the voice app I use. ElevenLabs shows how a developer can assemble the pieces. Qwen then adds what a camera can see, ByteDance looks closely at conversational timing, and MiniMax brings us back to how the answer sounds. It is a way through the technology, not a ranking of the companies.
+[ElevenLabs](https://elevenlabs.io/docs/eleven-agents/overview/) offers the pieces for building a voice agent: speech recognition, a language model, and a spoken reply. Its [conversation controls](https://elevenlabs.io/docs/eleven-agents/customization/conversation-flow) let developers adjust how long an agent waits through silence and whether a person can interrupt it. Those settings answer a familiar question from my ChatGPT calls: was I finished, or just thinking?
 
-### Block and Dessa
+## Alibaba and Qwen
 
-Jack Dorsey’s Block announced [Dessa](https://block.xyz/dessa) this month. Block says it trained the model on recorded human conversation, with no written text or pretrained language model. It describes Dessa as able to listen and speak at the same time. In Block’s recordings, it laughs or makes a small sound of agreement while the other person is still talking. The company says it can run locally on a MacBook Pro with an M4 Max chip or better.
+[Qwen3.8-Omni-Flash-Realtime](https://qwen.ai/blog?id=qwen3.8-omni-flash) can take live video as well as audio. Point a camera at an object and ask a question, and the assistant has to connect what it hears with what it sees. Qwen also provides a [desktop harness](https://github.com/QwenLM/Qwen-Live-Harness) for trying that interaction. The model has to know which object I mean, even if I never name it.
 
-That is why I start here. A written transcript of a voice chat preserves the words, but hesitation, emphasis, and tone also carry meaning. Dessa is an attempt to learn from the sound itself. I find the idea exciting. I also have to keep its current status clear: Block calls it a research preview, offers early access to a small group of safety researchers, and has not published a public API or independent evaluation on that page. A recording lets me hear a possibility; it does not tell me how the model performs over hundreds of ordinary conversations.
+## ByteDance
 
-### OpenAI and ChatGPT Voice
+[Seeduplex](https://seed.bytedance.com/en/blog/introducing-seed-full-duplex-speech-llm-attentive-listening-robust-interference-suppression-enabling-more-natural-interaction) focuses on when to answer. ByteDance says the model listens while speaking and uses more than a moment of silence to decide whether a person has finished. It also aims to avoid reacting to background voices. ByteDance reports fewer early replies in its own tests; I would want to hear how it handles ordinary pauses and interruptions before judging that claim.
 
-After that research question, I come back to something I actually use: [ChatGPT Voice](https://learn.chatgpt.com/docs/features/voice). I talk to it daily, and the moments that matter are small ones. Can I pause without losing my turn? Can I correct myself while it is speaking? Can I continue a thought without starting a new conversation? The [GPT-Live model](https://developers.openai.com/api/docs/guides/voice-agents) behind the current voice experience can listen and speak at the same time.
+## MiniMax
 
-OpenAI’s [developer guide](https://developers.openai.com/api/docs/guides/audio) lays out several ways to make an app talk. GPT-Live can manage the spoken exchange while a separate backend handles longer work and tools. The Realtime API can handle speech, reasoning, and tools in one session. Transcription and text-to-speech are available separately for a chained design. These choices matter because a voice that responds naturally still needs an application behind it to check facts, enforce permissions, and finish a task.
+[MiniMax Speech 2.8](https://www.minimax.io/news/minimax-speech-28) tackles the sound of the reply. It can generate expressive speech, including breaths and hesitations, and its [API can stream audio](https://platform.minimax.io/docs/api-reference/speech-t2a-websocket) as it is made. That could make an answer pleasant to hear. It does not, by itself, tell the assistant when to speak or whether the answer is right.
 
-### ElevenLabs
-
-I put [ElevenLabs](https://elevenlabs.io/docs/eleven-agents/overview/) after OpenAI because its products make the parts of a voice agent especially visible. ElevenAgents can coordinate speech recognition, a language model, speech generation, and turn-taking. Developers can also use its [Speech Engine](https://elevenlabs.io/docs/overview/capabilities/speech-engine) to add a voice interface to an agent they already have, or use ElevenLabs’ realtime speech models.
-
-There are practical controls here that I understand better after talking to ChatGPT so often. [ElevenLabs lets developers choose](https://elevenlabs.io/docs/eleven-agents/customization/conversation-flow) how patiently an agent waits through silence and whether a user can interrupt its reply. A voice can sound excellent and still feel exhausting if it jumps in every time I pause to think. That timing is part of the product.
-
-### Alibaba and Qwen
-
-Alibaba’s [Qwen3.8-Omni-Flash-Realtime](https://qwen.ai/blog?id=qwen3.8-omni-flash) takes the conversation beyond sound. Qwen says it can receive live audio and video, respond while that stream is arriving, and call tools using what it sees and hears. The team has also published an [open-source harness](https://github.com/QwenLM/Qwen-Live-Harness) that connects to its Realtime API for desktop audio and visual interaction.
-
-Qwen belongs here because it changes the question a user can ask. If I point a camera at something and say “What am I looking at?”, the assistant has to join my words to the image in front of it. A fluent spoken answer is only useful if it refers to the right object. Voice becomes more interesting when it shares some of the context I have while I am speaking.
-
-### ByteDance
-
-Qwen brings in sight. ByteDance’s [Seeduplex](https://seed.bytedance.com/en/blog/introducing-seed-full-duplex-speech-llm-attentive-listening-robust-interference-suppression-enabling-more-natural-interaction) brings the focus back to timing and noise. ByteDance says its model listens while speaking and uses both the sound and the meaning of speech to decide whether a pause is the end of a turn. It also aims to ignore bystanders and background audio so it does not answer the wrong person. The company says Seeduplex is in the Doubao app, and [Volcengine documents](https://docs.volcengine.com/docs/doubao-voice/end-to-end-real-time-voice-full-duplex-version?lang=zh) a full-duplex API for developers.
-
-That work addresses something I notice in everyday voice chats: an interruption can be deliberate, but a pause might only mean I am searching for a word. ByteDance reports fewer premature replies and false interruptions in its own tests. I would treat those as company results until I could hear how the model handles my own speech and surroundings.
-
-### MiniMax
-
-I finish with [MiniMax Speech 2.8](https://www.minimax.io/news/minimax-speech-28) because the sound of the answer still matters. MiniMax’s text-to-speech model can add breaths, hesitations, and other vocal cues, and its [WebSocket API](https://platform.minimax.io/docs/api-reference/speech-t2a-websocket) can stream generated audio. It also supports voice cloning. Those are capabilities for producing speech; by themselves they do not decide when to listen or what answer is correct.
-
-MiniMax makes that distinction useful. When a voice assistant sounds impressive, I want to ask which part impressed me. Was it the timing, the understanding, or the voice reading the reply? A developer may choose different systems for those jobs. Hearing a more expressive answer does not mean the whole conversation has improved.
-
-The same ordinary conversation—a pause, an interruption, a changed question, and some background chatter—would tell me more about these services than separate polished demos.
-
-## What I listen for now
-
-I pay attention to how long I wait before hearing a useful answer. I notice whether the assistant talks over me, whether it lets me interrupt, and whether it understands the question after I change it. If a voice app uses a tool to look something up, I also want its spoken answer to match what the tool actually found.
-
-Those are things developers can check. Try different speakers, long pauses, corrections, and noise in the room. Measure when the first useful audio arrives, how often the assistant interrupts, and whether the final answer is correct. [OpenAI’s evaluation guide](https://developers.openai.com/api/docs/guides/voice-agents) recommends looking at both conversational timing and the outcome of the task.
-
-I keep coming back to ChatGPT Voice because I can think out loud. I want more software to let people speak that way, with pauses and corrections, and still give them an answer they can rely on.
+When I try a voice assistant now, I pay attention to the pause before it answers, what happens when I interrupt, and whether it still understands after I correct myself. I can forgive an ordinary voice. I stop using the app when it keeps talking over me.
