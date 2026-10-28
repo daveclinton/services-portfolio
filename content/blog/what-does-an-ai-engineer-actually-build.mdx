@@ -1,0 +1,108 @@
+import { AskAiChat } from "@/components/portfolio/ask-ai-chat"
+
+export const metadata = {
+  title: "What does an AI engineer actually build?",
+  description: "A hypothetical library assistant explains the decisions behind an AI application.",
+  date: "2026-10-28",
+}
+
+What does it take to build an AI assistant that answers questions about a particular subject? You can try one here: this site's assistant answers questions about my work and experience.
+
+<AskAiChat embedded suggestedQuestion="What kinds of software projects has David worked on?" />
+
+The suggested question appears when you reach the assistant; you can change it or write your own. It asks for consent before sending and storing the conversation. The assistant searches this portfolio's knowledge base, and its chat does not display source links.
+
+To explain how an application like this works, let's follow a hypothetical library building an assistant for its readers.
+
+## 1. Start with a question
+
+Imagine a reader asks the library's assistant, “Can I renew a book if someone else has reserved it?”
+
+A language model can produce a friendly answer. But it may not know this library's rules. It might give an answer that sounds reasonable because it has seen other libraries' policies during training. That doesn't make the answer correct for this one.
+
+The library has a guide to borrowing and renewals. The assistant could search that guide for a relevant passage and give it to the model along with the reader's question. The model then uses the passage to answer.
+
+<AutomationFlowVisual flow="policy" />
+
+This approach is called retrieval-augmented generation, or RAG. The name is a mouthful, but the idea is straightforward: find useful information first, then include it when asking the model to respond. [Martin Fowler and Bharani Subramaniam's overview](https://martinfowler.com/articles/gen-ai-patterns/) explains why teams use retrieval to give a model information beyond its training.
+
+## 2. Prepare the library guide
+
+Start with the current borrowing guide and ask a librarian to confirm it is the right version. Split it into short passages that keep each rule together. A passage about renewing reserved books should include the exception, not just the general renewal limit.
+
+Store each passage with its title, source link, and version or update date. Make those passages searchable. A small first version might use keyword search; another might use embeddings, numerical representations that help find related meanings. Try actual reader questions against the search and inspect what comes back before adding a model.
+
+For example, a search for “Can I renew a reserved book?” should find the renewal rule, including its exception. If it doesn't, fix the search or the way the guide is divided before asking the model to answer.
+
+## 3. Give the model the question and the passage
+
+Suppose the library guide says books can be renewed twice, but a reserved book cannot be renewed. If the assistant finds both rules, it can explain why this particular book cannot be renewed and link the reader to the guide.
+
+Now imagine the library changes the rule, but the assistant still searches an old copy. Or the search finds the section on library cards instead of renewals. The model might produce a polished answer based on the wrong passage.
+
+An engineer needs to decide where the guide lives, how updates reach the search, and how to check that the right passage was found. They also need to decide what happens when the guide doesn't answer a question. In that case, the assistant can say it doesn't know and direct the reader to a librarian.
+
+That last part matters. The model can help explain a rule, but someone at the library needs to decide what the rule is and how exceptions should be handled.
+
+The application sends the reader's question and the retrieved passages to the model. Its instructions can say: answer using the provided guide, explain when the guide doesn't contain the answer, and refer the reader to a librarian when needed. The application can show the source link alongside the reply.
+
+For our example, a useful reply might say: “Books can be renewed twice, but not if another reader has reserved them.” It would show the renewal guide as its source. Instructions alone don't guarantee a correct answer, so the team needs to test the whole flow.
+
+The pieces of a first version fit together like this:
+
+```text
+question = reader's question
+passages = search the current library guide for the question
+
+if no useful passage is found:
+    offer to connect the reader with a librarian
+else:
+    answer = ask the model to answer using the question and passages
+    show the answer and links to the passages
+```
+
+This is a sketch of the flow, not code to run as written. The team still needs to choose how search determines whether a passage is useful, and check whether the model's answer is supported by it.
+
+## 4. Decide whether it needs to take action
+
+Answering a question is one thing. Changing a library account is another.
+
+The library might want the assistant to check a due date or renew a loan. For that, it would need a connection to the library system. The team would have to establish who the reader is, make sure they can only access their own account, and decide which actions the assistant can perform. The system should also report a failed renewal instead of telling the reader it succeeded.
+
+An AI engineer might build those connections alongside other developers and librarians. They would need to understand the library's rules before deciding what to automate.
+
+Not every assistant needs to take actions. [Anthropic's guide to building agents](https://www.anthropic.com/engineering/building-effective-agents) recommends starting with a simpler solution and adding complexity when it improves the result. For our library, answering questions and linking to the guide may be a useful first version.
+
+## 5. Check the answers
+
+I wouldn't judge the assistant by asking it three questions and liking the answers. I'd start with a collection of questions the library expects: how long a loan lasts, whether a reserved book can be renewed, what happens when a card expires, and a question the guide doesn't cover.
+
+<AutomationFlowVisual flow="library-eval" />
+
+Write down the expected result for each question, including the passage that supports it. Run the questions through the assistant and compare its answers with those expectations. A librarian can review answers that require judgment. Repeat the checks when the guide, search, instructions, or model changes.
+
+For each question, the team can decide what a useful answer should include. Did the assistant find the current guide? Did it explain the rule correctly? Did it admit when the information was missing? If it looked up an account, did it use the right reader's details?
+
+These checks are often called evaluations, or evals. Some can be checked with code; others need a person to judge the answer. [Anthropic's explanation of agent evals](https://www.anthropic.com/research/demystifying-evals-for-ai-agents) describes combining different checks and running them as the system changes. When the team finds a failure after launch, it can add that case to the next round of tests.
+
+A wrong answer might come from a bad search, an outdated guide, an unclear instruction, or the model itself. The engineer needs enough information to work out which part failed.
+
+Record the retrieved passage and answer so the team can investigate failures, while avoiding the retention of unnecessary reader information.
+
+## 6. Keep watching after launch
+
+The assistant could answer hundreds of questions and still leave readers confused. I'd want the library to look at whether people get the right answer, how often they need a librarian, and what happens when the assistant sends them to one. If it invents a renewal rule, that matters more than how many conversations it finishes.
+
+Amazon's recent [engineering leadership update](https://www.aboutamazon.com/news/company-news/amazon-software-engineer-role-guideline-ai) makes a related point about software developers using AI to build software. Its leaders say the results for customers matter more than the tools used, and warn that making targets out of token usage or the number of code changes can encourage waste or complexity. They still consider those measures useful with care, and say teams should learn where AI helps and where it does not.
+
+Amazon is talking about engineers using AI in their own work; our library is building AI into a product. The distinction matters, but I think the question carries across: did the technology help someone get the job done? For the library, that might mean readers understand the borrowing rules and librarians can resolve the questions the assistant cannot answer.
+
+## Where does the engineer fit?
+
+Some of this work looks like software engineering: connecting services, protecting data, handling errors, and keeping an application running. AI adds another challenge: the same question can produce different answers, and a fluent answer can still be wrong.
+
+Job titles aren't tidy. One AI engineer might build applications using existing models. Another might train or adapt models, work on infrastructure, or focus on evaluation. The boundaries between AI engineers, machine learning engineers, and other developers vary by team. [Udacity's overview](https://www.udacity.com/blog/how-to-become-an-ai-engineer/) describes some of those differences.
+
+I find the library assistant more useful than a list of job titles. It shows the decisions behind a feature that can look deceptively simple: find the right information, protect the reader's account, check the answer, and make it possible to ask a librarian for help.
+
+When someone asks about a reserved book, the work has paid off if the assistant can explain the current rule, show where it came from, and be honest when it needs help.

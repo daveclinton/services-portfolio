@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { SendHorizonal } from "lucide-react"
 import Link from "next/link"
-import { AnimatePresence, motion, useReducedMotion } from "motion/react"
+import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react"
 import { Button } from "@/components/ui/button"
 import {
   AiApiError,
@@ -39,7 +39,7 @@ function replaceTurn(turns: Turn[], id: string, update: (turn: Turn) => Turn): T
   return turns.map((turn) => (turn.id === id ? update(turn) : turn))
 }
 
-export function AskAiChat() {
+export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: boolean; suggestedQuestion?: string } = {}) {
   const [turns, setTurns] = useState<Turn[]>([])
   const [draft, setDraft] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
@@ -51,8 +51,17 @@ export function AskAiChat() {
   const consentRef = useRef<HTMLInputElement | null>(null)
   const conversationIdRef = useRef<string | null>(null)
   const reducedMotion = useReducedMotion()
+  const embeddedRef = useRef<HTMLDivElement>(null)
+  const inView = useInView(embeddedRef, { once: true, amount: 0.3 })
+  const hasSuggested = useRef(false)
 
   const hasConversation = turns.length > 0
+
+  useEffect(() => {
+    if (!embedded || !inView || !suggestedQuestion || hasSuggested.current) return
+    hasSuggested.current = true
+    setDraft((current) => current || suggestedQuestion)
+  }, [embedded, inView, suggestedQuestion])
 
   useEffect(() => {
     return () => abortRef.current?.abort()
@@ -79,7 +88,7 @@ export function AskAiChat() {
   /** Keeps the latest message in view while a conversation streams. */
   const dockRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
-    if (!hasConversation) return
+    if (!hasConversation || embedded) return
     const dock = dockRef.current
     const scroller = dock?.closest("main")
     if (!dock || !scroller) return
@@ -93,7 +102,7 @@ export function AskAiChat() {
       block: "end",
       behavior: reduceMotion ? "auto" : "smooth",
     })
-  }, [turns, hasConversation])
+  }, [turns, hasConversation, embedded])
 
   async function ask(text: string) {
     const question = text.trim()
@@ -305,7 +314,7 @@ export function AskAiChat() {
   )
 
   /* Empty state: prompt + composer centered in the available space. */
-  if (!hasConversation) {
+  if (!hasConversation && !embedded) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <h2 className="sr-only">{askAi.label}</h2>
@@ -329,8 +338,9 @@ export function AskAiChat() {
   /* Conversation state: messages scroll in `main` while the docked
      composer stays pinned to the bottom. */
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div ref={embeddedRef} className={embedded ? "my-6 flex min-w-0 flex-col rounded-lg border border-border bg-card p-4 sm:p-6" : "flex min-h-0 min-w-0 flex-1 flex-col"}>
       <h2 className="sr-only">{askAi.label}</h2>
+      {embedded && <p className="text-caption text-muted-foreground">Ask about my work and experience. A suggested question appears when this section comes into view.</p>}
 
       <div
         aria-live="polite"
@@ -379,7 +389,7 @@ export function AskAiChat() {
 
       <div
         ref={dockRef}
-        className="sticky bottom-0 z-10 -mx-4 mt-3 bg-gradient-to-t from-background via-background via-80% to-transparent px-4 pt-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:mt-4 sm:px-6 sm:pt-6 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        className={embedded ? "mt-4" : "sticky bottom-0 z-10 -mx-4 mt-3 bg-gradient-to-t from-background via-background via-80% to-transparent px-4 pt-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:mt-4 sm:px-6 sm:pt-6 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))]"}
       >
         {composer}
       </div>

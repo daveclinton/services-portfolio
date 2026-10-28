@@ -1,14 +1,22 @@
 "use client"
 
-import { useRef } from "react"
-import { CircleAlert, Database, FileCheck, FileText, ListChecks, RefreshCcw, Truck } from "lucide-react"
+import { useRef, useState } from "react"
+import { CircleAlert, Database, FileCheck, FileText, ListChecks, MessageCircle, RefreshCcw, Search, Truck } from "lucide-react"
 import { motion, useInView, useReducedMotion } from "motion/react"
+import { Button } from "@/components/ui/button"
 
-type Flow = "orders" | "fleet"
+type Flow = "orders" | "fleet" | "policy" | "library-eval"
 
 const labels = {
   orders: ["Purchase orders", "Match and check", "Sales orders"],
   fleet: ["Fleet tracking", "Compare trips", "SAP"],
+  policy: ["Reader's question", "Find the library guide", "Answer or ask for help"],
+  "library-eval": ["Test questions", "Run the assistant", "Check the answers"],
+} as const
+
+const libraryFlows = {
+  policy: { title: "A question grounded in the library guide", caption: "If the guide does not answer the question, a librarian can help.", description: "A reader asks a question; the assistant checks the library guide before answering" },
+  "library-eval": { title: "Check the assistant", caption: "Review incorrect answers and add new cases when the guide changes.", description: "Explore expected results for library assistant test cases" },
 } as const
 
 function OrderScene({ playing }: { playing: boolean }) {
@@ -106,27 +114,74 @@ function FleetScene({ playing }: { playing: boolean }) {
   )
 }
 
+function PolicyScene({ playing, flow }: { playing: boolean; flow: keyof typeof libraryFlows }) {
+  const [selectedCase, setSelectedCase] = useState(0)
+  const label = "flex items-center gap-2 text-label font-semibold uppercase text-subtle-foreground"
+
+  if (flow === "library-eval") {
+    return (
+      <div className="my-5 rounded-lg border border-border bg-background p-4">
+        <div className={label}><ListChecks className="size-4 text-primary" /> Choose a test case</div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {["Reserved book", "Missing rule", "Changed guide"].map((name, index) => (
+            <Button key={name} type="button" size="sm" variant={selectedCase === index ? "secondary" : "outline"} aria-pressed={selectedCase === index} onClick={() => setSelectedCase(index)}>{name}</Button>
+          ))}
+        </div>
+        <p className="mt-4 text-caption text-muted-foreground">Expected result</p>
+        <p className="mt-2 text-body">{[
+          "The assistant explains that a reserved book cannot be renewed.",
+          "The assistant says the guide does not specify loan lengths and suggests asking a librarian.",
+          "After a policy change, the assistant uses the updated guide rather than the old rule.",
+        ][selectedCase]}</p>
+      </div>
+    )
+  }
+
+  return (
+    <svg viewBox="0 0 640 220" className="block h-auto w-full" aria-hidden="true">
+      <path d="M166 108H280M360 108H474" fill="none" stroke="var(--muted-foreground)" strokeOpacity=".55" strokeWidth="2" />
+      <path d="m274 102 6 6-6 6m194-12 6 6-6 6" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <MessageCircle x={65} y={69} width={76} height={76} color="var(--primary)" strokeWidth={1.6} />
+      <circle cx="320" cy="108" r="38" fill="var(--card)" stroke="var(--primary)" strokeWidth="2" />
+      <Search x={300} y={88} width={40} height={40} color="var(--primary)" strokeWidth={1.7} />
+      <FileCheck x={497} y={69} width={76} height={76} color="var(--primary)" strokeWidth={1.6} />
+      {[0, 1, 2].map((index) => (
+        <g key={index}>
+          <motion.circle cx={166} cy={108} r={6} fill="var(--primary)" animate={playing ? { cx: [166, 279], opacity: [0, 1, 1, 0] } : { cx: 166, opacity: 0 }} transition={{ duration: 3, times: [0, 0.15, 0.85, 1], repeat: playing ? Infinity : 0, delay: index * 0.85, ease: "linear" }} />
+          <motion.circle cx={360} cy={108} r={6} fill="var(--primary)" animate={playing ? { cx: [360, 473], opacity: [0, 1, 1, 0] } : { cx: 360, opacity: 0 }} transition={{ duration: 3, times: [0, 0.15, 0.85, 1], repeat: playing ? Infinity : 0, delay: 1 + index * 0.85, ease: "linear" }} />
+        </g>
+      ))}
+      <path d="M320 147v38" stroke="var(--muted-foreground)" strokeOpacity=".55" strokeWidth="2" strokeDasharray="4 5" />
+      <circle cx="320" cy="190" r="5" fill="var(--primary)" />
+    </svg>
+  )
+}
+
 export function AutomationFlowVisual({ flow }: { flow: Flow }) {
   const figureRef = useRef<HTMLElement>(null)
   const isInView = useInView(figureRef, { amount: 0.3 })
   const reducedMotion = useReducedMotion()
-  const playing = isInView && !reducedMotion
+  const [paused, setPaused] = useState(false)
+  const playing = isInView && !reducedMotion && !paused
   const isOrders = flow === "orders"
 
+  const libraryFlow = flow !== "orders" && flow !== "fleet" ? libraryFlows[flow] : null
+
   return (
-    <figure ref={figureRef} className="rounded-lg border border-border bg-card p-4 sm:p-6" aria-label={isOrders ? "Purchase orders become sales orders" : "Fleet trips sync into SAP"}>
+    <figure ref={figureRef} className="rounded-lg border border-border bg-card p-4 sm:p-6" aria-label={isOrders ? "Purchase orders become sales orders" : libraryFlow ? libraryFlow.description : "Fleet trips sync into SAP"}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-label font-semibold uppercase text-subtle-foreground">{isOrders ? "Order automation" : "Fleet automation"}</span>
-        <strong className="text-title text-primary">{isOrders ? "Hundreds of orders a day" : "Trips kept current across the fleet"}</strong>
+        <span className="text-label font-semibold uppercase text-subtle-foreground">{isOrders ? "Order automation" : libraryFlow ? "AI assistant" : "Fleet automation"}</span>
+        <strong className="text-title text-primary">{isOrders ? "Hundreds of orders a day" : libraryFlow ? libraryFlow.title : "Trips kept current across the fleet"}</strong>
       </div>
-      <div className="mt-5 grid grid-cols-3 gap-2 text-center text-label font-medium text-muted-foreground">
+      {(!libraryFlow || flow === "policy") && <div className="mt-5 grid grid-cols-3 gap-2 text-center text-label font-medium text-muted-foreground">
         {labels[flow].map((label) => <span key={label}>{label}</span>)}
-      </div>
-      {isOrders ? <OrderScene playing={playing} /> : <FleetScene playing={playing} />}
+      </div>}
+      {flow === "orders" ? <OrderScene playing={playing} /> : flow === "fleet" ? <FleetScene playing={playing} /> : <PolicyScene playing={playing} flow={flow} />}
       <figcaption className="flex items-center gap-2 text-caption text-muted-foreground">
         <CircleAlert className="size-4 shrink-0 text-primary" aria-hidden="true" />
-        {isOrders ? "Uncertain matches go to a person for review." : "Duplicates are skipped; changed trips are reconciled."}
+        {isOrders ? "Uncertain matches go to a person for review." : libraryFlow ? libraryFlow.caption : "Duplicates are skipped; changed trips are reconciled."}
       </figcaption>
+      {flow === "policy" && !reducedMotion && <Button type="button" variant="ghost" size="xs" className="mt-2" onClick={() => setPaused(!paused)}>{paused ? "Play animation" : "Pause animation"}</Button>}
     </figure>
   )
 }
