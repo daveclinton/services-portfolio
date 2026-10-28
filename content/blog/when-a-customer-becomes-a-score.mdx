@@ -1,0 +1,70 @@
+import Image from "next/image"
+
+export const metadata = {
+  title: "What happens when a customer becomes a score?",
+  description: "A viral Meta ads thread raises a larger question: what do customer scores measure, what do they miss, and whose information do they use?",
+  date: "2026-10-28",
+}
+
+You ask a business for a quote. It gives you a price. After that, a system decides whether you are worth another ad, a call from sales, or no further attention. How would the business know if it got that decision wrong?
+
+An [X thread about selling expensive products with Meta ads](https://x.com/shdu11546816/status/2114882910096408939) made me think about that question. The author says their business stopped treating every quote request as equally valuable. It scored people using what they did after asking for a quote, then used the score to guide its ads. Later, the author says the business bought financial and demographic data and identified people who had only liked or commented on an ad.
+
+<figure>
+  <Image
+    src="/blog/meta-ads-thread-opening.png"
+    alt="Opening X post by shdu, saying they sold a business and would explain how they used Meta ads"
+    width={1182}
+    height={746}
+    className="h-auto w-full rounded-lg border border-border"
+  />
+  <figcaption className="mt-2 text-caption text-subtle-foreground">
+    The opening post. <a href="https://x.com/shdu11546816/status/2114882910096408939">Read the full thread on X.</a>
+  </figcaption>
+</figure>
+
+I cannot verify the sale or the claimed results from the thread. What interests me is the system behind the story. A score can help a business notice that its ads bring in the wrong leads. The same score can quietly decide which people the business stops seeing.
+
+## Start with the outcome
+
+Imagine a company selling a costly item. Two people submit a quote form. One talks to sales, arranges delivery, and buys. The other wanted to compare prices. If the ad system sees only the form, both look like successes.
+
+Meta [lets advertisers send later CRM outcomes back through its Conversions API for CRM](https://www.facebookblueprint.com/student/path/253141-conversions-api-crm-lead-quality). That can help a campaign aim for qualified leads instead of a pile of cheap forms. It is a useful idea even outside advertising: measure the result of the work, not just the first visible action.
+
+Imagine a warehouse app where scanning a document starts a transaction in an accounting system. A dashboard could count every scan while missing a document that failed to post or a retry that posted twice. The useful outcome is whether the right document arrived once. I would want the same care in a sales funnel: a quote request, a conversation, and a completed sale should not all collapse into one number.
+
+## A score is a guess with a name
+
+The business in the thread reportedly used quote views, messages, calls, financing activity, and other signals to decide who counted as a qualified lead. Some of those actions may be useful. None is a sale.
+
+Google's machine learning guide calls this the difference between a [direct label and a proxy label](https://developers.google.com/machine-learning/crash-course/overfitting/labels). A completed purchase is a direct record of a purchase. Opening a quote five times is a clue about what someone might do. The clue only earns its place if it predicts the outcome you care about.
+
+The author also says the business changed its qualification threshold with the season. I can see the appeal: keep enough leads for the ad system to learn from. But then a "qualified lead" in a quiet month may not mean the same thing as one in a busy month. If the report improves, was the campaign better, or did the definition move? I would keep the final sale and its costs visible beside the score.
+
+There is another question I would ask the sales team: who did the score reject? Someone who skipped a financing question might still buy. Someone who calls once might be ready to order, while a person who reads the quote repeatedly may never be. Reviewing those cases is more useful than adding a hundredth input to the model.
+
+## An exclusion list can hide its mistakes
+
+The thread describes automatically excluding people predicted not to buy. Once that happens, the business sees fewer outcomes for those people. Some might have bought after another ad or a later conversation, but the system has made that harder to observe. The model's decision changes the evidence used to judge the model.
+
+Google [warns about this kind of feedback loop](https://developers.google.com/machine-learning/crash-course/production-ml-systems/questions): a prediction can affect the data a system receives next. In this case, the safe question is not just "Did we save ad spend?" It is also "How many potential customers did we stop reaching, and what happened to actual sales?"
+
+Even a higher count of sales credited to ads would not answer whether the ads caused those sales. Meta teaches [Conversion Lift tests](https://www.facebookblueprint.com/student/path/253065-conversion-lift-marketing-measurement) to measure campaign impact. A test may be too much for a small business, but the question still matters: did the new scoring rule create additional business, or did it make the dashboard look better?
+
+## More data brings a different problem
+
+The thread moves from activity on the business's own website to data bought from brokers: credit scores, income, ethnicity, and details about children. It then describes identifying people who had interacted with an ad but had never visited the site. Those are the author's claims, not independently verified facts.
+
+The [US Federal Trade Commission's study of data brokers](https://www.ftc.gov/reports/data-brokers-call-transparency-accountability-report-federal-trade-commission-may-2014) explains why the step matters. Brokers combine information from many sources into profiles that people often cannot see or correct. An inaccurate profile can change how a business treats someone. The UK's [Information Commissioner's Office says](https://ico.org.uk/for-organisations/direct-marketing-and-privacy-and-electronic-communications/organisations-using-marketing-services-of-data-brokers/) a business using broker data for marketing remains responsible for its use and must be clear with people about profiling and enrichment. Those rules are jurisdiction-specific; the thread alone cannot establish what was lawful.
+
+Even data collected directly from a customer needs a purpose. The thread says the business kept every SMS, email, and call transcript. I would ask which decision needs that record, who can read it, and when it can be deleted. [NIST's definition of data minimization](https://csrc.nist.gov/glossary/term/minimization) is a useful test: collect and retain personal information only as far as it is needed for the purpose.
+
+The stakes rise when a score decides who can see an opportunity. In a [US housing ad case](https://www.justice.gov/crt/case/united-states-v-meta-platforms-inc-fka-facebook-inc-sdny), the Justice Department challenged disparities in Meta's ad delivery, and a settlement required changes to the system. Selling an expensive consumer product is a different situation. The case shows why the people who never receive an ad can matter as much as the people who click it.
+
+## What I would build first
+
+I would start with a small record of the sales journey: where a lead came from, whether the person asked for a quote, whether sales reached them, and whether they bought. I would agree with the sales team on what "qualified" means and keep that definition stable long enough to test it against completed sales. I would look at a sample of leads marked unqualified before using the score to exclude anyone.
+
+Then I would compare the cost of finding a customer with the profit from the sale, not just the cost of getting a form filled. If there were enough volume, I would test whether the change brought in sales that would not have happened anyway. I would also keep an inventory of each piece of personal data: where it came from, why it is needed, who receives it, and when it is removed.
+
+That is a smaller system than the one in the thread. It might also tell me more. A business can learn a lot by following a lead through to a real outcome. It should be equally curious about the people its score gets wrong and careful about the information it uses to judge them.

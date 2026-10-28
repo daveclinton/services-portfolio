@@ -1,6 +1,6 @@
 export const metadata = {
   title: "When is paperwork worth a startup?",
-  description: "What I learned automating hundreds of SAP orders a day, and how developers can find similar work worth building for.",
+  description: "A look at repetitive order entry, hypothetical SAP workflows, and how developers can find similar work worth building for.",
   date: "2026-04-17",
 }
 
@@ -17,17 +17,17 @@ At 6 p.m. on a Saturday, Riyo still had more than 100 paper work orders to enter
 
 This is a large market, and it includes ordinary-sized businesses. SAP reported [€36.8 billion in 2025 revenue](https://www.sap.com/integrated-reports/2025/en/datahub/financial-data/five-year-summary.html) and a [€256 billion stock market value at the end of 2025](https://www.sec.gov/Archives/edgar/data/1000184/000110465926020058/sap-20251231x20f.htm). The stock market figure changes with its share price. SAP says [Business One serves more than 83,000 customers](https://news.sap.com/2025/12/global-success-of-sap-business-one/), mostly small and midsize companies. One partner's customer grew from three employees to 250 while continuing to use it. A growing distributor can be running SAP long before it looks like a giant corporation.
 
-There is no single "SAP system" to integrate with. [Business One can run in the cloud or on premises](https://learning.sap.com/products/business-one). Larger organizations may use [SAP S/4HANA in public cloud, private cloud, or on premises](https://learning.sap.com/courses/customizing-core-settings-in-financial-accounting-in-sap-s4hana/getting-an-overview-of-sap-s-4hana-1). Those are different products and deployment choices. My example uses Business One.
+There is no single "SAP system" to integrate with. [Business One can run in the cloud or on premises](https://learning.sap.com/products/business-one). Larger organizations may use [SAP S/4HANA in public cloud, private cloud, or on premises](https://learning.sap.com/courses/customizing-core-settings-in-financial-accounting-in-sap-s4hana/getting-an-overview-of-sap-s-4hana-1). Those are different products and deployment choices. The following examples are hypothetical Business One workflows.
 
-## I have seen the order version of this
+## A hypothetical order workflow
 
-I built an automation that turns purchase orders in one SAP company database into sales orders in another. People used to enter them one by one. Now they can work on other things and review the exceptions.
+Imagine a distributor that turns purchase orders in one company database into sales orders in another. Instead of entering each order by hand, staff could review the exceptions.
 
 <AutomationFlowVisual flow="orders" />
 
-## The fleet version
+## A hypothetical fleet workflow
 
-I also built a scheduled sync from a fleet tracking system into SAP. Trips can arrive late or change after the first reading; the job has to catch that.
+Imagine a scheduled sync from a fleet tracking system into SAP. Trips can arrive late or change after the first reading; the job would have to catch that.
 
 <AutomationFlowVisual flow="fleet" />
 
@@ -41,7 +41,7 @@ When several companies use the product, each job needs a clear source and destin
 
 ## Where LangChain could help
 
-I didn't use LangChain for either automation; both started with structured records. If your input is an emailed PDF, [LangChain's structured output](https://docs.langchain.com/oss/javascript/langchain/structured-output) could extract its fields before the same checks and review. [LangGraph can pause for approval](https://docs.langchain.com/oss/javascript/langgraph/thinking-in-langgraph) when that workflow grows more complex.
+Neither hypothetical workflow needs LangChain if its inputs are already structured records. If your input is an emailed PDF, [LangChain's structured output](https://docs.langchain.com/oss/javascript/langchain/structured-output) could extract its fields before the same checks and review. [LangGraph can pause for approval](https://docs.langchain.com/oss/javascript/langgraph/thinking-in-langgraph) when that workflow grows more complex.
 
 ## Find out whether anyone wants it
 

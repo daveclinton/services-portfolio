@@ -1,6 +1,6 @@
 export const metadata = {
   title: "Claude can build the app. Then what?",
-  description: "I've built apps that create transactions in SAP. That experience changes how I hear the claim that AI can build almost any app.",
+  description: "A working demo is only the first version.",
   date: "2026-08-11",
 }
 
@@ -8,9 +8,9 @@ export const metadata = {
 
 What happens to developers when Claude can build a working app in a morning?
 
-An agency owner on [r/ClaudeAI](https://www.reddit.com/r/ClaudeAI/comments/1xesfpc/if_claude_can_build_almost_any_app_what_is_the/) said he can give Claude a prompt, go to the gym, and come back to a working app. I believe him. I built a warehouse app at Mika that looks simple in a demo: staff scan a document, and the app posts a delivery note, goods issue, or goods receipt to SAP Business One.
+An agency owner on [r/ClaudeAI](https://www.reddit.com/r/ClaudeAI/comments/1xesfpc/if_claude_can_build_almost_any_app_what_is_the/) said he can give Claude a prompt, go to the gym, and come back to a working app. I believe him. Imagine a warehouse app that looks simple in a demo: staff scan a document, and the app posts a delivery record to an inventory system.
 
-In use, a phone can lose its connection. A request can reach SAP and time out before the app gets a reply. Retry carelessly, and the same transaction might land twice. The demo works. Someone still has to solve what happens after it.
+In use, a phone can lose its connection. A request can reach the inventory system and time out before the app gets a reply. Retry carelessly, and the same transaction might land twice. The demo works. Someone still has to solve what happens after it.
 
 ## Some apps really can end at version one
 
@@ -22,15 +22,15 @@ I also think anyone selling a basic dashboard as though it takes months of speci
 
 But I would ask them what happens after the demo. Who will use the app? What data does it touch? What happens when the internet drops or a record is wrong? For a classroom tool, the answers may be simple. For a warehouse or payments system, they usually aren't.
 
-## I have seen where the work goes
+## Where the work goes
 
-The warehouse example is one part of my job. I built an offline queue into the Android app so scans can sync when a connection returns. Elsewhere in Mika's operations platform, I built a transactional outbox for delivery events sent to SAP. It uses stable keys to keep retries from creating duplicate transactions. There are timeouts, errors we can retry, errors we shouldn't retry, and a way to replay failed events.
+In that hypothetical warehouse, scans might need to wait until a connection returns. Each attempted write needs a stable identifier so a retry does not create a duplicate. Someone also has to decide which errors can be retried and which ones need a person to review them.
 
 None of that makes a great five-minute app demo. It matters when staff are using the system every day.
 
-The AI assistant raised a different set of questions. Which company is this user asking about? Which records are they allowed to see? If the assistant gives a number, did it actually look that number up? If it proposes a change, can the user inspect it before anything is written? Those questions shaped the system I built. The model helps people work with the data; the permissions and approval flow decide what it is allowed to do.
+An assistant for a company raises a different set of questions. Which company is this user asking about? Which records are they allowed to see? If the assistant gives a number, did it actually look that number up? If it proposes a change, can the user inspect it before anything is written? The model can help people work with data; permissions and an approval flow decide what it is allowed to do.
 
-AI can help write and check code for both systems. I use it for that. But it can't tell me, on its own, what a warehouse team has agreed should happen after a failed scan or who at the company should approve a warranty registration. I have to find that out from the people doing the work, build it into the software, and check that it behaves as agreed.
+AI can help write and check code for both systems. But it cannot decide, on its own, what a warehouse team has agreed should happen after a failed scan or who should approve a change. A developer has to learn those rules from the people doing the work, build them into the software, and check that it behaves as agreed.
 
 ## I don't think anyone knows the job numbers yet
 
@@ -50,4 +50,4 @@ And I would be clear about who answers the phone when something breaks.
 
 That is where I want my own work to go. Give me the fast prototype. I'll use AI to help improve it. Then I'll sit with the people who actually have to use it and ask where it could fail them. I'll make sure the data goes to the right place, a retry doesn't quietly duplicate a transaction, and the next engineer can understand what I built.
 
-Claude has made the first version easier for more people. I think that's worth celebrating. It also means I need to be able to say, plainly, what my work adds after that first version. For me, the answer is in the warehouse scan that survives a bad connection, the ERP action that waits for approval, and the person willing to own the system once it is running.
+Claude has made the first version easier for more people. I think that's worth celebrating. It also means I need to be able to say, plainly, what my work adds after that first version. For me, the answer is in the transaction that survives a bad connection, the action that waits for approval, and the person willing to own the system once it is running.
