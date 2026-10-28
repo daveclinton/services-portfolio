@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -11,9 +12,46 @@ import {
   workLinks,
 } from "@/lib/portfolio-data"
 
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+}
+
 export default function Home() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${site.url}/#website`,
+        url: site.url,
+        name: site.name,
+        alternateName: profile.name,
+      },
+      {
+        "@type": "ProfilePage",
+        "@id": `${site.url}/#profile`,
+        url: site.url,
+        mainEntity: { "@id": `${site.url}/#person` },
+      },
+      {
+        "@type": "Person",
+        "@id": `${site.url}/#person`,
+        name: site.name,
+        alternateName: [profile.name, profile.handle],
+        url: site.url,
+        image: `${site.url}${profile.avatarSrc}`,
+        description: site.description,
+        sameAs: [...socialLinks.map((link) => link.href), introduction.substackProfile],
+      },
+    ],
+  }
+
   return (
     <main className="home-story">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+      />
       <header className="home-story-header">
         <div className="home-story-portrait">
           <Avatar className="size-32" aria-label={`${site.name}'s portrait`}>
@@ -30,6 +68,7 @@ export default function Home() {
             </span>
           ))}
         </h1>
+        <p>I build software and write about what happens after it ships.</p>
         <p>
           I am the creator of <a href={introduction.company.href}>{introduction.company.name}</a>,
           creator of its first product <a href={introduction.firstProduct.href}>{introduction.firstProduct.name}</a>
@@ -43,7 +82,8 @@ export default function Home() {
 
       <article className="home-story-article">
         <p id="links">
-          I write on <a href={socialLinks[2].href}>X</a> and{" "}
+          I write on <a href={socialLinks[2].href}>X</a>,{" "}
+          <a href={introduction.substackProfile}>Substack</a>, and{" "}
           <Link href="/blog">my blog</Link>. You can find me on{" "}
           <a href={socialLinks[1].href}>LinkedIn</a>, <a href={email.href}>email me</a>, or{" "}
           <Link href={askAi.href}>ask AI about me</Link>.

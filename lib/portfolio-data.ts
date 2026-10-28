@@ -6,23 +6,14 @@ export type BrandIconName = "github" | "x" | "linkedin"
 
 export const site = {
   name: "David Clinton Hellen",
-  title: "DCH",
+  title: "David Clinton | Software Engineer and Writer",
   description:
-    "",
-  url: "https://github.com/daveclinton",
-  keywords: [
-    "Clinton",
-    "daveclintonn",
-    "Software Engineer",
-    "open source",
-    "portfolio",
-    "daveclinton",
-    "",
-  ],
+    "David Clinton Hellen is a software engineer and writer in Kenya. He builds software and writes about what happens after it ships.",
+  url: "https://daveclintonn.cc",
 } as const
 
 export const profile = {
-  name: "Clinton",
+  name: "David Clinton",
   handle: "@daveclintonn",
   role: "Software Engineer 🇰🇪",
   initials: "DCH",
@@ -41,6 +32,7 @@ export const introduction = {
     href: "https://9ntyplus.com/",
   },
   paperspaceWriting: "https://blog.paperspace.com/author/david-clinton/",
+  substackProfile: "https://substack.com/@daveclintonn",
   studio1hq: "https://www.studio1hq.com/",
   gameOfThrones: "https://press.wbd.com/us/property/game-thrones-s1",
 } as const

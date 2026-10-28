@@ -18,10 +18,13 @@ export async function generateMetadata({ params }: PageProps<"/blog/[slug]">): P
   return {
     title: post.title,
     description: post.description,
+    alternates: { canonical: `/blog/${slug}` },
     openGraph: {
       type: "article",
       title: post.title,
       description: post.description,
+      url: `/blog/${slug}`,
+      siteName: site.name,
       publishedTime: post.date,
       authors: [site.name],
     },
@@ -35,9 +38,22 @@ export async function generateMetadata({ params }: PageProps<"/blog/[slug]">): P
 export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">) {
   const { slug } = await params
   const [post, { default: Content }] = await Promise.all([getPost(slug), getPostContent(slug)])
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BlogPosting",
+    headline: post.title,
+    description: post.description,
+    datePublished: post.date,
+    mainEntityOfPage: `${site.url}/blog/${slug}`,
+    author: { "@type": "Person", "@id": `${site.url}/#person`, name: site.name, url: site.url },
+  }
 
   return (
     <main className="home-story">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
+      />
       <nav className="blog-nav" aria-label="Breadcrumb">
         <Link href="/blog">← All writing</Link>
       </nav>

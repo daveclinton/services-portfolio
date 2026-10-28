@@ -5,6 +5,7 @@ import { formatPostDate, getPosts, type Post } from "@/lib/blog"
 export const metadata: Metadata = {
   title: "My thoughts",
   description: "Notes and guides on building software, payments, AI, and developer tooling.",
+  alternates: { canonical: "/blog" },
 }
 
 function groupByYear(posts: Post[]) {
