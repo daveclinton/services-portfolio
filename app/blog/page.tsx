@@ -5,7 +5,10 @@ import { formatPostDate, getPosts, type Post } from "@/lib/blog"
 export const metadata: Metadata = {
   title: "My thoughts",
   description: "Notes and guides on building software, payments, AI, and developer tooling.",
-  alternates: { canonical: "/blog" },
+  alternates: {
+    canonical: "/blog",
+    types: { "application/rss+xml": "/feed.xml" },
+  },
 }
 
 function groupByYear(posts: Post[]) {
@@ -31,6 +34,7 @@ export default async function BlogPage() {
           <span className="home-story-initial">M</span>y{" "}
           <span className="home-story-initial">T</span>houghts
         </h1>
+        <p><a href="/feed.xml">RSS feed</a></p>
       </header>
 
       <div className="home-story-article">

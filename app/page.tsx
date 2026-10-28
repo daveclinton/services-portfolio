@@ -13,7 +13,10 @@ import {
 } from "@/lib/portfolio-data"
 
 export const metadata: Metadata = {
-  alternates: { canonical: "/" },
+  alternates: {
+    canonical: "/",
+    types: { "application/rss+xml": "/feed.xml" },
+  },
 }
 
 export default function Home() {
