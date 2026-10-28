@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
+import { Rss } from "lucide-react"
 import { formatPostDate, getPosts, type Post } from "@/lib/blog"
 
 export const metadata: Metadata = {
@@ -25,8 +26,11 @@ export default async function BlogPage() {
 
   return (
     <main className="home-story">
-      <nav className="blog-nav" aria-label="Breadcrumb">
+      <nav className="blog-nav flex items-center justify-between" aria-label="Blog navigation">
         <Link href="/">Home</Link>
+        <a href="/feed.xml" aria-label="RSS feed">
+          <Rss className="size-4" aria-hidden="true" />
+        </a>
       </nav>
 
       <header className="home-story-header">
@@ -34,7 +38,6 @@ export default async function BlogPage() {
           <span className="home-story-initial">M</span>y{" "}
           <span className="home-story-initial">T</span>houghts
         </h1>
-        <p><a href="/feed.xml">RSS feed</a></p>
       </header>
 
       <div className="home-story-article">
