@@ -78,7 +78,7 @@ export default function Home() {
 
       <article className="home-story-article">
         <p id="links">
-          I write about what I&apos;m learning on <Link href="/blog">my blog</Link>.
+          I write alot of things on <Link href="/blog">my blog</Link>.
           If you&apos;d like to say hello, you can find me on{" "}
           <a href={socialLinks[2].href}>Twitter</a> or <a href={email.href}>email me</a>.
           You can also <Link href={askAi.href}>ask AI about me</Link>.
@@ -88,9 +88,7 @@ export default function Home() {
           <h2>Opesi Mansion</h2>
           <p>
             I started <a href={introduction.company.href}>{introduction.company.name}</a> to help
-            people turn what they own into income. I&apos;m building{" "}
-            <a href={introduction.firstProduct.href}>90+</a>, a tool that will turn photos of
-            things you want to sell into draft listings.
+            businesses understand and build useful software beyond the hype and demos on our feeds.
           </p>
         </section>
 
