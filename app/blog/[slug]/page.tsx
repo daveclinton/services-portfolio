@@ -1,10 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { formatPostDate, getPost, getPostContent, getPosts } from "@/lib/blog"
+import { redirect } from "next/navigation"
+import { formatPostDate, getPostContent, getPosts } from "@/lib/blog"
 import { site } from "@/lib/portfolio-data"
-
-// Only the posts in content/blog exist; anything else is a 404 rather than a runtime render.
-export const dynamicParams = false
 
 export async function generateStaticParams() {
   const posts = await getPosts()
@@ -13,7 +11,8 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps<"/blog/[slug]">): Promise<Metadata> {
   const { slug } = await params
-  const post = await getPost(slug)
+  const post = (await getPosts()).find((candidate) => candidate.slug === slug)
+  if (!post) redirect("/blog")
 
   return {
     title: post.title,
@@ -37,7 +36,9 @@ export async function generateMetadata({ params }: PageProps<"/blog/[slug]">): P
 
 export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">) {
   const { slug } = await params
-  const [post, { default: Content }] = await Promise.all([getPost(slug), getPostContent(slug)])
+  const post = (await getPosts()).find((candidate) => candidate.slug === slug)
+  if (!post) redirect("/blog")
+  const { default: Content } = await getPostContent(slug)
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "BlogPosting",

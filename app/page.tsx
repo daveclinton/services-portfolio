@@ -71,46 +71,39 @@ export default function Home() {
             </span>
           ))}
         </h1>
-        <p>I build software and write about what happens after it ships.</p>
         <p>
-          I am the creator of <a href={introduction.company.href}>{introduction.company.name}</a>,
-          creator of its first product <a href={introduction.firstProduct.href}>{introduction.firstProduct.name}</a>
-          {" "}(with more to come), and a writer of developer guides for{" "}
-          <a href={introduction.paperspaceWriting}>Paperspace</a> and{" "}
-          <a href={introduction.studio1hq}>Studio1HQ</a>. I am also a huge fan of{" "}
-          <a href={introduction.gameOfThrones}>Game of Thrones</a> and sci-fi shows, an
-          avid watcher of technical creators, and excited by how quickly AI is moving.
+          I&apos;m a software engineer in Kenya. I build software and write about what happens after it ships.
         </p>
       </header>
 
       <article className="home-story-article">
         <p id="links">
-          I write on <a href={socialLinks[2].href}>X</a>,{" "}
-          <a href={introduction.substackProfile}>Substack</a>, and{" "}
-          <Link href="/blog">my blog</Link>. You can find me on{" "}
-          <a href={socialLinks[1].href}>LinkedIn</a>, <a href={email.href}>email me</a>, or{" "}
-          <Link href={askAi.href}>ask AI about me</Link>.
+          I write about what I&apos;m learning on <Link href="/blog">my blog</Link>.
+          If you&apos;d like to say hello, you can find me on{" "}
+          <a href={socialLinks[2].href}>Twitter</a> or <a href={email.href}>email me</a>.
+          You can also <Link href={askAi.href}>ask AI about me</Link>.
         </p>
 
         <section>
           <h2>Opesi Mansion</h2>
           <p>
-            I recently started <a href={introduction.company.href}>{introduction.company.name}</a>.
-            Its first product is <a href={introduction.firstProduct.href}>{introduction.firstProduct.name}</a>,
-            and more products are on the way.
+            I started <a href={introduction.company.href}>{introduction.company.name}</a> to help
+            people turn what they own into income. I&apos;m building{" "}
+            <a href={introduction.firstProduct.href}>90+</a>, a tool that will turn photos of
+            things you want to sell into draft listings.
           </p>
         </section>
 
         <section>
           <h2>Making everyday work simpler</h2>
           <p>
-            At <a href={workLinks.mika}>Mika (Ideal Appliances)</a>, I work on software for the people keeping the
-            business moving. {backgroundItems[0].description}
+            At <a href={workLinks.mika}>Mika (Ideal Appliances)</a>,{" "}
+            {backgroundItems[0].description}
           </p>
         </section>
 
         <section>
-          <h2>Payments and developer education</h2>
+          <h2>Payments and developer guides</h2>
           <p>
             I improved online payment experiences for <a href={workLinks.givesuite}>GiveSuite</a> and{" "}
             <a href={workLinks.elementPay}>Element Pay</a>. Through{" "}
@@ -119,18 +112,16 @@ export default function Home() {
         </section>
 
         <section>
-          <h2>Making investment data easier to understand</h2>
+          <h2>Investment data</h2>
           <p>
-            At <a href={workLinks.untapped}>Untapped Global</a>, I worked where software meets
-            investment decisions. {backgroundItems[2].description}
+            At <a href={workLinks.untapped}>Untapped Global</a>, {backgroundItems[2].description}
           </p>
         </section>
 
         <section>
           <h2>Writing for developers</h2>
           <p>
-            I have also spent time explaining technical ideas in plain language. At{" "}
-            <a href={introduction.paperspaceWriting}>Paperspace</a>,{" "}
+            At <a href={introduction.paperspaceWriting}>Paperspace</a>,{" "}
             {backgroundItems[3].description}
           </p>
         </section>
@@ -140,17 +131,15 @@ export default function Home() {
         <section>
           <h2>Outside of work</h2>
           <p>
-            I am a huge fan of <a href={introduction.gameOfThrones}>Game of Thrones</a> and
-            sci-fi shows. I like watching technical content creators, and the speed of
-            progress in artificial intelligence keeps me curious about what comes next.
+            I enjoy <a href={introduction.gameOfThrones}>Game of Thrones</a>, sci-fi shows,
+            and watching technical creators. I&apos;m also curious about where AI is going.
           </p>
         </section>
 
         <section>
-          <h2>The full work history</h2>
+          <h2>Work experience</h2>
           <p>
-            If you want the roles and dates behind this story, you can read my{" "}
-            <Link href="/experience">work experience</Link>.
+            For roles and dates, see my <Link href="/experience">work experience</Link>.
           </p>
         </section>
 
