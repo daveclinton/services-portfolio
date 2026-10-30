@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
-import portrait from "@/public/david.jpg"
+import portrait from "@/public/david.webp"
 import {
   askAi,
   backgroundItems,

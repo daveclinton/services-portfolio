@@ -1,9 +1,9 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Sparkles } from "lucide-react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { BackHomeButton } from "@/components/portfolio/back-home-button"
 import { askAi, profile } from "@/lib/portfolio-data"
 
@@ -13,17 +13,14 @@ export function PortfolioHeader() {
 
   return (
     <header className="flex min-w-0 items-center gap-3 sm:gap-5">
-      <Avatar
-        className="size-12 shrink-0 sm:size-16"
-        aria-label={`${profile.name}'s profile picture`}
-      >
-        {profile.avatarSrc ? (
-          <AvatarImage src={profile.avatarSrc} alt={profile.name} />
-        ) : null}
-        <AvatarFallback className="bg-muted text-title font-medium text-muted-foreground">
-          {profile.initials}
-        </AvatarFallback>
-      </Avatar>
+      <Image
+        src={profile.avatarSrc}
+        alt={`${profile.name}'s profile picture`}
+        width={64}
+        height={64}
+        loading="eager"
+        className="size-12 shrink-0 rounded-full border border-border object-cover sm:size-16"
+      />
 
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <h1 className="flex min-w-0 items-baseline gap-1.5 overflow-hidden">

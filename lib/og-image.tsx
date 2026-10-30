@@ -1,11 +1,11 @@
 import { readFile } from "node:fs/promises"
 import path from "node:path"
 import { ImageResponse } from "next/og"
-import { profile, site } from "@/lib/portfolio-data"
+import { site } from "@/lib/portfolio-data"
 
 export const ogImageSize = { width: 1200, height: 630 }
 
-const avatar = readFile(path.join(process.cwd(), "public", profile.avatarSrc), "base64")
+const avatar = readFile(path.join(process.cwd(), "assets", "og-avatar.jpg"), "base64")
 
 export async function renderOgImage({ title, subtitle }: { title: string; subtitle: string }) {
   const avatarSrc = `data:image/jpeg;base64,${await avatar}`

@@ -19,7 +19,7 @@ export const profile = {
   handle: "@daveclintonn",
   role: "Software Engineer 🇰🇪",
   initials: "DC",
-  avatarSrc: "/david.jpg",
+  avatarSrc: "/david.webp",
   contactHref: "#links",
   contactLabel: "Contact Me",
 } as const
@@ -93,7 +93,7 @@ export const backgroundItems: TimelineEntry[] = [
   {
     id: "2022-05",
     company: "Untapped Global",
-    iconSrc: "/untapped.png",
+    iconSrc: "/untapped.webp",
     location: "Nairobi, Kenya",
     arrangement: "Hybrid",
     start: "2022 May",
