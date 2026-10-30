@@ -45,6 +45,9 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
     headline: post.title,
     description: post.description,
     datePublished: post.date,
+    dateModified: post.date,
+    url: `${site.url}/blog/${slug}`,
+    image: `${site.url}/blog/${slug}/opengraph-image`,
     mainEntityOfPage: `${site.url}/blog/${slug}`,
     author: { "@type": "Person", "@id": `${site.url}/#person`, name: site.name, url: site.url },
   }
