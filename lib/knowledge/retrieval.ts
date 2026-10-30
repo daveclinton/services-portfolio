@@ -1,10 +1,3 @@
-/**
- * Retrieval over `KnowledgeChunk`: lexical, vector, or hybrid with RRF fusion.
- *
- * Serves the Next.js API routes directly. The Python counterpart in
- * `knowledge-backend/knowledge/retrieval/` supports offline retrieval evaluation.
- */
-
 import { sql } from "./db"
 import {
   classifyQuestion,
@@ -17,7 +10,6 @@ import { tokenize } from "./text"
 export const MODES = ["structured", "semantic", "hybrid"] as const
 export type SearchMode = (typeof MODES)[number]
 
-/** Wider candidate pool per strategy so RRF has something to rerank. */
 const CANDIDATE_MULTIPLIER = 4
 const MIN_CANDIDATE_POOL = 20
 const RRF_K = 60
@@ -34,10 +26,6 @@ export class SemanticUnavailable extends Error {
     this.reason = reason
   }
 }
-
-/* ------------------------------------------------------------------ */
-/* Filters                                                             */
-/* ------------------------------------------------------------------ */
 
 export interface FiltersPayload {
   source_type?: string[]
@@ -71,10 +59,6 @@ export function filtersFromPayload(payload?: FiltersPayload | null): SearchFilte
   }
 }
 
-/**
- * Append `WHERE` fragments for the filter set to `clauses`, pushing bind
- * values onto `params`. Returns the next placeholder index.
- */
 function applyFilters(
   filters: SearchFilters,
   clauses: string[],
@@ -103,10 +87,6 @@ function applyFilters(
   }
   return next
 }
-
-/* ------------------------------------------------------------------ */
-/* Rows                                                                */
-/* ------------------------------------------------------------------ */
 
 export interface ChunkRow {
   id: number
@@ -138,10 +118,6 @@ function toChunkRow(row: Record<string, unknown>): ChunkRow {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* Structured (lexical) search                                         */
-/* ------------------------------------------------------------------ */
-
 async function searchStructured(
   query: string,
   filters: SearchFilters,
@@ -153,7 +129,6 @@ async function searchStructured(
 
   const terms = tokenize(query)
   if (terms.length === 0) {
-    // No usable terms: degrade to a plain filtered listing (browsing).
     const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : ""
     params.push(limit)
     const rows = await sql().query(
@@ -163,7 +138,6 @@ async function searchStructured(
     return (rows as Record<string, unknown>[]).map(toChunkRow)
   }
 
-  // OR the per-term queries, like Django's `SearchQuery(term) | ...`.
   const tsParts: string[] = []
   for (const term of terms) {
     params.push(term)
@@ -181,10 +155,6 @@ async function searchStructured(
   )
   return (rows as Record<string, unknown>[]).map(toChunkRow)
 }
-
-/* ------------------------------------------------------------------ */
-/* Semantic (vector) search                                            */
-/* ------------------------------------------------------------------ */
 
 async function embedQuery(query: string): Promise<number[]> {
   const { embed } = await import("ai")
@@ -316,7 +286,6 @@ function scoreThreshold(): number {
     : DEFAULT_VECTOR_SCORE_THRESHOLD
 }
 
-/** Stable negative ID for managed-search results, avoiding local database IDs. */
 function externalChunkId(value: string): number {
   let hash = 2166136261
   for (let index = 0; index < value.length; index += 1) {
@@ -412,10 +381,6 @@ async function searchOpenAIVectorStore(
   })
 }
 
-/* ------------------------------------------------------------------ */
-/* Fusion                                                              */
-/* ------------------------------------------------------------------ */
-
 interface FusedHit {
   key: number
   score: number
@@ -440,10 +405,6 @@ function reciprocalRankFusion(rankings: Record<string, number[]>): FusedHit[] {
     b.score !== a.score ? b.score - a.score : String(a.key) < String(b.key) ? -1 : 1,
   )
 }
-
-/* ------------------------------------------------------------------ */
-/* Citations                                                           */
-/* ------------------------------------------------------------------ */
 
 const CONFIDENCE_ORDER: Record<string, number> = {
   confirmed: 0,
@@ -536,11 +497,6 @@ async function citationsForChunks(
   return resolved
 }
 
-/* ------------------------------------------------------------------ */
-/* Outcome                                                             */
-/* ------------------------------------------------------------------ */
-
-/** Chunks for the files an intent must always see, keyed by source path. */
 async function chunksBySourcePath(paths: readonly string[]): Promise<Map<string, ChunkRow>> {
   if (paths.length === 0) return new Map()
   const rows = (await sql().query(
@@ -550,13 +506,11 @@ async function chunksBySourcePath(paths: readonly string[]): Promise<Map<string,
   const byPath = new Map<string, ChunkRow>()
   for (const row of rows) {
     const chunk = toChunkRow(row)
-    // First writer wins, matching Django's `{chunk.source_path: chunk ...}`.
     if (!byPath.has(chunk.source_path)) byPath.set(chunk.source_path, chunk)
   }
   return byPath
 }
 
-/** Entity slugs that carry at least one confirmed metric, used by outcomes. */
 async function confirmedMetricSlugs(): Promise<{
   projects: string[]
   companies: string[]
@@ -645,10 +599,6 @@ function toResultDict(
   return result
 }
 
-/**
- * Retrieve the chunks that best answer `query` — same contract as Django's
- * `knowledge.retrieval.search`.
- */
 export async function search(
   query: string,
   options?: {
@@ -719,7 +669,6 @@ export async function search(
     }
   }
 
-  // Every retrieved chunk, so citations and intent anchors can resolve later.
   const chunksById = new Map<number, ChunkRow>()
   for (const chunk of structuredRanked) chunksById.set(chunk.id, chunk)
   for (const { chunk } of semanticRanked) chunksById.set(chunk.id, chunk)
@@ -779,10 +728,6 @@ export async function search(
   }
 }
 
-/**
- * Fetch an intent's anchors, then rerank in place — Django's
- * `rerank_for_intent(results, intent, limit=limit)`.
- */
 async function applyIntent(
   ranked: SearchResult[],
   intent: QuestionIntent,
@@ -865,7 +810,6 @@ async function fuse(
       rankings.semantic.push(chunk.id)
     }
   }
-  // Citations resolve after slicing to the final limit, in search().
   return reciprocalRankFusion(rankings).map((hit, index) => {
     const chunk = byId.get(hit.key)
     if (!chunk) throw new Error(`chunk ${hit.key} missing from rankings`)

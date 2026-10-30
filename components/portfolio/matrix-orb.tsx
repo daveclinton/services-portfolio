@@ -42,7 +42,6 @@ const ORBITERS = [
   { radius: 0.8, speed: 1.15, phase: 4, spread: 0.34 },
 ]
 
-// no Math.abs here, its corners read as a snap at every trough
 function envelope(t: number) {
   const slow = 0.5 + 0.5 * Math.sin(t * 0.62 + 0.4)
   const fast = 0.5 + 0.5 * Math.sin(t * 1.9 + 1.1)
@@ -81,7 +80,6 @@ function subscribeToZoom(onChange: () => void) {
   return () => window.removeEventListener('resize', onChange)
 }
 
-// zoom changes devicePixelRatio, and a buffer built for the old one gets upscaled
 function useDevicePixelRatio() {
   return useSyncExternalStore(
     subscribeToZoom,
@@ -90,8 +88,6 @@ function useDevicePixelRatio() {
   )
 }
 
-// canvas fillStyle can't resolve var(), so read the theme token into a plain color
-// Use the fixed dark theme's primary for pre-hydration paint.
 const THEME_VAR = '--primary'
 const THEME_FALLBACK = 'oklch(0.707 0.165 254.624)'
 
@@ -135,7 +131,6 @@ export const MatrixOrb = ({
   const levelRef = useRef(level)
   const redrawRef = useRef<(() => void) | null>(null)
   const dpr = useDevicePixelRatio()
-  // an explicit color still wins; otherwise the orb follows the brand token
   const themeColor = useThemeColor()
   const resolvedColor = color ?? themeColor
 
@@ -149,7 +144,6 @@ export const MatrixOrb = ({
     const ctx = canvas?.getContext('2d')
     if (!canvas || !ctx) return
 
-    // scaling by buffer/size, not dpr, keeps the transform exact when it rounds
     const buffer = Math.round(size * dpr)
     canvas.width = canvas.height = buffer
     ctx.scale(buffer / size, buffer / size)
@@ -164,7 +158,6 @@ export const MatrixOrb = ({
     const weights: Record<MatrixOrbState, number> = { idle: 0, listening: 0, thinking: 0 }
     weights[stateRef.current] = 1
 
-    // a non-finite level would stick in the smoother forever
     const levelAt = (t: number) => {
       const v = levelRef.current
       return v === undefined || !Number.isFinite(v)
@@ -180,7 +173,6 @@ export const MatrixOrb = ({
           const nx = (ix - half) / half
           const ny = (iy - half) / half
           const d = Math.hypot(nx, ny)
-          // 1.12, not the square's 1.41 corner, is what makes the outline round
           if (d > 1.12) continue
 
           let blended = 0
@@ -191,7 +183,6 @@ export const MatrixOrb = ({
 
           const intensity = Math.min(1, Math.max(0, blended))
           const radius = maxRadius * Math.exp(-d * d * 1.7) * intensity * scale
-          // anything under half a device pixel renders as haze, not a dot
           if (radius * dpr < 0.5) continue
 
           ctx.beginPath()
@@ -240,7 +231,6 @@ export const MatrixOrb = ({
       const rate = target > amplitude ? ATTACK : RELEASE
       amplitude += (target - amplitude) * (1 - Math.pow(1 - rate, dt * 60))
 
-      // per-state weights, so interrupting a change blends from what is on screen
       const step = 1 - Math.pow(1 - BLEND, dt * 60)
       for (const s of STATES) {
         weights[s] += ((s === current ? 1 : 0) - weights[s]) * step
@@ -255,7 +245,6 @@ export const MatrixOrb = ({
     raf = requestAnimationFrame(frame)
 
     return () => cancelAnimationFrame(raf)
-    // state stays out of the deps on purpose: the loop retargets, it never restarts
   }, [size, resolvedColor, dots, dpr])
 
   useEffect(() => {

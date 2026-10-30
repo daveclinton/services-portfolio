@@ -2,10 +2,6 @@ import { readdir, readFile } from "node:fs/promises"
 import path from "node:path"
 import type { ComponentType } from "react"
 
-// Each post is `content/blog/<slug>.mdx` and exports its own metadata:
-//   export const metadata = { title: "...", description: "...", date: "2026-10-27" }
-// The file name is the URL, so `hello-world.mdx` is served at /blog/hello-world.
-
 export type PostMetadata = {
   title: string
   description: string
@@ -44,7 +40,6 @@ export async function getPost(slug: string): Promise<Post> {
   return { ...metadata, slug, readingMinutes: await getReadingMinutes(slug) }
 }
 
-/** Published posts, newest first. Drafts are only listed during `next dev`. */
 export async function getPosts(): Promise<Post[]> {
   const posts = await Promise.all((await getSlugs()).map(getPost))
   return posts

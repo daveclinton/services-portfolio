@@ -137,8 +137,6 @@ export default function Home() {
           </p>
         </section>
 
-        {/* Building in the open: add projects here later. */}
-
         <section>
           <h2>Outside of work</h2>
           <p>

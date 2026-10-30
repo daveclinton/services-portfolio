@@ -1,16 +1,7 @@
-/**
- * Browser client for the Next.js AI routes in `app/api/`.
- *
- * The OpenAI key and `DATABASE_URL` live server-side only (plain env vars,
- * never `NEXT_PUBLIC_*`), so the browser only ever talks to our own
- * same-origin routes.
- */
-
 import { INTENT_NAMES, type IntentName } from "./knowledge/intent"
 
 export type ChatTurn = { role: "user" | "assistant"; content: string }
 
-/** Which kind of portfolio question the server read this as. */
 export type ChatIntent = IntentName
 
 export type ChatEvent =
@@ -22,17 +13,10 @@ export type ChatEvent =
 
 export class AiApiError extends Error {}
 
-/** Keep internal source references out of the conversational answer text. */
 export function stripCitationMarkers(text: string): string {
   return text.replace(/\s*(?:\[\d+\])+/g, "")
 }
 
-/**
- * Parse one `event:` / `data:` block from a text/event-stream body.
- *
- * The API also streams `citations` frames; the UI renders the answer text plus
- * the intent the server read the question as, so citations are dropped here.
- */
 function parseFrame(frame: string): ChatEvent | null {
   let name = "message"
   const data: string[] = []
@@ -79,7 +63,6 @@ function parseFrame(frame: string): ChatEvent | null {
   }
 }
 
-/** Unknown or missing intents degrade to `general` rather than throwing. */
 function asIntent(value: unknown): ChatIntent {
   return typeof value === "string" && (INTENT_NAMES as readonly string[]).includes(value)
     ? (value as IntentName)
@@ -91,9 +74,7 @@ async function readError(response: Response): Promise<string> {
   try {
     const body = (await response.json()) as { detail?: string }
     detail = body?.detail
-  } catch {
-    // fall through to the generic message
-  }
+  } catch {}
   if (response.status === 429) {
     const seconds = Number(response.headers.get("Retry-After"))
     if (Number.isFinite(seconds) && seconds > 0) {
@@ -105,10 +86,6 @@ async function readError(response: Response): Promise<string> {
   return `The assistant API answered ${response.status}.`
 }
 
-/**
- * Stream an answer as `delta` events, then `done` — or `error` if the server
- * has no API key configured.
- */
 export async function* streamChat({
   messages,
   signal,
@@ -176,12 +153,8 @@ export async function* streamChat({
     const trailing = parseFrame(buffer + decoder.decode())
     if (trailing) yield trailing
   } finally {
-    // An aborted read can leave the stream locked, and `releaseLock` would
-    // then throw from `finally` and mask the original error.
     try {
       reader.releaseLock()
-    } catch {
-      // nothing to release; the reader is already closing
-    }
+    } catch {}
   }
 }

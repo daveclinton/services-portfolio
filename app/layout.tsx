@@ -37,8 +37,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   colorScheme: "dark",
   themeColor: "#0a0a0a",
-  // Required for `env(safe-area-inset-*)` to report real values on iOS. Without
-  // `cover`, in-app browsers letterbox the page instead of exposing the notch.
   viewportFit: "cover",
 };
 

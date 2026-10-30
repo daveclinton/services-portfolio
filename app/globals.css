@@ -42,11 +42,9 @@
   --color-card-hover: var(--card-hover);
   --color-subtle-foreground: var(--subtle-foreground);
 
-  /* Spacing relationships from the reference: 4 / 8 / 12 / 16 / 20 / 24 / 28 / 34 / 48 */
   --text-name: 1.75rem;
   --text-name--line-height: 2.125rem;
   --text-name--letter-spacing: -0.28px;
-  /* The reference's 28px name is too wide for a 390px viewport; this is the same voice, one step down. */
   --text-name-sm: 1.5rem;
   --text-name-sm--line-height: 2rem;
   --text-name-sm--letter-spacing: -0.24px;
@@ -61,7 +59,6 @@
   --text-label--line-height: 1rem;
   --text-label--letter-spacing: 0.14em;
 
-  /* The reference is a quiet design: keep every transition at 150ms. */
   --default-transition-duration: 150ms;
   --default-transition-timing-function: ease;
 
@@ -101,7 +98,6 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  /* 20px base => rounded-xl resolves to the 28px card radius from the reference. */
   --radius: 0.625rem;
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
@@ -127,7 +123,6 @@
     background-color: color-mix(in oklab, var(--primary) 22%, transparent);
   }
 
-  /* The document scrolls normally; the header remains sticky above it. */
   html {
     scrollbar-width: thin;
     scrollbar-color: var(--muted-foreground) transparent;
@@ -247,7 +242,6 @@
   }
 }
 
-/* Blog: same voice as the home story. Text-only index, long-form reading view. */
 .blog-nav {
   max-width: 640px;
   margin-inline: auto;

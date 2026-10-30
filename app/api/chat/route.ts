@@ -1,10 +1,3 @@
-/**
- * `POST /api/chat` — retrieval + grounded answer, streamed as SSE.
- *
- * Emits `retrieval`, `citations`, `delta`, `done`, and `error` frames for
- * `lib/ai-client.ts`. Generation streams through the Vercel AI SDK (`streamText`).
- */
-
 import { streamText } from "ai"
 import { openai } from "@ai-sdk/openai"
 import { after, type NextRequest } from "next/server"
@@ -131,7 +124,6 @@ function badRequest(detail: string, errors?: unknown): Response {
   return Response.json({ detail, errors }, { status: 400 })
 }
 
-/** Validate the chat request before retrieval or generation. */
 function parseRequest(body: unknown): ChatRequest | Response {
   if (typeof body !== "object" || body === null) {
     return badRequest("request body must be a JSON object")
@@ -406,7 +398,6 @@ export async function POST(request: NextRequest): Promise<Response> {
           intent: intentDecision.intent,
           plan: intentDecision.plan,
         })
-        // AI SDK v7 takes the system prompt via `instructions`, not `messages`.
         const [systemMessage, ...conversation] = prompt
         const result = streamText({
           model: openai(DEFAULT_MODEL),

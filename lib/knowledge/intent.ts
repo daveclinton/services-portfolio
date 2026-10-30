@@ -1,14 +1,3 @@
-/**
- * Question intent detection and intent-aware result ordering.
- *
- * Port of `knowledge-backend/knowledge/retrieval/intent.py`. These deterministic rules
- * are the fast path for explicit questions. Ambiguous questions are handled by
- * the server-only semantic classifier before retrieval.
- *
- * This module is pure (no database, no provider client) so the browser client
- * can import its types and labels without pulling the server runtime in.
- */
-
 import type { SearchResult } from "./retrieval"
 
 export const INTENT_NAMES = [
@@ -27,7 +16,6 @@ export type IntentName = (typeof INTENT_NAMES)[number]
 export interface QuestionIntent {
   name: IntentName
   guidance: string
-  /** Knowledge files that must appear in a result set for this intent. */
   anchorPaths: readonly string[]
 }
 
@@ -54,7 +42,6 @@ const CONVERSATIONAL_REPLIES: ReadonlyArray<readonly [RegExp, string]> = [
   ],
 ]
 
-/** Route small-talk without paying for retrieval or generation. */
 export function selectChatWorkflow(question: string): ChatWorkflow {
   const text = (question ?? "").toLowerCase().split(/\s+/).join(" ").trim()
   for (const [pattern, response] of CONVERSATIONAL_REPLIES) {
@@ -132,10 +119,6 @@ export function intentByName(name: IntentName): QuestionIntent {
   return name === "general" ? GENERAL : INTENTS[name]
 }
 
-/**
- * Ordered so the more specific question shapes win: "What is his tech stack for
- * projects?" is a technologies question, not a projects one.
- */
 const ORDERED_PATTERNS: ReadonlyArray<readonly [Exclude<IntentName, "general">, RegExp[]]> = [
   [
     "rates",
@@ -199,7 +182,6 @@ function matches(text: string, patterns: readonly RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(text))
 }
 
-/** Classify common portfolio questions without an additional model call. */
 export function classifyQuestion(question: string): QuestionIntent {
   const text = (question ?? "").toLowerCase().split(/\s+/).join(" ").trim()
   for (const [name, patterns] of ORDERED_PATTERNS) {
@@ -208,7 +190,6 @@ export function classifyQuestion(question: string): QuestionIntent {
   return GENERAL
 }
 
-/** The chunk fields the reranker reads; `ChunkRow` satisfies this shape. */
 export interface IntentChunk {
   id: number
   source_type: string
@@ -255,7 +236,6 @@ function sourcePriority(intent: IntentName, chunk: IntentChunk): number {
   return index === -1 ? order.length + 1 : index
 }
 
-/** Keeps a broad answer from becoming one employer's files over and over. */
 const BIOGRAPHY_TYPE_CAPS: Record<string, number> = {
   "experience-overview": 3,
   "project-overview": 3,
@@ -267,23 +247,11 @@ const BIOGRAPHY_TYPE_CAPS: Record<string, number> = {
 
 export interface RerankOptions {
   limit: number
-  /**
-   * Results for `intent.anchorPaths`, built by the retrieval layer. Each is
-   * either the already-retrieved result for that chunk or a fresh `intent` hit.
-   */
   anchors?: SearchResult[]
-  /** Slugs of projects/companies that carry confirmed metric evidence. */
   metricProjectSlugs?: Iterable<string>
   metricCompanySlugs?: Iterable<string>
 }
 
-/**
- * Add required anchors, prioritize suitable file types, and diversify.
- *
- * Mirrors `rerank_for_intent`: anchors first, then metric-bearing entities for
- * outcomes questions, then the intent's preferred source types, then the
- * original fusion order. Ranks are renumbered to match the final order.
- */
 export function rerankForIntent(
   results: SearchResult[],
   intent: QuestionIntent,
@@ -316,7 +284,6 @@ export function rerankForIntent(
   const ordered = [...byId.values()].sort((a, b) => {
     const anchorA = anchoredIds.indexOf(a.chunk_id)
     const anchorB = anchoredIds.indexOf(b.chunk_id)
-    // Anchors sort first; `-1` means "not an anchor", not "anchor zero".
     if ((anchorA === -1) !== (anchorB === -1)) return anchorA === -1 ? 1 : -1
     if (anchorA !== anchorB) return anchorA - anchorB
     const metric = metricPriority(a) - metricPriority(b)
@@ -348,7 +315,6 @@ export function rerankForIntent(
     if (selected.length === limit) break
   }
 
-  // Fill any unused slots without diversity constraints.
   for (const result of ordered) {
     if (selected.length === limit) break
     if (selectedIds.has(result.chunk_id)) continue
@@ -362,10 +328,6 @@ export function rerankForIntent(
   return selected
 }
 
-/**
- * The reranker only reads `source_type`/`source_path`; results carry both, so
- * the chunk shape is satisfied without keeping the full row around.
- */
 function chunkOf(result: SearchResult): IntentChunk {
   return { id: result.chunk_id, source_type: result.source_type, source_path: result.source_path }
 }

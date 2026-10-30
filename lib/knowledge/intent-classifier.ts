@@ -110,7 +110,6 @@ function isIntentName(value: unknown): value is IntentName {
   return typeof value === "string" && (INTENT_NAMES as readonly string[]).includes(value)
 }
 
-/** Use rules for explicit wording and a small structured-output model for ambiguity. */
 export async function classifyQuestionHybrid(
   question: string,
   history: ReadonlyArray<{ role: "user" | "assistant"; content: string }> = [],

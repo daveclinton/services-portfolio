@@ -1,13 +1,7 @@
-/** Shared profile and link content for the portfolio. */
-
 import type { IntentName as AskAiIntent } from "@/lib/knowledge/intent"
 
 export type BrandIconName = "github" | "x" | "linkedin"
 
-/**
- * `name` is the one name search engines should learn. Use it unchanged in
- * every page title, H1, and social profile; other spellings go in `alternateNames`.
- */
 export const site = {
   name: "David Clinton",
   legalName: "David Clinton Hellen",
@@ -58,27 +52,18 @@ export const sponsor = {
 
 export type TimelineEntry = {
   id: string
-  /** Employer or client, e.g. "Mika". */
   company: string
-  /** Optional square app icon shown beside the role, e.g. "/companies/mika.png". */
   iconSrc?: string
-  /** Initials used for a grouped avatar when one entry represents several companies. */
   iconInitials?: string[]
-  /** Where the work happened, e.g. "Mombasa, Kenya". Omitted when unknown. */
   location?: string
-  /** How the work happened, e.g. "Hybrid". Omitted when not stated. */
   arrangement?: string
-  /** When the role started, e.g. "2021 Jan". */
   start: string
-  /** When it ended, e.g. "2022 Feb". Omitted while the role is ongoing. */
   end?: string
   description: string
 }
 
-/** Rendered as the end of the range for the role that is still ongoing. */
 export const ongoingRoleLabel = "Currently in this role"
 
-/** "2021 Jan – 2022 Feb", or "2026 Sep – Currently in this role" when ongoing. */
 export function formatRoleDates({
   start,
   end,
@@ -140,10 +125,6 @@ export const socialLinks: SocialLink[] = [
   { label: "Twitter / X", href: "https://x.com/daveclintonn", icon: "x" },
 ]
 
-/**
- * Every other profile that is about the same person. Listed in the Person
- * schema's `sameAs` so search engines connect them, but not shown in the UI.
- */
 export const otherProfiles: string[] = [
   "https://substack.com/@daveclintonn",
   "https://www.instagram.com/daveclintonn/",
@@ -158,32 +139,19 @@ export const email = {
 
 export const aiButton = {
   label: "Ask an AI",
-  /** Shown in the tooltip and used as the link's accessible name. */
   description: "Ask an AI about my work and experience",
-  /** Point this at your own assistant once you have one. */
   href: "https://chatgpt.com/",
 } as const
 
-/**
- * The homepage entry point that opens the in-app "ask me anything" chat.
- * Rendered directly under the role in the header.
- */
 export const askAi = {
   label: "Ask AI about me",
-  /** Used as the link's accessible name. */
   description: "Ask an AI about my background, work, and experience",
   href: "/ask-ai",
-  /** Centered prompt above the composer before the first question is asked. */
   title: `What do you want to know`,
   placeholder: "Ask about my work…",
   inputLabel: "Ask about my work",
 } as const
 
-/**
- * What the orb says while the answer is being retrieved and written. The
- * server classifies each question (see `lib/knowledge/intent.ts`), so the wait
- * can name what is being looked up instead of a generic "Thinking…".
- */
 export const askAiStatus: Record<AskAiIntent, string> = {
   general: "Thinking…",
   biography: "Reading the profile…",

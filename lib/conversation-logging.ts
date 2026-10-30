@@ -84,7 +84,6 @@ function deviceDetails(userAgent: string): Omit<ConversationLogContext, "network
   return { deviceType, browserFamily, osFamily }
 }
 
-/** Build coarse, pseudonymous request metadata without retaining raw IP or user-agent data. */
 export function conversationLogContext(request: NextRequest): ConversationLogContext {
   const day = new Date().toISOString().slice(0, 10)
   const networkHash = createHmac("sha256", privacySecret())
@@ -96,7 +95,6 @@ export function conversationLogContext(request: NextRequest): ConversationLogCon
   }
 }
 
-/** Store one opted-in turn and opportunistically remove expired conversations. */
 export async function logConversationTurn(entry: ConversationTurnLog): Promise<void> {
   await sql().query(
     `WITH purged AS (
@@ -140,7 +138,6 @@ export async function logConversationTurn(entry: ConversationTurnLog): Promise<v
   )
 }
 
-/** Atomically reserve the one email notification allowed for a conversation session. */
 export async function claimConversationAlert(conversationId: string): Promise<boolean> {
   const rows = (await sql().query(
     `UPDATE knowledge_aiconversation
@@ -152,7 +149,6 @@ export async function claimConversationAlert(conversationId: string): Promise<bo
   return rows.length === 1
 }
 
-/** Make a failed notification eligible for retry on the session's next turn. */
 export async function releaseConversationAlert(conversationId: string): Promise<void> {
   await sql().query(
     "UPDATE knowledge_aiconversation SET alerted_at = NULL WHERE id = $1::uuid",

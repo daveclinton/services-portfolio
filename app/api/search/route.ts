@@ -1,9 +1,3 @@
-/**
- * `POST /api/search` — retrieval only, no LLM.
- *
- * Returns ranked knowledge chunks and their supporting evidence.
- */
-
 import {
   MODES,
   search,

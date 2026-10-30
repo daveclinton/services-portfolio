@@ -1,11 +1,6 @@
 import { useId, type ComponentProps, type ComponentType } from "react"
 import type { BrandIconName } from "@/lib/portfolio-data"
 
-/**
- * Supplied brand marks, kept as inline SVG to preserve their colours and scale.
- * Link text provides accessible names, so the SVGs are decorative.
- */
-
 type IconProps = ComponentProps<"svg">
 
 export function TwitterIcon({ className, ...props }: IconProps) {
@@ -38,7 +33,6 @@ export function GitHubIcon({ className, ...props }: IconProps) {
   )
 }
 
-/** A rounded, stroked "Z" standing in for the Zenn mark. */
 export function ZennIcon({ className, ...props }: IconProps) {
   return (
     <svg

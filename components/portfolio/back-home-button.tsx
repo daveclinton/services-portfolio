@@ -108,11 +108,6 @@ export type BackHomeButtonProps = Omit<
   href?: string
 }
 
-/**
- * Back-to-home button for the Ask AI page. A circular X tile that expands
- * into a confirm (home) / cancel (X) panel, mirroring the DeleteButton
- * motion language but in the brand theme.
- */
 export function BackHomeButton({
   className,
   href = "/",

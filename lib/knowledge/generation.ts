@@ -1,11 +1,3 @@
-/**
- * Grounded answer generation for the Next.js chat route.
- *
- * The model is never asked to answer from its own knowledge: it receives a
- * numbered list of retrieved chunks and must cite them or say it does not
- * know.
- */
-
 import { sql } from "./db"
 import { classifyQuestion, type QuestionIntent } from "./intent"
 import type { ResponsePlan } from "./intent-classifier"
@@ -13,7 +5,6 @@ import type { SearchResult } from "./retrieval"
 
 export const DEFAULT_MODEL = "gpt-4o-mini"
 
-/** Returned verbatim (no model call) when retrieval finds nothing to stand on. */
 export const NO_EVIDENCE_MESSAGE =
   "This assistant is designed to answer questions about David Clinton's work, " +
   "experience, projects, and skills. For other topics, try Google or the relevant " +
@@ -76,10 +67,8 @@ function excerpt(text: string, limit = 700): string {
   return collapsed.slice(0, limit - 1).replace(/\s+$/, "") + "…"
 }
 
-/** The profile file is the anchor for broad questions, so it gets more room. */
 const PROFILE_SOURCE_PATH = "knowledge/person/profile.md"
 
-/** Number the results for the model, keeping each chunk's citations. */
 export function buildSources(results: SearchResult[]): Source[] {
   return results.map((result, i) => ({
     index: i + 1,
@@ -97,10 +86,6 @@ export function buildSources(results: SearchResult[]): Source[] {
   }))
 }
 
-/**
- * Render the numbered sources, appending the confirmed claims behind each one:
- * the markdown body alone can describe an artifact without stating its result.
- */
 export function formatContext(sources: Source[]): string {
   if (sources.length === 0) return "(no sources retrieved)"
   return sources
@@ -130,7 +115,6 @@ export interface ModelMessage {
   content: string
 }
 
-/** Assemble the chat message list: system prompt, history, question. */
 export function buildMessages(
   question: string,
   sources: Source[],
@@ -146,8 +130,6 @@ export function buildMessages(
   const messages: ModelMessage[] = [
     {
       role: "system",
-      // Sources are substituted last so excerpt text can never be rescanned
-      // for the prompt's own placeholder tokens.
       content: SYSTEM_PROMPT.replaceAll("{name}", name)
         .replaceAll("{intent_guidance}", intent.guidance)
         .replaceAll("{intent}", intent.name)
@@ -174,7 +156,6 @@ export function buildMessages(
   return messages
 }
 
-/** First person's name in the knowledge base, for the system prompt. */
 export async function personName(): Promise<string> {
   const rows = (await sql().query(
     "SELECT name FROM knowledge_person ORDER BY id ASC LIMIT 1",

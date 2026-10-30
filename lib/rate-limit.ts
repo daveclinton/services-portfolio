@@ -44,7 +44,6 @@ type Limiters = {
 
 let cachedLimiters: Limiters | null = null
 
-/** Local development can run without provisioning external rate-limit infrastructure. */
 function bypassRateLimits(): boolean {
   return (
     process.env.NODE_ENV !== "production" &&

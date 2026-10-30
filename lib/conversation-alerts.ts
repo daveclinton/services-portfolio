@@ -21,7 +21,6 @@ function paragraph(value: string): string {
   return escapeHtml(value || "(no response was generated)").replaceAll("\n", "<br>")
 }
 
-/** Send the owner one private alert when an opted-in chat-window session begins. */
 export async function sendConversationAlert(entry: ConversationTurnLog): Promise<void> {
   const apiKey = requiredEnv("BREVO_API_KEY")
   const recipient = requiredEnv("BREVO_ALERT_TO_EMAIL")

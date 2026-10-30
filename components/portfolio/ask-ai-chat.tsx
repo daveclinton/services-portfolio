@@ -21,7 +21,6 @@ type Turn = {
   content: string
   status: "streaming" | "done" | "error"
   error?: string
-  /** How the server read the question, from the `retrieval` frame. */
   intent?: ChatIntent
 }
 
@@ -85,7 +84,6 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     conversationIdRef.current = conversationId
   }, [])
 
-  /** Keeps the latest message in view while a conversation streams. */
   const dockRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     if (!hasConversation || embedded) return
@@ -121,8 +119,6 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
       status: "streaming",
     }
 
-    // History is everything already on screen plus the new question. The
-    // empty assistant placeholder is deliberately not sent to the model.
     const history: ChatTurn[] = [...turns, userTurn].map((turn) => ({
       role: turn.role,
       content: turn.content,
@@ -313,15 +309,10 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     </div>
   )
 
-  /* Empty state: prompt + composer centered in the available space. */
   if (!hasConversation && !embedded) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <h2 className="sr-only">{askAi.label}</h2>
-        {/* `justify-center-safe` falls back to `flex-start` when the content is
-            taller than the viewport (software keyboards), so the composer can
-            still be reached. The safe-area padding keeps it clear of notches
-            and home indicators inside in-app browsers. */}
         <div className="flex min-h-min flex-1 flex-col items-center justify-center-safe gap-3 py-[clamp(1.25rem,7dvh,3.5rem)] sm:gap-4">
           <div className="w-[clamp(7rem,34vw,10rem)]">
             <MatrixOrb state="idle" size={160} />
@@ -335,8 +326,6 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     )
   }
 
-  /* Conversation state: messages scroll in `main` while the docked
-     composer stays pinned to the bottom. */
   return (
     <div ref={embeddedRef} className={embedded ? "my-6 flex min-w-0 flex-col rounded-lg border border-border bg-card p-4 sm:p-6" : "flex min-h-0 min-w-0 flex-1 flex-col"}>
       <h2 className="sr-only">{askAi.label}</h2>
