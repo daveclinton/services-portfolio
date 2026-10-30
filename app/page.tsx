@@ -6,6 +6,7 @@ import {
   backgroundItems,
   email,
   introduction,
+  otherProfiles,
   profile,
   site,
   socialLinks,
@@ -28,7 +29,7 @@ export default function Home() {
         "@id": `${site.url}/#website`,
         url: site.url,
         name: site.name,
-        alternateName: profile.name,
+        alternateName: profile.handle,
       },
       {
         "@type": "ProfilePage",
@@ -40,11 +41,22 @@ export default function Home() {
         "@type": "Person",
         "@id": `${site.url}/#person`,
         name: site.name,
-        alternateName: [profile.name, profile.handle],
+        alternateName: site.alternateNames,
         url: site.url,
         image: `${site.url}${profile.avatarSrc}`,
         description: site.description,
-        sameAs: [...socialLinks.map((link) => link.href), introduction.substackProfile],
+        jobTitle: site.jobTitle,
+        homeLocation: {
+          "@type": "Place",
+          name: `${site.location.city}, ${site.location.country}`,
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: site.location.city,
+            addressCountry: site.location.countryCode,
+          },
+        },
+        nationality: { "@type": "Country", name: site.location.country },
+        sameAs: [...socialLinks.map((link) => link.href), ...otherProfiles],
       },
     ],
   }
@@ -72,7 +84,8 @@ export default function Home() {
           ))}
         </h1>
         <p>
-          I&apos;m a software engineer in Kenya. I build software and write about what happens after it ships.
+          I&apos;m David Clinton, a software engineer in Mombasa, Kenya. I build software and write
+          about what happens after it ships.
         </p>
       </header>
 

@@ -1,7 +1,7 @@
 /**
  * Question intent detection and intent-aware result ordering.
  *
- * Port of `backend/knowledge/retrieval/intent.py`. These deterministic rules
+ * Port of `knowledge-backend/knowledge/retrieval/intent.py`. These deterministic rules
  * are the fast path for explicit questions. Ambiguous questions are handled by
  * the server-only semantic classifier before retrieval.
  *

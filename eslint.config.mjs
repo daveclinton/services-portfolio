@@ -7,8 +7,6 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
-    // The offline Python pipeline has its own checks; exclude its virtualenv.
-    "backend/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

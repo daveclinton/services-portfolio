@@ -4,19 +4,27 @@ import type { IntentName as AskAiIntent } from "@/lib/knowledge/intent"
 
 export type BrandIconName = "github" | "x" | "linkedin"
 
+/**
+ * `name` is the one name search engines should learn. Use it unchanged in
+ * every page title, H1, and social profile; other spellings go in `alternateNames`.
+ */
 export const site = {
-  name: "David Clinton Hellen",
-  title: "David Clinton | Software Engineer and Writer",
+  name: "David Clinton",
+  legalName: "David Clinton Hellen",
+  alternateNames: ["David Clinton Hellen", "Dave Clinton", "daveclintonn"],
+  jobTitle: "Software Engineer",
+  title: "David Clinton | Software Engineer in Mombasa, Kenya",
   description:
-    "David Clinton Hellen is a software engineer and writer in Kenya. He builds software and writes about what happens after it ships.",
+    "David Clinton is a software engineer and writer in Mombasa, Kenya. He builds software and writes about what happens after it ships.",
   url: "https://daveclintonn.cc",
+  location: { city: "Mombasa", country: "Kenya", countryCode: "KE" },
 } as const
 
 export const profile = {
   name: "David Clinton",
   handle: "@daveclintonn",
   role: "Software Engineer 🇰🇪",
-  initials: "DCH",
+  initials: "DC",
   avatarSrc: "/david.jpg",
   contactHref: "#links",
   contactLabel: "Contact Me",
@@ -32,7 +40,6 @@ export const introduction = {
     href: "https://9ntyplus.com/",
   },
   paperspaceWriting: "https://blog.paperspace.com/author/david-clinton/",
-  substackProfile: "https://substack.com/@daveclintonn",
   studio1hq: "https://www.studio1hq.com/",
   gameOfThrones: "https://press.wbd.com/us/property/game-thrones-s1",
 } as const
@@ -131,6 +138,17 @@ export const socialLinks: SocialLink[] = [
   { label: "GitHub", href: "https://github.com/daveclinton", icon: "github" },
   { label: "LinkedIn", href: "https://www.linkedin.com/in/clintondavid46/", icon: "linkedin" },
   { label: "Twitter / X", href: "https://x.com/daveclintonn", icon: "x" },
+]
+
+/**
+ * Every other profile that is about the same person. Listed in the Person
+ * schema's `sameAs` so search engines connect them, but not shown in the UI.
+ */
+export const otherProfiles: string[] = [
+  "https://substack.com/@daveclintonn",
+  "https://www.instagram.com/daveclintonn/",
+  "https://www.threads.net/@daveclintonn",
+  "https://blog.paperspace.com/author/david-clinton/",
 ]
 
 export const email = {

@@ -2,7 +2,7 @@
  * Retrieval over `KnowledgeChunk`: lexical, vector, or hybrid with RRF fusion.
  *
  * Serves the Next.js API routes directly. The Python counterpart in
- * `backend/knowledge/retrieval/` supports offline retrieval evaluation.
+ * `knowledge-backend/knowledge/retrieval/` supports offline retrieval evaluation.
  */
 
 import { sql } from "./db"

@@ -1,7 +1,7 @@
 /**
  * Tokenization shared by the retrieval strategies.
  *
- * Port of `backend/knowledge/retrieval/text.py`: deliberately small and
+ * Port of `knowledge-backend/knowledge/retrieval/text.py`: deliberately small and
  * dependency-free. Postgres does the actual stemming, so this only needs to
  * produce a stable set of search terms.
  */

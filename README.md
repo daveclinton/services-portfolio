@@ -100,10 +100,11 @@ question must see, orders the retrieved chunks toward the evidence the question
 asks for, and tells the answer model what shape to write. Its source and
 confidence are stored with opted-in conversation turns for later evaluation.
 
-The Python code in `backend/` is an offline workspace for the knowledge and
+The Python code in the separate `knowledge-backend` repository (checked out
+beside this one) is an offline workspace for the knowledge and
 model pipeline: ingestion, embedding generation, audits, retrieval evaluation,
 and database migrations. It has no API, admin, or HTTP deployment.
-`python manage.py runserver` is disabled. See [the pipeline guide](backend/README.md).
+`python manage.py runserver` is disabled. See its README for the pipeline guide.
 
 ## Setup and deployment
 
@@ -114,10 +115,10 @@ The offline pipeline prepares the same Postgres database that the routes read.
 
 Use Postgres with the `vector` and `pg_trgm` extensions available. The Next.js
 routes use Neon's HTTP driver, so the deployed database must support that driver.
-Copy a direct connection string into `backend/.env` as `DATABASE_URL`.
+Copy a direct connection string into `knowledge-backend/.env` as `DATABASE_URL`.
 
 ```bash
-cd backend
+cd ../knowledge-backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -130,7 +131,7 @@ python manage.py audit_knowledge
 ```
 
 Migrations create the required extensions and tables. The extension migration
-lives in `backend/database/migrations/` and retains its historical `api` app
+lives in `knowledge-backend/database/migrations/` and retains its historical `api` app
 label so existing migration records remain valid. No existing data or tables
 need to be removed.
 
@@ -189,7 +190,7 @@ the response and cannot break the visitor's chat request. Configure the four
 `BREVO_*` variables above in every deployment environment where alerts should
 be sent, and apply migrations so `AIConversation.alerted_at` is available.
 
-`.vercelignore` excludes `backend/`; Python runs separately as command-line jobs.
+The Python pipeline lives in its own repository and runs separately as command-line jobs.
 Remove any old `NEXT_PUBLIC_API_BASE_URL` deployment variable; it is no longer
 read. The former Fly.io/Python API deployment is no longer used by this app and
 can be retired separately.

@@ -1,3 +1,2 @@
-# Only the Next.js app is deployed to Vercel. The Python pipeline runs offline.
+# Only the Next.js app is deployed to Vercel.
 .github/
-backend/
