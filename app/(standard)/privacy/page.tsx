@@ -4,6 +4,7 @@ import Link from "next/link"
 export const metadata: Metadata = {
   title: "Privacy",
   description: "How the Ask AI feature handles conversation data.",
+  alternates: { canonical: "/privacy" },
 }
 
 export default function PrivacyPage() {

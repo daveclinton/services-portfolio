@@ -5,6 +5,7 @@ import { askAi } from "@/lib/portfolio-data"
 export const metadata: Metadata = {
   title: askAi.label,
   description: askAi.description,
+  alternates: { canonical: askAi.href },
 }
 
 export default function AskAiAboutMePage() {
