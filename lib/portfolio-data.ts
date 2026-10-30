@@ -10,7 +10,7 @@ export const site = {
   title: "David Clinton | Software Engineer in Mombasa, Kenya",
   description:
     "David Clinton is a software engineer and writer in Mombasa, Kenya. He builds software and writes about what happens after it ships.",
-  url: "https://daveclintonn.cc",
+  url: "https://www.daveclintonn.cc",
   location: { city: "Mombasa", country: "Kenya", countryCode: "KE" },
 } as const
 
