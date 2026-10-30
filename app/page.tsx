@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
+import Image from "next/image"
 import Link from "next/link"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import portrait from "@/public/david.jpg"
 import {
   askAi,
   backgroundItems,
@@ -69,10 +70,15 @@ export default function Home() {
       />
       <header className="home-story-header">
         <div className="home-story-portrait">
-          <Avatar className="size-32" aria-label={`${site.name}'s portrait`}>
-            <AvatarImage src={profile.avatarSrc} alt={site.name} />
-            <AvatarFallback>{profile.initials}</AvatarFallback>
-          </Avatar>
+          <Image
+            src={portrait}
+            alt={`${site.name}'s portrait`}
+            width={128}
+            height={128}
+            loading="eager"
+            fetchPriority="high"
+            className="size-32 rounded-full border border-border object-cover"
+          />
         </div>
         <h1>
           {site.name.split(" ").map((name, index) => (
