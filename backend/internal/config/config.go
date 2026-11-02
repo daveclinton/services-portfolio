@@ -21,11 +21,17 @@ type Config struct {
 	AIGlobalDailyLimit     int
 	SearchGlobalDailyLimit int
 
-	OpenAIAPIKey               string
-	OpenAIChatModel            string
-	OpenAIIntentModel          string
-	OpenAIVectorStoreID        string
-	OpenAIVectorScoreThreshold float64
+	OpenAIAPIKey      string
+	OpenAIChatModel   string
+	OpenAIIntentModel string
+
+	// Self-hosted embeddings (Text Embeddings Inference). The prefixes are the
+	// task instructions nomic-embed-text expects; change them with the model.
+	EmbeddingsURL           string
+	EmbeddingModel          string
+	EmbeddingDimensions     int
+	EmbeddingQueryPrefix    string
+	EmbeddingDocumentPrefix string
 
 	BrevoAPIKey      string
 	BrevoAlertTo     string
@@ -59,11 +65,15 @@ func Load() (Config, error) {
 		AIGlobalDailyLimit:     positiveInt(env("AI_GLOBAL_DAILY_LIMIT", ""), 200),
 		SearchGlobalDailyLimit: positiveInt(env("SEARCH_GLOBAL_DAILY_LIMIT", ""), 2000),
 
-		OpenAIAPIKey:               env("OPENAI_API_KEY", ""),
-		OpenAIChatModel:            env("OPENAI_CHAT_MODEL", "gpt-4o-mini"),
-		OpenAIIntentModel:          env("OPENAI_INTENT_MODEL", "gpt-4o-mini"),
-		OpenAIVectorStoreID:        env("OPENAI_VECTOR_STORE_ID", ""),
-		OpenAIVectorScoreThreshold: unitFloat(env("OPENAI_VECTOR_SCORE_THRESHOLD", ""), 0.2),
+		OpenAIAPIKey:      env("OPENAI_API_KEY", ""),
+		OpenAIChatModel:   env("OPENAI_CHAT_MODEL", "gpt-4o-mini"),
+		OpenAIIntentModel: env("OPENAI_INTENT_MODEL", "gpt-4o-mini"),
+
+		EmbeddingsURL:           env("EMBEDDINGS_URL", "http://127.0.0.1:8090"),
+		EmbeddingModel:          env("EMBEDDING_MODEL", "nomic-ai/nomic-embed-text-v1.5"),
+		EmbeddingDimensions:     positiveInt(env("EMBEDDING_DIMENSIONS", ""), 768),
+		EmbeddingQueryPrefix:    envRaw("EMBEDDING_QUERY_PREFIX", "search_query: "),
+		EmbeddingDocumentPrefix: envRaw("EMBEDDING_DOCUMENT_PREFIX", "search_document: "),
 
 		BrevoAPIKey:      env("BREVO_API_KEY", ""),
 		BrevoAlertTo:     env("BREVO_ALERT_TO_EMAIL", ""),
@@ -99,6 +109,14 @@ func env(key, fallback string) string {
 	return fallback
 }
 
+// envRaw keeps surrounding spaces, which matter for embedding prefixes.
+func envRaw(key, fallback string) string {
+	if value, ok := os.LookupEnv(key); ok && strings.TrimSpace(value) != "" {
+		return value
+	}
+	return fallback
+}
+
 func list(value string) []string {
 	var out []string
 	for _, item := range strings.Split(value, ",") {
@@ -117,14 +135,6 @@ func boolean(value string) bool {
 func positiveInt(value string, fallback int) int {
 	parsed, err := strconv.Atoi(value)
 	if err != nil || parsed <= 0 {
-		return fallback
-	}
-	return parsed
-}
-
-func unitFloat(value string, fallback float64) float64 {
-	parsed, err := strconv.ParseFloat(value, 64)
-	if err != nil || parsed < 0 || parsed > 1 {
 		return fallback
 	}
 	return parsed

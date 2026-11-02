@@ -1,14 +1,15 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ArrowUp, Check, Copy, RotateCcw, SquarePen } from "lucide-react"
+import { ArrowUp, Briefcase, Check, Code, Copy, FolderGit2, RotateCcw, Square, SquarePen, UserRound } from "lucide-react"
 import Link from "next/link"
-import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react"
+import { motion, useInView, useReducedMotion } from "motion/react"
 import { Button } from "@/components/ui/button"
 import { ChatContainerContent, ChatContainerRoot } from "@/components/prompt-kit/chat-container"
 import { Message, MessageAction, MessageActions, MessageContent } from "@/components/prompt-kit/message"
 import { PromptSuggestion } from "@/components/prompt-kit/prompt-suggestion"
 import { ScrollButton } from "@/components/prompt-kit/scroll-button"
+import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import {
   AiApiError,
   streamChat,
@@ -17,14 +18,17 @@ import {
   type ChatTurn,
 } from "@/lib/ai-client"
 import { askAi, askAiStatus } from "@/lib/portfolio-data"
-import { MatrixOrb } from "@/components/portfolio/matrix-orb"
 import { cn } from "@/lib/utils"
 
-// Layout and interaction patterns borrowed from prompt-kit's conversation
-// blocks (https://github.com/ibelick/prompt-kit, MIT): the user's message in a
-// soft bubble on the right, the assistant's answer as unboxed markdown in the
-// reading column, actions under each answer, a scroll-to-latest button, a
-// send button that becomes a stop button, and starter questions.
+// Layout and interaction patterns borrowed from open-source implementations:
+// - prompt-kit conversation blocks (https://github.com/ibelick/prompt-kit, MIT):
+//   message structure, stick-to-bottom list, scroll button, text shimmer.
+// - assistant-ui's Claude, ChatGPT and Grok examples
+//   (https://www.assistant-ui.com/examples): flat bordered composer with the
+//   input above a button row, low-contrast user bubble, hover-only action bars,
+//   a fade above the sticky composer, and a send button that morphs into stop.
+// - Starter questions follow Nielsen Norman Group's guidance on prompt
+//   suggestions: light, next to the input, and inserted for editing.
 
 type Turn = {
   id: string
@@ -44,18 +48,20 @@ function newId(role: Turn["role"]) {
   return `${role}-${crypto.randomUUID()}`
 }
 
+const SUGGESTION_ICONS = [UserRound, FolderGit2, Code, Briefcase]
+
 function replaceTurn(turns: Turn[], id: string, update: (turn: Turn) => Turn): Turn[] {
   return turns.map((turn) => (turn.id === id ? update(turn) : turn))
 }
 
-function CopyAction({ text }: { text: string }) {
+function CopyAction({ text, label = "Copy" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false)
   return (
-    <MessageAction tooltip={copied ? "Copied" : "Copy"}>
+    <MessageAction tooltip={copied ? "Copied" : label}>
       <Button
         variant="ghost"
         size="icon"
-        aria-label="Copy answer"
+        aria-label={label}
         className="rounded-full text-muted-foreground hover:text-foreground"
         onClick={async () => {
           try {
@@ -240,7 +246,9 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   const composer = (
     <div>
       <form
-        className="flex w-full min-w-0 items-end gap-2 rounded-3xl border border-input bg-card p-2 pl-4 shadow-xs transition-[border-color,box-shadow,background-color] hover:border-foreground/25 focus-within:border-ring focus-within:bg-background focus-within:ring-3 focus-within:ring-ring/20"
+        data-empty={!draft.trim()}
+        data-running={isStreaming}
+        className="group/composer flex w-full min-w-0 flex-col rounded-2xl border border-input bg-card px-3.5 pt-3 pb-2.5 transition-[border-color,box-shadow,background-color] hover:border-foreground/25 focus-within:border-ring focus-within:bg-background focus-within:ring-3 focus-within:ring-ring/20"
         onSubmit={(event) => {
           event.preventDefault()
           if (isStreaming) stop()
@@ -270,44 +278,47 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           enterKeyHint="send"
           rows={1}
           aria-describedby="ask-ai-input-hint"
-          className="min-h-11 max-h-40 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-2.5 text-base leading-6 text-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground"
+          className="min-h-7 max-h-48 w-full resize-none overflow-y-auto bg-transparent px-0.5 text-base leading-7 text-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground"
         />
         <span id="ask-ai-input-hint" className="sr-only">
           Press Enter to send and Shift and Enter for a new line. Press Escape to stop an answer.
         </span>
-        {isStreaming ? (
-          <Button type="submit" size="icon" aria-label="Stop answering" className="size-9 shrink-0 rounded-full">
-            <span className="size-3 rounded-[3px] bg-primary-foreground" aria-hidden="true" />
-          </Button>
-        ) : (
-          <Button
-            type="submit"
-            size="icon"
-            aria-label="Send question"
-            disabled={!draft.trim()}
-            className="size-9 shrink-0 rounded-full transition-[transform,opacity] active:scale-95"
-          >
-            <ArrowUp className="size-[18px]" aria-hidden="true" />
-          </Button>
-        )}
+        <div className="mt-2 flex items-center justify-end gap-2">
+          {/* Send and stop share one slot and swap with a scale animation. */}
+          <div className="relative size-8 shrink-0">
+            <Button
+              type="submit"
+              size="icon"
+              aria-label="Send question"
+              disabled={!draft.trim() || isStreaming}
+              tabIndex={isStreaming ? -1 : 0}
+              className="absolute inset-0 size-8 rounded-full transition-[transform,opacity] duration-150 group-data-[running=true]/composer:scale-0 group-data-[running=true]/composer:opacity-0 disabled:opacity-40"
+            >
+              <ArrowUp className="size-4" aria-hidden="true" />
+            </Button>
+            <Button
+              type="submit"
+              size="icon"
+              aria-label="Stop answering"
+              tabIndex={isStreaming ? 0 : -1}
+              aria-hidden={!isStreaming}
+              className="absolute inset-0 size-8 rounded-full transition-[transform,opacity] duration-150 group-data-[running=false]/composer:pointer-events-none group-data-[running=false]/composer:scale-0 group-data-[running=false]/composer:opacity-0"
+            >
+              <Square className="size-3 fill-current" aria-hidden="true" />
+            </Button>
+          </div>
+        </div>
       </form>
 
-      <div className="mt-2 px-2 text-center text-caption text-muted-foreground">
+      <div className="mt-2 px-2 text-center text-label leading-snug text-muted-foreground">
         {consented ? (
-          <p>
-            {askAi.storageNotice}{" "}
-            <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
-              Privacy
-            </Link>
-            {questionsRemaining !== null ? (
-              <span aria-live="polite">
-                {" · "}
-                {questionsRemaining} question{questionsRemaining === 1 ? "" : "s"} left today
-              </span>
-            ) : null}
-          </p>
+          questionsRemaining !== null && questionsRemaining <= 5 ? (
+            <p aria-live="polite">
+              {questionsRemaining} question{questionsRemaining === 1 ? "" : "s"} left today
+            </p>
+          ) : null
         ) : (
-          <label className="inline-flex cursor-pointer items-start gap-2 text-left">
+          <label className="inline-flex cursor-pointer items-start gap-2 text-left text-caption">
             <input
               ref={consentRef}
               type="checkbox"
@@ -332,7 +343,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           </label>
         )}
         {showConsentError && !consented ? (
-          <p id="conversation-consent-error" role="alert" className="mt-1.5 text-destructive">
+          <p id="conversation-consent-error" role="alert" className="mt-1.5 text-caption text-destructive">
             Please check the box to consent before sending your question.
           </p>
         ) : null}
@@ -344,10 +355,13 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     const isLast = index === turns.length - 1
     if (turn.role === "user") {
       return (
-        <Message key={turn.id} className="flex-col items-end pl-8 sm:pl-16">
-          <MessageContent className="max-w-full rounded-3xl bg-muted px-5 py-2.5 text-body whitespace-pre-wrap sm:max-w-[85%]">
+        <Message key={turn.id} className="group flex-col items-end gap-1 pl-8 sm:pl-16">
+          <MessageContent className="max-w-full rounded-2xl bg-muted px-4 py-2.5 text-body whitespace-pre-wrap sm:max-w-[80%]">
             {turn.content}
           </MessageContent>
+          <MessageActions className="-mr-1 opacity-100 transition-opacity duration-150 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+            <CopyAction text={turn.content} label="Copy question" />
+          </MessageActions>
         </Message>
       )
     }
@@ -356,13 +370,9 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     return (
       <Message key={turn.id} className="group flex-col items-start gap-1">
         {thinking ? (
-          <MatrixOrb
-            state="thinking"
-            size={72}
-            dots={9}
-            labels={{ thinking: askAiStatus[turn.intent ?? "general"] }}
-            className="gap-2 py-1"
-          />
+          <p role="status" className="py-1 text-body">
+            <TextShimmer>{askAiStatus[turn.intent ?? "general"]}</TextShimmer>
+          </p>
         ) : null}
         {turn.content ? (
           <MessageContent markdown className="w-full">
@@ -379,7 +389,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
               isLast ? "opacity-100" : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100"
             )}
           >
-            {turn.content ? <CopyAction text={turn.content} /> : null}
+            {turn.content ? <CopyAction text={turn.content} label="Copy answer" /> : null}
             {isLast ? (
               <MessageAction tooltip="Ask again">
                 <Button
@@ -421,28 +431,35 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   if (!hasConversation) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-4 overflow-y-auto py-4">
-          <div className="chat-orb w-[clamp(7rem,34vw,10rem)]">
-            <MatrixOrb state="idle" size={160} />
-          </div>
-          <h1 className="max-w-[24rem] text-balance break-words text-center text-2xl leading-tight font-semibold text-foreground sm:text-[1.75rem]">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-6 overflow-y-auto pt-4 pb-[12vh]">
+          <h1 className="max-w-[32rem] text-balance break-words text-center text-[1.75rem] leading-tight font-normal text-foreground sm:text-[2rem]">
             {askAi.title}?
           </h1>
           <div className="w-full">{composer}</div>
-          <AnimatePresence initial={!reducedMotion}>
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: reducedMotion ? 0 : 0.2, delay: reducedMotion ? 0 : 0.05 }}
-              className="flex flex-wrap justify-center gap-2"
-            >
-              {askAi.suggestions.map((suggestion) => (
-                <PromptSuggestion key={suggestion} onClick={() => ask(suggestion)}>
-                  {suggestion}
-                </PromptSuggestion>
-              ))}
-            </motion.div>
-          </AnimatePresence>
+          <motion.ul
+            initial={reducedMotion ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.2, delay: 0.05 }}
+            aria-label="Suggested questions"
+            className="w-full divide-y divide-border"
+          >
+            {askAi.suggestions.map((suggestion, index) => {
+              const Icon = SUGGESTION_ICONS[index % SUGGESTION_ICONS.length]
+              return (
+                <li key={suggestion}>
+                  <PromptSuggestion
+                    onClick={() => {
+                      setDraft(suggestion)
+                      inputRef.current?.focus()
+                    }}
+                  >
+                    <Icon aria-hidden="true" />
+                    {suggestion}
+                  </PromptSuggestion>
+                </li>
+              )
+            })}
+          </motion.ul>
         </div>
       </div>
     )
@@ -465,11 +482,13 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
       </div>
       <ChatContainerRoot className="min-h-0 flex-1 overscroll-contain" aria-live="polite" aria-relevant="additions text">
         <ChatContainerContent className="gap-8 pt-2 pb-6">{messages}</ChatContainerContent>
-        <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+        <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center">
           <ScrollButton className="pointer-events-auto" />
         </div>
       </ChatContainerRoot>
-      <div className="shrink-0 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">{composer}</div>
+      <div className="relative shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-gradient-to-t before:from-background before:to-transparent">
+        {composer}
+      </div>
     </div>
   )
 }

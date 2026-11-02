@@ -145,7 +145,6 @@ export const askAi = {
     "Which technologies does he use?",
     "Is he available for contract work?",
   ],
-  storageNotice: "Conversations are stored for 30 days to improve the assistant.",
 } as const
 
 export const askAiStatus: Record<AskAiIntent, string> = {

@@ -29,6 +29,20 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Self-hosted embeddings: Hugging Face Text Embeddings Inference on CPU.
+  # The model downloads into the hf-models volume on first start (~550 MB).
+  # On Apple Silicon set EMBEDDINGS_IMAGE=...:cpu-arm64-1.9 in .env.
+  embeddings:
+    image: ${EMBEDDINGS_IMAGE:-ghcr.io/huggingface/text-embeddings-inference:cpu-1.9}
+    container_name: portfolio-embeddings
+    restart: unless-stopped
+    command: ["--model-id", "${EMBEDDING_MODEL:-nomic-ai/nomic-embed-text-v1.5}", "--max-client-batch-size", "64"]
+    volumes:
+      - hf-models:/data
+    ports:
+      - "127.0.0.1:${EMBED_PORT:-8090}:80"
+    logging: *logging
+
   api:
     build: .
     image: portfolio-api:latest
@@ -37,12 +51,17 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      # Not waiting for healthy: while the model loads, search falls back to
+      # full-text and the indexer catches up on its next run.
+      embeddings:
+        condition: service_started
     env_file: .env
     environment:
       # Inside the container, listen on all interfaces and talk to the db
       # service over Docker's private network. These override .env.
       ADDR: 0.0.0.0:8080
       DATABASE_URL: postgres://portfolio:${POSTGRES_PASSWORD}@db:5432/portfolio?sslmode=disable
+      EMBEDDINGS_URL: http://embeddings:80
     ports:
       - "127.0.0.1:${API_PORT:-8080}:8080"
     healthcheck:
@@ -56,3 +75,4 @@ services:
 
 volumes:
   pgdata:
+  hf-models:

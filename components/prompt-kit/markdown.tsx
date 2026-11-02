@@ -1,7 +1,6 @@
 import { marked } from "marked"
 import { memo, useId, useMemo } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
-import remarkBreaks from "remark-breaks"
 import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
 
@@ -31,7 +30,7 @@ function parseMarkdownIntoBlocks(markdown: string): string[] {
 const MarkdownBlock = memo(
   function MarkdownBlock({ content }: { content: string }) {
     return (
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]} components={COMPONENTS}>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={COMPONENTS}>
         {content}
       </ReactMarkdown>
     )

@@ -85,13 +85,9 @@ func TestRerankPutsAnchorsFirstAndDiversifiesBiography(t *testing.T) {
 	}
 }
 
-func TestExternalChunkIDMatchesJavaScript(t *testing.T) {
-	// Reference values computed with the original TypeScript implementation.
-	cases := map[string]int64{"file-abc:0": -499729749, "knowledge/x.md:3": -100269061, "é✓:1": -1178020989}
-	for input, want := range cases {
-		if got := externalChunkID(input); got != want {
-			t.Errorf("externalChunkID(%q) = %d, want %d", input, got, want)
-		}
+func TestVectorLiteral(t *testing.T) {
+	if got := vectorLiteral([]float32{0.5, -1, 0.25}); got != "[0.5,-1,0.25]" {
+		t.Fatalf("vectorLiteral = %s", got)
 	}
 }
 

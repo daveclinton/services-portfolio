@@ -1,13 +1,15 @@
 # Portfolio API (Go)
 
 The backend for www.daveclintonn.cc. It's one Go binary that serves every
-product built on the VPS, plus its own Postgres with pgvector, both in Docker.
+product built on the VPS, plus its own Postgres with pgvector and a self-hosted
+embeddings server (Hugging Face Text Embeddings Inference), all in Docker.
 The same `compose.yaml` runs on your laptop and on the VPS, where the existing
 nginx handles TLS and proxies to the API on loopback.
 
 ```
 browser ──https──▶ nginx (api.daveclintonn.cc) ──▶ portfolio-api (127.0.0.1:API_PORT) ──▶ portfolio-db (pgvector)
-                                                                     └──▶ OpenAI, Brevo
+                                                                     ├──▶ portfolio-embeddings (nomic-embed-text-v1.5)
+                                                                     └──▶ OpenAI (answers only), Brevo
 ```
 
 ## Layout
@@ -19,7 +21,8 @@ internal/server/      shared middleware (CORS, logging, panic recovery) and /hea
 internal/httpx/       JSON, bounded body reading, client IP, UUIDs, Server-Sent Events
 internal/ratelimit/   in-memory sliding-window limits and per-visitor locks
 internal/visitor/     signed anonymous visitor cookie and HMAC hashing
-internal/openai/      chat streaming, structured output, embeddings, vector store search
+internal/openai/      chat streaming and structured output (answers and intent planning)
+internal/embeddings/  client for the self-hosted Text Embeddings Inference server
 internal/brevo/       transactional email
 internal/askai/       product: Ask AI (retrieval, intent, generation, conversation logs)
 db/init/              schema (from knowledge-backend migrations), applied on first start
@@ -39,11 +42,25 @@ method and pass it to `server.New` in `cmd/api/main.go`.
 | `POST /ask-ai/chat` | Grounded answer, streamed as SSE (`retrieval`, `citations`, `delta`, `done`, `error`) |
 | `POST /ask-ai/search` | Ranked knowledge chunks with evidence citations |
 
+## Embeddings
+
+The `embeddings` service runs [Text Embeddings Inference](https://github.com/huggingface/text-embeddings-inference)
+on CPU with `nomic-ai/nomic-embed-text-v1.5` (768 dimensions). On first start
+it downloads the model (~550 MB) into the `hf-models` volume; it uses about
+525 MB of RAM. The API owns the `askai_chunk_embedding` table, creates it on
+startup, and embeds new or changed knowledge chunks at startup and every
+5 minutes, so re-running the ingestion pipeline is all it takes to refresh
+search. While the model loads, search falls back to full-text only.
+
+To change the model, set `EMBEDDING_MODEL`, `EMBEDDING_DIMENSIONS` and its
+task prefixes; the API rebuilds the table. `knowledge-backend`'s
+`embed_knowledge` command (OpenAI) is no longer needed.
+
 ## Develop
 
 ```bash
-cp .env.example .env    # works as-is locally; add OPENAI_API_KEY for chat
-make up                 # Postgres (127.0.0.1:5433) + API (127.0.0.1:8080)
+cp .env.example .env    # add OPENAI_API_KEY for chat; on Apple Silicon set EMBEDDINGS_IMAGE (see the file)
+make up                 # Postgres (:5433), embeddings (:8090), API (:8080)
 make db-ingest          # load the knowledge base with ../../knowledge-backend
 make test
 ```
@@ -108,7 +125,6 @@ In `nano`, set:
 APP_ENV=production
 ALLOWED_ORIGINS=https://www.daveclintonn.cc,https://daveclintonn.cc
 OPENAI_API_KEY=...
-OPENAI_VECTOR_STORE_ID=...
 BREVO_API_KEY=...
 BREVO_ALERT_TO_EMAIL=...
 BREVO_SENDER_EMAIL=...

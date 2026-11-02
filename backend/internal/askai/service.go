@@ -14,6 +14,7 @@ import (
 
 	"github.com/daveclinton/portfolio/backend/internal/brevo"
 	"github.com/daveclinton/portfolio/backend/internal/config"
+	"github.com/daveclinton/portfolio/backend/internal/embeddings"
 	"github.com/daveclinton/portfolio/backend/internal/openai"
 	"github.com/daveclinton/portfolio/backend/internal/ratelimit"
 	"github.com/daveclinton/portfolio/backend/internal/visitor"
@@ -24,15 +25,16 @@ import (
 const developmentPrivacySecret = "portfolio-local-development-privacy-secret"
 
 type Service struct {
-	cfg     config.Config
-	db      *pgxpool.Pool
-	ai      *openai.Client
-	mail    *brevo.Client // nil when alerts aren't configured
-	log     *slog.Logger
-	signer  visitor.Signer
-	privacy visitor.Signer
-	limits  limits
-	locks   *ratelimit.Locks
+	cfg      config.Config
+	db       *pgxpool.Pool
+	ai       *openai.Client
+	embedder *embeddings.Client
+	mail     *brevo.Client // nil when alerts aren't configured
+	log      *slog.Logger
+	signer   visitor.Signer
+	privacy  visitor.Signer
+	limits   limits
+	locks    *ratelimit.Locks
 
 	background sync.WaitGroup
 }
@@ -43,19 +45,25 @@ func New(cfg config.Config, db *pgxpool.Pool, log *slog.Logger) *Service {
 		privacySecret = developmentPrivacySecret
 	}
 	s := &Service{
-		cfg:     cfg,
-		db:      db,
-		ai:      openai.New(cfg.OpenAIAPIKey),
-		log:     log.With("product", "ask-ai"),
-		signer:  visitor.NewSigner(cfg.RateLimitSecret),
-		privacy: visitor.NewSigner(privacySecret),
-		limits:  newLimits(cfg),
-		locks:   ratelimit.NewLocks(chatLockTTL),
+		cfg:      cfg,
+		db:       db,
+		ai:       openai.New(cfg.OpenAIAPIKey),
+		embedder: embeddings.New(cfg.EmbeddingsURL),
+		log:      log.With("product", "ask-ai"),
+		signer:   visitor.NewSigner(cfg.RateLimitSecret),
+		privacy:  visitor.NewSigner(privacySecret),
+		limits:   newLimits(cfg),
+		locks:    ratelimit.NewLocks(chatLockTTL),
 	}
 	if cfg.AlertsEnabled() {
 		s.mail = brevo.New(cfg.BrevoAPIKey)
 	}
 	return s
+}
+
+// Init prepares the database objects this product owns.
+func (s *Service) Init(ctx context.Context) error {
+	return s.ensureEmbeddingSchema(ctx)
 }
 
 func (s *Service) Routes(mux *http.ServeMux) {
@@ -64,14 +72,17 @@ func (s *Service) Routes(mux *http.ServeMux) {
 }
 
 // Run does periodic housekeeping until ctx is cancelled: it frees memory held
-// by expired rate-limit entries and purges expired conversations. This replaces
-// the Vercel cron job.
+// by expired rate-limit entries, purges expired conversations (replacing the
+// Vercel cron job), and embeds new or changed knowledge chunks.
 func (s *Service) Run(ctx context.Context) {
 	sweep := time.NewTicker(time.Minute)
+	embed := time.NewTicker(5 * time.Minute)
 	purge := time.NewTicker(6 * time.Hour)
 	defer sweep.Stop()
+	defer embed.Stop()
 	defer purge.Stop()
 	s.purge(ctx)
+	s.runEmbeddingSync(ctx)
 	for {
 		select {
 		case <-ctx.Done():
@@ -79,6 +90,8 @@ func (s *Service) Run(ctx context.Context) {
 		case <-sweep.C:
 			s.limits.sweep()
 			s.locks.Sweep()
+		case <-embed.C:
+			s.runEmbeddingSync(ctx)
 		case <-purge.C:
 			s.purge(ctx)
 		}

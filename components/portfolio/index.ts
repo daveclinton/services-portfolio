@@ -1,6 +1,5 @@
 export { BackgroundSection } from "@/components/portfolio/background-section"
 export { AskAiChat } from "@/components/portfolio/ask-ai-chat"
-export { MatrixOrb, type MatrixOrbProps, type MatrixOrbState } from "@/components/portfolio/matrix-orb"
 export { Timeline } from "@/components/portfolio/timeline"
 export { TimelineItem } from "@/components/portfolio/timeline-item"
 export { SiteNav } from "@/components/portfolio/site-nav"

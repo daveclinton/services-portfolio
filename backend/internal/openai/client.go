@@ -1,6 +1,7 @@
-// Package openai is a small client for the four OpenAI calls the API makes:
-// streamed chat completions, structured JSON output, embeddings and vector
-// store search. It uses net/http directly, which keeps every request visible.
+// Package openai is a small client for the two OpenAI calls the API makes:
+// streamed chat completions and structured JSON output (intent planning).
+// Embeddings are self-hosted (see package embeddings). It uses net/http
+// directly, which keeps every request visible.
 package openai
 
 import (
@@ -12,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strings"
 )
 
@@ -201,26 +201,4 @@ func (c *Client) Structured(ctx context.Context, req StructuredRequest, out any)
 		return fmt.Errorf("model refused: %s", message.Refusal)
 	}
 	return json.Unmarshal([]byte(message.Content), out)
-}
-
-// Embed returns the embedding vector for one input string.
-func (c *Client) Embed(ctx context.Context, model, input string) ([]float64, error) {
-	var resp struct {
-		Data []struct {
-			Embedding []float64 `json:"embedding"`
-		} `json:"data"`
-	}
-	if err := c.postJSON(ctx, "/embeddings", map[string]any{"model": model, "input": input}, &resp); err != nil {
-		return nil, err
-	}
-	if len(resp.Data) == 0 {
-		return nil, errors.New("embeddings response had no data")
-	}
-	return resp.Data[0].Embedding, nil
-}
-
-// SearchVectorStore runs a managed vector store search; body follows the
-// OpenAI vector store search request shape.
-func (c *Client) SearchVectorStore(ctx context.Context, storeID string, body, out any) error {
-	return c.postJSON(ctx, "/vector_stores/"+url.PathEscape(storeID)+"/search", body, out)
 }

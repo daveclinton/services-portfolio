@@ -32,7 +32,7 @@ if [[ ! -f .env ]]; then
 	sed -i -E "s/^APP_ENV=.*/APP_ENV=production/" .env
 	chmod 600 .env
 	echo "No .env found, so created one with a generated POSTGRES_PASSWORD. Fill in OPENAI_API_KEY,"
-	echo "OPENAI_VECTOR_STORE_ID, RATE_LIMIT_SECRET, ALLOWED_ORIGINS and BREVO_*, then re-run this script."
+	echo "RATE_LIMIT_SECRET, ALLOWED_ORIGINS and BREVO_*, then re-run this script."
 	exit 1
 fi
 if grep -qE '^POSTGRES_PASSWORD=(change-me-locally)?$' .env; then
@@ -91,6 +91,7 @@ pick_port() {
 
 pick_port API_PORT "$CONTAINER" 8080 "$PORT_START"
 pick_port DB_PORT portfolio-db 5432 5433
+pick_port EMBED_PORT portfolio-embeddings 80 8090
 
 # --- 2. Build and start the container -----------------------------------------
 say "Building and starting Postgres (127.0.0.1:$DB_PORT) and the API (127.0.0.1:$API_PORT)"

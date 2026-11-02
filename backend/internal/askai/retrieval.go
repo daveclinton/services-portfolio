@@ -10,9 +10,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
-	"time"
-	"unicode/utf16"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -23,8 +20,6 @@ const (
 	candidateMultiplier = 4
 	minCandidatePool    = 20
 	rrfK                = 60
-	embeddingModel      = "text-embedding-3-small"
-	expectedDimensions  = 1536
 )
 
 // semanticUnavailable means semantic search can't run right now; hybrid
@@ -180,88 +175,38 @@ type scoredChunk struct {
 	distance float64
 }
 
-func (s *Service) embedQuery(ctx context.Context, query string) ([]float64, error) {
-	if !s.ai.Enabled() {
-		return nil, &semanticUnavailable{"semantic search is unavailable: OPENAI_API_KEY is not configured"}
-	}
-	vector, err := s.ai.Embed(ctx, embeddingModel, query)
-	if err != nil {
-		return nil, &semanticUnavailable{"semantic search is unavailable: " + err.Error()}
-	}
-	if len(vector) != expectedDimensions {
-		return nil, &semanticUnavailable{fmt.Sprintf(
-			"model %s returned %d dimensions; KnowledgeChunk.embedding needs %d",
-			embeddingModel, len(vector), expectedDimensions)}
-	}
-	return vector, nil
-}
-
-func (s *Service) searchByVector(ctx context.Context, vector []float64, filters Filters, limit int) ([]scoredChunk, error) {
-	var b sqlBuilder
-	clauses := append([]string{"embedding IS NOT NULL"}, b.filterClauses(filters)...)
-	literal := make([]string, len(vector))
-	for i, v := range vector {
-		literal[i] = strconv.FormatFloat(v, 'g', -1, 64)
-	}
-	vec := b.arg("["+strings.Join(literal, ",")+"]") + "::vector"
-	sql := fmt.Sprintf("SELECT %s, (embedding <=> %s) AS distance FROM knowledge_knowledgechunk WHERE %s ORDER BY distance ASC, id ASC LIMIT %s",
-		chunkColumns, vec, strings.Join(clauses, " AND "), b.arg(limit))
-	rows, err := s.db.Query(ctx, sql, b.params...)
-	if err != nil {
-		return nil, err
-	}
-	var distances []*float64
-	chunks, err := scanChunks(rows, func() []any {
-		d := new(float64)
-		distances = append(distances, d)
-		return []any{d}
-	})
-	if err != nil {
-		return nil, err
-	}
-	out := make([]scoredChunk, len(chunks))
-	for i, c := range chunks {
-		out[i] = scoredChunk{chunk: c, distance: *distances[i]}
-	}
-	return out, nil
-}
-
+// searchSemantic embeds the contextual queries with the self-hosted model and
+// finds the nearest chunks by cosine distance in pgvector, keeping each
+// chunk's best distance across queries.
 func (s *Service) searchSemantic(ctx context.Context, queries []string, filters Filters, limit int) ([]scoredChunk, error) {
-	if s.cfg.OpenAIVectorStoreID != "" {
-		return s.searchVectorStore(ctx, queries, filters, limit)
+	if !s.embedder.Enabled() {
+		return nil, &semanticUnavailable{"semantic search is unavailable: EMBEDDINGS_URL is not configured"}
 	}
 	var count int
-	if err := s.db.QueryRow(ctx, "SELECT COUNT(*)::int FROM knowledge_knowledgechunk WHERE embedding IS NOT NULL").Scan(&count); err != nil {
+	if err := s.db.QueryRow(ctx, "SELECT COUNT(*)::int FROM "+embeddingTable+" WHERE model = $1",
+		s.cfg.EmbeddingModel).Scan(&count); err != nil {
 		return nil, err
 	}
 	if count == 0 {
-		return nil, &semanticUnavailable{"semantic search is unavailable: no KnowledgeChunk rows have embeddings yet (run embed_knowledge)"}
+		return nil, &semanticUnavailable{"semantic search is unavailable: knowledge chunks are still being embedded"}
 	}
 
-	// Embed and search every contextual query in parallel.
-	rankings := make([][]scoredChunk, len(queries))
-	errs := make([]error, len(queries))
-	var wg sync.WaitGroup
+	inputs := make([]string, len(queries))
 	for i, query := range queries {
-		wg.Go(func() {
-			vector, err := s.embedQuery(ctx, query)
-			if err != nil {
-				errs[i] = err
-				return
-			}
-			rankings[i], errs[i] = s.searchByVector(ctx, vector, filters, limit)
-		})
+		inputs[i] = s.cfg.EmbeddingQueryPrefix + query
 	}
-	wg.Wait()
-	for _, err := range errs {
-		if err != nil {
-			return nil, err
-		}
+	vectors, err := s.embedder.Embed(ctx, inputs)
+	if err != nil {
+		return nil, &semanticUnavailable{"semantic search is unavailable: " + err.Error()}
 	}
 
 	best := map[int64]scoredChunk{}
-	for _, ranking := range rankings {
-		for _, hit := range ranking {
+	for _, vector := range vectors {
+		hits, err := s.searchByVector(ctx, vector, filters, limit)
+		if err != nil {
+			return nil, err
+		}
+		for _, hit := range hits {
 			if previous, ok := best[hit.chunk.ID]; !ok || hit.distance < previous.distance {
 				best[hit.chunk.ID] = hit
 			}
@@ -283,103 +228,35 @@ func (s *Service) searchSemantic(ctx context.Context, queries []string, filters 
 	return merged, nil
 }
 
-func (s *Service) searchVectorStore(ctx context.Context, queries []string, filters Filters, limit int) ([]scoredChunk, error) {
-	if !s.ai.Enabled() {
-		return nil, &semanticUnavailable{"managed semantic search is unavailable: OPENAI_API_KEY is not configured"}
+func (s *Service) searchByVector(ctx context.Context, vector []float32, filters Filters, limit int) ([]scoredChunk, error) {
+	var b sqlBuilder
+	clauses := append([]string{"e.model = " + b.arg(s.cfg.EmbeddingModel)}, b.filterClauses(filters)...)
+	vec := b.arg(vectorLiteral(vector)) + "::vector"
+	sql := fmt.Sprintf(`SELECT %s, (e.embedding <=> %s) AS distance
+		  FROM knowledge_knowledgechunk
+		  JOIN %s e ON e.chunk_id = knowledge_knowledgechunk.id
+		 WHERE %s
+		 ORDER BY distance ASC, id ASC
+		 LIMIT %s`,
+		chunkColumns, vec, embeddingTable, strings.Join(clauses, " AND "), b.arg(limit))
+	rows, err := s.db.Query(ctx, sql, b.params...)
+	if err != nil {
+		return nil, err
 	}
-	var comparisons []map[string]any
-	for _, key := range filterKeys {
-		if values := *filters.field(key); len(values) > 0 {
-			comparisons = append(comparisons, map[string]any{"type": "in", "key": key, "value": values})
-		}
+	var distances []*float64
+	chunks, err := scanChunks(rows, func() []any {
+		d := new(float64)
+		distances = append(distances, d)
+		return []any{d}
+	})
+	if err != nil {
+		return nil, err
 	}
-	body := map[string]any{
-		"rewrite_query":   true,
-		"max_num_results": min(limit, 50),
-		"ranking_options": map[string]any{"ranker": "auto", "score_threshold": s.cfg.OpenAIVectorScoreThreshold},
-	}
-	if len(queries) == 1 {
-		body["query"] = queries[0]
-	} else {
-		body["query"] = queries
-	}
-	switch len(comparisons) {
-	case 0:
-	case 1:
-		body["filters"] = comparisons[0]
-	default:
-		body["filters"] = map[string]any{"type": "and", "filters": comparisons}
-	}
-
-	var resp struct {
-		Data []struct {
-			FileID     string         `json:"file_id"`
-			Filename   string         `json:"filename"`
-			Score      float64        `json:"score"`
-			Attributes map[string]any `json:"attributes"`
-			Content    []struct {
-				Type string `json:"type"`
-				Text string `json:"text"`
-			} `json:"content"`
-		} `json:"data"`
-	}
-	searchCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	if err := s.ai.SearchVectorStore(searchCtx, s.cfg.OpenAIVectorStoreID, body, &resp); err != nil {
-		return nil, &semanticUnavailable{"managed semantic search is unavailable: " + err.Error()}
-	}
-
-	out := make([]scoredChunk, 0, len(resp.Data))
-	for index, result := range resp.Data {
-		attr := func(key string) string {
-			value, _ := result.Attributes[key].(string)
-			return value
-		}
-		sourcePath := firstNonEmpty(attr("source_path"), result.Filename)
-		var texts []string
-		for _, part := range result.Content {
-			if part.Type == "text" {
-				texts = append(texts, part.Text)
-			}
-		}
-		metadata := map[string]any{}
-		for k, v := range result.Attributes {
-			metadata[k] = v
-		}
-		metadata["source_group"] = attr("source_group")
-		metadata["openai_file_id"] = result.FileID
-		metadata["filename"] = result.Filename
-		score := math.Max(0, math.Min(1, result.Score))
-		out = append(out, scoredChunk{
-			chunk: chunk{
-				ID:          externalChunkID(fmt.Sprintf("%s:%d", firstNonEmpty(result.FileID, sourcePath), index)),
-				Content:     strings.Join(texts, "\n"),
-				SourceType:  firstNonEmpty(attr("source_type"), "document"),
-				SourcePath:  sourcePath,
-				CompanySlug: attr("company_slug"),
-				ProjectSlug: attr("project_slug"),
-				SkillSlug:   attr("skill_slug"),
-				Metadata:    metadata,
-			},
-			distance: 1 - score,
-		})
+	out := make([]scoredChunk, len(chunks))
+	for i, c := range chunks {
+		out[i] = scoredChunk{chunk: c, distance: *distances[i]}
 	}
 	return out, nil
-}
-
-// externalChunkID gives vector-store hits a stable negative ID (FNV-1a) so they
-// never collide with database chunk IDs.
-func externalChunkID(value string) int64 {
-	hash := uint32(2166136261)
-	for _, unit := range utf16.Encode([]rune(value)) {
-		hash ^= uint32(unit)
-		hash *= 16777619
-	}
-	v := int64(int32(hash))
-	if v < 0 {
-		v = -v
-	}
-	return -(v + 1)
 }
 
 type EvidenceCitation struct {
@@ -689,9 +566,6 @@ func (s *Service) search(ctx context.Context, query string, opts searchOptions) 
 				distances[hit.chunk.ID] = hit.distance
 			}
 			strategies["semantic"] = len(ranked)
-			if s.cfg.OpenAIVectorStoreID != "" {
-				notes = append(notes, "Semantic results came from the configured OpenAI vector store.")
-			}
 			if len(queries) > 1 {
 				notes = append(notes, fmt.Sprintf("Semantic retrieval used %d contextual queries.", len(queries)))
 			}

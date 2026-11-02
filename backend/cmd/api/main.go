@@ -73,6 +73,9 @@ func run(log *slog.Logger) error {
 	}
 
 	askAI := askai.New(cfg, db, log)
+	if err := askAI.Init(ctx); err != nil {
+		return errors.Join(errors.New("prepare ask-ai schema"), err)
+	}
 	go askAI.Run(ctx)
 
 	srv := &http.Server{

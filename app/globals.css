@@ -288,10 +288,6 @@ html.has-visible-viewport body {
   .chat-page .site-nav {
     margin-bottom: 0.25rem;
   }
-
-  .chat-orb {
-    display: none;
-  }
 }
 
 @container chat (max-height: 22rem) {
@@ -664,7 +660,7 @@ html.has-visible-viewport body {
 /* Ask AI answers (components/prompt-kit/markdown.tsx). */
 .chat-markdown {
   font-size: var(--text-body);
-  line-height: var(--text-body--line-height);
+  line-height: 1.65;
 }
 .chat-markdown > * + * {
   margin-top: 0.75em;
@@ -724,4 +720,13 @@ html.has-visible-viewport body {
   font-size: var(--text-title);
   line-height: var(--text-title--line-height);
   font-weight: 600;
+}
+
+@keyframes text-shimmer {
+  from {
+    background-position: 100% center;
+  }
+  to {
+    background-position: 0% center;
+  }
 }
