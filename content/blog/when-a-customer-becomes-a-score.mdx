@@ -24,7 +24,7 @@ An [X thread about selling expensive products with Meta ads](https://x.com/shdu1
   </figcaption>
 </figure>
 
-I cannot verify the sale or the claimed results from the thread. What interests me is the system behind the story. A score can help a business notice that its ads bring in the wrong leads. The same score can quietly decide which people the business stops seeing.
+I cannot verify the sale or the claimed results from the thread. I'm more interested in the system behind the story. A score can show a business that its ads bring in the wrong leads. It can also decide which people the business stops seeing.
 
 ## Start with the outcome
 
@@ -34,11 +34,11 @@ Meta [lets advertisers send later CRM outcomes back through its Conversions API 
 
 Imagine a warehouse app where scanning a document starts a transaction in an accounting system. A dashboard could count every scan while missing a document that failed to post or a retry that posted twice. The useful outcome is whether the right document arrived once. I would want the same care in a sales funnel: a quote request, a conversation, and a completed sale should not all collapse into one number.
 
-## A score is a guess with a name
+## What the score measures
 
 The business in the thread reportedly used quote views, messages, calls, financing activity, and other signals to decide who counted as a qualified lead. Some of those actions may be useful. None is a sale.
 
-Google's machine learning guide calls this the difference between a [direct label and a proxy label](https://developers.google.com/machine-learning/crash-course/overfitting/labels). A completed purchase is a direct record of a purchase. Opening a quote five times is a clue about what someone might do. The clue only earns its place if it predicts the outcome you care about.
+Google's machine learning guide calls this the difference between a [direct label and a proxy label](https://developers.google.com/machine-learning/crash-course/overfitting/labels). A completed purchase is a direct record of a purchase. Opening a quote five times is a clue about what someone might do. It is only worth using if it predicts the outcome you care about.
 
 The author also says the business changed its qualification threshold with the season. I can see the appeal: keep enough leads for the ad system to learn from. But then a "qualified lead" in a quiet month may not mean the same thing as one in a busy month. If the report improves, was the campaign better, or did the definition move? I would keep the final sale and its costs visible beside the score.
 
@@ -48,7 +48,7 @@ There is another question I would ask the sales team: who did the score reject? 
 
 The thread describes automatically excluding people predicted not to buy. Once that happens, the business sees fewer outcomes for those people. Some might have bought after another ad or a later conversation, but the system has made that harder to observe. The model's decision changes the evidence used to judge the model.
 
-Google [warns about this kind of feedback loop](https://developers.google.com/machine-learning/crash-course/production-ml-systems/questions): a prediction can affect the data a system receives next. In this case, the safe question is not just "Did we save ad spend?" It is also "How many potential customers did we stop reaching, and what happened to actual sales?"
+Google [warns about this kind of feedback loop](https://developers.google.com/machine-learning/crash-course/production-ml-systems/questions): a prediction can affect the data a system receives next. So besides "Did we save ad spend?", I would ask "How many potential customers did we stop reaching, and what happened to actual sales?"
 
 Even a higher count of sales credited to ads would not answer whether the ads caused those sales. Meta teaches [Conversion Lift tests](https://www.facebookblueprint.com/student/path/253065-conversion-lift-marketing-measurement) to measure campaign impact. A test may be too much for a small business, but the question still matters: did the new scoring rule create additional business, or did it make the dashboard look better?
 
@@ -68,4 +68,4 @@ I would start with a small record of the sales journey: where a lead came from, 
 
 Then I would compare the cost of finding a customer with the profit from the sale, not just the cost of getting a form filled. If there were enough volume, I would test whether the change brought in sales that would not have happened anyway. I would also keep an inventory of each piece of personal data: where it came from, why it is needed, who receives it, and when it is removed.
 
-That is a smaller system than the one in the thread. It might also tell me more. A business can learn a lot by following a lead through to a real outcome. It should be equally curious about the people its score gets wrong and careful about the information it uses to judge them.
+That is a smaller system than the one in the thread, but it would show the business which leads became customers and which ones the score got wrong.

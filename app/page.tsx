@@ -107,6 +107,25 @@ export default async function Home() {
             <Link href={askAi.href}>ask AI about me</Link>.
           </p>
 
+          <section aria-labelledby="now" className="home-now">
+            <h2 id="now">Now</h2>
+            <p className="post-meta">
+              Updated <time dateTime={now.updated}>{formatMonth(now.updated)}</time>
+            </p>
+            <ul>
+              {now.items.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+              {latestPost ? (
+                <li>
+                  Writing. Most recently,{" "}
+                  <Link href={`/blog/${latestPost.slug}`}>{latestPost.title}</Link> (
+                  {formatPostDate(latestPost.date, "short")}).
+                </li>
+              ) : null}
+            </ul>
+          </section>
+
           <section>
             <h2>Opesi Mansion</h2>
             <p>
