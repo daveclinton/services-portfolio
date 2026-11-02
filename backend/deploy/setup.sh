@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Run on the VPS from /opt/portfolio-api:  ./deploy/setup.sh
+# Run on the VPS from the backend folder of the cloned repo:  ./deploy/setup.sh
 #
-# 1. Picks a host port no other process or container is using (or keeps the
-#    one from the last run).
-# 2. Builds and starts the API container on 127.0.0.1:<port>.
+# 1. Picks host ports for the API and Postgres that no other process or
+#    container is using (or keeps the ones from the last run).
+# 2. Builds and starts both containers, bound to 127.0.0.1 only.
 # 3. Writes the nginx site for $DOMAIN, gets a Let's Encrypt certificate and
 #    reloads nginx.
 #
@@ -13,7 +13,6 @@ set -euo pipefail
 DOMAIN="${DOMAIN:-api.daveclintonn.cc}"
 CONTAINER="portfolio-api"
 PORT_START="${PORT_START:-8080}"
-PORT_END="${PORT_END:-8999}"
 SITE="/etc/nginx/sites-available/$DOMAIN"
 CERT_DIR="/etc/letsencrypt/live/$DOMAIN"
 
@@ -28,13 +27,20 @@ docker info >/dev/null 2>&1 || DOCKER=(sudo docker)
 # --- 0. Environment file ------------------------------------------------------
 if [[ ! -f .env ]]; then
 	cp .env.example .env
+	# Fresh random password for the bundled Postgres (hex is URL-safe).
+	sed -i -E "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env
+	sed -i -E "s/^APP_ENV=.*/APP_ENV=production/" .env
 	chmod 600 .env
-	echo "Created .env from .env.example. Fill it in (APP_ENV=production, DATABASE_URL,"
-	echo "OPENAI_API_KEY, RATE_LIMIT_SECRET, ALLOWED_ORIGINS, BREVO_*), then re-run this script."
+	echo "No .env found, so created one with a generated POSTGRES_PASSWORD. Fill in OPENAI_API_KEY,"
+	echo "OPENAI_VECTOR_STORE_ID, RATE_LIMIT_SECRET, ALLOWED_ORIGINS and BREVO_*, then re-run this script."
+	exit 1
+fi
+if grep -qE '^POSTGRES_PASSWORD=(change-me-locally)?$' .env; then
+	echo "Set a real POSTGRES_PASSWORD in .env (openssl rand -hex 24)." >&2
 	exit 1
 fi
 
-# --- 1. Pick a port -----------------------------------------------------------
+# --- 1. Pick ports ------------------------------------------------------------
 say "Checking ports already in use"
 
 # Ports any process is listening on, plus ports published by running containers.
@@ -50,37 +56,44 @@ echo "In use: $(echo "$USED" | tr '\n' ' ')"
 
 is_used() { grep -qx "$1" <<<"$USED"; }
 
-# The port our own container already publishes, if it's running.
-OWN_PORT="$("${DOCKER[@]}" port "$CONTAINER" 8080/tcp 2>/dev/null | head -1 | sed -E 's/.*:([0-9]+)$/\1/' || true)"
-SAVED_PORT="$(grep -E '^API_PORT=' .env | tail -1 | cut -d= -f2 || true)"
+# pick_port VAR CONTAINER CONTAINER_PORT START
+# Keeps the port our container already publishes, else the saved one if it's
+# still free, else the first free port from START upward. Saves it to .env.
+pick_port() {
+	local var="$1" container="$2" container_port="$3" start="$4" port=""
+	local own saved
+	own="$("${DOCKER[@]}" port "$container" "$container_port/tcp" 2>/dev/null | head -1 | sed -E 's/.*:([0-9]+)$/\1/' || true)"
+	saved="$(grep -E "^$var=" .env | tail -1 | cut -d= -f2 || true)"
+	if [[ -n "$own" ]]; then
+		port="$own"
+		echo "$var: keeping $port (already used by $container)."
+	elif [[ -n "$saved" ]] && ! is_used "$saved"; then
+		port="$saved"
+		echo "$var: reusing saved port $port."
+	else
+		for ((p = start; p <= start + 900; p++)); do
+			if ! is_used "$p"; then
+				port="$p"
+				break
+			fi
+		done
+		[[ -n "$port" ]] || { echo "No free port from $start." >&2; exit 1; }
+		echo "$var: picked free port $port."
+	fi
+	USED="$(printf '%s\n%s' "$USED" "$port")" # don't hand the same port out twice
+	if grep -qE "^$var=" .env; then
+		sed -i -E "s/^$var=.*/$var=$port/" .env
+	else
+		printf '\n%s=%s\n' "$var" "$port" >>.env
+	fi
+	printf -v "$var" '%s' "$port"
+}
 
-if [[ -n "$OWN_PORT" ]]; then
-	API_PORT="$OWN_PORT"
-	echo "Keeping port $API_PORT (already used by $CONTAINER)."
-elif [[ -n "$SAVED_PORT" ]] && ! is_used "$SAVED_PORT"; then
-	API_PORT="$SAVED_PORT"
-	echo "Reusing saved port $API_PORT."
-else
-	API_PORT=""
-	for ((port = PORT_START; port <= PORT_END; port++)); do
-		if ! is_used "$port"; then
-			API_PORT="$port"
-			break
-		fi
-	done
-	[[ -n "$API_PORT" ]] || { echo "No free port between $PORT_START and $PORT_END." >&2; exit 1; }
-	echo "Picked free port $API_PORT."
-fi
-
-# Save it so compose and the next deploy use the same port.
-if grep -qE '^API_PORT=' .env; then
-	sed -i -E "s/^API_PORT=.*/API_PORT=$API_PORT/" .env
-else
-	printf '\nAPI_PORT=%s\n' "$API_PORT" >>.env
-fi
+pick_port API_PORT "$CONTAINER" 8080 "$PORT_START"
+pick_port DB_PORT portfolio-db 5432 5433
 
 # --- 2. Build and start the container -----------------------------------------
-say "Building and starting $CONTAINER on 127.0.0.1:$API_PORT"
+say "Building and starting Postgres (127.0.0.1:$DB_PORT) and the API (127.0.0.1:$API_PORT)"
 "${DOCKER[@]}" compose up -d --build --remove-orphans
 
 echo -n "Waiting for /healthz "
@@ -130,7 +143,7 @@ write_site() {
 		local options=""
 		[[ -f /etc/letsencrypt/options-ssl-nginx.conf ]] && options="    include /etc/letsencrypt/options-ssl-nginx.conf;"
 		sudo tee "$SITE" >/dev/null <<EOF
-# Managed by /opt/portfolio-api/deploy/setup.sh — edits will be overwritten.
+# Managed by backend/deploy/setup.sh in the portfolio repo — edits will be overwritten.
 server {
     listen 80;
     listen [::]:80;
@@ -153,7 +166,7 @@ $proxy
 EOF
 	else
 		sudo tee "$SITE" >/dev/null <<EOF
-# Managed by /opt/portfolio-api/deploy/setup.sh — edits will be overwritten.
+# Managed by backend/deploy/setup.sh in the portfolio repo — edits will be overwritten.
 server {
     listen 80;
     listen [::]:80;
@@ -191,3 +204,6 @@ say "Done"
 echo "Local:  curl http://127.0.0.1:$API_PORT/healthz"
 echo "Public: curl https://$DOMAIN/healthz"
 echo "Logs:   docker compose logs -f api"
+echo
+echo "First deploy? Copy your existing data into the new database once:"
+echo "  ./deploy/import-db.sh 'postgresql://...old-neon-url...'"

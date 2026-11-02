@@ -225,12 +225,40 @@ COPY --from=build /portfolio-api /portfolio-api
 ENTRYPOINT ["/portfolio-api"]
 ```
 
-The compose file publishes the container's port on `127.0.0.1` only, so nothing outside the server can reach it directly:
+The database moves too. Instead of Neon, Postgres with the pgvector extension runs as a second container in the same compose file, so the whole backend starts with one command on my laptop and on the server:
 
 ```yaml
-ports:
-  - "127.0.0.1:${API_PORT:-8080}:8080"
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: portfolio
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://portfolio:${POSTGRES_PASSWORD}@db:5432/portfolio?sslmode=disable
+    ports:
+      - "127.0.0.1:${API_PORT:-8080}:8080"
 ```
+
+A few details make this work:
+
+- **The data lives in a named volume** (`pgdata`), so rebuilding or restarting the containers never deletes it.
+- **The schema is created on first start.** Postgres runs every SQL file in `/docker-entrypoint-initdb.d` when the volume is empty. `db/init/001_schema.sql` is a `pg_dump` of the tables my Python knowledge pipeline's migrations create, so the pipeline can keep writing to the new database unchanged.
+- **The API reaches the database by its service name**, `db`, over Docker's private network. `depends_on` with `service_healthy` waits until Postgres accepts connections before starting the API.
+- **Both ports are published on `127.0.0.1` only**, so nothing outside the server can reach either one directly.
+
+Moving the existing data is a one-off: `deploy/import-db.sh` runs `pg_dump` against the old database from inside the new container and loads it in a single transaction. If anything fails, nothing changes.
 
 There's no `curl` in a distroless image, so the binary checks its own health instead. Running `portfolio-api healthcheck` requests `/healthz` and exits with 0 or 1, and Docker uses that to mark the container healthy.
 
@@ -247,7 +275,7 @@ used_ports() {
 }
 ```
 
-It picks the first free port from 8080 upward and saves it as `API_PORT` in the `.env` file. On later deploys it keeps the same port, so the nginx config never points at the wrong place.
+It picks the first free ports from 8080 (API) and 5433 (Postgres) upward and saves them as `API_PORT` and `DB_PORT` in the `.env` file. On later deploys it keeps the same ports, so the nginx config never points at the wrong place.
 
 ## 12. Put nginx in front
 
@@ -275,15 +303,28 @@ The script runs `nginx -t` before reloading, so a typo never takes the other sit
 
 ## 13. Deploy
 
-First, point a DNS `A` record for `api.daveclintonn.cc` at the server's IP. Then, from the `backend/` folder on your laptop:
+First, point a DNS `A` record for `api.daveclintonn.cc` at the server's IP and push the repository to GitHub. Then, on the server, create a folder under `/opt`, clone the repository into it, and create the `.env` file:
 
 ```bash
-make deploy VPS=clinton@your-server-ip
+sudo mkdir -p /opt/services-portfolio
+sudo chown "$USER": /opt/services-portfolio
+git clone git@github.com:daveclinton/services-portfolio.git /opt/services-portfolio
+cd /opt/services-portfolio/backend
+
+cp .env.example .env && chmod 600 .env
+sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env
+nano .env
 ```
 
-That runs the tests, copies the code to `/opt/portfolio-api` with `rsync` (never your local `.env`), and runs `deploy/setup.sh` on the server. On the first run the script creates `/opt/portfolio-api/.env` from the example and stops so you can fill it in. Set `APP_ENV=production`, set `ALLOWED_ORIGINS=https://www.daveclintonn.cc,https://daveclintonn.cc`, generate the secret with `openssl rand -base64 48`, and run the same command again.
+In `.env`, set `APP_ENV=production`, set `ALLOWED_ORIGINS=https://www.daveclintonn.cc,https://daveclintonn.cc`, generate `RATE_LIMIT_SECRET` with `openssl rand -base64 48`, and add the OpenAI and Brevo keys. Then run the script:
 
-Then check it from outside:
+```bash
+./deploy/setup.sh
+```
+
+To ship a change later, run `git pull` and the script again.
+
+After the first run, copy the existing data across once with `./deploy/import-db.sh 'postgresql://...old-database-url...'`. Then check it from outside:
 
 ```bash
 curl https://api.daveclintonn.cc/healthz
@@ -294,9 +335,9 @@ curl -X POST https://api.daveclintonn.cc/ask-ai/search \
   -d '{"query":"projects","mode":"structured","limit":2,"include_content":false}'
 ```
 
-The search call returns ranked chunks without calling OpenAI or storing anything. To check streaming, ask a question on the site and watch the answer arrive word by word. Each chat turn is stored as a real conversation, so don't script it in a test loop. `make logs` follows the container's logs, one JSON line per request.
+The search call returns ranked chunks without calling OpenAI or storing anything. To check streaming, ask a question on the site and watch the answer arrive word by word. Each chat turn is stored as a real conversation, so don't script it in a test loop. `docker compose logs -f api` follows the container's logs, one JSON line per request.
 
-Last, set `NEXT_PUBLIC_API_URL=https://api.daveclintonn.cc` in Vercel and redeploy the site. The old Upstash, Neon-driver and AI SDK packages, the route handlers and the cron entry are already deleted from the repository.
+Last, set `NEXT_PUBLIC_API_URL=https://api.daveclintonn.cc` in Vercel and redeploy the site. The old Upstash, Neon and AI SDK packages, the route handlers and the cron entry are already deleted from the repository.
 
 ## What's next
 

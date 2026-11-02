@@ -109,9 +109,9 @@ pipeline prepares the Postgres database that the API reads.
 
 ### 1. Prepare the database
 
-Use Postgres with the `vector` and `pg_trgm` extensions available. The Go API
-connects with `pgx`, so any standard Postgres works (Neon or one on the VPS).
-Copy a direct connection string into `knowledge-backend/.env` as `DATABASE_URL`.
+The database now runs next to the API in Docker (`pgvector/pgvector:pg17`,
+see `backend/compose.yaml`) and creates its schema on first start, so the
+migrations below are only needed for a database outside Docker. Copy a direct connection string into `knowledge-backend/.env` as `DATABASE_URL`.
 
 ```bash
 cd ../knowledge-backend
@@ -139,14 +139,17 @@ retrieval; there is currently no separate model-training command.
 ### 2. Run locally
 
 ```bash
-cd backend && cp .env.example .env && make run   # API on :8080
-pnpm dev                                         # site on :3000
+cd backend && cp .env.example .env
+make up          # Postgres (pgvector) + API in Docker, API on :8080
+make db-ingest   # load the knowledge base via ../knowledge-backend
+cd .. && pnpm dev   # site on :3000
 ```
 
 ### 3. Deploy
 
 ```bash
-cd backend && make deploy VPS=clinton@<vps-ip>   # Docker + nginx; see backend/README.md
+# on the VPS, after cloning to /opt/services-portfolio and creating backend/.env
+cd /opt/services-portfolio/backend && ./deploy/setup.sh   # see backend/README.md
 ```
 
 Then set `NEXT_PUBLIC_API_URL` in Vercel and redeploy the site.

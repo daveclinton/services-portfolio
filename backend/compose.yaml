@@ -1,14 +1,48 @@
+# The same file runs locally (`make up`) and on the VPS (deploy/setup.sh).
+# Ports are only published on 127.0.0.1; on the VPS nginx is the way in.
+name: portfolio-api
+
 services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: portfolio-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: portfolio
+      POSTGRES_DB: portfolio
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Creates the extensions and tables the first time the volume is empty.
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      # For psql and the knowledge-backend pipeline (locally, or over an SSH tunnel).
+      - "127.0.0.1:${DB_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U portfolio -d portfolio"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   api:
     build: .
     image: portfolio-api:latest
     container_name: portfolio-api
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     env_file: .env
     environment:
-      # Inside the container, listen on all interfaces; the host only
-      # publishes the port on loopback, so nginx is the only way in.
+      # Inside the container, listen on all interfaces and talk to the db
+      # service over Docker's private network. These override .env.
       ADDR: 0.0.0.0:8080
+      DATABASE_URL: postgres://portfolio:${POSTGRES_PASSWORD}@db:5432/portfolio?sslmode=disable
     ports:
       - "127.0.0.1:${API_PORT:-8080}:8080"
     healthcheck:
@@ -18,8 +52,7 @@ services:
       retries: 3
       start_period: 10s
     stop_grace_period: 75s   # let streaming answers and conversation logging finish
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
+    logging: *logging
+
+volumes:
+  pgdata:
