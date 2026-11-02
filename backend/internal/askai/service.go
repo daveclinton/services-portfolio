@@ -29,7 +29,7 @@ type Service struct {
 	cfg      config.Config
 	db       *pgxpool.Pool
 	ai       *openai.Client
-	embedder *embeddings.Client
+	embedder embedder
 	mail     *brevo.Client // nil when alerts aren't configured
 	log      *slog.Logger
 	signer   visitor.Signer
@@ -37,7 +37,8 @@ type Service struct {
 	limits   limits
 	locks    *ratelimit.Locks
 
-	knowledge atomic.Pointer[knowledgeSnapshot]
+	knowledge      atomic.Pointer[knowledgeSnapshot]
+	embeddingsDown atomic.Bool
 
 	background sync.WaitGroup
 }
@@ -48,15 +49,22 @@ func New(cfg config.Config, db *pgxpool.Pool, log *slog.Logger) *Service {
 		privacySecret = developmentPrivacySecret
 	}
 	s := &Service{
-		cfg:      cfg,
-		db:       db,
-		ai:       openai.New(cfg.OpenAIAPIKey),
-		embedder: embeddings.New(cfg.EmbeddingsURL),
-		log:      log.With("product", "ask-ai"),
-		signer:   visitor.NewSigner(cfg.RateLimitSecret),
-		privacy:  visitor.NewSigner(privacySecret),
-		limits:   newLimits(cfg),
-		locks:    ratelimit.NewLocks(chatLockTTL),
+		cfg:     cfg,
+		db:      db,
+		ai:      openai.New(cfg.OpenAIAPIKey),
+		log:     log.With("product", "ask-ai"),
+		signer:  visitor.NewSigner(cfg.RateLimitSecret),
+		privacy: visitor.NewSigner(privacySecret),
+		limits:  newLimits(cfg),
+		locks:   ratelimit.NewLocks(chatLockTTL),
+	}
+	switch cfg.EmbeddingsProvider {
+	case "openai":
+		s.embedder = openAIEmbedder{client: s.ai, model: cfg.EmbeddingModel, dimensions: cfg.EmbeddingDimensions}
+	case "tei":
+		s.embedder = embeddings.New(cfg.EmbeddingsURL)
+	default:
+		s.embedder = disabledEmbedder{}
 	}
 	if cfg.AlertsEnabled() {
 		s.mail = brevo.New(cfg.BrevoAPIKey)

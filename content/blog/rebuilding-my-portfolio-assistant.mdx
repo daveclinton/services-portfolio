@@ -1,0 +1,81 @@
+export const metadata = {
+  title: "What I learned rebuilding my portfolio's AI assistant",
+  description: "Moving Ask AI to my own server, a memory crunch, a chat redesign, and why it kept telling people to try Google.",
+  date: "2026-11-02",
+  draft: true,
+}
+
+This site has an assistant that answers questions about my work. It worked, but it ran on serverless functions I didn't control, and its answers weren't good enough. I wanted a backend of my own where I could build small products in public, one at a time.
+
+I expected the move to be the hard part. It wasn't. The interesting lessons came from a full server, a chat screen that looked dated, and an assistant that politely sent people to Google.
+
+## 1. Move only what needs a server
+
+I listed what ran on the server: chat, search, rate limits, conversation logs, email alerts and a nightly cleanup job. The blog stayed where it was, because MDX posts are built into static pages and never need a server.
+
+Everything else moved to a single Go binary. Go builds into one file with no runtime to install, and its standard library covers HTTP, JSON and streaming. The whole backend depends on one third-party package, the Postgres driver.
+
+The API runs in Docker next to its own Postgres with the pgvector extension. The same compose file runs on my laptop and on the server.
+
+## 2. A shared server has neighbours
+
+My VPS already hosts other apps, each in a folder under `/opt` with nginx in front. So the setup script doesn't assume anything. It lists every port in use, both listening sockets and ports Docker has published, picks free ones, and saves them so later deploys reuse them.
+
+It writes one nginx site for `api.daveclintonn.cc` and runs `nginx -t` before reloading, so a typo can't take the other sites down. It also turns off proxy buffering, because answers stream token by token and nginx would otherwise hold them until the end.
+
+Small things went wrong, as they do:
+
+- **Cloning failed with "Repository not found."** The repository is private, and the server's existing SSH key belonged to another GitHub account. The fix was a read-only deploy key and an SSH host alias that only offers that key.
+- **Importing the old database failed on `auth_group`.** The old database had Django admin tables the new one didn't. The import now copies only the tables the new database has, in one transaction, so a failure changes nothing.
+- **The live chat returned 404.** The frontend's API URL had been set to the health-check address, so every request went to `/healthz/ask-ai/chat`. Reading the built JavaScript showed it in a minute.
+
+## 3. Embeddings: self-hosted, then back
+
+I wanted the assistant to stop depending on OpenAI for search, so I ran an open embedding model on the server with Hugging Face's Text Embeddings Inference. It worked well on my laptop: about 100 milliseconds per query, and all 89 knowledge chunks embedded in about two minutes.
+
+The server told a different story. It has 3.8 GB of memory, and when I checked, only 192 MB was available, with 3.1 GB of swap in use. The embedding server needed about 525 MB. It was loading its model in swapped memory and putting every other app on the box at risk.
+
+A smaller model with a hard memory cap brought it down to about 320 MB, still too much for that server. So for now the vectors come from OpenAI's embedding API again, but they're stored and searched in my own Postgres. Indexing the whole knowledge base takes about seven seconds and costs well under a cent, and the self-hosted option stays in the code, switched off, until the server has more memory.
+
+The lesson: measure the server before choosing the architecture. A design that's cheap in money can be expensive in RAM.
+
+## 4. Borrow the chat interface
+
+People know what an AI chat looks like, so I didn't design one from scratch. I read the source of open-source implementations instead: prompt-kit's conversation components and the ChatGPT, Claude and Grok clones published by assistant-ui.
+
+From them I took:
+
+- your question in a soft bubble, and the answer as plain text in the reading column, rendered as markdown;
+- copy and "ask again" under answers, shown on hover;
+- a send button that turns into a stop button while answering;
+- a status line that shimmers ("Gathering projects…") instead of a spinner.
+
+For starter questions I followed Nielsen Norman Group's advice on prompt suggestions: keep them light, put them next to the input, and let a click fill the box so people can edit before sending. I also removed text nobody reads. There's no disclaimer under the input now, and the "questions left" count only appears when there are five or fewer.
+
+## 5. Why it told people to try Google
+
+The worst problem was the answers. Asked "Can he build backend systems in Go or Rust?", the assistant replied that it only answers questions about my work and suggested Google or official documentation. The knowledge base mentions a Rust API I built, and the assistant itself runs on Go.
+
+I wrote 15 questions a recruiter might ask and ran them. Five got that refusal. Two causes stood out:
+
+1. **The instructions.** The prompt said: if the sources don't support an answer, return the scope message. When the eight retrieved passages only partly covered a question, the model gave up instead of answering what it could.
+2. **The retrieval.** Only the top eight chunks reached the model, so evidence elsewhere in the knowledge base never got a chance.
+
+The fixes came from published guidance, not guesswork:
+
+- **Send the whole knowledge base.** Anthropic's write-up on contextual retrieval says that for knowledge bases under about 200,000 tokens you can skip retrieval and include everything. Mine is about 34,000 tokens. Because that text is identical for every question and comes first in the prompt, OpenAI caches it automatically. In my test runs, about 33,700 of 34,000 prompt tokens were served from the cache on each answer after the first.
+- **Rewrite the answer rules.** Anthropic's guide to reducing hallucinations recommends giving the model permission to say it doesn't know. So the new rules are: answer what the material supports, say specifically what's missing ("I don't have details on his education"), never send people elsewhere, and redirect only questions that aren't about me.
+- **Tell it about the system it runs on.** A small "site facts" file describes the assistant's own architecture as my work, along with my contact details. Now "Has he built anything with Go?" points to this backend.
+- **Use a stronger small model.** With the same prompt, `gpt-4o-mini` still missed the Go backend and invented a claim that I mostly work alone. `gpt-4.1-mini` got both right.
+
+After the changes, all 15 questions got real answers, and off-topic questions ("What's the weather in Nairobi?") get a one-line redirect. The test questions live in the repository, so every future prompt change gets the same check.
+
+## 6. What I'd tell someone building one
+
+- **Write the test questions before changing the prompt.** "It feels better" isn't a result. Five refusals out of fifteen, then zero, is.
+- **If your knowledge base is small, try putting all of it in the prompt** before tuning retrieval. With prompt caching it's cheap, and it removes a whole class of misses.
+- **Make "I don't know" specific.** A blanket refusal reads as broken. "I don't have details on that, but here's the closest thing" reads as honest.
+- **Check the server, not just the code.** My laptop had memory to spare; the server didn't.
+- **Borrow interfaces from working implementations.** Users already know how chat should feel.
+
+The assistant still can't answer some things, like my education, because they aren't written down anywhere it can read. That's the next step: not a smarter model, just better notes.

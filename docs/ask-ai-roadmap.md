@@ -89,8 +89,14 @@ Without this we can't tell whether later changes help.
 
 ## 4. Retrieval quality
 
-- [x] **Self-hosted embeddings in Postgres.** Text Embeddings Inference runs
-      `nomic-ai/nomic-embed-text-v1.5` (768 dimensions) in the compose stack;
+- [x] **Embeddings in our own Postgres.** OpenAI `text-embedding-3-small`
+      (1536 dimensions) by default, stored and searched in pgvector
+      (`askai_chunk_embedding`), re-embedded when content changes. Indexing the
+      whole knowledge base takes ~7 seconds and well under a cent.
+- [x] **Self-hosted embeddings option.** Text Embeddings Inference runs
+      `BAAI/bge-small-en-v1.5` (384 dimensions) as an optional, memory-capped
+      service in the compose stack (built and tested, **switched off for now**
+      until the VPS has ~500 MB of spare RAM);
       the API stores vectors in `askai_chunk_embedding` and re-embeds new or
       changed chunks every 5 minutes. No OpenAI embeddings or vector store.
 - [ ] **Self-hosted answers (optional).** OpenAI still writes answers and plans
@@ -114,6 +120,45 @@ step, with agentic retrieval only where evaluation shows a gap
 [aitraining2u](https://www.aitraining2u.com/blog/production-rag-patterns-2026.html),
 [dev.to](https://dev.to/_6638a39c349d7e9c85ee20/rag-best-practices-2026-building-production-ready-retrieval-systems-43jn)).
 These are mostly vendor blogs; treat their numbers as directional.
+
+## Research: what to improve next, given the current design
+
+Since every answer now gets the whole knowledge base (~34k tokens), retrieval
+no longer decides what the model can see. Its jobs are to point the model at
+the most relevant parts and to provide traceable sources. Sources agree this
+hybrid (full context for a small, stable core, retrieval on top) is the
+sensible default below ~200k tokens, and that retrieval matters more as the
+corpus grows or citations become important
+([Towards AI](https://pub.towardsai.net/rag-vs-long-context-in-2026-when-retrieval-still-wins-e6ebad9a4096),
+[alexcloudstar](https://alexcloudstar.com/blog/rag-vs-long-context-2026/),
+[Anthropic](https://www.anthropic.com/news/contextual-retrieval)). In order:
+
+1. **Fill the knowledge gaps.** The biggest quality limit is now missing
+   facts, not retrieval: education, team leadership, the blog posts, and
+   details on Opesi Mansion and 9ntyplus when they're ready. The assistant
+   says "I don't have details on…" for these.
+2. **Source chips.** Use the ranked results (already sent as the `citations`
+   event) to show "Based on: Mika · Aqua Prana" links under answers. This is
+   where retrieval now adds the most visible value.
+3. **Contextual chunk headers.** Before embedding, prepend each chunk's
+   document title, type and project/company, so a chunk like "Built a
+   Rust/Axum API…" is searchable as Aqua Prana work. This is the cheap form of
+   Anthropic's contextual retrieval (35% fewer retrieval failures for
+   contextual embeddings in their tests).
+4. **A bigger evaluation set and a judge.** Grow `backend/evals/` from real
+   (consented) questions, and add an automatic check that every claim in an
+   answer is supported by the material. Thumbs up/down feed it.
+5. **Watch the cache.** The log's `cached_tokens` shows ~99% of the prompt is
+   cached. Re-ingesting the knowledge base changes the prefix and costs one
+   full-price request; nothing to do unless updates become very frequent.
+6. **When the knowledge base outgrows the prompt** (roughly 150–200k tokens),
+   switch from "send everything" to "send the top retrieved documents". The
+   retrieval pipeline is already there, so it's a change in
+   `buildMessages`, not a rebuild.
+
+Not worth it at this size: shortening embeddings to 512 dimensions (89 rows),
+a reranking model (the model already reads everything), or self-hosting
+embeddings on the current 4 GB VPS.
 
 ## 5. Features
 

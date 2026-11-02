@@ -1,7 +1,6 @@
-// Package openai is a small client for the two OpenAI calls the API makes:
-// streamed chat completions and structured JSON output (intent planning).
-// Embeddings are self-hosted (see package embeddings). It uses net/http
-// directly, which keeps every request visible.
+// Package openai is a small client for the OpenAI calls the API makes:
+// streamed chat completions, structured JSON output (intent planning) and
+// embeddings. It uses net/http directly, which keeps every request visible.
 package openai
 
 import (
@@ -218,4 +217,33 @@ func (c *Client) Structured(ctx context.Context, req StructuredRequest, out any)
 		return fmt.Errorf("model refused: %s", message.Refusal)
 	}
 	return json.Unmarshal([]byte(message.Content), out)
+}
+
+// Embed returns one embedding per input, in input order. dimensions shortens
+// text-embedding-3 vectors when non-zero.
+func (c *Client) Embed(ctx context.Context, model string, inputs []string, dimensions int) ([][]float32, error) {
+	body := map[string]any{"model": model, "input": inputs, "encoding_format": "float"}
+	if dimensions > 0 {
+		body["dimensions"] = dimensions
+	}
+	var resp struct {
+		Data []struct {
+			Index     int       `json:"index"`
+			Embedding []float32 `json:"embedding"`
+		} `json:"data"`
+	}
+	if err := c.postJSON(ctx, "/embeddings", body, &resp); err != nil {
+		return nil, err
+	}
+	if len(resp.Data) != len(inputs) {
+		return nil, fmt.Errorf("embeddings: got %d vectors for %d inputs", len(resp.Data), len(inputs))
+	}
+	vectors := make([][]float32, len(inputs))
+	for _, item := range resp.Data {
+		if item.Index < 0 || item.Index >= len(inputs) {
+			return nil, fmt.Errorf("embeddings: index %d out of range", item.Index)
+		}
+		vectors[item.Index] = item.Embedding
+	}
+	return vectors, nil
 }

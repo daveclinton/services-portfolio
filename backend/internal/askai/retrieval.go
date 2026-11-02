@@ -180,7 +180,7 @@ type scoredChunk struct {
 // chunk's best distance across queries.
 func (s *Service) searchSemantic(ctx context.Context, queries []string, filters Filters, limit int) ([]scoredChunk, error) {
 	if !s.embedder.Enabled() {
-		return nil, &semanticUnavailable{"semantic search is unavailable: EMBEDDINGS_URL is not configured"}
+		return nil, &semanticUnavailable{"semantic search is off; using full-text search"}
 	}
 	var count int
 	if err := s.db.QueryRow(ctx, "SELECT COUNT(*)::int FROM "+embeddingTable+" WHERE model = $1",

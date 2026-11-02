@@ -8,8 +8,7 @@ nginx handles TLS and proxies to the API on loopback.
 
 ```
 browser ──https──▶ nginx (api.daveclintonn.cc) ──▶ portfolio-api (127.0.0.1:API_PORT) ──▶ portfolio-db (pgvector)
-                                                                     ├──▶ portfolio-embeddings (nomic-embed-text-v1.5)
-                                                                     └──▶ OpenAI (answers only), Brevo
+                                                                     └──▶ OpenAI (answers, embeddings), Brevo
 ```
 
 ## Layout
@@ -53,23 +52,28 @@ check changes with `evals/` (see its README).
 
 ## Embeddings
 
-The `embeddings` service runs [Text Embeddings Inference](https://github.com/huggingface/text-embeddings-inference)
-on CPU with `nomic-ai/nomic-embed-text-v1.5` (768 dimensions). On first start
-it downloads the model (~550 MB) into the `hf-models` volume; it uses about
-525 MB of RAM. The API owns the `askai_chunk_embedding` table, creates it on
-startup, and embeds new or changed knowledge chunks at startup and every
-5 minutes, so re-running the ingestion pipeline is all it takes to refresh
-search. While the model loads, search falls back to full-text only.
+Semantic search vectors live in our own Postgres (`askai_chunk_embedding`,
+pgvector). The API creates the table, embeds new or changed knowledge chunks
+at startup and every 5 minutes, and rebuilds the table if the model's
+dimensions change. `EMBEDDINGS_PROVIDER` picks where vectors come from:
 
-To change the model, set `EMBEDDING_MODEL`, `EMBEDDING_DIMENSIONS` and its
-task prefixes; the API rebuilds the table. `knowledge-backend`'s
-`embed_knowledge` command (OpenAI) is no longer needed.
+- `openai` (default with `OPENAI_API_KEY`): `text-embedding-3-small`, 1536
+  dimensions. Indexing the whole knowledge base takes seconds and costs well
+  under a cent; no extra server memory.
+- `tei`: the optional self-hosted `embeddings` service (Hugging Face Text
+  Embeddings Inference, `BAAI/bge-small-en-v1.5`). Needs ~500 MB of free RAM;
+  switch it on with the lines in `.env.example`.
+- `off`: Postgres full-text search only.
+
+Every answer gets the whole knowledge base anyway, so semantic search mostly
+improves which documents are ranked as relevant. `knowledge-backend`'s
+`embed_knowledge` command and the OpenAI vector store are no longer used.
 
 ## Develop
 
 ```bash
 cp .env.example .env    # add OPENAI_API_KEY for chat; on Apple Silicon set EMBEDDINGS_IMAGE (see the file)
-make up                 # Postgres (:5433), embeddings (:8090), API (:8080)
+make up                 # Postgres (:5433) and the API (:8080)
 make db-ingest          # load the knowledge base with ../../knowledge-backend
 make test
 ```

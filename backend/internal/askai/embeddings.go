@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/daveclinton/portfolio/backend/internal/openai"
 )
 
 // Embeddings are stored in a table this API owns, next to the knowledge
@@ -18,6 +20,37 @@ import (
 const embeddingTable = "askai_chunk_embedding"
 
 const embedBatchSize = 32
+
+// embedder turns text into vectors. Implementations: the OpenAI embeddings
+// API (default), a self-hosted Text Embeddings Inference server, or nothing.
+type embedder interface {
+	Enabled() bool
+	Embed(ctx context.Context, inputs []string) ([][]float32, error)
+}
+
+type openAIEmbedder struct {
+	client     *openai.Client
+	model      string
+	dimensions int
+}
+
+func (e openAIEmbedder) Enabled() bool { return e.client.Enabled() }
+
+func (e openAIEmbedder) Embed(ctx context.Context, inputs []string) ([][]float32, error) {
+	// Only text-embedding-3 models accept a dimensions parameter.
+	dimensions := 0
+	if strings.HasPrefix(e.model, "text-embedding-3") {
+		dimensions = e.dimensions
+	}
+	return e.client.Embed(ctx, e.model, inputs, dimensions)
+}
+
+type disabledEmbedder struct{}
+
+func (disabledEmbedder) Enabled() bool { return false }
+func (disabledEmbedder) Embed(context.Context, []string) ([][]float32, error) {
+	return nil, errors.New("semantic search is off")
+}
 
 // ensureEmbeddingSchema creates the embeddings table and its index. If the
 // configured model has a different dimension than the existing column, the
@@ -119,8 +152,15 @@ func (s *Service) syncEmbeddings(ctx context.Context) (int, error) {
 func (s *Service) runEmbeddingSync(ctx context.Context) {
 	embedded, err := s.syncEmbeddings(ctx)
 	if err != nil {
-		s.log.Warn("embedding sync failed; semantic search uses what is already embedded", "err", err)
+		// Warn once per outage, not every 5 minutes; the embeddings service is
+		// optional and search falls back to full-text while it's away.
+		if !s.embeddingsDown.Swap(true) {
+			s.log.Warn("embeddings unavailable; search uses full-text until it is back", "err", err)
+		}
 		return
+	}
+	if s.embeddingsDown.Swap(false) {
+		s.log.Info("embeddings available again")
 	}
 	if embedded > 0 {
 		s.log.Info("embedded knowledge chunks", "count", embedded, "model", s.cfg.EmbeddingModel)

@@ -25,8 +25,12 @@ type Config struct {
 	OpenAIChatModel   string
 	OpenAIIntentModel string
 
-	// Self-hosted embeddings (Text Embeddings Inference). The prefixes are the
-	// task instructions nomic-embed-text expects; change them with the model.
+	// Embeddings for semantic search, stored in our own pgvector table.
+	// Provider "openai" (default when OPENAI_API_KEY is set) uses the OpenAI
+	// embeddings API; "tei" uses a self-hosted Text Embeddings Inference
+	// server at EmbeddingsURL; "off" disables semantic search. The prefixes
+	// are task instructions some models expect (none for OpenAI).
+	EmbeddingsProvider      string
 	EmbeddingsURL           string
 	EmbeddingModel          string
 	EmbeddingDimensions     int
@@ -69,11 +73,7 @@ func Load() (Config, error) {
 		OpenAIChatModel:   env("OPENAI_CHAT_MODEL", "gpt-4.1-mini"),
 		OpenAIIntentModel: env("OPENAI_INTENT_MODEL", "gpt-4o-mini"),
 
-		EmbeddingsURL:           env("EMBEDDINGS_URL", "http://127.0.0.1:8090"),
-		EmbeddingModel:          env("EMBEDDING_MODEL", "nomic-ai/nomic-embed-text-v1.5"),
-		EmbeddingDimensions:     positiveInt(env("EMBEDDING_DIMENSIONS", ""), 768),
-		EmbeddingQueryPrefix:    envRaw("EMBEDDING_QUERY_PREFIX", "search_query: "),
-		EmbeddingDocumentPrefix: envRaw("EMBEDDING_DOCUMENT_PREFIX", "search_document: "),
+		EmbeddingsURL: env("EMBEDDINGS_URL", ""),
 
 		BrevoAPIKey:      env("BREVO_API_KEY", ""),
 		BrevoAlertTo:     env("BREVO_ALERT_TO_EMAIL", ""),
@@ -82,6 +82,7 @@ func Load() (Config, error) {
 
 		ConversationRetentionDays: positiveInt(env("CONVERSATION_RETENTION_DAYS", ""), 30),
 	}
+	c.applyEmbeddingDefaults()
 	if c.BrevoSenderEmail == "" {
 		c.BrevoSenderEmail = c.BrevoAlertTo
 	}
@@ -96,10 +97,36 @@ func Load() (Config, error) {
 	if c.RateLimitsEnabled() && len(c.RateLimitSecret) < 32 {
 		problems = append(problems, errors.New("RATE_LIMIT_SECRET must contain at least 32 characters"))
 	}
+	switch c.EmbeddingsProvider {
+	case "openai", "tei", "off":
+	default:
+		problems = append(problems, fmt.Errorf("EMBEDDINGS_PROVIDER must be openai, tei or off, got %q", c.EmbeddingsProvider))
+	}
+	if c.EmbeddingsProvider == "tei" && c.EmbeddingsURL == "" {
+		problems = append(problems, errors.New("EMBEDDINGS_URL is required when EMBEDDINGS_PROVIDER=tei"))
+	}
 	if c.Production() && len(c.AllowedOrigins) == 0 {
 		problems = append(problems, errors.New("ALLOWED_ORIGINS is required in production"))
 	}
 	return c, errors.Join(problems...)
+}
+
+// applyEmbeddingDefaults picks the provider and the matching model settings.
+// Explicit EMBEDDING_* variables always win.
+func (c *Config) applyEmbeddingDefaults() {
+	defaultProvider := "off"
+	if c.OpenAIAPIKey != "" {
+		defaultProvider = "openai"
+	}
+	c.EmbeddingsProvider = env("EMBEDDINGS_PROVIDER", defaultProvider)
+	model, dims, queryPrefix := "text-embedding-3-small", 1536, ""
+	if c.EmbeddingsProvider == "tei" {
+		model, dims, queryPrefix = "BAAI/bge-small-en-v1.5", 384, "Represent this sentence for searching relevant passages: "
+	}
+	c.EmbeddingModel = env("EMBEDDING_MODEL", model)
+	c.EmbeddingDimensions = positiveInt(env("EMBEDDING_DIMENSIONS", ""), dims)
+	c.EmbeddingQueryPrefix = envRaw("EMBEDDING_QUERY_PREFIX", queryPrefix)
+	c.EmbeddingDocumentPrefix = envRaw("EMBEDDING_DOCUMENT_PREFIX", "")
 }
 
 func env(key, fallback string) string {
