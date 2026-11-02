@@ -63,15 +63,32 @@ Before the first deploy:
 2. Check the VPS has Docker with the compose plugin, nginx and certbot:
    `docker compose version && nginx -v && certbot --version`
    (`sudo apt install -y certbot` if it's missing).
-3. Push this repository to GitHub. If it's private, give the VPS read access,
-   e.g. a [deploy key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys).
+3. Give the VPS read access to the private repo with its own deploy key and
+   SSH host alias, so it never clashes with other GitHub keys on the server:
+
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/github_services_portfolio -N "" -C "vsvr40: services-portfolio deploy key"
+   cat >> ~/.ssh/config <<'EOF'
+
+   Host github-services-portfolio
+       HostName github.com
+       User git
+       IdentityFile ~/.ssh/github_services_portfolio
+       IdentitiesOnly yes
+   EOF
+   chmod 600 ~/.ssh/config
+   cat ~/.ssh/github_services_portfolio.pub
+   ```
+
+   Add that public key under the repo's **Settings → Deploy keys** (read-only),
+   then check with `ssh -T git@github-services-portfolio`.
 
 ### 1. Create the directory and clone
 
 ```bash
 sudo mkdir -p /opt/services-portfolio
 sudo chown "$USER": /opt/services-portfolio
-git clone git@github.com:daveclinton/services-portfolio.git /opt/services-portfolio
+git clone git@github-services-portfolio:daveclinton/services-portfolio.git /opt/services-portfolio
 cd /opt/services-portfolio/backend
 ```
 

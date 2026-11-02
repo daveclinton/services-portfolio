@@ -303,12 +303,12 @@ The script runs `nginx -t` before reloading, so a typo never takes the other sit
 
 ## 13. Deploy
 
-First, point a DNS `A` record for `api.daveclintonn.cc` at the server's IP and push the repository to GitHub. Then, on the server, create a folder under `/opt`, clone the repository into it, and create the `.env` file:
+First, point a DNS `A` record for `api.daveclintonn.cc` at the server's IP and push the repository to GitHub. The repository is private, so the server gets its own read-only deploy key and an SSH alias (`github-services-portfolio`) that uses only that key. Then, on the server, create a folder under `/opt`, clone the repository into it, and create the `.env` file:
 
 ```bash
 sudo mkdir -p /opt/services-portfolio
 sudo chown "$USER": /opt/services-portfolio
-git clone git@github.com:daveclinton/services-portfolio.git /opt/services-portfolio
+git clone git@github-services-portfolio:daveclinton/services-portfolio.git /opt/services-portfolio
 cd /opt/services-portfolio/backend
 
 cp .env.example .env && chmod 600 .env
