@@ -1,0 +1,303 @@
+export const metadata = {
+  title: "Moving my portfolio's backend to Go on a VPS",
+  description: "How I moved this site's AI assistant out of Next.js route handlers into one Go binary running in Docker behind nginx, step by step.",
+  date: "2026-11-02",
+  draft: true,
+}
+
+This site's Ask AI assistant used to run inside Next.js route handlers on Vercel. That works for one feature. But I want to build a series of small products here, one at a time, that you can use while I write about how each one works. For that I want one backend that I control, on a server I can SSH into.
+
+This post walks through the move: what needed a backend, why I chose Go, how the code is laid out, and how to run it in Docker on a VPS behind nginx. All the code is in the `backend/` folder of this site's repository.
+
+## 1. Decide what actually needs a backend
+
+Start by listing what runs on the server today. For this site it was:
+
+- **Chat**: retrieve evidence from Postgres, classify the question, and stream a grounded answer from OpenAI.
+- **Search**: return ranked knowledge chunks with their evidence.
+- **Rate limits**: per-visitor, per-IP and site-wide budgets so nobody can drain my OpenAI credits.
+- **Conversation logs**: store opted-in turns for 30 days and email me once per chat session.
+- **A daily cleanup job** that deletes expired conversations.
+
+The blog stays where it is. MDX posts are compiled into static pages at build time, so they don't need a server at all. Only work that has to happen at request time moves.
+
+## 2. Pick a language that stays out of the way
+
+I picked Go. It's what many systems engineers reach for when building network services, and the reasons are practical:
+
+- **One static binary.** `go build` produces a single file with no runtime to install. Deploying means copying that file to the server.
+- **The standard library is enough.** HTTP routing, TLS, JSON, crypto and structured logging are built in. The whole backend has one third-party dependency: the Postgres driver `pgx`.
+- **Concurrency is cheap.** Every request runs in its own goroutine, so streaming an answer to one visitor never blocks another.
+- **It's boring in a good way.** The code reads top to bottom, and there's one standard formatter.
+
+Rust is the other common choice. I'd pick it for something CPU-heavy or memory-critical. For a JSON-and-streaming API that mostly waits on Postgres and OpenAI, Go gets the same result with less ceremony.
+
+## 3. Lay out the project around products
+
+Each product gets its own package, and they share a small set of platform packages:
+
+```txt
+backend/
+  cmd/api/main.go        config, database pool, HTTP server, graceful shutdown
+  internal/
+    config/              environment variables, validated once at startup
+    server/              CORS, request logging, panic recovery, /healthz
+    httpx/               JSON helpers, body limits, client IP, Server-Sent Events
+    ratelimit/           sliding-window limits and per-visitor locks
+    visitor/             signed anonymous visitor cookie
+    openai/              the four OpenAI calls, over plain net/http
+    brevo/               transactional email
+    askai/               product #1: the portfolio assistant
+  deploy/setup.sh        picks a free port, starts Docker, configures nginx and TLS
+  Dockerfile, compose.yaml
+```
+
+A product is anything that can mount routes:
+
+```go
+type Product interface {
+	Routes(mux *http.ServeMux)
+}
+```
+
+Ask AI registers its two endpoints with Go's built-in router, which has matched on method and path since Go 1.22:
+
+```go
+func (s *Service) Routes(mux *http.ServeMux) {
+	mux.HandleFunc("POST /ask-ai/chat", s.handleChat)
+	mux.HandleFunc("POST /ask-ai/search", s.handleSearch)
+}
+```
+
+The next product will live in `internal/<name>/` and get added to one line in `main.go`.
+
+## 4. Fail fast on bad configuration
+
+On Vercel, a missing environment variable only shows up when a request fails. A long-running server can check everything once at startup and refuse to start if something is wrong:
+
+```go
+if c.DatabaseURL == "" {
+	problems = append(problems, errors.New("DATABASE_URL is required"))
+}
+if c.RateLimitsEnabled() && len(c.RateLimitSecret) < 32 {
+	problems = append(problems, errors.New("RATE_LIMIT_SECRET must contain at least 32 characters"))
+}
+return c, errors.Join(problems...)
+```
+
+If production starts without a rate-limit secret, the container logs the error and exits. It never serves a request with limits switched off.
+
+## 5. Stream answers with Server-Sent Events
+
+The chat endpoint streams its answer one piece at a time. Server-Sent Events are plain text over a normal HTTP response: an `event:` line, a `data:` line, and a blank line. The browser code didn't change at all, because the Go server writes the same frames the Next.js route did.
+
+```go
+func (s *SSE) Send(event string, payload any) error {
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(s.w, "event: %s\ndata: %s\n\n", event, data); err != nil {
+		return err
+	}
+	return s.rc.Flush() // push this frame to the visitor now
+}
+```
+
+Two details matter here:
+
+1. **Flush every frame.** Without `Flush`, Go buffers output and the visitor sees the whole answer arrive at once. `http.ResponseController` does the flushing.
+2. **Let middleware unwrap.** The logging middleware wraps the response writer to record the status code. It needs an `Unwrap()` method, or `ResponseController` can't reach the real writer and flushing silently stops working.
+
+Each request also gets a deadline, and the OpenAI call shares that context. If a visitor closes the tab, the request context is cancelled, the OpenAI stream stops, and I stop paying for tokens nobody will read.
+
+```go
+ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
+defer cancel()
+```
+
+## 6. Rate limit in memory
+
+On Vercel every request might land on a fresh function instance, so the limits had to live in Redis. On a VPS there's one long-running process, so the limits can live in its memory:
+
+```go
+func (w *Window) Allow(key string) Result {
+	now := w.now()
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	hits := w.prune(key, now) // drop timestamps older than the window
+	if len(hits) >= w.Limit {
+		return Result{Allowed: false, Reset: hits[0].Add(w.Period)}
+	}
+	hits = append(hits, now)
+	w.hits[key] = hits
+	return Result{Allowed: true, Remaining: w.Limit - len(hits), Reset: hits[0].Add(w.Period)}
+}
+```
+
+This is a sliding-window log: it keeps one timestamp per counted request and drops old ones on each check. A mutex makes it safe to call from many goroutines at once, and a background ticker clears out idle keys every minute.
+
+The trade-off is that a restart resets the counters. A deploy takes a second, so that's acceptable here. If I ever run more than one copy of the API, I'll put the same `Allow` method in front of Redis.
+
+The same approach replaces the Redis lock that allowed only one answer per visitor at a time. It's a map from visitor ID to a random token and an expiry time. Only the request holding the token can release the lock, so a slow request can't free a lock that a newer request now holds.
+
+## 7. Run work after the response
+
+After an answer finishes, the server stores the conversation and maybe sends me an email. In Next.js this used `after()`. In Go it's a goroutine, plus a `WaitGroup` so shutdown waits for it to finish:
+
+```go
+func (s *Service) goBackground(work func(ctx context.Context)) {
+	s.background.Go(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		work(ctx)
+	})
+}
+```
+
+It uses `context.Background()` on purpose: the visitor leaving shouldn't cancel the write to the database. When Docker stops the container, `main` calls `srv.Shutdown` to let open streams finish, then `Wait()`, and only then exits.
+
+The daily Vercel cron job goes away too. The service starts a ticker that deletes expired conversations every six hours.
+
+## 8. Call OpenAI without an SDK
+
+There's no official OpenAI SDK in this backend. The four calls it needs (streamed chat, structured JSON output, embeddings and vector store search) are plain HTTPS requests with JSON bodies. Reading a stream is a loop over lines:
+
+```go
+scanner := bufio.NewScanner(resp.Body)
+for scanner.Scan() {
+	data, ok := strings.CutPrefix(scanner.Text(), "data:")
+	if !ok {
+		continue
+	}
+	data = strings.TrimSpace(data)
+	if data == "[DONE]" {
+		return nil
+	}
+	// decode the chunk and pass choices[0].delta.content to onDelta
+}
+```
+
+Writing it by hand keeps every request visible. When something fails, the HTTP status and body are right there in the logs.
+
+## 9. Point the frontend at the API
+
+The API lives at `api.daveclintonn.cc`, so the browser now makes a cross-origin request. Two changes make that work.
+
+In the frontend, add the API's URL and send cookies along:
+
+```ts
+const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+fetch(`${API_URL}/ask-ai/chat`, {
+  method: "POST",
+  credentials: "include", // sends the signed visitor cookie
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(payload),
+})
+```
+
+On the server, allow exactly the portfolio's origins. Also expose the rate-limit headers, because the browser hides response headers from JavaScript unless the server lists them:
+
+```go
+h.Set("Access-Control-Allow-Origin", origin) // only if it's in ALLOWED_ORIGINS
+h.Set("Access-Control-Allow-Credentials", "true")
+h.Set("Access-Control-Expose-Headers", "Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset")
+```
+
+The visitor cookie keeps working because `www.daveclintonn.cc` and `api.daveclintonn.cc` count as the same site, so a `SameSite=Lax` cookie is still sent.
+
+## 10. Package it with Docker
+
+My VPS already runs other apps, each in its own folder under `/opt` and its own container. The API follows the same pattern. The Dockerfile builds the binary in a Go image, then copies only the binary into a minimal image with no shell. The result is about 25 MB:
+
+```dockerfile
+FROM golang:1.27-alpine AS build
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /portfolio-api ./cmd/api
+
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /portfolio-api /portfolio-api
+ENTRYPOINT ["/portfolio-api"]
+```
+
+The compose file publishes the container's port on `127.0.0.1` only, so nothing outside the server can reach it directly:
+
+```yaml
+ports:
+  - "127.0.0.1:${API_PORT:-8080}:8080"
+```
+
+There's no `curl` in a distroless image, so the binary checks its own health instead. Running `portfolio-api healthcheck` requests `/healthz` and exits with 0 or 1, and Docker uses that to mark the container healthy.
+
+## 11. Find a free port
+
+Other apps on the server already use some ports. Instead of guessing, `deploy/setup.sh` asks the system which ports are taken: everything with a listening socket, plus anything Docker has published.
+
+```bash
+used_ports() {
+	{
+		ss -ltnH | awk '{print $4}' | sed -E 's/.*:([0-9]+)$/\1/'
+		docker ps --format '{{.Ports}}' | grep -oE ':[0-9]+->' | tr -d ':->' || true
+	} | sort -un
+}
+```
+
+It picks the first free port from 8080 upward and saves it as `API_PORT` in the `.env` file. On later deploys it keeps the same port, so the nginx config never points at the wrong place.
+
+## 12. Put nginx in front
+
+The server already runs nginx for the other apps, so the script adds one more site file for `api.daveclintonn.cc`. The important part is the proxy block:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:8080;   # the port picked above
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    proxy_buffering off;
+    proxy_read_timeout 120s;
+}
+```
+
+Two lines are there because of this particular API:
+
+- **`proxy_buffering off`** passes each streamed chunk to the browser right away. Without it, nginx holds the answer and sends it all at the end.
+- **`X-Forwarded-For $remote_addr`** replaces whatever the client sent with the real address. The API trusts this header for per-IP rate limits, so a client mustn't be able to set it.
+
+The script runs `nginx -t` before reloading, so a typo never takes the other sites down. It then gets a certificate with `certbot certonly --webroot` and rewrites the site file with HTTPS. Using `certonly` means certbot never edits the file itself, so the script can rewrite it on every deploy.
+
+## 13. Deploy
+
+First, point a DNS `A` record for `api.daveclintonn.cc` at the server's IP. Then, from the `backend/` folder on your laptop:
+
+```bash
+make deploy VPS=clinton@your-server-ip
+```
+
+That runs the tests, copies the code to `/opt/portfolio-api` with `rsync` (never your local `.env`), and runs `deploy/setup.sh` on the server. On the first run the script creates `/opt/portfolio-api/.env` from the example and stops so you can fill it in. Set `APP_ENV=production`, set `ALLOWED_ORIGINS=https://www.daveclintonn.cc,https://daveclintonn.cc`, generate the secret with `openssl rand -base64 48`, and run the same command again.
+
+Then check it from outside:
+
+```bash
+curl https://api.daveclintonn.cc/healthz
+# {"status":"ok"}
+
+curl -X POST https://api.daveclintonn.cc/ask-ai/search \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"projects","mode":"structured","limit":2,"include_content":false}'
+```
+
+The search call returns ranked chunks without calling OpenAI or storing anything. To check streaming, ask a question on the site and watch the answer arrive word by word. Each chat turn is stored as a real conversation, so don't script it in a test loop. `make logs` follows the container's logs, one JSON line per request.
+
+Last, set `NEXT_PUBLIC_API_URL=https://api.daveclintonn.cc` in Vercel and redeploy the site. The old Upstash, Neon-driver and AI SDK packages, the route handlers and the cron entry are already deleted from the repository.
+
+## What's next
+
+The backend now has a home for new products: a package, a `Routes` method and a line in `main.go`. From here I'll build them one at a time, each with a post explaining how it works and a version on this site that you can try.

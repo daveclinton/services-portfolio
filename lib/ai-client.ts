@@ -1,4 +1,19 @@
-import { INTENT_NAMES, type IntentName } from "./knowledge/intent"
+// Mirrors IntentNames in backend/internal/askai/intent.go.
+export const INTENT_NAMES = [
+  "general",
+  "biography",
+  "rates",
+  "experience",
+  "projects",
+  "skills",
+  "technologies",
+  "outcomes",
+] as const
+
+export type IntentName = (typeof INTENT_NAMES)[number]
+
+// The Go API (backend/) runs on its own origin, e.g. https://api.daveclintonn.cc.
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "")
 
 export type ChatTurn = { role: "user" | "assistant"; content: string }
 
@@ -101,8 +116,10 @@ export async function* streamChat({
 }): AsyncGenerator<ChatEvent> {
   let response: Response
   try {
-    response = await fetch("/api/chat", {
+    response = await fetch(`${API_URL}/ask-ai/chat`, {
       method: "POST",
+      // Sends the signed visitor cookie the API uses for rate limits.
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         messages,

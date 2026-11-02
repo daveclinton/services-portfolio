@@ -60,61 +60,57 @@ merging treats it as font size rather than colour.
    Maru Gothic as the closest available stand-in; if you license the real file,
    put it in `public/fonts/` and switch `app/layout.tsx` to `next/font/local`
    using the same `--font-portfolio-sans` variable.
-5. **Ask an AI** — the `/ask-ai` page talks to this site's own API routes. See
+5. **Ask an AI** — the `/ask-ai` page talks to the Go API in `backend/`. See
    below.
 
 ## Ask AI
 
 `/ask-ai` is a real retrieval-augmented chat, not a scripted demo. The browser
-posts to `POST /api/chat`, reads the answer as Server-Sent Events, and streams
-the answer text into the conversation.
+posts to the Go API, reads the answer as Server-Sent Events, and streams the
+answer text into the conversation.
 
 ```txt
-browser  ──POST /api/chat───▶  Next.js route handler
-                               ├─ retrieval over KnowledgeChunk (structured + semantic, RRF)
-                               ├─ rules or semantic intent classifier
-                               │  └─ anchors, ordering, prompt guidance
-                               ├─ citations resolved to Evidence rows
-                               └─ OpenAI, grounded on those chunks only
-browser  ◀── event: retrieval ─  (intent, strategies, notes)
-         ◀── event: citations ─
-         ◀── event: delta × n ─
-         ◀── event: done ──────
+browser ──POST /ask-ai/chat──▶ nginx ──▶ Go API in Docker (backend/)
+                                         ├─ retrieval over KnowledgeChunk (structured + semantic, RRF)
+                                         ├─ rules or model intent classifier
+                                         ├─ citations resolved to Evidence rows
+                                         └─ OpenAI, grounded on those chunks only
+browser ◀── event: retrieval / citations / delta × n / done
 ```
 
-The Next.js app owns all client-facing HTTP behavior:
+Everything that needs a server lives in `backend/`, a single Go binary deployed
+in Docker on a VPS behind nginx at `api.daveclintonn.cc`. The Next.js app only renders
+pages (including the MDX blog) and needs one setting:
 
-| Route | Purpose |
-| --- | --- |
-| `POST /api/chat` | Retrieve evidence and stream a grounded answer. |
-| `POST /api/search` | Return ranked knowledge chunks and their evidence. |
+```dotenv
+NEXT_PUBLIC_API_URL=https://api.daveclintonn.cc   # http://localhost:8080 locally
+```
 
-Both routes query Postgres directly through `lib/knowledge/`. The browser uses
-same-origin `/api/*` URLs; it needs no backend hostname or public API URL setting.
+See `backend/README.md` for the API's layout, routes, rate limits and
+environment variables, and the draft post
+`content/blog/moving-my-portfolio-backend-to-go.mdx` for the full VPS setup.
 
-Before answering, the server classifies the question (biography, rates,
-projects, outcomes, …). Explicit wording uses the deterministic fast path in
-`lib/knowledge/intent.ts`; ambiguous wording uses the structured-output model in
-`lib/knowledge/intent-classifier.ts`. The selected intent adds the files a broad
-question must see, orders the retrieved chunks toward the evidence the question
-asks for, and tells the answer model what shape to write. Its source and
-confidence are stored with opted-in conversation turns for later evaluation.
+Ask AI requires explicit conversation-storage consent before a question can be
+sent. Opted-in questions and responses are stored in `knowledge_aiconversation`
+and `knowledge_aiconversationturn` for 30 days, with only coarse device
+categories and a daily rotating network hash. The API purges expired
+conversations itself, and each browser-tab chat session triggers at most one
+private Brevo email.
 
 The Python code in the separate `knowledge-backend` repository (checked out
-beside this one) is an offline workspace for the knowledge and
-model pipeline: ingestion, embedding generation, audits, retrieval evaluation,
-and database migrations. It has no API, admin, or HTTP deployment.
-`python manage.py runserver` is disabled. See its README for the pipeline guide.
+beside this one) is an offline workspace for the knowledge and model pipeline:
+ingestion, embedding generation, audits, retrieval evaluation, and database
+migrations. It has no HTTP deployment.
 
 ## Setup and deployment
 
-Only the Next.js app needs to be deployed, on Vercel or another Node.js host.
-The offline pipeline prepares the same Postgres database that the routes read.
+Deploy the Next.js app to Vercel and the Go API to the VPS. The offline
+pipeline prepares the Postgres database that the API reads.
 
 ### 1. Prepare the database
 
-Use Postgres with the `vector` and `pg_trgm` extensions available. The Next.js
-routes use Neon's HTTP driver, so the deployed database must support that driver.
+Use Postgres with the `vector` and `pg_trgm` extensions available. The Go API
+connects with `pgx`, so any standard Postgres works (Neon or one on the VPS).
 Copy a direct connection string into `knowledge-backend/.env` as `DATABASE_URL`.
 
 ```bash
@@ -140,75 +136,31 @@ locally or in a job with access to that checkout and the database; no Python web
 service is needed. Existing workflows generate embeddings and evaluate
 retrieval; there is currently no separate model-training command.
 
-### 2. Configure and deploy Next.js
-
-Copy `.env.example` to `.env.local` for local development. For Vercel, import
-the repository with the root directory unchanged and set these server-only
-variables for Production and Preview:
-
-```dotenv
-DATABASE_URL=postgresql://...   # the database prepared by the Python pipeline
-OPENAI_API_KEY=sk-...
-UPSTASH_REDIS_REST_URL=https://...
-UPSTASH_REDIS_REST_TOKEN=...
-RATE_LIMIT_SECRET=...           # random value, at least 32 characters
-AI_GLOBAL_DAILY_LIMIT=200       # optional circuit breaker
-SEARCH_GLOBAL_DAILY_LIMIT=2000  # optional circuit breaker
-CRON_SECRET=...                 # random value, at least 16 characters
-BREVO_API_KEY=...               # server-only transactional email key
-BREVO_ALERT_TO_EMAIL=david@daveclintonn.cc
-BREVO_SENDER_EMAIL=david@daveclintonn.cc  # verified Brevo sender
-BREVO_SENDER_NAME=David Clinton Portfolio
-```
-
-`OPENAI_API_KEY` is needed for grounded answers and semantic query embeddings.
-Without it, search can fall back to structured retrieval and chat reports the
-missing key when an answer would require generation.
-
-During local development, leave the Upstash variables and `RATE_LIMIT_SECRET`
-blank to bypass rate checks and the Redis concurrency lock. Production still
-fails closed when any of them is missing. Chat allows 3 questions per minute,
-15 per hour and 30 per day per signed anonymous visitor, plus 40 per hour per
-hashed IP. Only one answer can be generated per visitor at a time.
-`/api/search` has separate, higher limits. Both routes also have configurable
-site-wide daily ceilings.
-
-Ask AI requires explicit conversation-storage consent before a question can be
-sent. When a visitor selects the consent checkbox, questions and responses are stored in
-`knowledge_aiconversation` and `knowledge_aiconversationturn` for 30 days.
-Only coarse device categories and a daily rotating network hash are retained;
-raw IP addresses and full user-agent strings are not stored. Apply the Django
-migrations before deploying this feature. A protected Vercel cron job deletes
-expired conversations every day; `CRON_SECRET` is sent by Vercel in its
-authorization header.
-
-Each browser-tab chat session triggers at most one private Brevo email, on its
-first stored turn. A session ID lives in `sessionStorage`, so later turns and
-page reloads in the same tab do not create more alerts; closing the tab ends the
-browser session. All opted-in turns are still stored. Email delivery runs after
-the response and cannot break the visitor's chat request. Configure the four
-`BREVO_*` variables above in every deployment environment where alerts should
-be sent, and apply migrations so `AIConversation.alerted_at` is available.
-
-The Python pipeline lives in its own repository and runs separately as command-line jobs.
-Remove any old `NEXT_PUBLIC_API_BASE_URL` deployment variable; it is no longer
-read. The former Fly.io/Python API deployment is no longer used by this app and
-can be retired separately.
-
-### 3. Smoke test
+### 2. Run locally
 
 ```bash
-curl -sS https://<your-site>/api/search \
-  -H 'Content-Type: application/json' \
-  -d '{"query":"mobile apps","mode":"structured","limit":5}'
-
-curl -sS -N https://<your-site>/api/chat \
-  -H 'Content-Type: application/json' \
-  -d '{"messages":[{"role":"user","content":"What does he work on at Mika?"}]}'
+cd backend && cp .env.example .env && make run   # API on :8080
+pnpm dev                                         # site on :3000
 ```
 
-Expect a JSON search response and streamed `retrieval`, `citations`, `delta`,
-and `done` events for chat. Then open `/ask-ai` and ask a question.
+### 3. Deploy
+
+```bash
+cd backend && make deploy VPS=clinton@<vps-ip>   # Docker + nginx; see backend/README.md
+```
+
+Then set `NEXT_PUBLIC_API_URL` in Vercel and redeploy the site.
+
+### 4. Smoke test
+
+```bash
+curl -sS https://api.daveclintonn.cc/healthz
+curl -sS https://api.daveclintonn.cc/ask-ai/search \
+  -H 'Content-Type: application/json' \
+  -d '{"query":"mobile apps","mode":"structured","limit":5}'
+```
+
+Then open `/ask-ai` and ask a question.
 
 ## Accessibility notes
 

@@ -1,4 +1,4 @@
-import type { IntentName as AskAiIntent } from "@/lib/knowledge/intent"
+import type { IntentName as AskAiIntent } from "@/lib/ai-client"
 
 export type BrandIconName = "github" | "x" | "linkedin"
 
