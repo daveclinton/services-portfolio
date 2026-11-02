@@ -138,6 +138,14 @@ export const askAi = {
   title: `What do you want to know`,
   placeholder: "Ask about my work…",
   inputLabel: "Ask about my work",
+  // Starter questions shown on the empty chat screen.
+  suggestions: [
+    "What does David do?",
+    "What projects has he shipped?",
+    "Which technologies does he use?",
+    "Is he available for contract work?",
+  ],
+  storageNotice: "Conversations are stored for 30 days to improve the assistant.",
 } as const
 
 export const askAiStatus: Record<AskAiIntent, string> = {

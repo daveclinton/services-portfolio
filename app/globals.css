@@ -660,3 +660,68 @@ html.has-visible-viewport body {
     word-break: break-all;
   }
 }
+
+/* Ask AI answers (components/prompt-kit/markdown.tsx). */
+.chat-markdown {
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+}
+.chat-markdown > * + * {
+  margin-top: 0.75em;
+}
+.chat-markdown p + p,
+.chat-markdown p + ul,
+.chat-markdown p + ol {
+  margin-top: 0.75em;
+}
+.chat-markdown ul,
+.chat-markdown ol {
+  padding-left: 1.25em;
+}
+.chat-markdown ul {
+  list-style: disc;
+}
+.chat-markdown ol {
+  list-style: decimal;
+}
+.chat-markdown li + li {
+  margin-top: 0.25em;
+}
+.chat-markdown li::marker {
+  color: var(--muted-foreground);
+}
+.chat-markdown strong {
+  font-weight: 600;
+}
+.chat-markdown a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
+}
+.chat-markdown a:hover {
+  text-decoration-color: currentColor;
+}
+.chat-markdown code {
+  border-radius: 0.375rem;
+  background: var(--muted);
+  padding: 0.1em 0.35em;
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+.chat-markdown pre {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  background: var(--muted);
+  padding: 0.75rem 1rem;
+}
+.chat-markdown pre code {
+  background: none;
+  padding: 0;
+}
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3 {
+  font-size: var(--text-title);
+  line-height: var(--text-title--line-height);
+  font-weight: 600;
+}

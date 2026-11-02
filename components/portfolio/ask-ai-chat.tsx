@@ -1,10 +1,14 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { SendHorizonal } from "lucide-react"
+import { ArrowUp, Check, Copy, RotateCcw, SquarePen } from "lucide-react"
 import Link from "next/link"
 import { AnimatePresence, motion, useInView, useReducedMotion } from "motion/react"
 import { Button } from "@/components/ui/button"
+import { ChatContainerContent, ChatContainerRoot } from "@/components/prompt-kit/chat-container"
+import { Message, MessageAction, MessageActions, MessageContent } from "@/components/prompt-kit/message"
+import { PromptSuggestion } from "@/components/prompt-kit/prompt-suggestion"
+import { ScrollButton } from "@/components/prompt-kit/scroll-button"
 import {
   AiApiError,
   streamChat,
@@ -14,6 +18,13 @@ import {
 } from "@/lib/ai-client"
 import { askAi, askAiStatus } from "@/lib/portfolio-data"
 import { MatrixOrb } from "@/components/portfolio/matrix-orb"
+import { cn } from "@/lib/utils"
+
+// Layout and interaction patterns borrowed from prompt-kit's conversation
+// blocks (https://github.com/ibelick/prompt-kit, MIT): the user's message in a
+// soft bubble on the right, the assistant's answer as unboxed markdown in the
+// reading column, actions under each answer, a scroll-to-latest button, a
+// send button that becomes a stop button, and starter questions.
 
 type Turn = {
   id: string
@@ -24,18 +35,40 @@ type Turn = {
   intent?: ChatIntent
 }
 
-let turnCounter = 0
 const CONSENT_VERSION = "2026-09-22"
 const CONSENT_STORAGE_KEY = "ask-ai:conversation-storage-consent"
 const CONVERSATION_SESSION_KEY = "ask-ai:conversation-session-id"
+const TURNS_STORAGE_KEY = "ask-ai:turns"
 
-function nextId(role: Turn["role"]) {
-  turnCounter += 1
-  return `${role}-${turnCounter}`
+function newId(role: Turn["role"]) {
+  return `${role}-${crypto.randomUUID()}`
 }
 
 function replaceTurn(turns: Turn[], id: string, update: (turn: Turn) => Turn): Turn[] {
   return turns.map((turn) => (turn.id === id ? update(turn) : turn))
+}
+
+function CopyAction({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <MessageAction tooltip={copied ? "Copied" : "Copy"}>
+      <Button
+        variant="ghost"
+        size="icon"
+        aria-label="Copy answer"
+        className="rounded-full text-muted-foreground hover:text-foreground"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(text)
+            setCopied(true)
+            setTimeout(() => setCopied(false), 1500)
+          } catch {}
+        }}
+      >
+        {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
+      </Button>
+    </MessageAction>
+  )
 }
 
 export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: boolean; suggestedQuestion?: string } = {}) {
@@ -43,7 +76,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   const [draft, setDraft] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
   const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null)
-  const [improvementLogging, setImprovementLogging] = useState(false)
+  const [consented, setConsented] = useState(false)
   const [showConsentError, setShowConsentError] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
@@ -53,28 +86,29 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   const embeddedRef = useRef<HTMLDivElement>(null)
   const inView = useInView(embeddedRef, { once: true, amount: 0.3 })
   const hasSuggested = useRef(false)
+  const restored = useRef(false)
 
   const hasConversation = turns.length > 0
 
+  // Blog-post version: offer a suggested question once the reader reaches it.
   useEffect(() => {
     if (!embedded || !inView || !suggestedQuestion || hasSuggested.current) return
     hasSuggested.current = true
     setDraft((current) => current || suggestedQuestion)
   }, [embedded, inView, suggestedQuestion])
 
-  useEffect(() => {
-    return () => abortRef.current?.abort()
-  }, [])
+  useEffect(() => () => abortRef.current?.abort(), [])
 
   useEffect(() => {
     const syncConsent = () => {
-      setImprovementLogging(localStorage.getItem(CONSENT_STORAGE_KEY) === CONSENT_VERSION)
+      setConsented(localStorage.getItem(CONSENT_STORAGE_KEY) === CONSENT_VERSION)
     }
     syncConsent()
     window.addEventListener("storage", syncConsent)
     return () => window.removeEventListener("storage", syncConsent)
   }, [])
 
+  // One conversation ID per browser tab; the server sends at most one alert per ID.
   useEffect(() => {
     let conversationId = sessionStorage.getItem(CONVERSATION_SESSION_KEY)
     if (!conversationId) {
@@ -84,38 +118,29 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     conversationIdRef.current = conversationId
   }, [])
 
-  // On the full Ask AI page only the message list scrolls, so the message box
-  // stays in view. Keep the list pinned to the newest message unless the
-  // reader has scrolled up to read something older.
-  const listRef = useRef<HTMLDivElement | null>(null)
-  const pinnedToBottom = useRef(true)
+  // The full page keeps the conversation across reloads in this tab.
+  useEffect(() => {
+    if (embedded) return
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(TURNS_STORAGE_KEY) ?? "[]") as Turn[]
+      if (Array.isArray(saved) && saved.length > 0) {
+        // sessionStorage only exists in the browser, so the saved conversation
+        // can only be restored after hydration; doing it during render would
+        // make the server and client HTML differ.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setTurns(saved.map((turn) => (turn.status === "streaming" ? { ...turn, status: "done" } : turn)))
+      }
+    } catch {}
+    restored.current = true
+  }, [embedded])
 
   useEffect(() => {
-    const list = listRef.current
-    if (embedded || !list) return
-    const onScroll = () => {
-      pinnedToBottom.current = list.scrollHeight - list.scrollTop - list.clientHeight < 80
-    }
-    // The list gets shorter when the keyboard opens; keep the latest message visible.
-    const observer = new ResizeObserver(() => {
-      if (pinnedToBottom.current) list.scrollTop = list.scrollHeight
-    })
-    list.addEventListener("scroll", onScroll, { passive: true })
-    observer.observe(list)
-    return () => {
-      list.removeEventListener("scroll", onScroll)
-      observer.disconnect()
-    }
-  }, [embedded, hasConversation])
+    if (embedded || !restored.current || isStreaming) return
+    sessionStorage.setItem(TURNS_STORAGE_KEY, JSON.stringify(turns))
+  }, [turns, isStreaming, embedded])
 
-  useEffect(() => {
-    const list = listRef.current
-    if (embedded || !list || !pinnedToBottom.current) return
-    list.scrollTop = list.scrollHeight
-  }, [turns, embedded])
-
-  // In the blog-post version, the browser scrolls the page. Once the keyboard
-  // finishes opening, make sure the message box is still in view.
+  // In the blog-post version the page scrolls; keep the composer in view when
+  // the on-screen keyboard opens.
   useEffect(() => {
     const viewport = window.visualViewport
     if (!embedded || !viewport) return
@@ -128,124 +153,98 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     return () => viewport.removeEventListener("resize", onResize)
   }, [embedded])
 
-  async function ask(text: string) {
-    const question = text.trim()
-    if (!question || !improvementLogging || isStreaming) return
-
-    const userTurn: Turn = {
-      id: nextId("user"),
-      role: "user",
-      content: question,
-      status: "done",
-    }
-    const assistantTurn: Turn = {
-      id: nextId("assistant"),
-      role: "assistant",
-      content: "",
-      status: "streaming",
-    }
-
-    const history: ChatTurn[] = [...turns, userTurn].map((turn) => ({
-      role: turn.role,
-      content: turn.content,
-    }))
-
-    // Sending a question always jumps to the newest message.
-    pinnedToBottom.current = true
-    setTurns((previous) => [...previous, userTurn, assistantTurn])
-    setDraft("")
+  async function streamAnswer(history: Turn[]) {
+    const assistantTurn: Turn = { id: newId("assistant"), role: "assistant", content: "", status: "streaming" }
+    setTurns([...history, assistantTurn])
     setIsStreaming(true)
 
     abortRef.current?.abort()
     const controller = new AbortController()
     abortRef.current = controller
 
-    if (!conversationIdRef.current) {
-      conversationIdRef.current = crypto.randomUUID()
-      sessionStorage.setItem(CONVERSATION_SESSION_KEY, conversationIdRef.current)
-    }
+    const update = (change: (turn: Turn) => Turn) =>
+      setTurns((previous) => replaceTurn(previous, assistantTurn.id, change))
 
     try {
       for await (const event of streamChat({
-        messages: history,
+        messages: history.map((turn): ChatTurn => ({ role: turn.role, content: turn.content })),
         signal: controller.signal,
         improvementLogging: true,
         conversationId: conversationIdRef.current ?? undefined,
         turnId: crypto.randomUUID(),
       })) {
         if (event.type === "delta") {
-          setTurns((previous) =>
-            replaceTurn(previous, assistantTurn.id, (turn) => ({
-              ...turn,
-              content: stripCitationMarkers(turn.content + event.text),
-            }))
-          )
+          update((turn) => ({ ...turn, content: stripCitationMarkers(turn.content + event.text) }))
         } else if (event.type === "retrieval") {
-          setTurns((previous) =>
-            replaceTurn(previous, assistantTurn.id, (turn) => ({
-              ...turn,
-              intent: event.intent,
-            }))
-          )
+          update((turn) => ({ ...turn, intent: event.intent }))
         } else if (event.type === "rate_limit") {
           setQuestionsRemaining(event.remaining)
         } else if (event.type === "error") {
-          setTurns((previous) =>
-            replaceTurn(previous, assistantTurn.id, (turn) => ({
-              ...turn,
-              status: "error",
-              error: event.detail,
-            }))
-          )
+          update((turn) => ({ ...turn, status: "error", error: event.detail }))
         } else if (event.type === "done") {
-          setTurns((previous) =>
-            replaceTurn(previous, assistantTurn.id, (turn) => ({
-              ...turn,
-              status: "done",
-            }))
-          )
+          update((turn) => (turn.status === "error" ? turn : { ...turn, status: "done" }))
         }
       }
     } catch (error) {
-      if ((error as Error)?.name === "AbortError") return
-      const detail =
-        error instanceof AiApiError
-          ? error.message
-          : "Something went wrong while answering. Try again."
-      setTurns((previous) =>
-        replaceTurn(previous, assistantTurn.id, (turn) => ({
-          ...turn,
-          status: "error",
-          error: detail,
-        }))
-      )
+      if ((error as Error)?.name !== "AbortError") {
+        const detail =
+          error instanceof AiApiError ? error.message : "Something went wrong while answering. Try again."
+        update((turn) => ({ ...turn, status: "error", error: detail }))
+      }
     } finally {
       setIsStreaming(false)
-      setTurns((previous) =>
-        replaceTurn(previous, assistantTurn.id, (turn) =>
-          turn.status === "streaming" ? { ...turn, status: "done" } : turn
-        )
-      )
+      update((turn) => (turn.status === "streaming" ? { ...turn, status: "done" } : turn))
+      if (abortRef.current === controller) abortRef.current = null
     }
   }
 
-  const submitDraft = () => {
-    if (draft.trim() && !improvementLogging) {
+  function ask(text: string) {
+    const question = text.trim()
+    if (!question || isStreaming) return
+    if (!consented) {
+      setDraft(question)
       setShowConsentError(true)
       consentRef.current?.focus()
       return
     }
     setShowConsentError(false)
-    void ask(draft)
+    setDraft("")
+    const userTurn: Turn = { id: newId("user"), role: "user", content: question, status: "done" }
+    void streamAnswer([...turns, userTurn])
+  }
+
+  // Ask the last question again, replacing the last answer.
+  function retry() {
+    if (isStreaming) return
+    const lastUser = turns.findLastIndex((turn) => turn.role === "user")
+    if (lastUser === -1) return
+    void streamAnswer(turns.slice(0, lastUser + 1))
+  }
+
+  function stop() {
+    abortRef.current?.abort()
+  }
+
+  function newChat() {
+    abortRef.current?.abort()
+    const conversationId = crypto.randomUUID()
+    sessionStorage.setItem(CONVERSATION_SESSION_KEY, conversationId)
+    sessionStorage.removeItem(TURNS_STORAGE_KEY)
+    conversationIdRef.current = conversationId
+    setTurns([])
+    setDraft("")
+    setShowConsentError(false)
+    inputRef.current?.focus()
   }
 
   const composer = (
     <div>
       <form
-        className="group/composer flex w-full min-w-0 items-end gap-1.5 rounded-[1.35rem] border border-input bg-card p-1.5 pl-3 shadow-sm transition-[border-color,box-shadow,background-color] hover:border-foreground/25 focus-within:border-ring focus-within:bg-background focus-within:ring-3 focus-within:ring-ring/20 sm:gap-2 sm:rounded-[1.5rem] sm:pl-4"
+        className="flex w-full min-w-0 items-end gap-2 rounded-3xl border border-input bg-card p-2 pl-4 shadow-xs transition-[border-color,box-shadow,background-color] hover:border-foreground/25 focus-within:border-ring focus-within:bg-background focus-within:ring-3 focus-within:ring-ring/20"
         onSubmit={(event) => {
           event.preventDefault()
-          submitDraft()
+          if (isStreaming) stop()
+          else ask(draft)
         }}
       >
         <label htmlFor="ask-ai-input" className="sr-only">
@@ -257,60 +256,68 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) {
+            if (event.key === "Escape" && isStreaming) {
+              event.preventDefault()
+              stop()
               return
             }
+            if (event.key !== "Enter" || event.shiftKey || event.nativeEvent.isComposing) return
             event.preventDefault()
-            submitDraft()
+            ask(draft)
           }}
           placeholder={askAi.placeholder}
           autoComplete="off"
           enterKeyHint="send"
           rows={1}
           aria-describedby="ask-ai-input-hint"
-          className="min-h-9 max-h-28 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-base leading-6 text-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-60 sm:max-h-32 sm:text-body sm:leading-[1.375rem]"
+          className="min-h-11 max-h-40 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent py-2.5 text-base leading-6 text-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground"
         />
         <span id="ask-ai-input-hint" className="sr-only">
-          Press Enter to send. Press Shift and Enter for a new line.
+          Press Enter to send and Shift and Enter for a new line. Press Escape to stop an answer.
         </span>
-        <Button
-          type="submit"
-          size="icon"
-          aria-label="Send question"
-          disabled={!draft.trim() || isStreaming}
-          className="size-9 shrink-0 rounded-full transition-[transform,background-color,opacity] active:scale-95 active:translate-y-0 disabled:scale-100 sm:size-10"
-        >
-          <SendHorizonal className="size-4" aria-hidden="true" />
-        </Button>
-      </form>
-      {questionsRemaining !== null ? (
-        <p className="mt-1.5 text-center text-caption text-muted-foreground" aria-live="polite">
-          {questionsRemaining} question{questionsRemaining === 1 ? "" : "s"} remaining today
-        </p>
-      ) : null}
-      <AnimatePresence initial>
-        {draft.trim() ? (
-          <motion.label
-            key="conversation-consent"
-            initial={reducedMotion ? { opacity: 1 } : { height: 0, marginTop: 0, opacity: 0, y: -4 }}
-            animate={{ height: "auto", marginTop: 8, opacity: 1, y: 0 }}
-            exit={reducedMotion ? { opacity: 0 } : { height: 0, marginTop: 0, opacity: 0, y: -4 }}
-            transition={{ duration: reducedMotion ? 0 : 0.17, ease: [0.22, 1, 0.36, 1] }}
-            className="flex cursor-pointer items-start gap-2 overflow-hidden px-1 text-caption text-muted-foreground"
+        {isStreaming ? (
+          <Button type="submit" size="icon" aria-label="Stop answering" className="size-9 shrink-0 rounded-full">
+            <span className="size-3 rounded-[3px] bg-primary-foreground" aria-hidden="true" />
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            size="icon"
+            aria-label="Send question"
+            disabled={!draft.trim()}
+            className="size-9 shrink-0 rounded-full transition-[transform,opacity] active:scale-95"
           >
+            <ArrowUp className="size-[18px]" aria-hidden="true" />
+          </Button>
+        )}
+      </form>
+
+      <div className="mt-2 px-2 text-center text-caption text-muted-foreground">
+        {consented ? (
+          <p>
+            {askAi.storageNotice}{" "}
+            <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+              Privacy
+            </Link>
+            {questionsRemaining !== null ? (
+              <span aria-live="polite">
+                {" · "}
+                {questionsRemaining} question{questionsRemaining === 1 ? "" : "s"} left today
+              </span>
+            ) : null}
+          </p>
+        ) : (
+          <label className="inline-flex cursor-pointer items-start gap-2 text-left">
             <input
               ref={consentRef}
               type="checkbox"
-              checked={improvementLogging}
-              disabled={isStreaming}
+              checked={consented}
               onChange={(event) => {
                 const checked = event.target.checked
-                setImprovementLogging(checked)
+                setConsented(checked)
                 if (checked) {
                   localStorage.setItem(CONSENT_STORAGE_KEY, CONSENT_VERSION)
                   setShowConsentError(false)
-                } else {
-                  localStorage.removeItem(CONSENT_STORAGE_KEY)
                 }
               }}
               aria-describedby={showConsentError ? "conversation-consent-error" : undefined}
@@ -322,105 +329,147 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
                 Privacy details
               </Link>
             </span>
-          </motion.label>
+          </label>
+        )}
+        {showConsentError && !consented ? (
+          <p id="conversation-consent-error" role="alert" className="mt-1.5 text-destructive">
+            Please check the box to consent before sending your question.
+          </p>
         ) : null}
-      </AnimatePresence>
-      {showConsentError && draft.trim() ? (
-        <p
-          id="conversation-consent-error"
-          role="alert"
-          className="mt-1.5 px-1 text-caption text-destructive"
-        >
-          Please check the box to consent before sending your question.
-        </p>
-      ) : null}
+      </div>
     </div>
   )
 
-  if (!hasConversation && !embedded) {
+  const messages = turns.map((turn, index) => {
+    const isLast = index === turns.length - 1
+    if (turn.role === "user") {
+      return (
+        <Message key={turn.id} className="flex-col items-end pl-8 sm:pl-16">
+          <MessageContent className="max-w-full rounded-3xl bg-muted px-5 py-2.5 text-body whitespace-pre-wrap sm:max-w-[85%]">
+            {turn.content}
+          </MessageContent>
+        </Message>
+      )
+    }
+    const thinking = turn.status === "streaming" && !turn.content && !turn.error
+    const finished = turn.status !== "streaming"
+    return (
+      <Message key={turn.id} className="group flex-col items-start gap-1">
+        {thinking ? (
+          <MatrixOrb
+            state="thinking"
+            size={72}
+            dots={9}
+            labels={{ thinking: askAiStatus[turn.intent ?? "general"] }}
+            className="gap-2 py-1"
+          />
+        ) : null}
+        {turn.content ? (
+          <MessageContent markdown className="w-full">
+            {turn.content}
+          </MessageContent>
+        ) : null}
+        {turn.error ? (
+          <p className="text-caption break-words [overflow-wrap:anywhere] text-destructive">{turn.error}</p>
+        ) : null}
+        {finished ? (
+          <MessageActions
+            className={cn(
+              "-ml-2 transition-opacity duration-150",
+              isLast ? "opacity-100" : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100"
+            )}
+          >
+            {turn.content ? <CopyAction text={turn.content} /> : null}
+            {isLast ? (
+              <MessageAction tooltip="Ask again">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Ask again"
+                  onClick={retry}
+                  className="rounded-full text-muted-foreground hover:text-foreground"
+                >
+                  <RotateCcw aria-hidden="true" />
+                </Button>
+              </MessageAction>
+            ) : null}
+          </MessageActions>
+        ) : null}
+      </Message>
+    )
+  })
+
+  // ---------- Blog-post version: the page scrolls, no persistence ----------
+  if (embedded) {
+    return (
+      <div ref={embeddedRef} className="my-6 flex min-w-0 flex-col rounded-lg border border-border bg-card p-4 sm:p-6">
+        <h2 className="sr-only">{askAi.label}</h2>
+        <p className="text-caption text-muted-foreground">
+          Ask about my work and experience. A suggested question appears when this section comes into view.
+        </p>
+        {hasConversation ? (
+          <div aria-live="polite" className="flex min-w-0 flex-col gap-6 pt-6">
+            {messages}
+          </div>
+        ) : null}
+        <div className="mt-4">{composer}</div>
+      </div>
+    )
+  }
+
+  // ---------- Full page: empty state ----------
+  if (!hasConversation) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-3 overflow-y-auto py-4 sm:gap-4">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-4 overflow-y-auto py-4">
           <div className="chat-orb w-[clamp(7rem,34vw,10rem)]">
             <MatrixOrb state="idle" size={160} />
           </div>
           <h1 className="max-w-[24rem] text-balance break-words text-center text-2xl leading-tight font-semibold text-foreground sm:text-[1.75rem]">
             {askAi.title}?
           </h1>
-          <div className="w-full max-w-[38rem]">{composer}</div>
+          <div className="w-full">{composer}</div>
+          <AnimatePresence initial={!reducedMotion}>
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: reducedMotion ? 0 : 0.2, delay: reducedMotion ? 0 : 0.05 }}
+              className="flex flex-wrap justify-center gap-2"
+            >
+              {askAi.suggestions.map((suggestion) => (
+                <PromptSuggestion key={suggestion} onClick={() => ask(suggestion)}>
+                  {suggestion}
+                </PromptSuggestion>
+              ))}
+            </motion.div>
+          </AnimatePresence>
         </div>
       </div>
     )
   }
 
+  // ---------- Full page: conversation ----------
   return (
-    <div ref={embeddedRef} className={embedded ? "my-6 flex min-w-0 flex-col rounded-lg border border-border bg-card p-4 sm:p-6" : "flex min-h-0 min-w-0 flex-1 flex-col"}>
-      {embedded ? (
-        <h2 className="sr-only">{askAi.label}</h2>
-      ) : (
-        <h1 className="sr-only">{askAi.label}</h1>
-      )}
-      {embedded && <p className="text-caption text-muted-foreground">Ask about my work and experience. A suggested question appears when this section comes into view.</p>}
-
-      <div
-        ref={listRef}
-        aria-live="polite"
-        aria-relevant="additions text"
-        className={
-          embedded
-            ? "flex min-w-0 flex-1 flex-col gap-2.5 pt-4 sm:gap-3 sm:pt-6"
-            : "flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain pt-2 pb-2 sm:gap-3"
-        }
-      >
-        {turns.map((turn) =>
-          turn.role === "user" ? (
-            <div key={turn.id} className="flex min-w-0 justify-end pl-8 sm:pl-16">
-              <p className="min-w-0 max-w-full overflow-hidden rounded-2xl rounded-br-md bg-primary px-3.5 py-2.5 text-body break-words whitespace-pre-wrap [overflow-wrap:anywhere] text-primary-foreground sm:max-w-[85%]">
-                {turn.content}
-              </p>
-            </div>
-          ) : (
-            <div key={turn.id} className="flex min-w-0 justify-start pr-5 sm:pr-12">
-              <div
-                className={
-                  !turn.content && turn.status === "streaming" && !turn.error
-                    ? "min-w-0 max-w-full"
-                    : "min-w-0 max-w-full overflow-hidden rounded-2xl rounded-bl-md border border-border bg-muted/50 px-3.5 py-2.5 sm:max-w-[90%]"
-                }
-              >
-                {turn.content ? (
-                  <p className="text-body break-words whitespace-pre-wrap [overflow-wrap:anywhere] text-foreground/90">
-                    {turn.content}
-                  </p>
-                ) : turn.status === "streaming" ? (
-                  <MatrixOrb
-                    state="thinking"
-                    size={88}
-                    dots={9}
-                    labels={{ thinking: askAiStatus[turn.intent ?? "general"] }}
-                    className="gap-2 py-1"
-                  />
-                ) : null}
-
-                {turn.error ? (
-                  <p className="mt-2 text-caption break-words [overflow-wrap:anywhere] text-destructive">{turn.error}</p>
-                ) : null}
-
-              </div>
-            </div>
-          )
-        )}
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <h1 className="sr-only">{askAi.label}</h1>
+      <div className="flex shrink-0 justify-end pb-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={newChat}
+          className="gap-1.5 rounded-full text-muted-foreground hover:text-foreground"
+        >
+          <SquarePen aria-hidden="true" />
+          New chat
+        </Button>
       </div>
-
-      <div
-        className={
-          embedded
-            ? "mt-4"
-            : "shrink-0 border-t border-border pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-        }
-      >
-        {composer}
-      </div>
+      <ChatContainerRoot className="min-h-0 flex-1 overscroll-contain" aria-live="polite" aria-relevant="additions text">
+        <ChatContainerContent className="gap-8 pt-2 pb-6">{messages}</ChatContainerContent>
+        <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+          <ScrollButton className="pointer-events-auto" />
+        </div>
+      </ChatContainerRoot>
+      <div className="shrink-0 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]">{composer}</div>
     </div>
   )
 }
