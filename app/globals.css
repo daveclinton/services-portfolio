@@ -323,6 +323,24 @@
   margin-top: 1rem;
 }
 
+.home-now ul {
+  margin-top: 0.75rem;
+  padding-left: 1.25em;
+  list-style: disc;
+}
+
+.home-now li + li {
+  margin-top: 0.5rem;
+}
+
+.home-now li::marker {
+  color: var(--subtle-foreground);
+}
+
+.home-article .home-now .post-meta {
+  margin-top: 0.125rem;
+}
+
 /* ---------- Blog index ---------- */
 
 .blog-index {

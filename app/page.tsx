@@ -2,17 +2,27 @@ import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import portrait from "@/public/david.webp"
+import { formatPostDate, getPosts } from "@/lib/blog"
 import {
   askAi,
   backgroundItems,
   email,
   introduction,
+  now,
   otherProfiles,
   profile,
   site,
   socialLinks,
   workLinks,
 } from "@/lib/portfolio-data"
+
+function formatMonth(month: string) {
+  return new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  })
+}
 
 export const metadata: Metadata = {
   alternates: {
@@ -21,7 +31,8 @@ export const metadata: Metadata = {
   },
 }
 
-export default function Home() {
+export default async function Home() {
+  const [latestPost] = await getPosts()
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [

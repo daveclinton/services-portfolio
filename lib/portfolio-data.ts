@@ -45,9 +45,14 @@ export const workLinks = {
   untapped: "https://untapped-global.com/who-we-are",
 } as const
 
-export const sponsor = {
-  label: "Sponsor my open-source work on GitHub",
-  href: "https://github.com/sponsors/daveclinton",
+// The "Now" section on the home page. Update `updated` whenever you edit it.
+// The latest blog post is added automatically.
+export const now = {
+  updated: "2026-11",
+  items: [
+    "Automating paperwork for the warehouse, delivery, and customer service teams at Mika.",
+    "Helping businesses work out which software is worth building through Opesi Mansion.",
+  ],
 } as const
 
 export type TimelineEntry = {
@@ -130,15 +135,10 @@ export const otherProfiles: string[] = [
   "https://blog.paperspace.com/author/david-clinton/",
 ]
 
+// The visible link text on the site is "email me", so there is no separate
+// display label that can drift out of sync with the real address.
 export const email = {
-  label: "info@me.com",
   href: "mailto:maze-golds-8l@icloud.com",
-} as const
-
-export const aiButton = {
-  label: "Ask an AI",
-  description: "Ask an AI about my work and experience",
-  href: "https://chatgpt.com/",
 } as const
 
 export const askAi = {
@@ -160,7 +160,3 @@ export const askAiStatus: Record<AskAiIntent, string> = {
   technologies: "Listing technologies…",
   outcomes: "Pulling together outcomes…",
 }
-
-export const footer = {
-  name: profile.name,
-} as const
