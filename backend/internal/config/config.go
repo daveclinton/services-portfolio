@@ -66,7 +66,7 @@ func Load() (Config, error) {
 		SearchGlobalDailyLimit: positiveInt(env("SEARCH_GLOBAL_DAILY_LIMIT", ""), 2000),
 
 		OpenAIAPIKey:      env("OPENAI_API_KEY", ""),
-		OpenAIChatModel:   env("OPENAI_CHAT_MODEL", "gpt-4o-mini"),
+		OpenAIChatModel:   env("OPENAI_CHAT_MODEL", "gpt-4.1-mini"),
 		OpenAIIntentModel: env("OPENAI_INTENT_MODEL", "gpt-4o-mini"),
 
 		EmbeddingsURL:           env("EMBEDDINGS_URL", "http://127.0.0.1:8090"),

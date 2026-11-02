@@ -42,6 +42,15 @@ method and pass it to `server.New` in `cmd/api/main.go`.
 | `POST /ask-ai/chat` | Grounded answer, streamed as SSE (`retrieval`, `citations`, `delta`, `done`, `error`) |
 | `POST /ask-ai/search` | Ranked knowledge chunks with evidence citations |
 
+## How answers are built
+
+Every answer gets the whole knowledge base (~34k tokens) plus
+`internal/askai/site_facts.md` as a fixed prompt prefix, which OpenAI's prompt
+caching serves at a discount (`cached_tokens` in the "answer generated" log).
+Hybrid retrieval still runs to rank likely-relevant documents and fill the
+`citations` event. The answer policy lives in `internal/askai/generation.go`;
+check changes with `evals/` (see its README).
+
 ## Embeddings
 
 The `embeddings` service runs [Text Embeddings Inference](https://github.com/huggingface/text-embeddings-inference)

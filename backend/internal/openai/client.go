@@ -98,17 +98,30 @@ type ChatRequest struct {
 	MaxTokens   int
 }
 
+// Usage reports token counts; CachedTokens is the part of the prompt served
+// from OpenAI's automatic prompt cache (billed at a discount).
+type Usage struct {
+	PromptTokens     int `json:"prompt_tokens"`
+	CompletionTokens int `json:"completion_tokens"`
+	Details          struct {
+		CachedTokens int `json:"cached_tokens"`
+	} `json:"prompt_tokens_details"`
+}
+
 // StreamChat streams a chat completion and calls onDelta for every text piece.
-func (c *Client) StreamChat(ctx context.Context, req ChatRequest, onDelta func(string) error) error {
+// The returned usage comes from the final stream chunk.
+func (c *Client) StreamChat(ctx context.Context, req ChatRequest, onDelta func(string) error) (Usage, error) {
+	var usage Usage
 	resp, err := c.post(ctx, "/chat/completions", map[string]any{
 		"model":                 req.Model,
 		"messages":              req.Messages,
 		"temperature":           req.Temperature,
 		"max_completion_tokens": req.MaxTokens,
 		"stream":                true,
+		"stream_options":        map[string]bool{"include_usage": true},
 	})
 	if err != nil {
-		return err
+		return usage, err
 	}
 	defer resp.Body.Close()
 
@@ -122,7 +135,7 @@ func (c *Client) StreamChat(ctx context.Context, req ChatRequest, onDelta func(s
 		}
 		data = strings.TrimSpace(data)
 		if data == "[DONE]" {
-			return nil
+			return usage, nil
 		}
 		var chunk struct {
 			Choices []struct {
@@ -130,27 +143,31 @@ func (c *Client) StreamChat(ctx context.Context, req ChatRequest, onDelta func(s
 					Content string `json:"content"`
 				} `json:"delta"`
 			} `json:"choices"`
+			Usage *Usage           `json:"usage"`
 			Error *json.RawMessage `json:"error"`
 		}
 		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
-			return fmt.Errorf("decode stream chunk: %w", err)
+			return usage, fmt.Errorf("decode stream chunk: %w", err)
 		}
 		if chunk.Error != nil {
-			return &APIError{Status: http.StatusOK, Body: string(*chunk.Error)}
+			return usage, &APIError{Status: http.StatusOK, Body: string(*chunk.Error)}
+		}
+		if chunk.Usage != nil {
+			usage = *chunk.Usage
 		}
 		for _, choice := range chunk.Choices {
 			if choice.Delta.Content == "" {
 				continue
 			}
 			if err := onDelta(choice.Delta.Content); err != nil {
-				return err
+				return usage, err
 			}
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return err
+		return usage, err
 	}
-	return errors.New("stream ended without [DONE]")
+	return usage, errors.New("stream ended without [DONE]")
 }
 
 type StructuredRequest struct {

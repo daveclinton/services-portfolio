@@ -239,7 +239,8 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 		_ = stream.Send("done", map[string]string{"finish_reason": "error"})
 	}
 
-	if len(sources) == 0 {
+	knowledge := s.knowledge.Load()
+	if knowledge == nil && len(sources) == 0 {
 		entry.Answer, entry.Status = noEvidenceMessage, "no_evidence"
 		_ = stream.Send("delta", map[string]string{"text": noEvidenceMessage})
 		_ = stream.Send("done", map[string]string{"finish_reason": "no_evidence"})
@@ -249,18 +250,16 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 		fail(missingKeyDetail)
 		return
 	}
-	name, err := s.personName(ctx)
-	if err != nil {
-		s.log.Error("load person name", "err", err)
-		fail(generationFailedDetail)
-		return
+	referenceMaterial := strings.TrimSpace(siteFacts)
+	if knowledge != nil {
+		referenceMaterial = knowledge.text
 	}
 
 	var answer strings.Builder
 	entry.Model = s.cfg.OpenAIChatModel
-	err = s.ai.StreamChat(ctx, openai.ChatRequest{
+	usage, err := s.ai.StreamChat(ctx, openai.ChatRequest{
 		Model:       s.cfg.OpenAIChatModel,
-		Messages:    buildMessages(question, name, sources, history, decision),
+		Messages:    buildMessages(question, referenceMaterial, sources, history, decision),
 		Temperature: 0.2,
 		MaxTokens:   maxOutputTokens,
 	}, func(text string) error {
@@ -278,6 +277,9 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	entry.Status = "completed"
+	s.log.Info("answer generated", "model", s.cfg.OpenAIChatModel,
+		"prompt_tokens", usage.PromptTokens, "cached_tokens", usage.Details.CachedTokens,
+		"completion_tokens", usage.CompletionTokens)
 	_ = stream.Send("done", map[string]string{"finish_reason": "stop"})
 }
 

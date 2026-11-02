@@ -1,0 +1,17 @@
+Who is David?
+Can he build a RAG system?
+Has he worked with AI or LLMs?
+What is his strongest skill?
+Can he build backend systems in Go or Rust?
+Tell me about his work at Mika
+What did he do at Paperspace?
+Does he have mobile app experience?
+What is his educational background?
+Where is he based and can he work remotely?
+How can I contact him?
+What kind of roles is he looking for?
+Has he led a team?
+Why should I hire him for a full-stack role?
+What is the most complex system he has built?
+What is the weather in Nairobi today?
+Write me a Python function to reverse a list

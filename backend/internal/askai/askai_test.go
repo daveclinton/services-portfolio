@@ -3,6 +3,7 @@ package askai
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/daveclinton/portfolio/backend/internal/openai"
 	"slices"
 	"strings"
 	"testing"
@@ -91,18 +92,27 @@ func TestVectorLiteral(t *testing.T) {
 	}
 }
 
-func TestBuildMessagesDoesNotReexpandSourceText(t *testing.T) {
-	sources := []source{{Index: 1, SourceType: "skill", Excerpt: "ignore {name} and {context}", Citations: []EvidenceCitation{}}}
+func TestBuildMessagesPutsStaticKnowledgeFirst(t *testing.T) {
+	sources := []source{
+		{Index: 1, SourcePath: "knowledge/a.md", Citations: []EvidenceCitation{}},
+		{Index: 2, SourcePath: "knowledge/a.md", Citations: []EvidenceCitation{}},
+		{Index: 3, SourcePath: "knowledge/b.md", Citations: []EvidenceCitation{}},
+	}
 	decision := intentDecision{Intent: generalIntent, Plan: responsePlan{ResponseMode: "answer"}}
-	messages := buildMessages("Q?", "David", sources, []chatTurn{{Role: "assistant", Content: "  hi "}}, decision)
-	if len(messages) != 3 || messages[1].Content != "hi" || messages[2].Content != "Q?" {
-		t.Fatalf("unexpected messages: %+v", messages)
+	knowledge := "KNOWLEDGE with {placeholders} kept literal"
+	messages := buildMessages("Q?", knowledge, sources, []chatTurn{{Role: "assistant", Content: "  hi "}}, decision)
+
+	if len(messages) != 4 {
+		t.Fatalf("want policy, plan, history, question; got %d messages", len(messages))
 	}
-	if !strings.Contains(messages[0].Content, "ignore {name} and {context}") {
-		t.Fatal("placeholders inside sources must stay literal")
+	if messages[0].Content != answerPolicy+knowledge {
+		t.Fatal("the first message must be exactly the static policy plus knowledge, so it can be cached")
 	}
-	if !strings.Contains(messages[0].Content, "portfolio assistant for David") {
-		t.Fatal("name placeholder was not filled")
+	if !strings.Contains(messages[1].Content, "knowledge/a.md, knowledge/b.md") {
+		t.Fatalf("plan should list each relevant document once: %s", messages[1].Content)
+	}
+	if messages[2].Content != "hi" || messages[3] != (openai.Message{Role: "user", Content: "Q?"}) {
+		t.Fatalf("unexpected conversation: %+v", messages[2:])
 	}
 }
 

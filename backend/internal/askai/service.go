@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -36,6 +37,8 @@ type Service struct {
 	limits   limits
 	locks    *ratelimit.Locks
 
+	knowledge atomic.Pointer[knowledgeSnapshot]
+
 	background sync.WaitGroup
 }
 
@@ -63,7 +66,11 @@ func New(cfg config.Config, db *pgxpool.Pool, log *slog.Logger) *Service {
 
 // Init prepares the database objects this product owns.
 func (s *Service) Init(ctx context.Context) error {
-	return s.ensureEmbeddingSchema(ctx)
+	if err := s.ensureEmbeddingSchema(ctx); err != nil {
+		return err
+	}
+	s.refreshKnowledge(ctx)
+	return nil
 }
 
 func (s *Service) Routes(mux *http.ServeMux) {
@@ -91,6 +98,7 @@ func (s *Service) Run(ctx context.Context) {
 			s.limits.sweep()
 			s.locks.Sweep()
 		case <-embed.C:
+			s.refreshKnowledge(ctx)
 			s.runEmbeddingSync(ctx)
 		case <-purge.C:
 			s.purge(ctx)

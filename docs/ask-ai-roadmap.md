@@ -34,16 +34,41 @@ and this site's tokens. The adapted components live in `components/prompt-kit/`.
 - Consent is a persistent checkbox under the composer until accepted, then a
   one-line storage notice with the questions left today.
 
+## ✅ 1b. Answer quality
+
+The assistant used to reply "try Google" to questions it could answer: the
+prompt told it to return a scope message whenever the top 8 retrieved chunks
+didn't fully support an answer, and contact details weren't in the knowledge
+base. Changes, measured with `backend/evals/` (5 of 15 refused before, 0 after):
+
+- **Whole knowledge base in every prompt** (~34k tokens). Anthropic's
+  [Contextual Retrieval](https://www.anthropic.com/news/contextual-retrieval)
+  recommends this below ~200k tokens. The text is identical across requests
+  and comes first, so OpenAI's automatic prompt caching serves ~99% of it
+  (logged as `cached_tokens`). Retrieval still ranks likely-relevant parts.
+- **Answer policy** following Anthropic's
+  [Reduce hallucinations](https://platform.claude.com/docs/en/docs/test-and-evaluate/strengthen-guardrails/reduce-hallucinations)
+  guidance: answer what the material supports, say specifically what isn't
+  covered, never send visitors elsewhere, one-line redirect for off-topic
+  questions, contact details for hiring questions.
+- **Site facts** (`backend/internal/askai/site_facts.md`): contact details,
+  links, roles, and a description of this system itself as evidence of David's
+  work. Keep it in sync with `lib/portfolio-data.ts`.
+- **gpt-4.1-mini** writes answers (better long-context instruction following
+  than gpt-4o-mini in the same checks); gpt-4o-mini still plans retrieval.
+
 ## 2. Knowledge coverage
 
 The cheapest quality gain: the assistant can't answer about things that aren't
 in the knowledge base (`../professional-knowledge`).
 
-- [ ] **Opesi Mansion** and **9ntyplus**: featured on the homepage, no documents.
+- [x] **Opesi Mansion** and **9ntyplus**: mentioned in the site facts as early
+      work in progress (no detailed documents yet, by choice).
 - [ ] **The 12 blog posts** in `content/blog/`: not indexed, so "What has David
       written about RAG?" fails. Ingest each post's title, date, URL and body
       as chunks with `source_type: blog-post`.
-- [ ] **This platform**: the portfolio, Ask AI, and the Go backend on the VPS.
+- [x] **This platform**: described in the site facts. A full knowledge-base
+      project write-up would let it answer deeper questions.
 - [ ] Confirm whether the VPS apps `studio` and `warranty-registration` are
       covered (aqua-prana and the Mika warranty app already are).
 
