@@ -1,23 +1,53 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { CircleAlert, Database, FileCheck, FileText, ListChecks, MessageCircle, RefreshCcw, Search, Truck } from "lucide-react"
+import { BookOpen, BrainCircuit, CircleAlert, Code2, Database, FileCheck, FileText, ListChecks, MessageCircle, MessageSquareText, RefreshCcw, Search, Truck } from "lucide-react"
 import { motion, useInView, useReducedMotion } from "motion/react"
 import { Button } from "@/components/ui/button"
 
-type Flow = "orders" | "fleet" | "policy" | "library-eval"
+type Flow = "orders" | "fleet" | "policy" | "library-eval" | "model-training"
 
 const labels = {
   orders: ["Purchase orders", "Match and check", "Sales orders"],
   fleet: ["Fleet tracking", "Compare trips", "SAP"],
   policy: ["Reader's question", "Find the library guide", "Answer or ask for help"],
   "library-eval": ["Test questions", "Run the assistant", "Check the answers"],
+  "model-training": ["Training data", "Learn patterns", "Trained model"],
 } as const
 
 const libraryFlows = {
   policy: { title: "A question grounded in the library guide", caption: "If the guide does not answer the question, a librarian can help.", description: "A reader asks a question; the assistant checks the library guide before answering" },
   "library-eval": { title: "Check the assistant", caption: "Review incorrect answers and add new cases when the guide changes.", description: "Explore expected results for library assistant test cases" },
+  "model-training": { title: "From examples to a useful response", caption: "Books, articles, and code provide examples. Training adjusts the network; afterward, a model can respond to new requests.", description: "Books, articles, and code feed into a network that is trained through repeated adjustments. The trained model can then respond to a new request." },
 } as const
+
+function ModelTrainingScene({ playing }: { playing: boolean }) {
+  return (
+    <svg viewBox="0 0 640 220" className="block h-auto w-full" aria-hidden="true">
+      <path d="M167 108H230M410 108H466" fill="none" stroke="var(--muted-foreground)" strokeOpacity=".55" strokeWidth="2" />
+      <path d="m224 102 6 6-6 6m236-12 6 6-6 6" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+
+      <rect x="28" y="31" width="112" height="46" rx="8" fill="var(--background)" stroke="var(--border)" />
+      <rect x="42" y="86" width="112" height="46" rx="8" fill="var(--background)" stroke="var(--border)" />
+      <rect x="28" y="141" width="112" height="46" rx="8" fill="var(--background)" stroke="var(--border)" />
+      <BookOpen x={40} y={42} width={24} height={24} color="var(--primary)" strokeWidth={1.7} />
+      <FileText x={54} y={97} width={24} height={24} color="var(--primary)" strokeWidth={1.7} />
+      <Code2 x={40} y={152} width={24} height={24} color="var(--primary)" strokeWidth={1.7} />
+      <path d="M75 48h49m-49 10h32M89 103h49m-49 10h32M75 158h49m-49 10h32" stroke="var(--muted-foreground)" strokeOpacity=".65" strokeWidth="3" strokeLinecap="round" />
+
+      <rect x="230" y="36" width="180" height="145" rx="8" fill="var(--background)" stroke="var(--border)" />
+      <path d="M261 75L320 58 379 75M261 75L320 108 379 75M261 108L320 58M261 108L320 108 379 108M261 108L320 158M261 141L320 108 379 141M261 141L320 158 379 108M320 158L379 141" fill="none" stroke="var(--muted-foreground)" strokeOpacity=".55" strokeWidth="2" />
+      {[[261, 75], [261, 108], [261, 141], [320, 58], [320, 108], [320, 158], [379, 75], [379, 108], [379, 141]].map(([x, y]) => <circle key={`${x}-${y}`} cx={x} cy={y} r="6" fill="var(--card)" stroke="var(--primary)" strokeWidth="2" />)}
+      <motion.circle cx="261" cy="75" r="4" fill="var(--primary)" animate={playing ? { cx: [261, 320, 379], cy: [75, 108, 75], opacity: [0, 1, 0] } : { cx: 261, cy: 75, opacity: 0 }} transition={{ duration: 2.8, repeat: playing ? Infinity : 0, ease: "linear" }} />
+      <path d="M366 193c-23 19-69 19-92 0m0 0 9-1m-9 1 3 8" fill="none" stroke="var(--primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+
+      <rect x="470" y="48" width="142" height="121" rx="8" fill="var(--background)" stroke="var(--border)" />
+      <BrainCircuit x={518} y={57} width={44} height={44} color="var(--primary)" strokeWidth={1.6} />
+      <MessageSquareText x={484} y={119} width={28} height={28} color="var(--primary)" strokeWidth={1.6} />
+      <path d="M522 125h70m-70 10h57m-57 10h38" stroke="var(--muted-foreground)" strokeOpacity=".65" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  )
+}
 
 function OrderScene({ playing }: { playing: boolean }) {
   return (
@@ -114,7 +144,7 @@ function FleetScene({ playing }: { playing: boolean }) {
   )
 }
 
-function PolicyScene({ playing, flow }: { playing: boolean; flow: keyof typeof libraryFlows }) {
+function PolicyScene({ playing, flow }: { playing: boolean; flow: "policy" | "library-eval" }) {
   const [selectedCase, setSelectedCase] = useState(0)
   const label = "flex items-center gap-2 text-label font-semibold uppercase text-subtle-foreground"
 
@@ -170,18 +200,18 @@ export function AutomationFlowVisual({ flow }: { flow: Flow }) {
   return (
     <figure ref={figureRef} className="rounded-lg border border-border bg-card p-4 sm:p-6" aria-label={isOrders ? "Purchase orders become sales orders" : libraryFlow ? libraryFlow.description : "Fleet trips sync into SAP"}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <span className="text-label font-semibold uppercase text-subtle-foreground">{isOrders ? "Order automation" : libraryFlow ? "AI assistant" : "Fleet automation"}</span>
+        <span className="text-label font-semibold uppercase text-subtle-foreground">{isOrders ? "Order automation" : flow === "model-training" ? "AI model" : libraryFlow ? "AI assistant" : "Fleet automation"}</span>
         <strong className="text-title text-primary">{isOrders ? "Hundreds of orders a day" : libraryFlow ? libraryFlow.title : "Trips kept current across the fleet"}</strong>
       </div>
-      {(!libraryFlow || flow === "policy") && <div className="mt-5 grid grid-cols-3 gap-2 text-center text-label font-medium text-muted-foreground">
+      {flow !== "library-eval" && <div className="mt-5 grid grid-cols-3 gap-2 text-center text-label font-medium text-muted-foreground">
         {labels[flow].map((label) => <span key={label}>{label}</span>)}
       </div>}
-      {flow === "orders" ? <OrderScene playing={playing} /> : flow === "fleet" ? <FleetScene playing={playing} /> : <PolicyScene playing={playing} flow={flow} />}
+      {flow === "orders" ? <OrderScene playing={playing} /> : flow === "fleet" ? <FleetScene playing={playing} /> : flow === "model-training" ? <ModelTrainingScene playing={playing} /> : <PolicyScene playing={playing} flow={flow} />}
       <figcaption className="flex items-center gap-2 text-caption text-muted-foreground">
         <CircleAlert className="size-4 shrink-0 text-primary" aria-hidden="true" />
         {isOrders ? "Uncertain matches go to a person for review." : libraryFlow ? libraryFlow.caption : "Duplicates are skipped; changed trips are reconciled."}
       </figcaption>
-      {flow === "policy" && !reducedMotion && <Button type="button" variant="ghost" size="xs" className="mt-2" onClick={() => setPaused(!paused)}>{paused ? "Play animation" : "Pause animation"}</Button>}
+      {(flow === "policy" || flow === "model-training") && !reducedMotion && <Button type="button" variant="ghost" size="xs" className="mt-2" onClick={() => setPaused(!paused)}>{paused ? "Play animation" : "Pause animation"}</Button>}
     </figure>
   )
 }

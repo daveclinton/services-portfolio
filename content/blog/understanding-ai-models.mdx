@@ -1,0 +1,145 @@
+export const metadata = {
+  title: "Understanding AI Models",
+  description: "A simple explanation of what an AI model is, how it learns, and what happens when you use one.",
+  date: "2026-11-02",
+}
+
+I use AI tools to help me understand ideas and write code. But I wanted a clearer picture of what an AI model actually is and what happens when I ask it a question.
+
+[Lee Robinson's introduction to AI](https://leerob.com/ai) helped me explore the topic. This is my simpler explanation of the ideas that helped me understand a model, without going too far into the mathematics.
+
+If you're a student, each section ends with the campus units that build that part of the skill. The unit codes come from the [University of Nairobi's BSc Computer Science course structure](https://computerscience.uonbi.ac.ke/admission-content-type/bachelor-science-computer-science). Other universities use different names and codes, so match units by topic. Where a topic usually isn't taught as its own undergraduate unit, I've added a free course from a university that teaches it.
+
+## What is an AI model?
+
+An AI model is a system trained on examples to recognize patterns and use them to produce an output. Depending on how it was built and trained, it might classify an image, predict a number, or generate text.
+
+A language model works with text. Give it a question or an instruction, and it generates a response based on patterns it learned during training and the context you provide.
+
+In traditional software, a developer writes rules for the program to follow. With a model, developers also write the software, but the model learns many of its patterns from data instead of having every response written by hand.
+
+<ModelConceptVisual concept="rules-vs-learning" />
+
+<StudyUnits>
+
+- **Artificial Intelligence Applications** (SCS3307, Computer Science): what AI systems are and where they're used in practice.
+- **Knowledge-based Systems & Programming** (SCS3205, Computer Science): systems built from rules people write, the top row of the diagram. Knowing them makes it clearer what learning from data replaces.
+- **Machine Learning Algorithms & Programming** (SCS3212, Computer Science): the bottom row, learning from labelled examples.
+
+Free extra: [Harvard's CS50 AI](https://cs50.harvard.edu/ai/) moves from rules and search to machine learning, with Python projects.
+
+</StudyUnits>
+
+## How does a model learn?
+
+Training starts with data. For a language model, that can include text and code from a variety of sources. The quality and makeup of that data affect what the model can learn.
+
+The model uses a mathematical structure called a neural network. During training, it makes predictions, measures how far those predictions are from the expected answers, and adjusts internal numbers called **parameters**. This process is repeated across many examples.
+
+<ModelConceptVisual concept="training" />
+
+Those parameters hold the patterns the model has learned. They are not a neatly organized set of facts, and learning a pattern does not guarantee that the model will always apply it correctly.
+
+The illustration follows one example through a few rounds of that loop: the prediction for “blue” improves as the parameters are adjusted, and the error falls. [Google's neural network glossary](https://developers.google.com/machine-learning/glossary/fundamentals#neural-network) includes another diagram if you want to see how the layers connect.
+
+<StudyUnits>
+
+- **Linear Algebra** (SMA3211, Mathematics): parameters are stored as matrices, and most of a network's work is multiplying them.
+- **Differential and Integral Calculus** (SMA3114, Mathematics): derivatives tell training which way to adjust each parameter to reduce the error.
+- **Probability and Statistics** (SMA3124, Mathematics): a prediction is a probability, and the error in the diagram is measured from it.
+- **Machine Learning Algorithms & Programming** (SCS3212, Computer Science): puts the three together in working code.
+
+Free extras: [Stanford CS229](https://cs229.stanford.edu/) for the mathematics of machine learning, [MIT 18.06](https://ocw.mit.edu/courses/18-06-linear-algebra-spring-2010/) for linear algebra, and [3Blue1Brown's neural network series](https://www.3blue1brown.com/topics/neural-networks) for a visual explanation of how training adjusts a network.
+
+</StudyUnits>
+
+## What happens when you ask a question?
+
+Once a model has been trained, using it is called **inference**. For a language model, the process looks roughly like this:
+
+**1. Break the question into tokens.** A token might be a word, part of a word, or punctuation.
+
+<ModelConceptVisual concept="tokens" />
+
+**2. Predict the next token.** The model processes the tokens and scores possible next tokens based on the context. Those scores become probabilities, and one token is picked from them. It isn't always the most likely one: a setting called **temperature** controls how adventurous the pick is, which is one reason the same question can get different answers.
+
+<ModelConceptVisual concept="prediction" />
+
+**3. Build a response.** The model repeats the process, adding tokens one at a time. Step through this simplified example:
+
+<ModelConceptVisual concept="generation" />
+
+Many language models use a structure called a **transformer**. It uses attention to help the model consider relationships between different parts of the text. This helps it use the surrounding context when producing a response. Choose a word below to see which earlier words it draws on.
+
+<ModelConceptVisual concept="attention" />
+
+<StudyUnits>
+
+- **Data Structures and Algorithms** (SCS3108, Computer Science): a tokenizer is an algorithm that splits text and looks pieces up in a vocabulary.
+- **Probability and Statistics** (SMA3124, Mathematics): temperature and token picking are sampling from a probability distribution.
+- **Automata Theory** (SCS3204, Computer Science): a formal way to think about how text and languages can be processed.
+
+Few undergraduate programmes have a unit on natural language processing or transformers. Check your electives and postgraduate units, or use these free courses: [Stanford CS224N](https://web.stanford.edu/class/cs224n/) covers natural language processing with deep learning, including attention and transformers; [MIT 6.S191](https://introtodeeplearning.com/) is a short introduction to deep learning; and Andrej Karpathy's [Neural Networks: Zero to Hero](https://karpathy.ai/zero-to-hero.html) builds a tokenizer and a small GPT step by step.
+
+</StudyUnits>
+
+## A coding example
+
+Imagine a language model trained on examples that include source code. During training, it can learn patterns in programming languages: how a function is written, how a loop is structured, and how code relates to a description of a task.
+
+Later, you might ask it, “Write a Python function that sorts a list.” The model uses your request and the patterns it learned to generate code. It may produce a useful function, but it can also make mistakes, so you still need to read and test the result.
+
+<StudyUnits>
+
+- **Software Engineering** (SCS3209, Computer Science): testing and reviewing code, the habit you need for anything a model writes.
+- **Analysis and Design of Algorithms** (SCS3213, Computer Science): lets you judge whether a generated sorting function is correct and how fast it is, not just whether it runs.
+- **Programming Project** (SCS3206) and **Computer Systems Project** (SCS3403, Computer Science): a safe place to build with AI tools and practise checking what they produce.
+
+</StudyUnits>
+
+## Can a model keep improving?
+
+After the initial training, a model can be trained further for particular tasks or behaviors. This is called **fine-tuning**. For example, a team might use additional examples to help a model follow instructions or work better on a specific kind of task.
+
+Teams also evaluate models by testing them on examples and checking the results. These evaluations help reveal where a model does well and where it makes mistakes. They matter because an answer can sound confident and still be wrong.
+
+<ModelConceptVisual concept="fine-tuning" />
+
+<StudyUnits>
+
+- **Probability and Statistics** (SMA3124, Mathematics): evaluation is statistics. You choose test examples, measure error rates, and decide whether a difference is real.
+- **Machine Learning Algorithms & Programming** (SCS3212, Computer Science): training, validation, and test data, and why a model that memorises its examples does badly on new ones.
+
+Free extras: the [Hugging Face LLM course](https://huggingface.co/learn/llm-course) walks through fine-tuning open models in code. [Stanford CS336, Language Modeling from Scratch](https://stanford-cs336.github.io/) goes much deeper, from building the model to training and adapting it, and needs strong Python.
+
+</StudyUnits>
+
+## A model and an application are different
+
+The model is the system that processes input and produces output. An AI application is the software built around it: the interface you use, the instructions sent to the model, and any tools or information the application provides.
+
+<ModelConceptVisual concept="application" />
+
+For example, GPT refers to a family of models, while ChatGPT is an application that lets people interact with models. An application can use a model without having trained that model itself.
+
+The distinction helps me think about the tools I use every day. The model provides a capability; the application decides how to put it to work. Understanding that much is a useful place to start, even if you never train a model yourself.
+
+<StudyUnits>
+
+- **Web and Services Programming** (SCS3208, Computer Science): most AI applications reach a model through a web API.
+- **Foundations of Human-Computer Interaction** (SCS3214, Computer Science): the interface decides how people read, trust, and check a model's answer.
+- **Distributed Systems** (SCS3303) and **Cloud Computing and Services** (SCS3402, Computer Science): running an application reliably when many people use it at once.
+- **ICTs and Society** (SCS3401, Computer Science): a place to think through privacy and responsibility when an application sends people's information to a model.
+- **Industrial Attachment** (SCS3322): eight weeks in industry between third and fourth year. Ask for a team that builds or tests an AI application.
+
+</StudyUnits>
+
+## Where to go next
+
+If you want to see these ideas in action, start with a short sentence in [OpenAI's tokenizer](https://platform.openai.com/tokenizer). Change a word or add punctuation and see how the tokens change. Then ask a language model to explain the sentence and compare its answer with your own understanding.
+
+If you'd rather learn from a book, these are useful places to continue:
+
+- [*Hands-On Large Language Models*](https://www.oreilly.com/library/view/hands-on-large-language/9781098150952/titlepage01.html) by Jay Alammar and Maarten Grootendorst uses illustrations and code to explain language models, from the basics through using and adapting them. Start here if you'd like a visual introduction and know some Python.
+- [*Hands-On Machine Learning with Scikit-Learn, Keras, and TensorFlow*](https://www.oreilly.com/library/view/hands-on-machine-learning/9781098125967/) by Aurélien Géron covers machine learning more broadly, with practical Python examples. Pick this if you want to understand models beyond language.
+- [*Build a Large Language Model (From Scratch)*](https://www.manning.com/books/build-a-large-language-model-from-scratch) by Sebastian Raschka takes you through building and training a small GPT-style model. It's a deeper next step for readers comfortable with Python and some machine learning.
