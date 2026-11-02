@@ -7,11 +7,11 @@ export const site = {
   legalName: "David Clinton Hellen",
   alternateNames: ["David Clinton Hellen", "Dave Clinton", "daveclintonn"],
   jobTitle: "Software Engineer",
-  title: "David Clinton | Software Engineer in Mombasa, Kenya",
+  title: "David Clinton | Software Engineer in Kenya",
   description:
-    "David Clinton is a software engineer and writer in Mombasa, Kenya. He builds software and writes about what happens after it ships.",
+    "David Clinton is a software engineer and writer in Kenya. He builds software and writes about what happens after it ships.",
   url: "https://www.daveclintonn.cc",
-  location: { city: "Mombasa", country: "Kenya", countryCode: "KE" },
+  location: { country: "Kenya", countryCode: "KE" },
 } as const
 
 export const profile = {
@@ -45,16 +45,6 @@ export const workLinks = {
   untapped: "https://untapped-global.com/who-we-are",
 } as const
 
-// The "Now" section on the home page. Update `updated` whenever you edit it.
-// The latest blog post is added automatically.
-export const now = {
-  updated: "2026-11",
-  items: [
-    "Automating paperwork for the warehouse, delivery, and customer service teams at Mika.",
-    "Helping businesses work out which software is worth building through Opesi Mansion.",
-  ],
-} as const
-
 export type TimelineEntry = {
   id: string
   company: string
@@ -80,7 +70,7 @@ export const backgroundItems: TimelineEntry[] = [
     id: "2025-10",
     company: "Mika (Ideal Appliances)",
     iconSrc: "/mika.webp",
-    location: "Mombasa, Kenya",
+    location: "Kenya",
     start: "Oct 2025",
     description:
       "I help warehouse, delivery, and customer service teams spend less time on manual work by automating paperwork and connecting information across the business.",

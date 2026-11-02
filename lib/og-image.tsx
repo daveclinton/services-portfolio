@@ -30,7 +30,7 @@ export async function renderOgImage({ title, subtitle }: { title: string; subtit
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ fontSize: 40, fontWeight: 600 }}>{site.name}</div>
             <div style={{ fontSize: 28, color: "#b1ada7" }}>
-              {`${site.jobTitle} · ${site.location.city}, ${site.location.country}`}
+              {`${site.jobTitle} · ${site.location.country}`}
             </div>
           </div>
         </div>

@@ -2,27 +2,17 @@ import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import portrait from "@/public/david.webp"
-import { formatPostDate, getPosts } from "@/lib/blog"
 import {
   askAi,
   backgroundItems,
   email,
   introduction,
-  now,
   otherProfiles,
   profile,
   site,
   socialLinks,
   workLinks,
 } from "@/lib/portfolio-data"
-
-function formatMonth(month: string) {
-  return new Date(`${month}-01T00:00:00Z`).toLocaleDateString("en-US", {
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  })
-}
 
 export const metadata: Metadata = {
   alternates: {
@@ -31,8 +21,7 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function Home() {
-  const [latestPost] = await getPosts()
+export default function Home() {
   const jsonLd = {
     "@context": "https://schema.org",
     "@graph": [
@@ -60,10 +49,9 @@ export default async function Home() {
         jobTitle: site.jobTitle,
         homeLocation: {
           "@type": "Place",
-          name: `${site.location.city}, ${site.location.country}`,
+          name: site.location.country,
           address: {
             "@type": "PostalAddress",
-            addressLocality: site.location.city,
             addressCountry: site.location.countryCode,
           },
         },
@@ -94,7 +82,7 @@ export default async function Home() {
           />
           <h1>{site.name}</h1>
           <p>
-            I&apos;m a software engineer in Mombasa, Kenya. I build software and write about what
+            I&apos;m a software engineer in Kenya. I build software and write about what
             happens after it ships.
           </p>
         </header>
@@ -106,25 +94,6 @@ export default async function Home() {
             <a href={email.href}>email me</a>. You can also{" "}
             <Link href={askAi.href}>ask AI about me</Link>.
           </p>
-
-          <section aria-labelledby="now" className="home-now">
-            <h2 id="now">Now</h2>
-            <p className="post-meta">
-              Updated <time dateTime={now.updated}>{formatMonth(now.updated)}</time>
-            </p>
-            <ul>
-              {now.items.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-              {latestPost ? (
-                <li>
-                  Writing. Most recently,{" "}
-                  <Link href={`/blog/${latestPost.slug}`}>{latestPost.title}</Link> (
-                  {formatPostDate(latestPost.date, "short")}).
-                </li>
-              ) : null}
-            </ul>
-          </section>
 
           <section>
             <h2>Opesi Mansion</h2>

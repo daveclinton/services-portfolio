@@ -43,6 +43,9 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: dark)", color: "#12100e" },
   ],
   viewportFit: "cover",
+  // Android Chrome: shrink the page above the on-screen keyboard instead of
+  // drawing the keyboard over it. iOS ignores this; see VisibleViewport.
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

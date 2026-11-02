@@ -245,6 +245,61 @@
   text-decoration-thickness: 2px;
 }
 
+/* ---------- Ask AI: keep the message box on screen ---------- */
+
+/*
+ * The chat fills exactly the visible area (see VisibleViewport). The page
+ * itself never scrolls; the message list does. This keeps the message box
+ * above the on-screen keyboard on both iOS and Android.
+ */
+.visible-viewport {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  height: var(--visible-height, 100dvh);
+  transform: translateY(var(--visible-top, 0px));
+  overflow: hidden;
+  container-type: size;
+  container-name: chat;
+}
+
+html.has-visible-viewport,
+html.has-visible-viewport body {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.chat-page {
+  height: 100%;
+  min-height: 0;
+  padding-top: max(1.25rem, env(safe-area-inset-top));
+}
+
+.chat-page .site-nav {
+  margin-bottom: 1rem;
+}
+
+/* Short screen, usually because the keyboard is open: give the space to the conversation. */
+@container chat (max-height: 34rem) {
+  .chat-page {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+
+  .chat-page .site-nav {
+    margin-bottom: 0.25rem;
+  }
+
+  .chat-orb {
+    display: none;
+  }
+}
+
+@container chat (max-height: 22rem) {
+  .chat-page .site-nav {
+    display: none;
+  }
+}
+
 /* ---------- Site navigation ---------- */
 
 .site-nav {
@@ -323,24 +378,6 @@
   margin-top: 1rem;
 }
 
-.home-now ul {
-  margin-top: 0.75rem;
-  padding-left: 1.25em;
-  list-style: disc;
-}
-
-.home-now li + li {
-  margin-top: 0.5rem;
-}
-
-.home-now li::marker {
-  color: var(--subtle-foreground);
-}
-
-.home-article .home-now .post-meta {
-  margin-top: 0.125rem;
-}
-
 /* ---------- Blog index ---------- */
 
 .blog-index {
@@ -351,35 +388,22 @@
   color: var(--muted-foreground);
 }
 
-.blog-year {
-  margin-top: 2.5rem;
-}
-
-.blog-year-label {
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border);
-  color: var(--muted-foreground);
-  font-size: 1rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
 .blog-list > li {
   margin-top: 1.5rem;
 }
 
-.blog-entry h3 {
+.blog-entry h2 {
   font-size: 1.25rem;
   font-weight: 600;
   line-height: 1.35;
 }
 
-.page .blog-entry h3 a {
+.page .blog-entry h2 a {
   color: var(--foreground);
   text-decoration: none;
 }
 
-.page .blog-entry h3 a:hover {
+.page .blog-entry h2 a:hover {
   color: var(--primary);
   text-decoration: underline;
   text-decoration-thickness: 2px;

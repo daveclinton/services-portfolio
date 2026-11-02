@@ -84,23 +84,49 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     conversationIdRef.current = conversationId
   }, [])
 
-  const dockRef = useRef<HTMLDivElement | null>(null)
+  // On the full Ask AI page only the message list scrolls, so the message box
+  // stays in view. Keep the list pinned to the newest message unless the
+  // reader has scrolled up to read something older.
+  const listRef = useRef<HTMLDivElement | null>(null)
+  const pinnedToBottom = useRef(true)
+
   useEffect(() => {
-    if (!hasConversation || embedded) return
-    const dock = dockRef.current
-    const scroller = dock?.closest("main")
-    if (!dock || !scroller) return
-    const nearBottom =
-      scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 160
-    if (!nearBottom) return
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches
-    dock.scrollIntoView({
-      block: "end",
-      behavior: reduceMotion ? "auto" : "smooth",
+    const list = listRef.current
+    if (embedded || !list) return
+    const onScroll = () => {
+      pinnedToBottom.current = list.scrollHeight - list.scrollTop - list.clientHeight < 80
+    }
+    // The list gets shorter when the keyboard opens; keep the latest message visible.
+    const observer = new ResizeObserver(() => {
+      if (pinnedToBottom.current) list.scrollTop = list.scrollHeight
     })
-  }, [turns, hasConversation, embedded])
+    list.addEventListener("scroll", onScroll, { passive: true })
+    observer.observe(list)
+    return () => {
+      list.removeEventListener("scroll", onScroll)
+      observer.disconnect()
+    }
+  }, [embedded, hasConversation])
+
+  useEffect(() => {
+    const list = listRef.current
+    if (embedded || !list || !pinnedToBottom.current) return
+    list.scrollTop = list.scrollHeight
+  }, [turns, embedded])
+
+  // In the blog-post version, the browser scrolls the page. Once the keyboard
+  // finishes opening, make sure the message box is still in view.
+  useEffect(() => {
+    const viewport = window.visualViewport
+    if (!embedded || !viewport) return
+    const onResize = () => {
+      if (document.activeElement === inputRef.current) {
+        inputRef.current?.scrollIntoView({ block: "nearest" })
+      }
+    }
+    viewport.addEventListener("resize", onResize)
+    return () => viewport.removeEventListener("resize", onResize)
+  }, [embedded])
 
   async function ask(text: string) {
     const question = text.trim()
@@ -124,6 +150,8 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
       content: turn.content,
     }))
 
+    // Sending a question always jumps to the newest message.
+    pinnedToBottom.current = true
     setTurns((previous) => [...previous, userTurn, assistantTurn])
     setDraft("")
     setIsStreaming(true)
@@ -312,8 +340,8 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   if (!hasConversation && !embedded) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="flex min-h-min flex-1 flex-col items-center justify-center-safe gap-3 py-[clamp(1.25rem,7dvh,3.5rem)] sm:gap-4">
-          <div className="w-[clamp(7rem,34vw,10rem)]">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-3 overflow-y-auto py-4 sm:gap-4">
+          <div className="chat-orb w-[clamp(7rem,34vw,10rem)]">
             <MatrixOrb state="idle" size={160} />
           </div>
           <h1 className="max-w-[24rem] text-balance break-words text-center text-2xl leading-tight font-semibold text-foreground sm:text-[1.75rem]">
@@ -335,9 +363,14 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
       {embedded && <p className="text-caption text-muted-foreground">Ask about my work and experience. A suggested question appears when this section comes into view.</p>}
 
       <div
+        ref={listRef}
         aria-live="polite"
         aria-relevant="additions text"
-        className="flex min-w-0 flex-1 flex-col gap-2.5 pt-4 sm:gap-3 sm:pt-6"
+        className={
+          embedded
+            ? "flex min-w-0 flex-1 flex-col gap-2.5 pt-4 sm:gap-3 sm:pt-6"
+            : "flex min-h-0 min-w-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain pt-2 pb-2 sm:gap-3"
+        }
       >
         {turns.map((turn) =>
           turn.role === "user" ? (
@@ -380,8 +413,11 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
       </div>
 
       <div
-        ref={dockRef}
-        className={embedded ? "mt-4" : "sticky bottom-0 z-10 -mx-6 mt-3 bg-gradient-to-t from-background via-background via-80% to-transparent px-6 pt-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:-mx-8 sm:mt-4 md:px-8 sm:pt-6 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))]"}
+        className={
+          embedded
+            ? "mt-4"
+            : "shrink-0 border-t border-border pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        }
       >
         {composer}
       </div>
