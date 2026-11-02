@@ -286,10 +286,10 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
                 }
               }}
               aria-describedby={showConsentError ? "conversation-consent-error" : undefined}
-              className="mt-0.5 size-3.5 shrink-0 accent-foreground"
+              className="mt-0.5 size-4 shrink-0 accent-primary"
             />
             <span>
-              I consent to storing this conversation for 30 days to help improve the assistant.
+              I consent to storing this conversation for 30 days to help improve the assistant.{" "}
               <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
                 Privacy details
               </Link>
@@ -312,14 +312,13 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   if (!hasConversation && !embedded) {
     return (
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <h2 className="sr-only">{askAi.label}</h2>
         <div className="flex min-h-min flex-1 flex-col items-center justify-center-safe gap-3 py-[clamp(1.25rem,7dvh,3.5rem)] sm:gap-4">
           <div className="w-[clamp(7rem,34vw,10rem)]">
             <MatrixOrb state="idle" size={160} />
           </div>
-          <p className="max-w-[24rem] text-balance break-words text-center text-xl leading-7 font-medium text-foreground sm:text-name-sm sm:leading-8">
+          <h1 className="max-w-[24rem] text-balance break-words text-center text-2xl leading-tight font-semibold text-foreground sm:text-[1.75rem]">
             {askAi.title}?
-          </p>
+          </h1>
           <div className="w-full max-w-[38rem]">{composer}</div>
         </div>
       </div>
@@ -328,7 +327,11 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
 
   return (
     <div ref={embeddedRef} className={embedded ? "my-6 flex min-w-0 flex-col rounded-lg border border-border bg-card p-4 sm:p-6" : "flex min-h-0 min-w-0 flex-1 flex-col"}>
-      <h2 className="sr-only">{askAi.label}</h2>
+      {embedded ? (
+        <h2 className="sr-only">{askAi.label}</h2>
+      ) : (
+        <h1 className="sr-only">{askAi.label}</h1>
+      )}
       {embedded && <p className="text-caption text-muted-foreground">Ask about my work and experience. A suggested question appears when this section comes into view.</p>}
 
       <div
@@ -378,7 +381,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
 
       <div
         ref={dockRef}
-        className={embedded ? "mt-4" : "sticky bottom-0 z-10 -mx-4 mt-3 bg-gradient-to-t from-background via-background via-80% to-transparent px-4 pt-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:-mx-6 sm:mt-4 sm:px-6 sm:pt-6 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))]"}
+        className={embedded ? "mt-4" : "sticky bottom-0 z-10 -mx-6 mt-3 bg-gradient-to-t from-background via-background via-80% to-transparent px-6 pt-5 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:-mx-8 sm:mt-4 md:px-8 sm:pt-6 sm:pb-[max(1.25rem,env(safe-area-inset-bottom))]"}
       >
         {composer}
       </div>

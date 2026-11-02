@@ -1,10 +1,10 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { Rss } from "lucide-react"
+import { SiteNav } from "@/components/portfolio/site-nav"
 import { formatPostDate, getPosts, type Post } from "@/lib/blog"
 
 export const metadata: Metadata = {
-  title: "My thoughts",
+  title: "Writing",
   description: "Notes and guides on building software, payments, AI, and developer tooling.",
   alternates: {
     canonical: "/blog",
@@ -25,48 +25,46 @@ export default async function BlogPage() {
   const posts = await getPosts()
 
   return (
-    <main className="home-story">
-      <nav className="blog-nav flex items-center justify-between" aria-label="Blog navigation">
-        <Link href="/">Home</Link>
-        <a href="/feed.xml" aria-label="RSS feed">
-          <Rss className="size-4" aria-hidden="true" />
-        </a>
-      </nav>
+    <div className="page">
+      <SiteNav />
+      <main id="content">
+        <header className="page-header">
+          <h1>Writing</h1>
+          <p>
+            Notes on building software, payments, AI, and developer tooling. Follow along with{" "}
+            <a href="/feed.xml">the RSS feed</a>.
+          </p>
+        </header>
 
-      <header className="home-story-header">
-        <h1>
-          <span className="home-story-initial">M</span>y{" "}
-          <span className="home-story-initial">T</span>houghts
-        </h1>
-      </header>
-
-      <div className="home-story-article">
-        {posts.length === 0 ? (
-          <p className="blog-empty">Nothing published yet. Check back soon.</p>
-        ) : (
-          groupByYear(posts).map(([year, yearPosts]) => (
-            <section key={year} className="blog-year" aria-labelledby={`year-${year}`}>
-              <h2 id={`year-${year}`} className="blog-year-label">
-                {year}
-              </h2>
-              <ol className="blog-list">
-                {yearPosts.map((post) => (
-                  <li key={post.slug}>
-                    <article className="blog-entry">
-                      <h3>
-                        <Link href={`/blog/${post.slug}`}>{post.title}</Link>
-                      </h3>
-                      <time dateTime={post.date}>
-                        {formatPostDate(post.date, "short")} · {post.readingMinutes} min read
-                      </time>
-                    </article>
-                  </li>
-                ))}
-              </ol>
-            </section>
-          ))
-        )}
-      </div>
-    </main>
+        <div className="blog-index">
+          {posts.length === 0 ? (
+            <p className="blog-empty">Nothing published yet. Check back soon.</p>
+          ) : (
+            groupByYear(posts).map(([year, yearPosts]) => (
+              <section key={year} className="blog-year" aria-labelledby={`year-${year}`}>
+                <h2 id={`year-${year}`} className="blog-year-label">
+                  {year}
+                </h2>
+                <ol className="blog-list">
+                  {yearPosts.map((post) => (
+                    <li key={post.slug}>
+                      <article className="blog-entry">
+                        <h3>
+                          <Link href={`/blog/${post.slug}`}>{post.title}</Link>
+                        </h3>
+                        <p className="post-meta">
+                          <time dateTime={post.date}>{formatPostDate(post.date, "short")}</time> ·{" "}
+                          {post.readingMinutes} min read
+                        </p>
+                      </article>
+                    </li>
+                  ))}
+                </ol>
+              </section>
+            ))
+          )}
+        </div>
+      </main>
+    </div>
   )
 }

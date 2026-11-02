@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import type { Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { site } from "@/lib/portfolio-data";
 import { cn } from "@/lib/utils";
 
-const inter = Inter({
+// A serif designed for reading on screens; the site is mostly long-form text.
+const reading = Source_Serif_4({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-reading",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -35,8 +37,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  colorScheme: "dark",
-  themeColor: "#0a0a0a",
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fbfaf6" },
+    { media: "(prefers-color-scheme: dark)", color: "#171513" },
+  ],
   viewportFit: "cover",
 };
 
@@ -45,9 +50,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={cn("dark min-h-full scroll-smooth antialiased font-sans", inter.variable)}
+      className={cn("min-h-full scroll-smooth antialiased", reading.variable)}
     >
-      <body className="min-h-dvh overflow-x-hidden bg-background text-foreground">{children}</body>
+      <body className="min-h-dvh overflow-x-hidden bg-background text-foreground">
+        <a href="#content" className="skip-link">
+          Skip to content
+        </a>
+        {children}
+      </body>
     </html>
   );
 }

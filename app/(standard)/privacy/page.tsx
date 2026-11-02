@@ -9,22 +9,18 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <article className="mx-auto w-full max-w-[42rem] py-8 sm:py-12">
-      <Link
-        href="/ask-ai"
-        className="text-caption text-muted-foreground underline underline-offset-4 hover:text-foreground"
-      >
-        Back to Ask AI
-      </Link>
+    <article>
+      <header className="page-header">
+        <h1>Ask AI privacy</h1>
+        <p>
+          How <Link href="/ask-ai">Ask AI</Link> handles what you type.
+        </p>
+      </header>
 
-      <h1 className="mt-6 text-3xl font-semibold tracking-tight text-foreground">
-        Ask AI privacy
-      </h1>
-
-      <div className="mt-6 space-y-6 text-body leading-7 text-foreground/85">
+      <div className="blog-prose">
         <section>
-          <h2 className="font-semibold text-foreground">Conversation storage and consent</h2>
-          <p className="mt-2">
+          <h2>Conversation storage and consent</h2>
+          <p>
             To use Ask AI, you must select the consent checkbox before sending a question. Your
             questions and the assistant&apos;s responses are then stored for 30 days so I can review
             answer quality and improve the feature. You can choose not to use Ask AI if you do not
@@ -33,8 +29,8 @@ export default function PrivacyPage() {
         </section>
 
         <section>
-          <h2 className="font-semibold text-foreground">Technical information</h2>
-          <p className="mt-2">
+          <h2>Technical information</h2>
+          <p>
             Stored records include a random conversation identifier, timestamps, response
             status, broad device type, browser family, and operating-system family. The raw IP
             address and complete browser user-agent string are not stored. A one-way network hash
@@ -43,8 +39,8 @@ export default function PrivacyPage() {
         </section>
 
         <section>
-          <h2 className="font-semibold text-foreground">Service providers</h2>
-          <p className="mt-2">
+          <h2>Service providers</h2>
+          <p>
             Conversation text is processed by OpenAI to generate the assistant&apos;s response and
             sent through Brevo in a private notification so I can review the interaction. These
             services process the conversation only as part of operating and improving Ask AI.
@@ -52,8 +48,8 @@ export default function PrivacyPage() {
         </section>
 
         <section>
-          <h2 className="font-semibold text-foreground">Please avoid private information</h2>
-          <p className="mt-2">
+          <h2>Please avoid private information</h2>
+          <p>
             Conversation text may contain personal information if you type it. Do not submit
             passwords, contact details, health information, financial information, or anything
             else you consider private.
@@ -61,8 +57,8 @@ export default function PrivacyPage() {
         </section>
 
         <section>
-          <h2 className="font-semibold text-foreground">Retention and control</h2>
-          <p className="mt-2">
+          <h2>Retention and control</h2>
+          <p>
             Conversations expire after 30 days. You can clear the consent checkbox to prevent
             another question from being sent and stored. For an access or deletion request, use
             the contact link on the homepage and include the approximate date and content of the

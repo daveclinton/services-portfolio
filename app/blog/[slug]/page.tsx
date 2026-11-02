@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { redirect } from "next/navigation"
 import { formatPostDate, getPostContent, getPosts } from "@/lib/blog"
+import { SiteNav } from "@/components/portfolio/site-nav"
 import { site } from "@/lib/portfolio-data"
 
 export async function generateStaticParams() {
@@ -53,34 +54,36 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
   }
 
   return (
-    <main className="home-story">
+    <div className="page">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
-      <nav className="blog-nav" aria-label="Breadcrumb">
-        <Link href="/blog">← All writing</Link>
-      </nav>
+      <SiteNav />
 
-      <article className="blog-post">
-        <header className="blog-post-header">
-          <time dateTime={post.date}>
-            {formatPostDate(post.date)} · {post.readingMinutes} min read
-          </time>
-          <h1>{post.title}</h1>
-        </header>
+      <main id="content">
+        <article className="blog-post">
+          <header className="blog-post-header">
+            <p className="post-meta">
+              <time dateTime={post.date}>{formatPostDate(post.date)}</time> ·{" "}
+              {post.readingMinutes} min read
+            </p>
+            <h1>{post.title}</h1>
+            {post.description ? <p className="post-description">{post.description}</p> : null}
+          </header>
 
-        <div className="blog-prose">
-          <Content />
-        </div>
+          <div className="blog-prose">
+            <Content />
+          </div>
 
-        <footer className="blog-post-footer">
-          <p>
-            Written by <Link href="/">{site.name}</Link>. If this was useful, you can{" "}
-            <Link href="/blog">read more of my writing</Link>.
-          </p>
-        </footer>
-      </article>
-    </main>
+          <footer className="blog-post-footer">
+            <p>
+              Written by <Link href="/">{site.name}</Link>. If this was useful, you can{" "}
+              <Link href="/blog">read more of my writing</Link>.
+            </p>
+          </footer>
+        </article>
+      </main>
+    </div>
   )
 }

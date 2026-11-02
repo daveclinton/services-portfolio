@@ -1,12 +1,14 @@
-import { SectionLabel } from "@/components/portfolio/section-label"
 import { Timeline } from "@/components/portfolio/timeline"
 import { backgroundItems } from "@/lib/portfolio-data"
 
 export function BackgroundSection() {
   return (
-    <section aria-labelledby="background" className="mt-10">
-      <SectionLabel id="background">WORK EXPERIENCE</SectionLabel>
+    <>
+      <header className="page-header">
+        <h1>Work experience</h1>
+        <p>Where I&apos;ve worked, most recent first.</p>
+      </header>
       <Timeline items={backgroundItems} />
-    </section>
+    </>
   )
 }

@@ -54,7 +54,6 @@ export type TimelineEntry = {
   id: string
   company: string
   iconSrc?: string
-  iconInitials?: string[]
   location?: string
   arrangement?: string
   start: string
@@ -62,7 +61,7 @@ export type TimelineEntry = {
   description: string
 }
 
-export const ongoingRoleLabel = "Currently in this role"
+export const ongoingRoleLabel = "Present"
 
 export function formatRoleDates({
   start,
@@ -77,16 +76,15 @@ export const backgroundItems: TimelineEntry[] = [
     company: "Mika (Ideal Appliances)",
     iconSrc: "/mika.webp",
     location: "Mombasa, Kenya",
-    start: "2025 Oct",
+    start: "Oct 2025",
     description:
       "I help warehouse, delivery, and customer service teams spend less time on manual work by automating paperwork and connecting information across the business.",
   },
   {
     id: "2024-09",
     company: "Givesuite · Element Pay · Studio1HQ",
-    iconInitials: ["G", "E", "S"],
-    start: "2024 Sep",
-    end: "2025 Jun",
+    start: "Sep 2024",
+    end: "Jun 2025",
     description:
       "I improved online payment experiences for GiveSuite and Element Pay and wrote practical guides for developers through Studio1HQ.",
   },
@@ -96,8 +94,8 @@ export const backgroundItems: TimelineEntry[] = [
     iconSrc: "/untapped.webp",
     location: "Nairobi, Kenya",
     arrangement: "Hybrid",
-    start: "2022 May",
-    end: "2024 May",
+    start: "May 2022",
+    end: "May 2024",
     description:
       "I turned complex investment data into clear charts so investors and internal teams could understand and explore it.",
   },
@@ -106,8 +104,8 @@ export const backgroundItems: TimelineEntry[] = [
     company: "Paperspace (now DigitalOcean)",
     iconSrc: "/paperspace.webp",
     arrangement: "Remote",
-    start: "2021 Jan",
-    end: "2022 Feb",
+    start: "Jan 2021",
+    end: "Feb 2022",
     description:
       "I wrote practical articles that helped developers understand machine learning and make better use of cloud computing.",
   },

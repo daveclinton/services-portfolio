@@ -3,17 +3,10 @@ import type { TimelineEntry } from "@/lib/portfolio-data"
 
 export function Timeline({ items }: { items: TimelineEntry[] }) {
   return (
-    <div className="relative mt-5">
-      <span
-        aria-hidden="true"
-        className="absolute top-4 bottom-4 left-[15px] w-px bg-border"
-      />
-
-      <ol className="flex flex-col gap-6">
-        {items.map((item) => (
-          <TimelineItem key={item.id} {...item} />
-        ))}
-      </ol>
-    </div>
+    <ol className="roles">
+      {items.map((item) => (
+        <TimelineItem key={item.id} {...item} />
+      ))}
+    </ol>
   )
 }
