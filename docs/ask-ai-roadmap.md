@@ -60,7 +60,7 @@ base. Changes, measured with `backend/evals/` (5 of 15 refused before, 0 after):
 ## 2. Knowledge coverage
 
 The cheapest quality gain: the assistant can't answer about things that aren't
-in the knowledge base (`../professional-knowledge`).
+in the knowledge base (`professional-knowledge/`).
 
 - [x] **Opesi Mansion** and **9ntyplus**: mentioned in the site facts as early
       work in progress (no detailed documents yet, by choice).

@@ -97,8 +97,7 @@ categories and a daily rotating network hash. The API purges expired
 conversations itself, and each browser-tab chat session triggers at most one
 private Brevo email.
 
-The Python code in the separate `knowledge-backend` repository (checked out
-beside this one) is an offline workspace for the knowledge and model pipeline:
+The Python code in `knowledge-backend/` is an offline workspace for the knowledge and model pipeline:
 ingestion, embedding generation, audits, retrieval evaluation, and database
 migrations. It has no HTTP deployment.
 
@@ -114,7 +113,7 @@ see `backend/compose.yaml`) and creates its schema on first start, so the
 migrations below are only needed for a database outside Docker. Copy a direct connection string into `knowledge-backend/.env` as `DATABASE_URL`.
 
 ```bash
-cd ../knowledge-backend
+cd knowledge-backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -131,8 +130,8 @@ lives in `knowledge-backend/database/migrations/` and retains its historical `ap
 label so existing migration records remain valid. No existing data or tables
 need to be removed.
 
-The Markdown knowledge base is a separate repository. Run these commands
-locally or in a job with access to that checkout and the database; no Python web
+The Markdown knowledge base is in `professional-knowledge/`. Run these commands
+locally or in a job with access to that folder and the database; no Python web
 service is needed. Existing workflows generate embeddings and evaluate
 retrieval; there is currently no separate model-training command.
 
@@ -141,7 +140,7 @@ retrieval; there is currently no separate model-training command.
 ```bash
 cd backend && cp .env.example .env
 make up          # Postgres (pgvector) + API in Docker, API on :8080
-make db-ingest   # load the knowledge base via ../knowledge-backend
+make db-ingest   # load the knowledge base via ../knowledge-backend from backend/
 cd .. && pnpm dev   # site on :3000
 ```
 

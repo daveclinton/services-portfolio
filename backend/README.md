@@ -74,7 +74,7 @@ improves which documents are ranked as relevant. `knowledge-backend`'s
 ```bash
 cp .env.example .env    # add OPENAI_API_KEY for chat; on Apple Silicon set EMBEDDINGS_IMAGE (see the file)
 make up                 # Postgres (:5433) and the API (:8080)
-make db-ingest          # load the knowledge base with ../../knowledge-backend
+make db-ingest          # load the knowledge base with ../knowledge-backend
 make test
 ```
 

@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "resume/**",
+    "professional-knowledge/**",
+    "knowledge-backend/**",
   ]),
 ]);
 

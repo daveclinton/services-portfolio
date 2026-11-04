@@ -6,7 +6,7 @@
 #   make run            run the API with `go run` against the Docker database
 #   make test
 # VPS: see README.md (clone the repo, create .env, run ./deploy/setup.sh)
-KNOWLEDGE_BACKEND ?= ../../knowledge-backend
+KNOWLEDGE_BACKEND ?= ../knowledge-backend
 
 .PHONY: up down logs psql db-ingest db-import run test
 

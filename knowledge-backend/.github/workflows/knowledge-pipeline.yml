@@ -1,0 +1,87 @@
+name: knowledge pipeline
+
+# Continuous ingestion (Phase 10): every run rebuilds the knowledge graph from
+# the Markdown knowledge base, proves the relationship graph is complete with
+# `--strict` + `audit_knowledge`, refreshes embeddings, and gates on retrieval
+# quality. A knowledge-base typo therefore fails CI instead of quietly shipping.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 06:00 UTC every Monday.
+    - cron: "0 6 * * 1"
+  push:
+    branches: [main]
+
+jobs:
+  knowledge:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        # Ships Postgres 16 with the pgvector and pg_trgm extensions available.
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: portfolio
+          POSTGRES_USER: portfolio_owner
+          POSTGRES_PASSWORD: portfolio_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U portfolio_owner -d portfolio"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      POSTGRES_DB: portfolio
+      POSTGRES_USER: portfolio_owner
+      POSTGRES_PASSWORD: portfolio_password
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      KNOWLEDGE_BASE_PATH: ${{ github.workspace }}/professional-knowledge
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      # Absolute paths inside the repo, so the CLI and the test suite agree.
+      PROFESSIONAL_KNOWLEDGE_REPO: ${{ vars.PROFESSIONAL_KNOWLEDGE_REPO || 'https://github.com/daveclinton/professional-knowledge.git' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The knowledge base is its own repository and the source of truth.
+      # Falls back to a no-op when it is private and no token is configured.
+      - name: Check out the knowledge base
+        continue-on-error: true
+        run: |
+          git clone --depth 1 \
+            "${PROFESSIONAL_KNOWLEDGE_REPO}" professional-knowledge
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install backend dependencies
+        run: pip install -r requirements.txt
+
+      - name: Migrate
+        run: python manage.py migrate --noinput
+
+      - name: Ingest the knowledge base (strict)
+        run: python manage.py ingest_knowledge --strict
+
+      - name: Audit the evidence graph
+        run: python manage.py audit_knowledge
+
+      - name: Refresh embeddings
+        if: ${{ env.OPENAI_API_KEY != '' }}
+        run: python manage.py embed_knowledge
+
+      - name: Evaluate retrieval
+        run: |
+          python manage.py evaluate_retrieval \
+            --mode structured --mode hybrid \
+            -k 5 --min-hit-rate 0.6 --show-misses
+
+      - name: Run the test suite
+        run: python -m pytest -q

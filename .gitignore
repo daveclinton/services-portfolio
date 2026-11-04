@@ -37,3 +37,6 @@ next-env.d.t.
 .ruff_cache/
 .coverage
 htmlcov/
+
+# Broken symlink left by the resume build
+/resume/source/node_modules
