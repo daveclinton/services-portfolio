@@ -75,7 +75,7 @@ module.exports = {
       role: "Developer Relations Engineer (Contract)",
       company: "Studio1HQ",
       place: "Remote",
-      dates: "May 2024 – Jan 2026",
+      dates: "May 2024 – Present",
       bullets: [
         "Tested client APIs and wrote documentation, integration guides and code samples for developer tools in cloud infrastructure, AI, media and web data.",
       ],

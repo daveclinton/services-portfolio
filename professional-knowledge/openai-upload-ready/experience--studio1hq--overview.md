@@ -4,7 +4,7 @@ company: studio1hq
 company_name: Studio1HQ
 role: DevRel Engineer (Consultant)
 start_date: 2024-05-01
-end_date: 2026-01-31
+end_date: null
 location: Remote
 ---
 
@@ -16,6 +16,6 @@ evaluate and adopt the products.
 
 The engagement covered the full documentation workflow: researching products,
 testing APIs, writing and reviewing examples, authoring in client platforms,
-and maintaining content in GitHub-based delivery workflows. The work took place
-from May 2024 through January 2026, including a period delivered alongside the
+and maintaining content in GitHub-based delivery workflows. The work began
+in May 2024 and is ongoing, including a period delivered alongside the
 Givesuite and Element Pay consulting engagements.

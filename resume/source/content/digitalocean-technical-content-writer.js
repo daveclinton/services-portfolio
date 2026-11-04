@@ -29,7 +29,7 @@ module.exports = {
       role: "Developer Relations Engineer (Contract)",
       company: "Studio1HQ",
       place: "Remote",
-      dates: "May 2024 – Jan 2026",
+      dates: "May 2024 – Present",
       bullets: [
         "Wrote tutorials, how-to guides, conceptual documentation, API references and integration guides for developer-tool, AI and infrastructure clients of Studio1HQ, including Ittybit and Nitric/Suga.",
         "Documented AI cloud products covering agents, training, inference, managed inference and serverless AI.",

@@ -7,7 +7,7 @@ problem: |
   examples that made complex APIs, infrastructure, and workflows easier to
   understand, evaluate, and adopt.
 context: |
-  Consulting engagement at Studio1HQ from May 2024 through January 2026.
+  Consulting engagement at Studio1HQ from May 2024, ongoing.
   The work supported multiple client products and, for part of the period, ran
   in parallel with the Givesuite and Element Pay engagements.
 skills:
