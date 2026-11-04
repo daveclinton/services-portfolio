@@ -1,5 +1,6 @@
-// Single source for the resume text. Both the .docx and the PDF are built from this.
+// Resume for Coop, Software Engineer, Systems and AI Integration.
 module.exports = {
+  output: "Coop_Software_Engineer_Systems_AI_Integration.pdf",
   name: "David Clinton Hellen",
   headline: "Software Engineer, Systems and AI Integration",
   // One inner list per line.
