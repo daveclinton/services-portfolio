@@ -76,7 +76,7 @@ module.exports = {
       place: "Remote",
       dates: "May 2024 – Present",
       bullets: [
-        "Wrote a measured tutorial on whether React Native's New Architecture and React Compiler make an Android app faster. Built three Release variants of one app, ran repeated launch, navigation and scroll trials on a physical phone using Measure and adb scripts, and reported results and limits from the raw data.",
+        "Wrote a measured tutorial on whether React Native's New Architecture and React Compiler make an Android app faster. Built three Release variants of one app, ran repeated launch, navigation and scroll trials on a physical phone using mobile performance monitoring and adb scripts, and reported results and limits from the raw data.",
         "Tested client APIs and wrote documentation, integration guides and code samples for developer tools in cloud infrastructure, AI, media and web data.",
       ],
     },

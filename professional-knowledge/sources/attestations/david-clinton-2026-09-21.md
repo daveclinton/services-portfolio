@@ -8,7 +8,7 @@ records or private operational analytics are unavailable.
 
 The attested claims cover:
 
-- Work for Ittybit and Nitric/Suga performed under Studio1HQ, the associated
+- Client work performed under Studio1HQ (client names redacted, under NDA), the associated
   documentation and application stack, and the requirement that testimonials
   remain anonymous.
 - Concurrent consulting delivery for GiveSuite, Element Pay and Studio1HQ from

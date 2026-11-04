@@ -24,11 +24,11 @@ claims:
     description: Confirmed by David Clinton from firsthand use during the engagement.
     source_path: sources/attestations/david-clinton-2026-09-21.md
   - slug: studio1hq-client-attribution
-    claim: Worked on the Ittybit and Nitric/Suga client workstreams under Studio1HQ; both clients may be named publicly when the Studio1HQ relationship is made explicit.
+    claim: Client work is performed under Studio1HQ and client names are under NDA; only technical details may be disclosed.
     confidence: confirmed
     evidence_type: documentation
     title: Studio1HQ client attribution
-    description: Public attribution authorized by David Clinton. Phrase as work performed under Studio1HQ, not as a direct engagement with either client.
+    description: Confirmed by David Clinton on 2026-11-04. Never name clients. Describe work by technical domain, as work performed under Studio1HQ.
     source_path: sources/attestations/david-clinton-2026-09-21.md
   - slug: studio1hq-devrel-outcome
     claim: Team-level publication, readership, SEO, launch, or adoption metrics may be cited as shared Studio1HQ outcomes because David carried a substantial portion of the delivery workload, provided they are clearly labeled as team results rather than individual-only results.
@@ -51,5 +51,5 @@ claims:
   search growth, conversions, or adoption impact.
 - Anonymous testimonial text, if testimonials are to be published.
 
-Firsthand claims were confirmed by David Clinton on 2026-09-21. Ittybit and
-Nitric/Suga must always be described as client work performed under Studio1HQ.
+Firsthand claims were confirmed by David Clinton on 2026-09-21. Client names
+are under NDA and must not be disclosed.

@@ -32,9 +32,9 @@ module.exports = {
       dates: "May 2024 – Present",
       bullets: [
         "Own technical articles end to end for Studio1HQ clients: research, companion app, testing and measurement, drafting, diagrams, and review against editorial and SEO guidelines.",
-        "Writing React Native content for Measure, covering performance measurement, debugging crashes after Expo OTA updates, and tracing Stream Chat behavior.",
-        "Built 3 Android release variants of one app and ran repeated launch, navigation and scroll trials on a physical phone with Measure and adb scripts, then reported results and limits from the raw data for a tutorial on New Architecture and React Compiler.",
-        "Wrote tutorials, how-to guides, conceptual documentation, API references and integration guides for developer-tool, AI and infrastructure clients, including Ittybit and Nitric/Suga.",
+        "Writing React Native content on performance measurement, debugging crashes after Expo OTA updates, and tracing chat SDK behavior in production.",
+        "Built 3 Android release variants of one app and ran repeated launch, navigation and scroll trials on a physical phone with mobile performance monitoring and adb scripts, then reported results and limits from the raw data for a tutorial on New Architecture and React Compiler.",
+        "Wrote tutorials, how-to guides, conceptual documentation, API references and integration guides for developer-tool, AI and infrastructure clients.",
         "Documented AI cloud products covering agents, training, inference, managed inference and serverless AI, and private container registry workflows across Docker Hub, GHCR, GCR, ECR, ACR and Harbor.",
         "Tested APIs hands-on with OpenAPI/Swagger and Postman, wrote code samples in TypeScript and Python, and published through GitBook, Docusaurus, Notion and Git-based review.",
       ],

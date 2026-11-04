@@ -31,7 +31,7 @@ module.exports = {
       place: "Remote",
       dates: "May 2024 – Present",
       bullets: [
-        "Wrote tutorials, how-to guides, conceptual documentation, API references and integration guides for developer-tool, AI and infrastructure clients of Studio1HQ, including Ittybit and Nitric/Suga.",
+        "Wrote tutorials, how-to guides, conceptual documentation, API references and integration guides for developer-tool, AI and infrastructure clients of Studio1HQ.",
         "Documented AI cloud products covering training, inference, managed inference and serverless AI.",
         "Documented private container registry workflows across Docker Hub, GHCR, GCR, ECR, ACR and Harbor, including credentials, image pulls and security practices.",
         "Tested APIs hands-on with OpenAPI/Swagger and Postman, and wrote code samples in TypeScript and Python.",

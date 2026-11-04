@@ -111,12 +111,12 @@ technologies:
 
 - **Video and media:** ingest, processing pipelines, video shortening, NSFW
   checks, and AI-generated insights.
-- **Web data and scraping:** Unlocker, SERP, Browser, and Scraper APIs; Scraper
-  Studio; datasets; data firehose; retail intelligence; managed data
+- **Web data and scraping:** web unblocking, search-result, browser and scraper APIs; no-code
+  scraper tooling; datasets; data firehose; retail intelligence; managed data
   acquisition; and residential, ISP, and datacenter proxies.
 - **Collaboration:** comments, contextual threads, mentions, and anchoring for
   workflows involving people and agents.
-- **AI cloud:** training, inference, agents, vision AI, robotics, Token Factory,
+- **AI cloud:** training, inference, agents, vision AI, robotics, model token APIs,
   managed inference, and serverless AI.
 - **Cloud infrastructure:** private container registries including Docker Hub,
   GHCR, GCR, ECR, ACR, Harbor, GitLab, and Nexus; credentials, image-pull
@@ -136,6 +136,6 @@ Query; Tailwind CSS 4 and shadcn/ui; Auth.js v5, Better Auth, and Clerk;
 Drizzle and Prisma over Neon/PostgreSQL and Turso/SQLite/libSQL; and integrations
 with Stripe, Resend, Amazon S3, Cloudflare R2, Sentry, and PostHog.
 
-Publicly attributable client workstreams include Ittybit and Nitric/Suga. They
-must be presented as work performed under Studio1HQ, not as direct client
-engagements. Testimonials from this engagement must remain anonymous.
+Client names are under NDA and must never be disclosed. Describe this work by
+technical domain, as work performed under Studio1HQ. Technical details may be
+shared.

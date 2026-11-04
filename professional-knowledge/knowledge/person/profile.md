@@ -52,8 +52,8 @@ permissioned, read-only natural-language analytics layer over SAP HANA.
 
 My SaaS and consulting experience includes migrating GiveSuite's legacy system
 to a new full-stack web experience, improving Element Pay's frontend UI, and
-delivering developer documentation and application work for Ittybit and
-Nitric/Suga under Studio1HQ. At Untapped Global, I translated Figma designs into
+delivering developer documentation and application work for clients
+under Studio1HQ. At Untapped Global, I translated Figma designs into
 production React interfaces and published three reusable Apache Superset chart
 packages to npm. I have also published six bylined Paperspace technical
 articles covering PyTorch computer vision, GPU utilization, mixed-precision
