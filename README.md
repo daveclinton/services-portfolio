@@ -87,7 +87,7 @@ NEXT_PUBLIC_API_URL=https://api.daveclintonn.cc   # http://localhost:8080 locall
 ```
 
 See `backend/README.md` for the API's layout, routes, rate limits and
-environment variables, and the draft post
+environment variables, and the post
 `content/blog/moving-my-portfolio-backend-to-go.mdx` for the full VPS setup.
 
 Ask AI requires explicit conversation-storage consent before a question can be

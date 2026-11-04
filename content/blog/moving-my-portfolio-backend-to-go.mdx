@@ -1,8 +1,7 @@
 export const metadata = {
   title: "Moving my portfolio's backend to Go on a VPS",
   description: "How I moved this site's AI assistant out of Next.js route handlers into one Go binary running in Docker behind nginx, step by step.",
-  date: "2026-11-02",
-  draft: true,
+  date: "2026-11-04",
 }
 
 This site's Ask AI assistant used to run inside Next.js route handlers on Vercel. That works for one feature. But I want to build a series of small products here, one at a time, that you can use while I write about how each one works. For that I want one backend that I control, on a server I can SSH into.
@@ -13,7 +12,7 @@ This post walks through the move: what needed a backend, why I chose Go, how the
 
 Start by listing what runs on the server today. For this site it was:
 
-- **Chat**: retrieve evidence from Postgres, classify the question, and stream a grounded answer from OpenAI.
+- **Chat**: load the knowledge base from Postgres, classify the question, and stream a grounded answer from OpenAI.
 - **Search**: return ranked knowledge chunks with their evidence.
 - **Rate limits**: per-visitor, per-IP and site-wide budgets so nobody can drain my OpenAI credits.
 - **Conversation logs**: store opted-in turns for 30 days and email me once per chat session.
@@ -45,7 +44,8 @@ backend/
     httpx/               JSON helpers, body limits, client IP, Server-Sent Events
     ratelimit/           sliding-window limits and per-visitor locks
     visitor/             signed anonymous visitor cookie
-    openai/              the four OpenAI calls, over plain net/http
+    openai/              the three OpenAI calls, over plain net/http
+    embeddings/          optional self-hosted embeddings client
     brevo/               transactional email
     askai/               product #1: the portfolio assistant
   deploy/setup.sh        picks a free port, starts Docker, configures nginx and TLS
@@ -162,7 +162,7 @@ The daily Vercel cron job goes away too. The service starts a ticker that delete
 
 ## 8. Call OpenAI without an SDK
 
-There's no official OpenAI SDK in this backend. The four calls it needs (streamed chat, structured JSON output, embeddings and vector store search) are plain HTTPS requests with JSON bodies. Reading a stream is a loop over lines:
+There's no official OpenAI SDK in this backend. The three calls it needs (streamed chat, structured JSON output and embeddings) are plain HTTPS requests with JSON bodies. Reading a stream is a loop over lines:
 
 ```go
 scanner := bufio.NewScanner(resp.Body)

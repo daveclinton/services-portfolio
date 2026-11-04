@@ -12,11 +12,11 @@ A title only names the dish, and the same name can mean very different cooking f
 
 That matters for a simple reason. If you can't tell you're qualified, the hiring manager won't be able to either. They have less time than you, and they only have the words you gave them.
 
-So I took a real posting, Platform Engineer at [Polygon Labs](https://polygon.technology/), and went through it line by line against what I've done. I checked my own repositories rather than my memory, because memory is generous. I'm not trying to flatter myself into this job. I want to know what's in the fridge.
+So I took a real posting, Platform Engineer at [Polygon Labs](https://polygon.technology/), and went through it line by line against what I've done. I checked my own repositories rather than my memory, because memory is generous. I want to know what's in the fridge.
 
 ## What they're actually asking for
 
-Polygon Labs builds payments infrastructure on a blockchain. The role is hands-on and operational: keep production reliable, secure, and efficient, working during EU hours. I can skip the word "platform" entirely, because the posting lists thirteen requirements. Here they are, with my honest answer next to each.
+Polygon Labs builds payments infrastructure on a blockchain. The posting lists thirteen requirements. Here they are, with my honest answer next to each.
 
 | What they need | Me | What I can show |
 | --- | --- | --- |
@@ -34,7 +34,7 @@ Polygon Labs builds payments infrastructure on a blockchain. The role is hands-o
 | Read Go, work across TypeScript and Python | Yes | I ship all three. |
 | Core hours overlapping the EU day | Yes | Kenya is a good time zone for this. |
 
-That's four yes, four partly, and five no. It's a worse score than I was hoping for when I started, and it's worth saying why before I get to the good news. The five no's aren't side dishes. GKE, Pulumi, and GCP are the first things the posting names, and it asks for "demonstrated production experience." I can't demonstrate that.
+That's four yes, four partly, and five no. The five no's aren't side dishes. GKE, Pulumi, and GCP are the first things the posting names, and it asks for "demonstrated production experience." I can't demonstrate that.
 
 So, on paper, today, I don't qualify. If I'd stopped at the title, I'd have reached the same conclusion and learned nothing. The interesting part is what turned up while I was checking.
 
@@ -42,9 +42,7 @@ So, on paper, today, I don't qualify. If I'd stopped at the title, I'd have reac
 
 Some of this isn't on my resume in any form a platform team would recognise. I wrote it down as application work, because that's what my title said it was.
 
-**Secrets and configuration.** At Mika, we follow the best practices that fit our scale: credentials stay out of source control, they're kept apart from ordinary configuration, and a service won't start without what it needs. Rotating one is a simple, known procedure.
-
-That's a smaller version of what the posting means by "provisioning, rotation, naming conventions," at the size of one company, and I'd say so in an interview.
+**Secrets and configuration.** At Mika, we follow the best practices that fit our scale: credentials stay out of source control, they're kept apart from ordinary configuration, and a service won't start without what it needs. Rotating one is a simple, known procedure. That's a smaller version of what the posting means by "provisioning, rotation, naming conventions," and I'd say so in an interview.
 
 **Access without long-lived keys.** Our release automation authenticates to Google Cloud with short-lived credentials instead of stored keys. It's a very small slice of GCP IAM, but it's the correct slice.
 
@@ -52,21 +50,17 @@ That's a smaller version of what the posting means by "provisioning, rotation, n
 
 **Dead letters, under a different name.** I've built event delivery between business systems using a transactional outbox, with idempotency keys, retries with backoff, dead-lettering, and replay.
 
-I've never tuned a Pub/Sub subscription. But Google's documentation says [dead-letter forwarding is best-effort, and a subscriber might see a message more times than the configured maximum](https://docs.cloud.google.com/pubsub/docs/dead-letter-topics), which is exactly the kind of behaviour an idempotency key exists for. I already understand why you'd care about a redelivery. What I'd be missing is the settings and how they misbehave at volume.
+I've never tuned a Pub/Sub subscription, but I understand why you'd care about a redelivery. What I'd be missing is the settings and how they misbehave at volume.
 
-**Network separation.** At Mika, public and internal traffic are kept apart, and administrative access isn't exposed to the internet. I've also worked with tenant isolation, role-based access, and webhook signature checks. None of that is SOC2. But it's the same instinct that "separation between regulated or sensitive-data environments" is asking for.
-
-**A bit of the domain.** I built frontend pages for Element Pay, a stablecoin payments platform, and tuned payment modules at GiveSuite for batches of more than 10,000 records. It's not infrastructure, but I wouldn't need the first month just to learn what the money is doing.
+**Network separation.** At Mika, public and internal traffic are kept apart, and administrative access isn't exposed to the internet. None of that is SOC2, but it's the same instinct that "separation between regulated or sensitive-data environments" is asking for.
 
 **Operating my own stuff.** This site's backend is a Go binary in a non-root distroless image, behind nginx on a VPS, with a deploy script that's safe to re-run and fails loudly if the health check doesn't pass. I've written about [how that move went](/blog/moving-my-portfolio-backend-to-go). It is a tiny system, but I'm the one on the other end when it breaks.
 
-## What wasn't
+## What wasn't in the fridge
 
 I want to be just as plain about this half, because it's easy to squint at any posting until you fit it.
 
 I've never run a Kubernetes cluster in production. Writing documentation that touched private registries and image pulls, which I did for clients through Studio1HQ, doesn't count. I know what a node pressure problem is the way I know what a soufflé is.
-
-I've never used Pulumi. Its [ESC product](https://www.pulumi.com/docs/esc/) centralizes secrets and configuration across an organization, and I can see how my habits would map onto it, but I haven't used it. My DNS has never been code, and my previews have lived on Vercel, where I've never had to clean up after them.
 
 I don't have a metrics and alerting stack to point to. I've used Sentry on application work, and I've built plenty of dashboards, but those were for investors and warehouse managers. They told people how the business was doing, not whether the system was on fire.
 
@@ -78,11 +72,13 @@ Here's the more interesting question. Forget the hiring process. Polygon's team 
 
 Most of it, yes. Slowly at first.
 
-I can read Go, TypeScript, and Python, so none of the code would be closed to me. Pulumi programs are written in languages I already use, so I'd expect to be making safe changes within days. ArgoCD and Grafana are unfamiliar, but the questions behind them aren't: what's deployed, what changed, and what's the system telling me? Cloudflare's config and Pub/Sub's settings are documented, and with my outbox work behind me, I'd know what I was looking for.
+I can read Go, TypeScript, and Python, so none of the code would be closed to me. ArgoCD and Grafana are unfamiliar, but the questions behind them aren't: what's deployed, what changed, and what's the system telling me?
 
 I'd also do the boring things first, because they're what I've actually practised. Find out what's running. Write down how to roll it back. Check where the secrets are and who can read them. Then touch nothing until I'd understood it.
 
-Where it would hurt is the first bad night on GKE. Reading about Kubernetes in calm conditions is easy. Diagnosing an unfamiliar failure with money stuck in a queue, when you've never seen that failure before, is where experience earns its pay. AI tools would help me move faster, but I'd have to judge their answers on a system I didn't yet have a feel for. On that night, I'd be slower and more frightened than the person they'd rather hire. I'd probably get through it. I wouldn't want to be the reason it took an extra three hours.
+Where it would hurt is the first bad night on GKE. Diagnosing an unfamiliar failure with money stuck in a queue, when you've never seen that failure before, is where experience earns its pay. On that night, I'd be slower and more frightened than the person they'd rather hire.
+
+I'd probably get through it. I wouldn't want to be the reason it took an extra three hours.
 
 So: could I keep it running? Probably. Could I keep it running to the standard the job describes, in month one? No. That's the difference between the last engineer on earth and the best candidate in the pile, and the world isn't ending, so they get to choose.
 
@@ -92,7 +88,7 @@ The posting ends with a line I appreciate: if you don't meet every single point,
 
 If I applied, I wouldn't dress up my Linux servers as a cluster. I'd lead with what I found here: secrets discipline, idempotent delivery, release pipelines, and running my own production, with the gaps named before anyone had to ask.
 
-More useful is that I now have a shopping list, and it's short and specific. My Go backend already exists. I could run it on GKE, define that with Pulumi and ESC, deploy it through ArgoCD, push its events through Pub/Sub with a real dead-letter policy, ship its metrics through [Grafana Alloy](https://grafana.com/docs/alloy/latest/), and move its DNS and a Worker to Cloudflare as code. That wouldn't be production at Polygon's scale, and I wouldn't claim it was. But "no" would become "yes, at small scale, and here's the repo," which is a very different conversation.
+More useful is that I now have a shopping list. My Go backend already exists. I could run it on GKE, define that with Pulumi, deploy it through ArgoCD, and ship its metrics to Grafana. That wouldn't be production at Polygon's scale, and I wouldn't claim it was. But "no" would become "yes, at small scale, and here's the repo," which is a very different conversation.
 
 That's what I'd suggest you do with the next posting you dismiss because of its title. Ignore the name of the dish. Go through the ingredients one at a time and check them against your actual work, not your job titles. You might find you can already make it. You might find you're two ingredients short and know exactly which two. Or you might find, like me, that you're closer to the dish than you thought and still shouldn't serve it yet.
 
