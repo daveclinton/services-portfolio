@@ -1,0 +1,97 @@
+import Image from "next/image"
+
+export const metadata = {
+  title: "Marge vs. the Monorail",
+  description: "There have always been people selling monorails. Now they can build one in an afternoon. Before you buy, do what Marge did and go look at the last town that bought one.",
+  date: "2026-11-05",
+  draft: true,
+}
+
+In a 1993 episode of *The Simpsons*, Springfield comes into money. Mr. Burns gets fined $3 million, and the town holds a meeting to decide how to spend it. Marge has a dull idea: fix Main Street. She nearly wins.
+
+Then Lyle Lanley walks in with a song and a monorail.
+
+The song wins. The town buys the monorail, and Marge, who can't let it go, drives out to North Haverbrook, one of Lanley's earlier customers. The place is in ruins. By the time she gets back, Lanley is on his way to Tahiti with the money, and the train is running away with people on it.
+
+<Image
+  src="/blog/marge-vs-the-monorail.avif"
+  alt="Homer at the wheel with Marge, Bart and Lisa behind him, all staring ahead wide-eyed, in The Simpsons"
+  width={320}
+  height={240}
+  sizes="320px"
+  className="mx-auto h-auto w-full max-w-80 rounded-lg"
+/>
+
+[Marge vs. the Monorail](https://en.wikipedia.org/wiki/Marge_vs._the_Monorail) is over thirty years old. I thought about it this week while reading [a thread on r/SaaS](https://www.reddit.com/r/SaaS/) that asks: "When did tech turned into a low effort money grabbing scheme?"
+
+The person asking had just seen a Twitter thread promising a lot of money from vibe coding, with a list of projects you could copy. Their complaint was that people can now build incredible things with these tools, and what they kept seeing was broken apps and bad games.
+
+The replies were better than the question. Some people said it started with the dotcom bubble. One said it started on tech's first day. Another said what I'd have said: "It's the new dropshipping."
+
+I think they're all right, and that's the depressing part. Tech didn't turn into anything. There have always been people selling monorails. What changed is that the monorail now takes an afternoon to build, and it looks real in a screenshot.
+
+## The song is the product
+
+One commenter described an old newspaper ad: send me $5 and I'll teach you how to get rich. You send the $5, and they tell you to place an ad saying "send me $5 and I'll teach you how to get rich."
+
+Another made a point I can't get past. If these people were really making that much money from their apps, why are they spending their days on social media telling you how to do it?
+
+Often, I think the answer is that the telling is the business. The course, the template, the community, the $49 list of app ideas. You don't need the app to work if the app is only there to prove the course works.
+
+Regulators have noticed too. In 2024, [the FTC went after](https://www.ftc.gov/news-events/news/press-releases/2024/09/ftc-announces-crackdown-deceptive-ai-claims-schemes) several operations for selling "AI-powered" online businesses. It alleged that Ascend Ecom took at least $25 million from people with promises of passive income, and that FBA Machine took more than $15.9 million using a "risk-free" pitch and guaranteed refunds. Those are allegations. But I'd recognize that song anywhere.
+
+## Revenue is a screenshot
+
+The funniest and most useful line in the whole thread is this one:
+
+> very easy to ship a shitty AI interior designer or like clothes changer and get 20k MRR, if you spent 25k every month on ads
+
+Read it twice. That business makes $20,000 a month and loses $5,000 a month, and only one of those numbers goes on Twitter.
+
+The other number that doesn't go on Twitter is how many people stayed. RevenueCat [looked at 3,519 AI-powered subscription apps](https://www.revenuecat.com/blog/growth/ai-app-retention-study) and found that they earn 41% more per paying user in the first year, $30.16 against $21.37. They also churn at a 30% higher rate. Only about 21% of annual subscribers stick around.
+
+RevenueCat says these are patterns, not proof of cause, and "AI-powered" covers plenty of serious products. So I won't claim this shows AI apps are scams. But it does show why a launch-month screenshot tells you so little. People will pay to try almost anything once. Whether they come back in month thirteen is a different question, and the guy selling the course has usually moved on by then.
+
+## Who's driving the train?
+
+Here's the part of the episode I like most. After Lanley sells the town the train, he picks Homer to drive it.
+
+That's what I think of when someone with no background gets told they can run a software business by Friday. They aren't stupid, and I don't want to laugh at them. They've been handed the conductor's hat and told the hard part is over. Then people get on.
+
+Lovable, one of the popular AI app builders, has a [critical vulnerability on record](https://cvemon.intruder.io/cves/CVE-2025-48757), scored 9.3 out of 10, over database rules that could let a stranger read or write tables in apps built on it. Lovable disputes the record. Its position is that each customer accepts responsibility for protecting the data in their own app.
+
+That may be a fair legal position, but I want you to think about who that customer is. If you were promised you didn't need to understand any of this, you probably don't know what a row-level security policy is. You just learned that it was your job.
+
+Experience doesn't fully save you either. Jason Lemkin, the founder of SaaStr, was [building an app with Replit's agent](https://gizmodo.com/replits-ai-agent-wipes-companys-codebase-during-vibecoding-session-2000633176) when, by his account, it deleted his live database during a code freeze. "Possibly worse, it hid and lied about it," he said. Replit's CEO called it unacceptable.
+
+Nobody puts that in the thread with the list of ten apps you can build this weekend.
+
+## Some monorails do run
+
+I don't want to pretend the whole thing is fake, because it isn't.
+
+Base44 [sold to Wix for $80 million in cash](https://techcrunch.com/2025/06/18/6-month-old-solo-owned-vibe-coder-base44-sells-to-wix-for-80m-cash) when it was six months old. That's real money, and it gets told as the story of a solo founder who vibe coded his way to a fortune. Read a little further. Maor Shlomo had already co-founded a data company. He had eight employees by the time of the sale. The product had about 250,000 users and reportedly made around $189,000 in profit in a single month, after paying for its tokens.
+
+So it can happen. It happened to someone who had already done the hard parts before. A commenter in the thread said the same about another success story: people copy the idea and ignore the years of experience behind it.
+
+Cheap software is also good news for plenty of people. I've written about [a teacher who built a name picker](/blog/when-ai-can-build-the-app) for their own classroom, and I'm delighted about it. Nobody got scammed there. And one commenter pointed out that many buyers don't care how simple a wrapper is, in the same way that plenty of us pay someone to change our oil. That's fine too.
+
+"Willing buyer, willing seller," another commenter wrote. I agree, as long as the buyer knows what's being sold. Springfield thought it was buying a train.
+
+## Go to North Haverbrook
+
+Marge didn't win because she understood monorails better than anyone else. She got in a car and went to look at the last town that bought one.
+
+You can do the same thing with any of these pitches:
+
+- Find out how they make their money. If it's from teaching you, then teaching is the business.
+- Ask about profit and what they spend on ads. Revenue alone tells you almost nothing.
+- Ask how many customers stayed past a year, then go and find one of them.
+- Look for the last thing they launched. If it's abandoned, you've found North Haverbrook.
+- Ask who fixes it at 2 a.m. If you've got paying customers, the answer is probably you.
+
+And if you're the one building, I'd do it anyway. Make the game, or the name picker. Just be honest with yourself about the moment you start taking money from people, because that's when you've got passengers.
+
+I work on a warranty app used by six outlets in Rwanda. It wouldn't make a good thread. Nobody will ever pay $49 to learn how I did it. But when it breaks, a warranty doesn't get registered, and somebody is going to call me.
+
+I can't go to Tahiti.
