@@ -4,7 +4,7 @@ module.exports = {
   name: "David Clinton Hellen",
   headline: "Technical Writer and Software Engineer | Developer Tools, Cloud Infrastructure, and AI",
   contact: [
-    ["Mombasa, Kenya (open to relocation)", "+254 701 176 923", "clintondavid46@gmail.com"],
+    ["Mombasa, Kenya (open to relocation)", "+254 701 176 923", "daveclintonn@icloud.com"],
     ["daveclintonn.cc", "github.com/daveclinton", "linkedin.com/in/clintondavid46"],
   ],
   order: ["summary", "writing", "experience", "moreExperience", "skills", "education"],
