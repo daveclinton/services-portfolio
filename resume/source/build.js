@@ -63,6 +63,11 @@ const sections = {
 
 const DEFAULT_ORDER = ["summary", "skills", "experience", "projects", "education", "certifications", "referees"];
 
+// Cover letters set `letter` instead of `order` and share the resume header.
+const letterBody = (l) => `<div class="letter"><p>${esc(l.date)}</p><p>${esc(l.greeting)}</p>
+${l.paragraphs.map((p) => `<p>${inline(p)}</p>`).join("")}
+<p>${esc(l.closing)}<br>${esc(l.signature)}</p></div>`;
+
 const toHtml = (c) => `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${esc(c.name)} - Resume</title>
 <style>
 @page { size: A4; margin: 12mm 15mm; }
@@ -82,6 +87,8 @@ p { margin: 0 0 3pt; }
 ul { margin: 0 0 2pt; padding-left: 14pt; }
 li { margin: 0 0 2pt; }
 .skill { margin: 0 0 1.5pt; }
+.letter { font-size: 11pt; line-height: 1.35; margin-top: 14pt; }
+.letter p { margin: 0 0 9pt; }
 </style></head><body>
 <h1>${esc(c.name)}</h1>
 <p class="headline">${esc(c.headline)}</p>
@@ -90,7 +97,7 @@ ${c.contact
     .map((i) => (linkFor(i) ? `<a href="${linkFor(i)}">${esc(i)}</a>` : esc(i)))
     .join(" &nbsp;|&nbsp; ")}</p>`)
   .join("\n")}
-${(c.order || DEFAULT_ORDER).map((name) => sections[name](c)).join("\n")}
+${c.letter ? letterBody(c.letter) : (c.order || DEFAULT_ORDER).map((name) => sections[name](c)).join("\n")}
 </body></html>`;
 
 const build = (file) => {
