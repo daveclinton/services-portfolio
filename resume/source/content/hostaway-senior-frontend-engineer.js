@@ -10,7 +10,7 @@ module.exports = {
   order: ["summary", "skills", "experience", "projects", "writing", "education"],
 
   summary:
-    "Frontend engineer with five years of software engineering experience, including more than four years building production applications in React, TypeScript, JavaScript, CSS, and HTML. Builds reusable UI components, data-heavy dashboards, and multi-tenant SaaS interfaces integrated with REST APIs and streaming endpoints. Experienced in frontend performance, automated testing, code review, and Claude Code as part of the daily workflow, and supports released software in production, including on-call.",
+    "Frontend engineer with 6 years of software engineering experience, including more than four years building production applications in React, TypeScript, JavaScript, CSS, and HTML. Builds reusable UI components, data-heavy dashboards, and multi-tenant SaaS interfaces integrated with REST APIs and streaming endpoints. Experienced in frontend performance, automated testing, code review, and Claude Code as part of the daily workflow, and supports released software in production, including on-call.",
 
   skills: [
     ["Frontend", "React, Next.js, TypeScript, JavaScript, HTML, CSS, Tailwind CSS, Vue, and Angular"],
