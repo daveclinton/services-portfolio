@@ -37,5 +37,15 @@ company: mika
 - Configured internal DNS, LAN/DMZ routing, TLS termination boundaries, CORS and
   trusted-host policies, UFW rules, HTTP proxy headers, Unix sockets, and TCP/SSH
   connectivity tests for on-premise systems and devices.
+- Built an AI assistant in production that answers staff questions with live
+  company data and asks for approval before changing anything.
+- Built the last-mile delivery, after-sales, showroom, consignment, marketplace
+  pricing and messaging modules in SapForge.
+- Automated order entry between group companies, with previews, run logs and
+  review of unusual cases.
+- Took over the outlet and repair systems from a previous developer, support them
+  in production and wrote a handbook for the people who run them.
+- Work directly with finance, warehouse, shop and repair teams without a product
+  manager in between.
 - Manage the self-hosted infrastructure and on-premise data-center environment
   to which the applications are deployed.

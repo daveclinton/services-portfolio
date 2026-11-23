@@ -547,6 +547,103 @@ html.has-visible-viewport body::-webkit-scrollbar {
   margin-top: 1rem;
 }
 
+/* Grok's ask-first home: name above one centered composer. */
+.home-hero {
+  display: flex;
+  min-height: min(34rem, calc(100svh - 11rem));
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.home-hero > p {
+  max-width: 34rem;
+  margin-bottom: 1.75rem;
+}
+
+.home-article h3,
+.home-rates dt {
+  font-weight: 600;
+}
+
+.home-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-block: 1.25rem 0.75rem;
+}
+
+.home-stats > div,
+.home-cards > li {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-2xl);
+  background: var(--card);
+  padding: 1rem;
+}
+
+.home-stats > div {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+}
+
+.home-stats dd {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.home-stats dt {
+  color: var(--muted-foreground);
+  font-size: var(--text-caption);
+  line-height: var(--text-caption--line-height);
+}
+
+.home-cards {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.home-cards p {
+  margin-top: 0.25rem;
+  color: var(--muted-foreground);
+  font-size: 1rem;
+  line-height: 1.55;
+}
+
+.home-rates {
+  margin-top: 1rem;
+}
+
+.home-rates > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  column-gap: 1rem;
+  padding-block: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.home-rates dd {
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 40rem) {
+  .home-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 24rem) {
+  .home-stats {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* ---------- Blog index ---------- */
 
 .blog-index {
@@ -792,6 +889,20 @@ html.has-visible-viewport body::-webkit-scrollbar {
 
 .roles .role-description {
   margin-top: 0.5rem;
+}
+
+.role-highlights {
+  margin-top: 0.75rem;
+  padding-left: 1.2em;
+  list-style: disc;
+}
+
+.role-highlights li + li {
+  margin-top: 0.375rem;
+}
+
+.role-highlights li::marker {
+  color: var(--subtle-foreground);
 }
 
 @media (max-width: 30rem) {

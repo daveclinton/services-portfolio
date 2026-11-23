@@ -20,3 +20,14 @@ Vue/Vite interfaces alongside native Kotlin Android applications. Deployed the
 systems to self-managed Linux infrastructure using Nginx, systemd, Gunicorn,
 Uvicorn, Docker Compose, release scripts, health checks, and rollback workflows
 across LAN, DMZ, and public entry points.
+
+Mika is a group of home appliance companies in Kenya and Rwanda. Its warehouses,
+shops, delivery teams and repair teams use these systems every day. Built
+SapForge, the main back-end system and staff web application, with about 1,600
+automated back-end tests.
+
+The SAP environment these systems connect to recorded about 480,000 business
+documents across five group companies in the 12 months to November 2026, an
+average of about 1,300 a day. These include orders, deliveries, invoices,
+payments and stock movements. Not every document passes through the systems
+David built.
