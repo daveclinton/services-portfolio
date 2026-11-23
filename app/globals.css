@@ -267,6 +267,12 @@ html.has-visible-viewport,
 html.has-visible-viewport body {
   overflow: hidden;
   overscroll-behavior: none;
+  scrollbar-width: none;
+}
+
+html.has-visible-viewport::-webkit-scrollbar,
+html.has-visible-viewport body::-webkit-scrollbar {
+  display: none;
 }
 
 .chat-page {
@@ -359,6 +365,28 @@ html.has-visible-viewport body {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem 1.25rem;
+}
+
+@media (max-width: 48rem) {
+  .site-nav-compact {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: var(--text-caption);
+    line-height: var(--text-caption--line-height);
+  }
+
+  .site-nav-compact ul {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    gap: 0.75rem;
+  }
+
+  .site-nav-compact .site-nav-home {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .page .site-nav a {

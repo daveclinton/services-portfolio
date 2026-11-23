@@ -13,6 +13,7 @@ import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import { SiteNav } from "@/components/portfolio/site-nav"
 import {
   AiApiError,
+  CHAT_LIMITS,
   streamChat,
   stripCitationMarkers,
   type ChatIntent,
@@ -35,7 +36,7 @@ type Turn = {
   id: string
   role: "user" | "assistant"
   content: string
-  status: "streaming" | "done" | "error"
+  status: "streaming" | "done" | "error" | "stopped"
   error?: string
   intent?: ChatIntent
 }
@@ -136,7 +137,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         // can only be restored after hydration; doing it during render would
         // make the server and client HTML differ.
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setTurns(saved.map((turn) => (turn.status === "streaming" ? { ...turn, status: "done" } : turn)))
+        setTurns(saved.map((turn) => (turn.status === "streaming" ? { ...turn, status: "stopped" } : turn)))
       }
     } catch {}
     restored.current = true
@@ -176,7 +177,9 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
 
     try {
       for await (const event of streamChat({
-        messages: history.map((turn): ChatTurn => ({ role: turn.role, content: turn.content })),
+        messages: history
+          .filter((turn) => turn.role === "user" || turn.status === "done")
+          .map((turn): ChatTurn => ({ role: turn.role, content: turn.content })),
         signal: controller.signal,
         improvementLogging: true,
         conversationId: conversationIdRef.current ?? undefined,
@@ -195,14 +198,16 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         }
       }
     } catch (error) {
-      if ((error as Error)?.name !== "AbortError") {
+      if (controller.signal.aborted) {
+        update((turn) => ({ ...turn, status: "stopped" }))
+      } else {
         const detail =
           error instanceof AiApiError ? error.message : "Something went wrong while answering. Try again."
         update((turn) => ({ ...turn, status: "error", error: detail }))
       }
     } finally {
       setIsStreaming(false)
-      update((turn) => (turn.status === "streaming" ? { ...turn, status: "done" } : turn))
+      update((turn) => (turn.status === "streaming" ? { ...turn, status: "error", error: "The response was interrupted. Please try again." } : turn))
       if (abortRef.current === controller) abortRef.current = null
     }
   }
@@ -285,6 +290,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           autoComplete="off"
           enterKeyHint="send"
           rows={1}
+          maxLength={CHAT_LIMITS.messageChars}
           aria-describedby="ask-ai-input-hint"
           className="chat-input min-h-8 max-h-48 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-0.5 text-base leading-7 text-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground"
         />
@@ -390,6 +396,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         {turn.error ? (
           <p role="alert" className="text-caption break-words [overflow-wrap:anywhere] text-destructive">{turn.error}</p>
         ) : null}
+        {turn.status === "stopped" ? <p className="text-caption text-muted-foreground">Response stopped</p> : null}
         {finished ? (
           <MessageActions
             className={cn(
@@ -451,7 +458,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         data-hidden={navigationHidden}
         onFocusCapture={() => setNavigationHidden(false)}
       >
-        <div><SiteNav /></div>
+        <div><SiteNav compact /></div>
       </div>
       <h1 className="sr-only">{askAi.label}</h1>
       {hasConversation ? (
@@ -474,7 +481,13 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         >
           <ChatContainerContent
             className="gap-6 pt-2 pb-6 sm:gap-8"
-            onScrollDirectionChange={(direction) => setNavigationHidden(direction === "down")}
+            followKey={turns.at(-1)?.id}
+            onScrollDirectionChange={(direction, atStart) => {
+              // On phones, reading an earlier paragraph should not bring the
+              // navigation back over it. Reveal only at the conversation top.
+              if (direction === "down") setNavigationHidden(true)
+              else if (atStart || window.matchMedia("(min-width: 48rem)").matches) setNavigationHidden(false)
+            }}
           >
             {messages}
           </ChatContainerContent>

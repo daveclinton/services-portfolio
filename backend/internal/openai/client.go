@@ -49,6 +49,9 @@ func (e *APIError) Error() string {
 }
 
 var ErrNotConfigured = errors.New("OPENAI_API_KEY is not configured")
+var ErrTruncated = errors.New("model response reached the output token limit")
+var ErrIncomplete = errors.New("model response ended before a successful finish")
+var ErrRefused = errors.New("model response was refused or filtered")
 
 func (c *Client) post(ctx context.Context, path string, body any) (*http.Response, error) {
 	if !c.Enabled() {
@@ -124,6 +127,8 @@ func (c *Client) StreamChat(ctx context.Context, req ChatRequest, onDelta func(s
 	}
 	defer resp.Body.Close()
 
+	finishReason := ""
+	hasContent := false
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	for scanner.Scan() {
@@ -134,12 +139,24 @@ func (c *Client) StreamChat(ctx context.Context, req ChatRequest, onDelta func(s
 		}
 		data = strings.TrimSpace(data)
 		if data == "[DONE]" {
-			return usage, nil
+			switch finishReason {
+			case "length":
+				return usage, ErrTruncated
+			case "content_filter":
+				return usage, ErrRefused
+			case "stop":
+				if hasContent {
+					return usage, nil
+				}
+			}
+			return usage, ErrIncomplete
 		}
 		var chunk struct {
 			Choices []struct {
-				Delta struct {
+				FinishReason *string `json:"finish_reason"`
+				Delta        struct {
 					Content string `json:"content"`
+					Refusal string `json:"refusal"`
 				} `json:"delta"`
 			} `json:"choices"`
 			Usage *Usage           `json:"usage"`
@@ -155,9 +172,16 @@ func (c *Client) StreamChat(ctx context.Context, req ChatRequest, onDelta func(s
 			usage = *chunk.Usage
 		}
 		for _, choice := range chunk.Choices {
+			if choice.FinishReason != nil {
+				finishReason = *choice.FinishReason
+			}
+			if choice.Delta.Refusal != "" {
+				return usage, ErrRefused
+			}
 			if choice.Delta.Content == "" {
 				continue
 			}
+			hasContent = hasContent || strings.TrimSpace(choice.Delta.Content) != ""
 			if err := onDelta(choice.Delta.Content); err != nil {
 				return usage, err
 			}
@@ -166,7 +190,7 @@ func (c *Client) StreamChat(ctx context.Context, req ChatRequest, onDelta func(s
 	if err := scanner.Err(); err != nil {
 		return usage, err
 	}
-	return usage, errors.New("stream ended without [DONE]")
+	return usage, ErrIncomplete
 }
 
 type StructuredRequest struct {
