@@ -33,9 +33,6 @@ export class AiApiError extends Error {}
 
 // Mirrors backend/internal/askai/handlers.go. Bound what is sent, not what the
 // reader can see: older turns remain in the UI and this tab's saved history.
-/** A question asked on the home page, picked up once by the Ask AI page. */
-export const PENDING_QUESTION_KEY = "ask-ai:pending-question"
-
 export const CHAT_LIMITS = { messages: 12, messageChars: 8_000, conversationChars: 24_000, requestBytes: 32_000 } as const
 
 export function prepareChatMessages(messages: ChatTurn[]): ChatTurn[] {

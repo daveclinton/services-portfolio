@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useEffectEvent, useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ArrowUp, Briefcase, Check, Copy, FolderGit2, RotateCcw, Square, SquarePen } from "lucide-react"
 import Link from "next/link"
 import { motion, useInView, useReducedMotion } from "motion/react"
@@ -14,7 +14,6 @@ import { SiteNav } from "@/components/portfolio/site-nav"
 import {
   AiApiError,
   CHAT_LIMITS,
-  PENDING_QUESTION_KEY,
   streamChat,
   stripCitationMarkers,
   type ChatIntent,
@@ -236,22 +235,6 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     void streamAnswer([...turns, userTurn], workflow)
     setWorkflow("chat")
   }
-
-  // A question typed on the home page. With consent it is sent straight away;
-  // without it, ask() keeps the text in the box and points to the checkbox.
-  const askPending = useEffectEvent(() => {
-    const pending = sessionStorage.getItem(PENDING_QUESTION_KEY)
-    if (!pending) return
-    sessionStorage.removeItem(PENDING_QUESTION_KEY)
-    ask(pending)
-  })
-
-  useEffect(() => {
-    if (embedded) return
-    // Wait until the saved conversation and consent have been restored.
-    const timer = setTimeout(() => askPending(), 0)
-    return () => clearTimeout(timer)
-  }, [embedded])
 
   // Ask the last question again, replacing the last answer.
   function retry() {

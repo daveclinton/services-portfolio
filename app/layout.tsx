@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { Viewport } from "next";
-import { Bricolage_Grotesque, Source_Serif_4 } from "next/font/google";
+import { Hanken_Grotesk, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { site } from "@/lib/portfolio-data";
 import { cn } from "@/lib/utils";
@@ -12,8 +12,8 @@ const reading = Source_Serif_4({
   display: "swap",
 });
 
-// Heavy, tight display face for headlines and the home page.
-const display = Bricolage_Grotesque({
+// Plain grotesque for the navigation and the home page.
+const display = Hanken_Grotesk({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",

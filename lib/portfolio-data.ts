@@ -27,7 +27,6 @@ export const profile = {
 export const introduction = {
   paperspaceWriting: "https://blog.paperspace.com/author/david-clinton/",
   studio1hq: "https://www.studio1hq.com/",
-  gameOfThrones: "https://press.wbd.com/us/property/game-thrones-s1",
 } as const
 
 export const workLinks = {
@@ -39,35 +38,7 @@ export const workLinks = {
 
 export const intro = {
   headline: "I turn AI ideas into software people can rely on.",
-  text: "I connect AI to the systems and data you already have, control what it can do, test its answers and keep it running.",
 } as const
-
-/** The four jobs that decide whether an AI system works in production. */
-export const approach = [
-  { id: "connect", title: "Connect it", text: "To your databases, business software, documents and the tools your team already uses." },
-  { id: "control", title: "Control it", text: "So it sees only what each person may see, and asks before it changes anything." },
-  { id: "check", title: "Check it", text: "With tests built from real questions, so you know when an answer is wrong." },
-  { id: "run", title: "Keep it running", text: "With logs, alerts, backups and someone who fixes it when it fails." },
-] as const
-
-/** Photos show the industry, not the company. Sources and licenses are in photoCredits. */
-export const industries = [
-  { id: "logistics", title: "Retail and logistics", companies: [{ name: "Mika", href: workLinks.mika }], text: "Stock, deliveries, shops and repairs, with an AI assistant staff use to ask about live company data.", alt: "Blue cranes and container trucks at the port of Mombasa" },
-  { id: "payments", title: "Payments and giving", companies: [{ name: "GiveSuite", href: workLinks.givesuite }, { name: "Element Pay", href: workLinks.elementPay }], text: "Donation and stablecoin payment screens, and financial data moved to a new database.", alt: "An M-Pesa till number sign on a shop counter" },
-  { id: "investment", title: "Investment", companies: [{ name: "Untapped Global", href: workLinks.untapped }], text: "Dashboards that let investors follow the small businesses they fund, from motorbikes to solar.", alt: "Solar panels on the roof of a building in Kenya" },
-  { id: "education", title: "Education", companies: [{ name: "Tai Ora" }], text: "Web and mobile apps with AI chat, used in schools.", alt: "A team room at iHub in Nairobi with a whiteboard and projector" },
-  { id: "ai-cloud", title: "AI and cloud computing", companies: [{ name: "Paperspace", href: introduction.paperspaceWriting }], text: "Measured guides on training models and getting more from a GPU.", alt: "Rows of supercomputer racks joined by orange cables" },
-  { id: "developers", title: "Developer tools", companies: [{ name: "Studio1HQ", href: introduction.studio1hq }], text: "Tutorials, documentation and sample applications that developers can run.", alt: "A laptop showing developer documentation at a Nairobi hackathon" },
-] as const
-
-export const photoCredits = [
-  { title: "Mombasa port", author: "Ministry of East African Affairs, Commerce and Tourism", license: "Public domain", href: "https://commons.wikimedia.org/wiki/File:2015_07_31_Mombasa_Port_JPEG_RESIZED_0018.jpg" },
-  { title: "M-Pesa till", author: "Raidarmax", license: "CC BY-SA 3.0", licenseHref: "https://creativecommons.org/licenses/by-sa/3.0/", href: "https://commons.wikimedia.org/wiki/File:An_M-Pesa_Payment_Till.JPG" },
-  { title: "Solar installation, Kenya", author: "PowerAfricaSolar", license: "CC BY-SA 4.0", licenseHref: "https://creativecommons.org/licenses/by-sa/4.0/", href: "https://commons.wikimedia.org/wiki/File:3.6_Kw_Solar_System_Installation_In_Kenya.jpg" },
-  { title: "iHub, Nairobi", author: "Appleslerp", license: "CC BY-SA 4.0", licenseHref: "https://creativecommons.org/licenses/by-sa/4.0/", href: "https://commons.wikimedia.org/wiki/File:Nairobi_iHub.jpg" },
-  { title: "Supercomputer", author: "U.S. Department of Energy", license: "Public domain", href: "https://commons.wikimedia.org/wiki/File:U.S._Department_of_Energy_-_Science_-_391_004_010_(9522400937).jpg" },
-  { title: "Wikimania Nairobi hackathon", author: "JMcRae-WMF", license: "CC BY-SA 4.0", licenseHref: "https://creativecommons.org/licenses/by-sa/4.0/", href: "https://commons.wikimedia.org/wiki/File:Wikimania_Nairobi_Hackathon_(01).jpg" },
-] as const
 
 /** Typical ranges in USD, reviewed 2026-11-23. Keep in sync with the contracting-rate-2026 evidence record. */
 export const services = [
