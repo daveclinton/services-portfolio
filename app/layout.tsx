@@ -3,6 +3,7 @@ import type { Viewport } from "next";
 import { Hanken_Grotesk, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { site } from "@/lib/portfolio-data";
+import { toneScript } from "@/lib/tone";
 import { cn } from "@/lib/utils";
 
 // A serif designed for reading on screens; the site is mostly long-form text.
@@ -44,11 +45,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  colorScheme: "light dark",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fbfaf6" },
-    { media: "(prefers-color-scheme: dark)", color: "#12100e" },
-  ],
+  colorScheme: "dark",
+  themeColor: "#1557c0",
   viewportFit: "cover",
   // Android Chrome: shrink the page above the on-screen keyboard instead of
   // drawing the keyboard over it. iOS ignores this; see VisibleViewport.
@@ -59,9 +57,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
+      data-tone="0"
+      // The head script may change data-tone before React hydrates.
+      suppressHydrationWarning
       data-scroll-behavior="smooth"
       className={cn("min-h-full scroll-smooth antialiased", reading.variable, display.variable)}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: toneScript }} />
+      </head>
       <body className="min-h-dvh overflow-x-hidden bg-background text-foreground">
         <a href="#content" className="skip-link">
           Skip to content

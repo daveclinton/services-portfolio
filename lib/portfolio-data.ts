@@ -6,10 +6,10 @@ export const site = {
   name: "David Clinton",
   legalName: "David Clinton Hellen",
   alternateNames: ["David Clinton Hellen", "Dave Clinton", "daveclintonn"],
-  jobTitle: "Software Engineer",
-  title: "David Clinton | Software Engineer in Kenya",
+  jobTitle: "Staff-Level Software Engineer",
+  title: "David Clinton | Staff-Level Software Engineer",
   description:
-    "David Clinton is a software engineer in Kenya. He turns AI ideas into software companies can rely on, connected to the systems and data they already use.",
+    "David Clinton is a staff-level software engineer in Kenya. He takes problems from first idea to production across AI, back end, front end, mobile and infrastructure.",
   url: "https://www.daveclintonn.cc",
   location: { country: "Kenya", countryCode: "KE" },
 } as const
@@ -37,7 +37,7 @@ export const workLinks = {
 } as const
 
 export const intro = {
-  headline: "I turn AI ideas into software people can rely on.",
+  headline: "I take the whole problem, from the first idea to production.",
 } as const
 
 /** Typical ranges in USD, reviewed 2026-11-23. Keep in sync with the contracting-rate-2026 evidence record. */

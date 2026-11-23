@@ -1,9 +1,11 @@
 "use client"
 
+import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import type { ReactNode } from "react"
+import { SIGNAL_STORAGE_KEY, toneOf } from "@/lib/tone"
+import portrait from "@/public/david.webp"
 
-const TONES = 6
 const number = (index: number) => String(index).padStart(2, "0")
 
 // 37signals.com's approach: a numbered list on one flat color, each idea opens
@@ -25,13 +27,20 @@ export function Signals({ items, footer }: { items: { title: string; body: React
       const id = window.location.hash.slice(1)
       if (/^\d{2}$/.test(id)) show(Number(id))
     }
-    fromHash()
+    if (window.location.hash) fromHash()
+    else {
+      // Reopen the idea whose color the site is wearing.
+      try {
+        const saved = Number(localStorage.getItem(SIGNAL_STORAGE_KEY))
+        if (saved > 0) show(saved)
+      } catch {}
+    }
     window.addEventListener("hashchange", fromHash)
     return () => window.removeEventListener("hashchange", fromHash)
   }, [])
 
   return (
-    <div className="signals" data-tone={open % TONES}>
+    <div className="signals">
       <ol ref={list}>
         {items.map((item, index) => (
           <li key={item.title} id={number(index)}>
@@ -42,6 +51,10 @@ export function Signals({ items, footer }: { items: { title: string; body: React
                 const details = event.currentTarget
                 if (!details.open) return
                 setOpen(index)
+                document.documentElement.setAttribute("data-tone", toneOf(index))
+                try {
+                  localStorage.setItem(SIGNAL_STORAGE_KEY, String(index))
+                } catch {}
                 // Once it has finished opening, keep it clear of the bottom bar.
                 setTimeout(() => {
                   if (details.open) details.scrollIntoView({ block: "nearest" })
@@ -51,7 +64,11 @@ export function Signals({ items, footer }: { items: { title: string; body: React
               <summary>
                 <span className="signal-number">{number(index)}.</span> <h2>{item.title}</h2>
               </summary>
-              <div className="signal-body">{item.body}</div>
+              <div className="signal-body">
+                {/* The speaker, beside every answer. Decorative: the page already names him. */}
+                <Image src={portrait} alt="" width={40} height={40} className="signal-avatar" />
+                {item.body}
+              </div>
             </details>
           </li>
         ))}

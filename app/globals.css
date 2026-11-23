@@ -482,13 +482,42 @@ html.has-visible-viewport body::-webkit-scrollbar {
 
 /* ---------- Home ---------- */
 
-/* One flat color per idea. White text is at least 4.5:1 on every one. */
-.home:has([data-tone="0"]) { --tone: #1557c0; }
-.home:has([data-tone="1"]) { --tone: #17754a; }
-.home:has([data-tone="2"]) { --tone: #b3264a; }
-.home:has([data-tone="3"]) { --tone: #6a3fb5; }
-.home:has([data-tone="4"]) { --tone: #a8480c; }
-.home:has([data-tone="5"]) { --tone: #0d7077; }
+/* One flat color per idea, worn by the whole site until another idea is opened
+ * (lib/tone.ts). The page tokens are rebuilt from it. White text is at least 4.5:1 on every one. */
+html[data-tone="0"] { --tone: #1557c0; }
+html[data-tone="1"] { --tone: #17754a; }
+html[data-tone="2"] { --tone: #b3264a; }
+html[data-tone="3"] { --tone: #6a3fb5; }
+html[data-tone="4"] { --tone: #a8480c; }
+html[data-tone="5"] { --tone: #0d7077; }
+
+html[data-tone] {
+  color-scheme: dark;
+  --background: var(--tone);
+  --foreground: #fff;
+  --card: color-mix(in srgb, var(--tone) 82%, black);
+  --muted: color-mix(in srgb, var(--tone) 82%, black);
+  --secondary: var(--muted);
+  --muted-foreground: color-mix(in srgb, white 88%, var(--tone));
+  --subtle-foreground: var(--muted-foreground);
+  --primary: #fff;
+  --primary-foreground: var(--tone);
+  --destructive: #ffd9d2;
+  --border: rgb(255 255 255 / 24%);
+  --input: rgb(255 255 255 / 45%);
+}
+
+html[data-tone] body {
+  transition: background-color 250ms ease;
+}
+
+html[data-tone] .blog-prose pre {
+  background: color-mix(in srgb, var(--tone) 25%, #101010);
+}
+
+html[data-tone] .blog-prose pre code span {
+  color: var(--shiki-dark);
+}
 
 .home {
   background: var(--tone);
@@ -499,9 +528,12 @@ html.has-visible-viewport body::-webkit-scrollbar {
 }
 
 /* Overscroll shows the same color. */
+html[data-tone] {
+  background: var(--tone);
+}
+
 html:has(.home),
 html:has(.home) body {
-  background: #1557c0;
   overscroll-behavior-y: none;
 }
 
@@ -576,8 +608,32 @@ html:has(.home) body {
 }
 
 .signal-body {
+  position: relative;
   max-width: 30em;
   padding: 0.35em 0 0.9em 1.9em;
+}
+
+.signal-avatar {
+  position: absolute;
+  top: 0.45em;
+  left: 0;
+  width: 1.2em;
+  height: 1.2em;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  details[open] .signal-avatar {
+    animation: signal-avatar-in 250ms ease-out;
+  }
+}
+
+@keyframes signal-avatar-in {
+  from {
+    opacity: 0;
+    transform: scale(0.7);
+  }
 }
 
 .page .signal-body a {
