@@ -89,6 +89,7 @@ li { margin: 0 0 2pt; }
 .skill { margin: 0 0 1.5pt; }
 .letter { font-size: 11pt; line-height: 1.35; margin-top: 14pt; }
 .letter p { margin: 0 0 9pt; }
+${c.splitJobs ? ".job { break-inside: auto; } li { break-inside: avoid; } .job > .role, .job > .meta { break-after: avoid; }" : ""}
 </style></head><body>
 <h1>${esc(c.name)}</h1>
 <p class="headline">${esc(c.headline)}</p>
