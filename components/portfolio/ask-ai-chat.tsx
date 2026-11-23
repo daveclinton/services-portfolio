@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ArrowUp, Briefcase, Check, Code, Copy, FolderGit2, Maximize2, Minimize2, RotateCcw, Square, SquarePen, UserRound } from "lucide-react"
+import { ArrowUp, Briefcase, Check, Code, Copy, FolderGit2, RotateCcw, Square, SquarePen, UserRound } from "lucide-react"
 import Link from "next/link"
 import { motion, useInView, useReducedMotion } from "motion/react"
 import { Button } from "@/components/ui/button"
@@ -82,7 +82,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   const [turns, setTurns] = useState<Turn[]>([])
   const [draft, setDraft] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
-  const [focusMode, setFocusMode] = useState<boolean | null>(null)
+  const [navigationHidden, setNavigationHidden] = useState(false)
   const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null)
   const [consented, setConsented] = useState(false)
   const [showConsentError, setShowConsentError] = useState(false)
@@ -97,7 +97,6 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   const restored = useRef(false)
 
   const hasConversation = turns.length > 0
-  const navigationHidden = focusMode ?? hasConversation
 
   // Blog-post version: offer a suggested question once the reader reaches it.
   useEffect(() => {
@@ -166,6 +165,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     const assistantTurn: Turn = { id: newId("assistant"), role: "assistant", content: "", status: "streaming" }
     setTurns([...history, assistantTurn])
     setIsStreaming(true)
+    setNavigationHidden(true)
 
     abortRef.current?.abort()
     const controller = new AbortController()
@@ -218,7 +218,6 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     }
     setShowConsentError(false)
     setDraft("")
-    setFocusMode(true)
     const userTurn: Turn = { id: newId("user"), role: "user", content: question, status: "done" }
     void streamAnswer([...turns, userTurn])
   }
@@ -243,7 +242,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     conversationIdRef.current = conversationId
     setTurns([])
     setDraft("")
-    setFocusMode(null)
+    setNavigationHidden(false)
     setShowConsentError(false)
     inputRef.current?.focus()
   }
@@ -267,6 +266,10 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           ref={inputRef}
           id="ask-ai-input"
           value={draft}
+          onFocus={() => setNavigationHidden(true)}
+          onBlur={() => {
+            if (!hasConversation) setNavigationHidden(false)
+          }}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Escape" && isStreaming) {
@@ -435,24 +438,24 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   // Keep one composer mounted between the welcome screen and conversation.
   // Replacing it on the first send dismisses the mobile keyboard and loses focus.
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div id="ask-ai-navigation" hidden={navigationHidden}>
-        <SiteNav />
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+      {navigationHidden ? (
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 z-10 h-2"
+          onPointerEnter={() => setNavigationHidden(false)}
+        />
+      ) : null}
+      <div
+        className="chat-navigation"
+        data-hidden={navigationHidden}
+        onFocusCapture={() => setNavigationHidden(false)}
+      >
+        <div><SiteNav /></div>
       </div>
       <h1 className="sr-only">{askAi.label}</h1>
-      <div className="flex shrink-0 items-center justify-between gap-2 pb-2">
-        <Button
-          variant="ghost"
-          onClick={() => setFocusMode(!navigationHidden)}
-          aria-controls="ask-ai-navigation"
-          aria-pressed={navigationHidden}
-          aria-label={navigationHidden ? "Show site navigation" : "Hide site navigation for focused chat"}
-          className="rounded-full text-muted-foreground hover:text-foreground"
-        >
-          {navigationHidden ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
-          {navigationHidden ? "Show navigation" : "Focus"}
-        </Button>
-        {hasConversation ? (
+      {hasConversation ? (
+        <div className="flex shrink-0 justify-end pb-2">
           <Button
             variant="ghost"
             onClick={newChat}
@@ -461,15 +464,20 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
             <SquarePen aria-hidden="true" />
             New chat
           </Button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
       <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", !hasConversation && "justify-center-safe")}>
         <ChatContainerRoot
           className={cn("min-h-0 min-w-0 flex-1 overscroll-contain", !hasConversation && "hidden")}
           aria-live="polite"
           aria-relevant="additions text"
         >
-          <ChatContainerContent className="gap-6 pt-2 pb-6 sm:gap-8">{messages}</ChatContainerContent>
+          <ChatContainerContent
+            className="gap-6 pt-2 pb-6 sm:gap-8"
+            onScrollDirectionChange={(direction) => setNavigationHidden(direction === "down")}
+          >
+            {messages}
+          </ChatContainerContent>
           <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center">
             <ScrollButton className="pointer-events-auto" />
           </div>

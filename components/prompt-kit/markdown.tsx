@@ -3,6 +3,7 @@ import { memo, useId, useMemo } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import remarkGfm from "remark-gfm"
 import { cn } from "@/lib/utils"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 // Adapted from prompt-kit's Markdown (MIT). The answer is split into blocks and
 // each block is memoized, so while a reply streams only the last block
@@ -11,9 +12,16 @@ import { cn } from "@/lib/utils"
 const COMPONENTS: Partial<Components> = {
   table: function Table({ children }) {
     return (
-      <div className="overflow-x-auto" role="region" aria-label="Answer table" tabIndex={0}>
+      <ScrollArea orientation="horizontal" viewportProps={{ role: "region", "aria-label": "Answer table" }}>
         <table>{children}</table>
-      </div>
+      </ScrollArea>
+    )
+  },
+  pre: function CodeBlock({ children }) {
+    return (
+      <ScrollArea orientation="horizontal" className="rounded-lg bg-muted" viewportProps={{ role: "region", "aria-label": "Code block" }}>
+        <pre>{children}</pre>
+      </ScrollArea>
     )
   },
   a: function Link({ href, children, title }) {

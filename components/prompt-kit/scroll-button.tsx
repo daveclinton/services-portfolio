@@ -1,6 +1,7 @@
 "use client"
 
 import { ChevronDown } from "lucide-react"
+import { useReducedMotion } from "motion/react"
 import { useStickToBottomContext } from "use-stick-to-bottom"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -9,6 +10,7 @@ import { cn } from "@/lib/utils"
 // scrolled away from the newest message.
 function ScrollButton({ className, ...props }: React.ComponentProps<typeof Button>) {
   const { isAtBottom, scrollToBottom } = useStickToBottomContext()
+  const reducedMotion = useReducedMotion()
 
   return (
     <Button
@@ -23,7 +25,7 @@ function ScrollButton({ className, ...props }: React.ComponentProps<typeof Butto
           : "translate-y-0 scale-100 opacity-100",
         className
       )}
-      onClick={() => scrollToBottom()}
+      onClick={() => scrollToBottom({ animation: reducedMotion ? "instant" : "smooth" })}
       {...props}
     >
       <ChevronDown className="size-4" aria-hidden="true" />

@@ -280,6 +280,34 @@ html.has-visible-viewport body {
   margin-bottom: 1rem;
 }
 
+/* Headroom-style navigation: out of the way until the reader returns upward.
+ * Links remain keyboard reachable and reveal the header when focused. */
+.chat-navigation {
+  display: grid;
+  flex-shrink: 0;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows var(--default-transition-duration) ease-out,
+    opacity var(--default-transition-duration) ease-out;
+}
+
+.chat-navigation[data-hidden="true"]:not(:focus-within) {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chat-navigation > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The input keeps its native textarea behavior, with a quiet themed thumb. */
+.chat-input {
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted-foreground) transparent;
+}
+
 /* Short screen, usually because the keyboard is open: give the space to the conversation. */
 @container chat (max-height: 34rem) {
   .chat-page {
@@ -724,7 +752,6 @@ html.has-visible-viewport body {
   font-size: 0.875em;
 }
 .chat-markdown pre {
-  overflow-x: auto;
   border-radius: var(--radius-lg);
   background: var(--muted);
   padding: 0.75rem 1rem;
