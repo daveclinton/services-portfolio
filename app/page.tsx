@@ -2,15 +2,18 @@ import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { SiteNav } from "@/components/portfolio/site-nav"
+import { HomeComposer } from "@/components/portfolio/home-composer"
 import { RevealSection } from "@/components/portfolio/reveal-section"
 import portrait from "@/public/david.webp"
 import {
-  askAi,
   backgroundItems,
+  bio,
+  currentWork,
   email,
   introduction,
   otherProfiles,
   profile,
+  services,
   site,
   socialLinks,
   workLinks,
@@ -21,6 +24,10 @@ export const metadata: Metadata = {
     canonical: "/",
     types: { "application/rss+xml": "/feed.xml" },
   },
+}
+
+function roleDescription(id: string) {
+  return backgroundItems.find((item) => item.id === id)?.description ?? ""
 }
 
 export default function Home() {
@@ -73,7 +80,7 @@ export default function Home() {
       />
       <SiteNav />
       <main id="content">
-        <header className="page-header">
+        <header className="page-header home-hero">
           <Image
             src={portrait}
             alt={`Portrait of ${site.name}`}
@@ -84,57 +91,70 @@ export default function Home() {
             className="home-portrait size-24 rounded-full object-cover"
           />
           <h1>{site.name}</h1>
-          <p>
-            I&apos;m a software engineer in Kenya. I build software and write about what
-            happens after it ships.
-          </p>
+          <p>{bio}</p>
+          <HomeComposer />
         </header>
 
         <article className="home-article">
-          <p id="links">
-            I write a lot on <Link href="/blog">my blog</Link>. If you&apos;d like to say hello,
-            you can find me on <a href={twitter?.href}>Twitter</a> or{" "}
-            <a href={email.href}>email me</a>. You can also{" "}
-            <Link href={askAi.href}>ask AI about me</Link>.
-          </p>
-
           <RevealSection>
-            <h2>Opesi Mansion</h2>
+            <h2>What I work on now</h2>
             <p>
-              I started <a href={introduction.company.href}>{introduction.company.name}</a> to help
-              businesses understand and build useful software beyond the hype and demos on our feeds.
+              I&apos;m a software engineer at <a href={workLinks.mika}>Mika (Ideal Appliances)</a>,
+              a group of home appliance companies in Kenya and Rwanda.
             </p>
+            <dl className="home-stats">
+              {currentWork.stats.map((stat) => (
+                <div key={stat.label}>
+                  <dt>{stat.label}</dt>
+                  <dd>{stat.value}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="post-meta">{currentWork.note}</p>
+            <ul className="home-cards">
+              {currentWork.projects.map((project) => (
+                <li key={project.title}>
+                  <h3>{project.title}</h3>
+                  <p>{project.text}</p>
+                </li>
+              ))}
+            </ul>
           </RevealSection>
 
           <RevealSection>
-            <h2>Making everyday work simpler</h2>
+            <h2 id="work-with-me">Work with me</h2>
             <p>
-              At <a href={workLinks.mika}>Mika (Ideal Appliances)</a>,{" "}
-              {backgroundItems[0].description}
+              Typical ranges in US dollars. The price depends on the scope, so{" "}
+              <a href={email.href}>email me for a quote</a>.
             </p>
+            <dl className="home-rates">
+              {services.map((service) => (
+                <div key={service.title}>
+                  <dt>{service.title}</dt>
+                  <dd>{service.price}</dd>
+                </div>
+              ))}
+            </dl>
           </RevealSection>
 
           <RevealSection>
-            <h2>Payments and developer guides</h2>
+            <h2>Before and alongside Mika</h2>
             <p>
-              I improved online payment experiences for <a href={workLinks.givesuite}>GiveSuite</a> and{" "}
-              <a href={workLinks.elementPay}>Element Pay</a>. Through{" "}
-              <a href={introduction.studio1hq}>Studio1HQ</a>, I also wrote practical guides for developers.
-            </p>
-          </RevealSection>
-
-          <RevealSection>
-            <h2>Investment data</h2>
-            <p>
-              At <a href={workLinks.untapped}>Untapped Global</a>, {backgroundItems[2].description}
-            </p>
-          </RevealSection>
-
-          <RevealSection>
-            <h2>Writing for developers</h2>
-            <p>
+              I improved online payments for <a href={workLinks.givesuite}>GiveSuite</a> and{" "}
+              <a href={workLinks.elementPay}>Element Pay</a>, and I write guides for developers
+              through <a href={introduction.studio1hq}>Studio1HQ</a>. At{" "}
+              <a href={workLinks.untapped}>Untapped Global</a>, {roleDescription("2022-05")}{" "}
               At <a href={introduction.paperspaceWriting}>Paperspace</a>,{" "}
-              {backgroundItems[3].description}
+              {roleDescription("2021-01")} See all{" "}
+              <Link href="/experience">roles and dates</Link>.
+            </p>
+          </RevealSection>
+
+          <RevealSection>
+            <h2>Writing and contact</h2>
+            <p id="links">
+              I write on <Link href="/blog">my blog</Link>. You can find me on{" "}
+              <a href={twitter?.href}>Twitter</a> or <a href={email.href}>email me</a>.
             </p>
           </RevealSection>
 
@@ -147,18 +167,11 @@ export default function Home() {
           </RevealSection>
 
           <RevealSection>
-            <h2>Work experience</h2>
-            <p>
-              For roles and dates, see my <Link href="/experience">work experience</Link>.
-            </p>
-          </RevealSection>
-
-          <RevealSection>
             <h2>About this site</h2>
             <p>
-              The layout was inspired by{" "}
-              <a href="https://dhh.dk/">David Heinemeier Hansson&apos;s website</a>. I visit
-              his site probably too often.
+              The home page follows <a href="https://grok.com/">Grok&apos;s</a> ask-first layout. The
+              reading pages were inspired by{" "}
+              <a href="https://dhh.dk/">David Heinemeier Hansson&apos;s website</a>.
             </p>
           </RevealSection>
         </article>

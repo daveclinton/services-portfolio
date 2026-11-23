@@ -29,6 +29,12 @@ across product design, frontend and backend engineering, databases, external
 integrations, deployment, Linux infrastructure and networking, taking systems
 from implementation through operational delivery.
 
+Mika is a group of home appliance companies in Kenya and Rwanda with about 400
+employees. The SAP environment my systems connect to records about 480,000
+business documents a year across five group companies, including documents
+created in other tools. The 400 employees are the size of the company. The number of
+people who use my systems each day has not been counted.
+
 At Mika (Ideal Appliances), I build and operate warehouse, logistics,
 eWarranty, after-sales, employee-management, fleet-telematics, dashboard and
 automation systems connected to SAP Business One and SAP HANA. My warehouse
@@ -66,6 +72,8 @@ boundaries, secure authentication and authorization, documented APIs,
 observable delivery pipelines, and systems another engineer can operate
 without depending on their original author.
 
-For direct engagements, my contracting rate is $50 per hour and my full-time
-rate is $4,500 per month. My Upwork SaaS listing currently shows $40 per hour;
-that marketplace listing is separate from my direct contracting rate.
+I take on AI assistant, SAP automation, full-stack and technical writing work.
+Typical ranges in US dollars are $50 to $75 an hour for AI assistants and SAP
+automation, $45 to $55 an hour for full-stack web and mobile work, $300 to $600
+for a technical article, and from $500 for testing an AI assistant. The price
+depends on the scope, complexity and turnaround, so contact me for a quote.

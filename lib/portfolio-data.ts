@@ -9,7 +9,7 @@ export const site = {
   jobTitle: "Software Engineer",
   title: "David Clinton | Software Engineer in Kenya",
   description:
-    "David Clinton is a software engineer and writer in Kenya. He builds software and writes about what happens after it ships.",
+    "David Clinton is a software engineer in Kenya. He builds AI assistants, automations and business systems connected to SAP, and writes about what happens after software ships.",
   url: "https://www.daveclintonn.cc",
   location: { country: "Kenya", countryCode: "KE" },
 } as const
@@ -25,14 +25,6 @@ export const profile = {
 } as const
 
 export const introduction = {
-  company: {
-    name: "Opesi Mansion",
-    href: "https://www.opesimansion.com/",
-  },
-  firstProduct: {
-    name: "9ntyplus",
-    href: "https://9ntyplus.com/",
-  },
   paperspaceWriting: "https://blog.paperspace.com/author/david-clinton/",
   studio1hq: "https://www.studio1hq.com/",
   gameOfThrones: "https://press.wbd.com/us/property/game-thrones-s1",
@@ -45,6 +37,35 @@ export const workLinks = {
   untapped: "https://untapped-global.com/who-we-are",
 } as const
 
+export const bio =
+  "I build AI assistants, automations and the systems that warehouses, shops and repair teams use every day, and I support them after launch."
+
+/** Company-wide scale at Mika, Nov 2025 to Nov 2026. Not all SAP documents pass through David's systems. */
+export const currentWork = {
+  stats: [
+    { value: "480,000", label: "SAP documents a year" },
+    { value: "5", label: "group companies" },
+    { value: "About 400", label: "employees" },
+  ],
+  note: "Company totals. The documents are recorded by the SAP environment my systems connect to, including work done in other tools.",
+  projects: [
+    { title: "SapForge", text: "The main back-end system and staff web application for warehouse work in Kenya and Rwanda. It records goods received, deliveries, returns and stock counts in SAP after items are scanned and checked." },
+    { title: "AI assistant", text: "Answers staff questions with live company data. Each person sees only what they are allowed to see, and it asks for approval before changing anything." },
+    { title: "Automations", text: "Enter orders between group companies, record vehicle trips and reconcile loyalty points. Every run can be previewed, and unusual cases go to a person." },
+    { title: "Delivery and after-sales", text: "Follow an order from the warehouse to the customer's door, and a repair from the first complaint to the closed job card." },
+    { title: "Shops and marketplace", text: "Showroom sales, stock checks and prices that agree with SAP, including a price sync for Glovo stores." },
+    { title: "Support", text: "I took over the older shop and repair systems, moved code into version control with passwords removed, and wrote the handbook for running them." },
+  ],
+} as const
+
+/** Typical ranges in USD, reviewed 2026-11-23. Keep in sync with the contracting-rate-2026 evidence record. */
+export const services = [
+  { title: "AI assistants and SAP automation", price: "$50–75 an hour" },
+  { title: "Full-stack web and mobile", price: "$45–55 an hour" },
+  { title: "AI assistant testing", price: "from $500" },
+  { title: "Technical articles", price: "$300–600 each" },
+] as const
+
 export type TimelineEntry = {
   id: string
   company: string
@@ -54,6 +75,7 @@ export type TimelineEntry = {
   start: string
   end?: string
   description: string
+  highlights?: string[]
 }
 
 export const ongoingRoleLabel = "Present"
@@ -73,15 +95,43 @@ export const backgroundItems: TimelineEntry[] = [
     location: "Kenya",
     start: "Oct 2025",
     description:
-      "I help warehouse, delivery, and customer service teams spend less time on manual work by automating paperwork and connecting information across the business.",
+      "I build and support the systems that warehouses, shops, delivery teams and repair teams use every day at a group of home appliance companies in Kenya and Rwanda.",
+    highlights: [
+      "Built SapForge, the main back-end system and staff web application, with about 1,600 automated back-end tests.",
+      "Built and run an AI assistant that shows each person only the data they are allowed to see and asks before changing anything.",
+      "Support systems connected to an SAP environment that records about 480,000 business documents a year across five group companies.",
+      "Automated order entry between group companies, replacing typing that staff estimate took 20 minutes per order.",
+      "Built last-mile delivery, after-sales, showroom, consignment and messaging modules, and a Kotlin warehouse app on Google Play.",
+      "Reviewed a year of repair and warranty records, about 30,000 cases, and reported the problems to the finance team with evidence for each.",
+      "Took over the shop and repair systems from a previous developer and wrote a handbook so others can run and support them.",
+    ],
+  },
+  {
+    id: "2024-05",
+    company: "Studio1HQ",
+    iconSrc: "/studio1hq.webp",
+    arrangement: "Remote, contract",
+    start: "May 2024",
+    description:
+      "I research, build and write practical guides and sample applications for developers.",
+  },
+  {
+    id: "2024-01",
+    company: "Tai Ora",
+    arrangement: "Remote, contract",
+    start: "Jan 2024",
+    end: "Sep 2026",
+    description:
+      "I added AI chat with a choice of providers, worked on the web and mobile apps, and deployed the back end on AWS.",
   },
   {
     id: "2024-09",
-    company: "Givesuite · Element Pay · Studio1HQ",
+    company: "GiveSuite · Element Pay",
+    arrangement: "Remote, contract",
     start: "Sep 2024",
     end: "Jun 2025",
     description:
-      "I improved online payment experiences for GiveSuite and Element Pay and wrote practical guides for developers through Studio1HQ.",
+      "I improved online payment experiences, moved financial data from SAP HANA to PostgreSQL at GiveSuite, and built the web screens for a stablecoin payments platform at Element Pay.",
   },
   {
     id: "2022-05",
@@ -140,7 +190,7 @@ export const askAi = {
   inputLabel: "Ask about my work",
   // Starter questions shown on the empty chat screen.
   suggestions: [
-    "What projects has he shipped?",
+    "What does he build at Mika?",
     "Is he available for contract work?",
   ],
   workflows: {

@@ -10,6 +10,7 @@ export function TimelineItem({
   start,
   end,
   description,
+  highlights,
 }: TimelineEntry) {
   const meta = [formatRoleDates({ start, end }), location, arrangement].filter(Boolean).join(" · ")
 
@@ -24,6 +25,11 @@ export function TimelineItem({
         <h2>{company}</h2>
         <p className="post-meta">{meta}</p>
         <p className="role-description">{description}</p>
+        {highlights?.length ? (
+          <ul className="role-highlights">
+            {highlights.map((item) => <li key={item}>{item}</li>)}
+          </ul>
+        ) : null}
       </div>
     </li>
   )

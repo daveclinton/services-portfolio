@@ -221,4 +221,34 @@ technologies:
   - slug: zkteco
     name: ZKTeco
     category: hardware
+  - slug: openai
+    name: OpenAI API
+    category: AI integration
+  - slug: gemini
+    name: Gemini API
+    category: AI integration
+  - slug: go
+    name: Go
+    category: language
+  - slug: room
+    name: Room
+    category: mobile persistence
+  - slug: maplibre
+    name: MapLibre GL
+    category: maps
+  - slug: django-q2
+    name: Django Q2
+    category: background jobs
+  - slug: glovo-api
+    name: Glovo Partner API
+    category: integration
+  - slug: mysql
+    name: MySQL
+    category: database
+  - slug: celery
+    name: Celery
+    category: background jobs
+  - slug: rabbitmq
+    name: RabbitMQ
+    category: message broker
 ---

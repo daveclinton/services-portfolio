@@ -18,11 +18,14 @@ the site; the assistant treats it as a source like the knowledge base.
 
 ## Roles listed on the site
 
-- Mika (Ideal Appliances), Kenya, Oct 2025 – present: automating paperwork and connecting information across warehouse, delivery and customer service teams.
-- Givesuite, Element Pay and Studio1HQ, Sep 2024 – Jun 2025: improved online payment experiences for GiveSuite and Element Pay; wrote practical developer guides through Studio1HQ.
+- Mika (Ideal Appliances), Kenya, Oct 2025 – present: builds and supports the systems that warehouses, shops, delivery teams and repair teams use every day, including SapForge and an AI assistant. The company has about 400 employees; this is the size of the company, not a count of users. The number of daily users has not been counted, so never say that 400 people use his systems. The SAP environment his systems connect to records about 480,000 business documents a year across five group companies, including documents created in other tools.
+- Studio1HQ, remote contract, May 2024 – present: researches, builds and writes practical guides and sample applications for developers.
+- Tai Ora, remote contract, Jan 2024 – Sep 2026: AI chat, web and mobile apps, and back-end deployment on AWS.
+- GiveSuite and Element Pay, remote contracts, Sep 2024 – Jun 2025: improved online payment experiences.
 - Untapped Global, Nairobi (hybrid), May 2022 – May 2024: turned complex investment data into clear charts for investors and internal teams.
 - Paperspace (now DigitalOcean), remote, Jan 2021 – Feb 2022: wrote practical articles on machine learning and cloud computing.
-- Current independent work in progress: Opesi Mansion (https://www.opesimansion.com/) and its first product, 9ntyplus (https://9ntyplus.com/). Both are early and still being built.
+- Opesi Mansion was an independent idea that David has paused. It has no released product and is not current work.
+- Typical rates are published on the home page as ranges, with a quote for each project. Use the contracting-rate-2026 record.
 
 ## The system behind this assistant (built by David)
 

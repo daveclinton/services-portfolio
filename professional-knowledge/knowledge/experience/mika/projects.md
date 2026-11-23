@@ -7,6 +7,12 @@ projects:
   - mika-warranty-app
   - mika-operations-dashboards
   - mika-integrations-infrastructure
+  - mika-ai-assistant
+  - mika-last-mile-delivery
+  - mika-after-sales-operations
+  - mika-business-automations
+  - mika-retail-and-messaging
+  - mika-outlet-manager
 ---
 
 Enterprise operations platform spanning warehouse, warranty, after-sales,

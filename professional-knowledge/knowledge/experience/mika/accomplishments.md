@@ -31,4 +31,12 @@ accomplishments:
     claim: Built a resilient Wialon-to-SAP HANA fleet-trip synchronization and reconciliation pipeline with transactional writes and scheduled Linux execution.
     confidence: confirmed
     source_path: /Users/daveclintonn/dawda-workspace/wialon/README.md
+  - slug: mika-sap-environment-scale
+    claim: "Builds and supports systems connected to an SAP environment that recorded about 480,000 business documents across five group companies in the 12 months to November 2026."
+    confidence: confirmed
+    source_path: sources/attestations/david-clinton-2026-11-23.md
+  - slug: mika-sapforge-authorship
+    claim: "Author of nearly all commits to SapForge, the main back-end system and staff web application at Mika, which has about 1,600 automated back-end tests."
+    confidence: confirmed
+    source_path: sources/attestations/david-clinton-2026-11-23.md
 ---
