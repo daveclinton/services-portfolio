@@ -28,7 +28,7 @@ export function HomeComposer() {
     <div className="w-full">
       <form
         action={askAi.href}
-        className="glass-surface flex w-full items-end gap-2 rounded-4xl border border-input p-2 pl-5 transition-[border-color,box-shadow] focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20 hover:border-foreground/25"
+        className="home-composer"
         onSubmit={(event) => {
           event.preventDefault()
           submit(question)
@@ -55,12 +55,12 @@ export function HomeComposer() {
           <ArrowUp className="size-4" aria-hidden="true" />
         </Button>
       </form>
-      <ul aria-label="Suggested questions" className="mt-3 flex flex-wrap justify-center gap-2">
+      <ul aria-label="Suggested questions" className="mt-3 flex flex-wrap gap-2">
         {askAi.suggestions.map((suggestion) => (
           <li key={suggestion}>
-            <Button type="button" variant="outline" className="h-auto min-h-9 rounded-full px-4 py-1.5 text-caption whitespace-normal" onClick={() => submit(suggestion)}>
+            <button type="button" className="home-suggestion" onClick={() => submit(suggestion)}>
               {suggestion}
-            </Button>
+            </button>
           </li>
         ))}
       </ul>

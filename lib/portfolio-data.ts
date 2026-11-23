@@ -9,7 +9,7 @@ export const site = {
   jobTitle: "Software Engineer",
   title: "David Clinton | Software Engineer in Kenya",
   description:
-    "David Clinton is a software engineer in Kenya. He builds AI assistants, automations and business systems connected to SAP, and writes about what happens after software ships.",
+    "David Clinton is a software engineer in Kenya. He turns AI ideas into software companies can rely on, connected to the systems and data they already use.",
   url: "https://www.daveclintonn.cc",
   location: { country: "Kenya", countryCode: "KE" },
 } as const
@@ -37,30 +37,41 @@ export const workLinks = {
   untapped: "https://untapped-global.com/who-we-are",
 } as const
 
-export const bio =
-  "I build AI assistants, automations and the systems that warehouses, shops and repair teams use every day, and I support them after launch."
-
-/** Company-wide scale at Mika, Nov 2025 to Nov 2026. Not all SAP documents pass through David's systems. */
-export const currentWork = {
-  stats: [
-    { value: "480,000", label: "SAP documents a year" },
-    { value: "5", label: "group companies" },
-    { value: "About 400", label: "employees" },
-  ],
-  note: "Company totals. The documents are recorded by the SAP environment my systems connect to, including work done in other tools.",
-  projects: [
-    { title: "SapForge", text: "The main back-end system and staff web application for warehouse work in Kenya and Rwanda. It records goods received, deliveries, returns and stock counts in SAP after items are scanned and checked." },
-    { title: "AI assistant", text: "Answers staff questions with live company data. Each person sees only what they are allowed to see, and it asks for approval before changing anything." },
-    { title: "Automations", text: "Enter orders between group companies, record vehicle trips and reconcile loyalty points. Every run can be previewed, and unusual cases go to a person." },
-    { title: "Delivery and after-sales", text: "Follow an order from the warehouse to the customer's door, and a repair from the first complaint to the closed job card." },
-    { title: "Shops and marketplace", text: "Showroom sales, stock checks and prices that agree with SAP, including a price sync for Glovo stores." },
-    { title: "Support", text: "I took over the older shop and repair systems, moved code into version control with passwords removed, and wrote the handbook for running them." },
-  ],
+export const intro = {
+  headline: "I turn AI ideas into software people can rely on.",
+  text: "I connect AI to the systems and data you already have, control what it can do, test its answers and keep it running.",
 } as const
+
+/** The four jobs that decide whether an AI system works in production. */
+export const approach = [
+  { id: "connect", title: "Connect it", text: "To your databases, business software, documents and the tools your team already uses." },
+  { id: "control", title: "Control it", text: "So it sees only what each person may see, and asks before it changes anything." },
+  { id: "check", title: "Check it", text: "With tests built from real questions, so you know when an answer is wrong." },
+  { id: "run", title: "Keep it running", text: "With logs, alerts, backups and someone who fixes it when it fails." },
+] as const
+
+/** Photos show the industry, not the company. Sources and licenses are in photoCredits. */
+export const industries = [
+  { id: "logistics", title: "Retail and logistics", companies: [{ name: "Mika", href: workLinks.mika }], text: "Stock, deliveries, shops and repairs, with an AI assistant staff use to ask about live company data.", alt: "Blue cranes and container trucks at the port of Mombasa" },
+  { id: "payments", title: "Payments and giving", companies: [{ name: "GiveSuite", href: workLinks.givesuite }, { name: "Element Pay", href: workLinks.elementPay }], text: "Donation and stablecoin payment screens, and financial data moved to a new database.", alt: "An M-Pesa till number sign on a shop counter" },
+  { id: "investment", title: "Investment", companies: [{ name: "Untapped Global", href: workLinks.untapped }], text: "Dashboards that let investors follow the small businesses they fund, from motorbikes to solar.", alt: "Solar panels on the roof of a building in Kenya" },
+  { id: "education", title: "Education", companies: [{ name: "Tai Ora" }], text: "Web and mobile apps with AI chat, used in schools.", alt: "A team room at iHub in Nairobi with a whiteboard and projector" },
+  { id: "ai-cloud", title: "AI and cloud computing", companies: [{ name: "Paperspace", href: introduction.paperspaceWriting }], text: "Measured guides on training models and getting more from a GPU.", alt: "Rows of supercomputer racks joined by orange cables" },
+  { id: "developers", title: "Developer tools", companies: [{ name: "Studio1HQ", href: introduction.studio1hq }], text: "Tutorials, documentation and sample applications that developers can run.", alt: "A laptop showing developer documentation at a Nairobi hackathon" },
+] as const
+
+export const photoCredits = [
+  { title: "Mombasa port", author: "Ministry of East African Affairs, Commerce and Tourism", license: "Public domain", href: "https://commons.wikimedia.org/wiki/File:2015_07_31_Mombasa_Port_JPEG_RESIZED_0018.jpg" },
+  { title: "M-Pesa till", author: "Raidarmax", license: "CC BY-SA 3.0", licenseHref: "https://creativecommons.org/licenses/by-sa/3.0/", href: "https://commons.wikimedia.org/wiki/File:An_M-Pesa_Payment_Till.JPG" },
+  { title: "Solar installation, Kenya", author: "PowerAfricaSolar", license: "CC BY-SA 4.0", licenseHref: "https://creativecommons.org/licenses/by-sa/4.0/", href: "https://commons.wikimedia.org/wiki/File:3.6_Kw_Solar_System_Installation_In_Kenya.jpg" },
+  { title: "iHub, Nairobi", author: "Appleslerp", license: "CC BY-SA 4.0", licenseHref: "https://creativecommons.org/licenses/by-sa/4.0/", href: "https://commons.wikimedia.org/wiki/File:Nairobi_iHub.jpg" },
+  { title: "Supercomputer", author: "U.S. Department of Energy", license: "Public domain", href: "https://commons.wikimedia.org/wiki/File:U.S._Department_of_Energy_-_Science_-_391_004_010_(9522400937).jpg" },
+  { title: "Wikimania Nairobi hackathon", author: "JMcRae-WMF", license: "CC BY-SA 4.0", licenseHref: "https://creativecommons.org/licenses/by-sa/4.0/", href: "https://commons.wikimedia.org/wiki/File:Wikimania_Nairobi_Hackathon_(01).jpg" },
+] as const
 
 /** Typical ranges in USD, reviewed 2026-11-23. Keep in sync with the contracting-rate-2026 evidence record. */
 export const services = [
-  { title: "AI assistants and SAP automation", price: "$50–75 an hour" },
+  { title: "AI systems and automation", price: "$50–75 an hour" },
   { title: "Full-stack web and mobile", price: "$45–55 an hour" },
   { title: "AI assistant testing", price: "from $500" },
   { title: "Technical articles", price: "$300–600 each" },
@@ -190,7 +201,7 @@ export const askAi = {
   inputLabel: "Ask about my work",
   // Starter questions shown on the empty chat screen.
   suggestions: [
-    "What does he build at Mika?",
+    "What AI systems has he built?",
     "Is he available for contract work?",
   ],
   workflows: {

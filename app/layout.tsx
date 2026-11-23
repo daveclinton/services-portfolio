@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { Viewport } from "next";
-import { Source_Serif_4 } from "next/font/google";
+import { Bricolage_Grotesque, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
 import { site } from "@/lib/portfolio-data";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,13 @@ import { cn } from "@/lib/utils";
 const reading = Source_Serif_4({
   subsets: ["latin"],
   variable: "--font-reading",
+  display: "swap",
+});
+
+// Heavy, tight display face for headlines and the home page.
+const display = Bricolage_Grotesque({
+  subsets: ["latin"],
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -53,7 +60,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html
       lang="en"
       data-scroll-behavior="smooth"
-      className={cn("min-h-full scroll-smooth antialiased", reading.variable)}
+      className={cn("min-h-full scroll-smooth antialiased", reading.variable, display.variable)}
     >
       <body className="min-h-dvh overflow-x-hidden bg-background text-foreground">
         <a href="#content" className="skip-link">

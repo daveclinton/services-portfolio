@@ -1,11 +1,12 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useId, useState } from "react"
-import { LayoutGroup, motion, useReducedMotion } from "motion/react"
-import { House } from "lucide-react"
-import { askAi, site } from "@/lib/portfolio-data"
+import { useState } from "react"
+import { motion, useMotionValueEvent, useReducedMotion, useScroll } from "motion/react"
+import portrait from "@/public/david.webp"
+import { askAi, email, site } from "@/lib/portfolio-data"
 
 const links = [
   { href: "/blog", label: "Writing" },
@@ -13,64 +14,52 @@ const links = [
   { href: askAi.href, label: "Ask AI" },
 ]
 
+// Flush, borderless bar with the mark on the left, monospace links and one
+// filled action on the right, after Notion's developer page
+// (https://www.notion.com/product/dev). It leaves on scroll down and returns on
+// scroll up, using Motion's scrollY event (https://motion.dev/docs/react-use-scroll).
 export function SiteNav({ compact = false }: { compact?: boolean }) {
   const pathname = usePathname()
-  const groupId = useId()
   const reducedMotion = useReducedMotion()
-  const [hovered, setHovered] = useState<string | null>(null)
-  const [focused, setFocused] = useState<string | null>(null)
-  const items = [{ href: "/", label: site.name }, ...links.filter((link) => !compact || link.href !== askAi.href)]
-  const active = items.find((link) => pathname === link.href || pathname.startsWith(`${link.href}/`))?.href
-  const highlighted = focused ?? hovered ?? active
+  const { scrollY } = useScroll()
+  const [hidden, setHidden] = useState(false)
+
+  useMotionValueEvent(scrollY, "change", (current) => {
+    if (compact) return
+    const previous = scrollY.getPrevious() ?? 0
+    if (Math.abs(current - previous) < 4) return
+    setHidden(current > previous && current > 160)
+  })
 
   return (
-    <LayoutGroup id={groupId}>
-      <motion.nav
-        layoutRoot
-        className={`site-nav glass-surface rounded-2xl border border-border p-2${compact ? " site-nav-compact" : ""}`}
-        aria-label="Site"
-        onPointerLeave={() => setHovered(null)}
-        onBlurCapture={(event) => {
-          if (!event.currentTarget.contains(event.relatedTarget)) setFocused(null)
-        }}
-      >
+    <motion.header
+      className="site-nav"
+      animate={{ y: hidden ? "-110%" : "0%" }}
+      transition={{ duration: reducedMotion ? 0 : 0.25, ease: "easeOut" }}
+      onFocusCapture={() => setHidden(false)}
+    >
+      <nav aria-label="Site">
+        <Link href="/" className="site-nav-home" aria-label={`${site.name} homepage`} aria-current={pathname === "/" ? "page" : undefined}>
+          <Image src={portrait} alt="" width={32} height={32} className="size-8 rounded-full object-cover" />
+          <span className="site-nav-name">{site.name}</span>
+        </Link>
         <ul>
-          {items.map((link) => {
-            // "page" for the exact page, "true" when inside the section (e.g. a post).
-            const current =
-              pathname === link.href
-                ? "page"
-                : pathname.startsWith(`${link.href}/`)
-                  ? "true"
-                  : undefined
-            return (
-              <li key={link.href} className={link.href === "/" ? "site-nav-home-item" : undefined}>
+          {links
+            .filter((link) => !compact || link.href !== askAi.href)
+            .map((link) => (
+              <li key={link.href}>
                 <Link
                   href={link.href}
-                  aria-label={link.href === "/" ? `${site.name} homepage` : undefined}
-                  aria-current={current}
-                  className={link.href === "/" ? "site-nav-home" : undefined}
-                  onPointerEnter={(event) => {
-                    if (event.pointerType === "mouse") setHovered(link.href)
-                  }}
-                  onFocus={() => setFocused(link.href)}
+                  // "page" for the exact page, "true" when inside the section (e.g. a post).
+                  aria-current={pathname === link.href ? "page" : pathname.startsWith(`${link.href}/`) ? "true" : undefined}
                 >
-                  {highlighted === link.href ? (
-                    <motion.span
-                      aria-hidden="true"
-                      className="site-nav-highlight rounded-lg bg-muted"
-                      layoutId={reducedMotion === false ? "nav-highlight" : undefined}
-                      transition={{ type: "spring", duration: reducedMotion === false ? 0.2 : 0, bounce: 0 }}
-                    />
-                  ) : null}
-                  {link.href === "/" ? <House className="site-nav-home-icon size-4" aria-hidden="true" /> : null}
-                  <span className="site-nav-label">{link.label}</span>
+                  {link.label}
                 </Link>
               </li>
-            )
-          })}
+            ))}
         </ul>
-      </motion.nav>
-    </LayoutGroup>
+        <a href={email.href} className="site-nav-action">Email me</a>
+      </nav>
+    </motion.header>
   )
 }
