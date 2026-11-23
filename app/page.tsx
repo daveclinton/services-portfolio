@@ -1,6 +1,8 @@
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
+import { SiteNav } from "@/components/portfolio/site-nav"
+import { RevealSection } from "@/components/portfolio/reveal-section"
 import portrait from "@/public/david.webp"
 import {
   askAi,
@@ -69,6 +71,7 @@ export default function Home() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
+      <SiteNav />
       <main id="content">
         <header className="page-header">
           <Image
@@ -95,69 +98,69 @@ export default function Home() {
             <Link href={askAi.href}>ask AI about me</Link>.
           </p>
 
-          <section>
+          <RevealSection>
             <h2>Opesi Mansion</h2>
             <p>
               I started <a href={introduction.company.href}>{introduction.company.name}</a> to help
               businesses understand and build useful software beyond the hype and demos on our feeds.
             </p>
-          </section>
+          </RevealSection>
 
-          <section>
+          <RevealSection>
             <h2>Making everyday work simpler</h2>
             <p>
               At <a href={workLinks.mika}>Mika (Ideal Appliances)</a>,{" "}
               {backgroundItems[0].description}
             </p>
-          </section>
+          </RevealSection>
 
-          <section>
+          <RevealSection>
             <h2>Payments and developer guides</h2>
             <p>
               I improved online payment experiences for <a href={workLinks.givesuite}>GiveSuite</a> and{" "}
               <a href={workLinks.elementPay}>Element Pay</a>. Through{" "}
               <a href={introduction.studio1hq}>Studio1HQ</a>, I also wrote practical guides for developers.
             </p>
-          </section>
+          </RevealSection>
 
-          <section>
+          <RevealSection>
             <h2>Investment data</h2>
             <p>
               At <a href={workLinks.untapped}>Untapped Global</a>, {backgroundItems[2].description}
             </p>
-          </section>
+          </RevealSection>
 
-          <section>
+          <RevealSection>
             <h2>Writing for developers</h2>
             <p>
               At <a href={introduction.paperspaceWriting}>Paperspace</a>,{" "}
               {backgroundItems[3].description}
             </p>
-          </section>
+          </RevealSection>
 
-          <section>
+          <RevealSection>
             <h2>Outside of work</h2>
             <p>
               I enjoy <a href={introduction.gameOfThrones}>Game of Thrones</a>, sci-fi shows,
               and watching technical creators. I&apos;m also curious about where AI is going.
             </p>
-          </section>
+          </RevealSection>
 
-          <section>
+          <RevealSection>
             <h2>Work experience</h2>
             <p>
               For roles and dates, see my <Link href="/experience">work experience</Link>.
             </p>
-          </section>
+          </RevealSection>
 
-          <section>
+          <RevealSection>
             <h2>About this site</h2>
             <p>
               The layout was inspired by{" "}
               <a href="https://dhh.dk/">David Heinemeier Hansson&apos;s website</a>. I visit
               his site probably too often.
             </p>
-          </section>
+          </RevealSection>
         </article>
       </main>
     </div>

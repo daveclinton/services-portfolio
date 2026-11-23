@@ -3,6 +3,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { formatPostDate, getPostContent, getPosts } from "@/lib/blog"
 import { SiteNav } from "@/components/portfolio/site-nav"
+import { ReadingProgress } from "@/components/portfolio/reading-progress"
 import { site } from "@/lib/portfolio-data"
 
 export async function generateStaticParams() {
@@ -54,7 +55,7 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
   }
 
   return (
-    <div className="page">
+    <div className="page" id="top">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
@@ -62,7 +63,7 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
       <SiteNav />
 
       <main id="content">
-        <article className="blog-post">
+        <article className="blog-post pb-16">
           <header className="blog-post-header">
             <p className="post-meta">
               <time dateTime={post.date}>{formatPostDate(post.date)}</time> ·{" "}
@@ -83,6 +84,7 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
             </p>
           </footer>
         </article>
+        <ReadingProgress />
       </main>
     </div>
   )
