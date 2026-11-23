@@ -18,6 +18,10 @@ from knowledge.models import (
 
 
 class AIConversationModelsTest(TestCase):
+    def test_evidence_only_status_is_valid(self):
+        status = AIConversationTurn._meta.get_field("status")
+        self.assertEqual(status.clean("degraded", None), "degraded")
+
     def test_conversation_keeps_pseudonymous_metadata_and_turns(self):
         conversation = AIConversation.objects.create(
             network_hash="a" * 64,

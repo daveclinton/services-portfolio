@@ -12,6 +12,7 @@ import (
 )
 
 type responsePlan struct {
+	Workflow           string
 	Subject            string
 	Goal               string
 	Requirements       []string
@@ -26,6 +27,7 @@ type intentDecision struct {
 	Confidence     float64
 	Plan           responsePlan
 	PolicyOverride bool
+	ProviderError  error
 }
 
 // Strict structured outputs need every property listed in "required" and
@@ -119,7 +121,7 @@ func explicitRoleSpoof(question string) bool {
 
 // classify uses a small model to plan retrieval, falling back to the rules
 // whenever the model is unavailable or returns something unusable.
-func (s *Service) classify(ctx context.Context, question string, history []chatTurn) intentDecision {
+func (s *Service) classify(ctx context.Context, question string, history []chatTurn, allowModel bool) intentDecision {
 	ruleIntent := classifyByRules(question)
 	goal := "learn"
 	if ruleIntent.Name == "rates" {
@@ -136,7 +138,7 @@ func (s *Service) classify(ctx context.Context, question string, history []chatT
 		fallback.Source = "rules"
 		return fallback
 	}
-	if !s.ai.Enabled() {
+	if !s.ai.Enabled() || !allowModel {
 		return fallback
 	}
 
@@ -169,6 +171,7 @@ func (s *Service) classify(ctx context.Context, question string, history []chatT
 	}
 	if err != nil {
 		s.log.Warn("intent classification failed; using rules", "err", err)
+		fallback.ProviderError = err
 		return fallback
 	}
 

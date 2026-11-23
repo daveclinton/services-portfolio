@@ -2,6 +2,7 @@ package askai
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"strings"
 	"testing"
@@ -49,7 +50,7 @@ func TestConversationRetentionWithForeignKeys(t *testing.T) {
 	_, err = pool.Exec(ctx, `
 		CREATE TABLE knowledge_aiconversation (
 		  id uuid PRIMARY KEY, network_hash text, device_type text, browser_family text, os_family text,
-		  consent_version text, consented_at timestamptz, created_at timestamptz, updated_at timestamptz, expires_at timestamptz
+		  consent_version text, consented_at timestamptz, created_at timestamptz, updated_at timestamptz, expires_at timestamptz, alerted_at timestamptz
 		);
 		CREATE TABLE knowledge_aiconversationturn (
 		  id uuid PRIMARY KEY, conversation_id uuid REFERENCES knowledge_aiconversation(id) DEFERRABLE INITIALLY DEFERRED,
@@ -59,7 +60,7 @@ func TestConversationRetentionWithForeignKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	service := &Service{db: pool, cfg: config.Config{ConversationRetentionDays: 30}}
+	service := &Service{db: pool, cfg: config.Config{ConversationRetentionDays: 30}, log: slog.Default()}
 	expiredID := httpx.NewUUID()
 	for _, id := range []string{expiredID, httpx.NewUUID()} {
 		if err := service.logTurn(ctx, turnLog{ConversationID: id, TurnID: httpx.NewUUID(), Question: "Question", Answer: "Answer", Status: "completed"}); err != nil {
@@ -89,5 +90,20 @@ func TestConversationRetentionWithForeignKeys(t *testing.T) {
 	}
 	if deleted, err := service.purgeExpired(ctx); err != nil || deleted != 0 {
 		t.Fatalf("repeat purge deleted=%d err=%v", deleted, err)
+	}
+	// A greeting must not consume the durable one-notification claim. A later
+	// qualified turn sends exactly one email through the fake sender.
+	mail := &recordingMailer{}
+	service.mail = mail
+	service.cfg.ConversationAlerts = "important"
+	conversationID := httpx.NewUUID()
+	service.storeAndAlert(ctx, turnLog{ConversationID: conversationID, TurnID: httpx.NewUUID(), Question: "Hello", Answer: "Hello", Status: "completed"})
+	if len(mail.messages) != 0 {
+		t.Fatal("greeting triggered an email")
+	}
+	service.storeAndAlert(ctx, turnLog{ConversationID: conversationID, TurnID: httpx.NewUUID(), Question: "Can I hire David?", Answer: "Published work", Status: "completed", AlertReason: "hiring"})
+	service.storeAndAlert(ctx, turnLog{ConversationID: conversationID, TurnID: httpx.NewUUID(), Question: "How much?", Answer: "Published rate", Status: "completed", AlertReason: "pricing"})
+	if len(mail.messages) != 1 {
+		t.Fatalf("sent %d qualified notices, want 1", len(mail.messages))
 	}
 }

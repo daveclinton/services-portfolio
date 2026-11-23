@@ -140,11 +140,13 @@ export const askAi = {
   inputLabel: "Ask about my work",
   // Starter questions shown on the empty chat screen.
   suggestions: [
-    "What does David do?",
     "What projects has he shipped?",
-    "Which technologies does he use?",
     "Is he available for contract work?",
   ],
+  workflows: {
+    role_fit: { label: "Compare a job description", title: "How does this role match?", placeholder: "Paste the role and its requirements…" },
+    interview: { label: "Prepare an interview brief", title: "What should the interview cover?", placeholder: "Paste a job description or describe the role…" },
+  },
 } as const
 
 export const askAiStatus: Record<AskAiIntent, string> = {

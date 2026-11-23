@@ -41,6 +41,18 @@ method and pass it to `server.New` in `cmd/api/main.go`.
 | `POST /ask-ai/chat` | Grounded answer, streamed as SSE (`retrieval`, `citations`, `delta`, `done`, `error`) |
 | `POST /ask-ai/search` | Ranked knowledge chunks with evidence citations |
 
+Chat accepts an optional `workflow`: `chat` (default), `role_fit` (a pasted job
+description comparison), or `interview` (an evidence-grounded interview brief).
+The same retrieval and generation pipeline handles each; no hiring score or
+automated hiring decision is produced. Public, confirmed evidence links are
+included in `citations` for the frontend to display.
+
+`done.finish_reason=evidence_only` means generation is unavailable and the
+response consists of labelled knowledge excerpts, not a model-generated answer.
+Billing/credential failures pause provider traffic for a cooldown and permit
+one recovery probe. See the root README for notification controls and provider
+billing setup; the application request counter is not a prepaid-credit balance.
+
 ## How answers are built
 
 Every answer gets the whole knowledge base (~34k tokens) plus

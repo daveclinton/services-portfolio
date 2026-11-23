@@ -37,10 +37,13 @@ type Config struct {
 	EmbeddingQueryPrefix    string
 	EmbeddingDocumentPrefix string
 
-	BrevoAPIKey      string
-	BrevoAlertTo     string
-	BrevoSenderEmail string
-	BrevoSenderName  string
+	BrevoAPIKey               string
+	BrevoAlertTo              string
+	BrevoSenderEmail          string
+	BrevoSenderName           string
+	ConversationAlerts        string
+	OperationalAlerts         bool
+	AIProviderCooldownSeconds int
 
 	ConversationRetentionDays int
 }
@@ -75,10 +78,13 @@ func Load() (Config, error) {
 
 		EmbeddingsURL: env("EMBEDDINGS_URL", ""),
 
-		BrevoAPIKey:      env("BREVO_API_KEY", ""),
-		BrevoAlertTo:     env("BREVO_ALERT_TO_EMAIL", ""),
-		BrevoSenderEmail: env("BREVO_SENDER_EMAIL", ""),
-		BrevoSenderName:  env("BREVO_SENDER_NAME", "David Clinton Portfolio"),
+		BrevoAPIKey:               env("BREVO_API_KEY", ""),
+		BrevoAlertTo:              env("BREVO_ALERT_TO_EMAIL", ""),
+		BrevoSenderEmail:          env("BREVO_SENDER_EMAIL", ""),
+		BrevoSenderName:           env("BREVO_SENDER_NAME", "David Clinton Portfolio"),
+		ConversationAlerts:        env("BREVO_CONVERSATION_ALERTS", "important"),
+		OperationalAlerts:         boolean(env("BREVO_OPERATIONAL_ALERTS", "true")),
+		AIProviderCooldownSeconds: positiveInt(env("AI_PROVIDER_COOLDOWN_SECONDS", ""), 300),
 
 		ConversationRetentionDays: positiveInt(env("CONVERSATION_RETENTION_DAYS", ""), 30),
 	}
@@ -88,6 +94,9 @@ func Load() (Config, error) {
 	}
 
 	var problems []error
+	if c.ConversationAlerts != "important" && c.ConversationAlerts != "all" && c.ConversationAlerts != "off" {
+		problems = append(problems, errors.New("BREVO_CONVERSATION_ALERTS must be important, all or off"))
+	}
 	if c.Env != "development" && c.Env != "production" {
 		problems = append(problems, fmt.Errorf("APP_ENV must be development or production, got %q", c.Env))
 	}
