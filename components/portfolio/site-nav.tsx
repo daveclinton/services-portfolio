@@ -10,16 +10,16 @@ const links = [
   { href: askAi.href, label: "Ask AI" },
 ]
 
-export function SiteNav() {
+export function SiteNav({ compact = false }: { compact?: boolean }) {
   const pathname = usePathname()
 
   return (
-    <nav className="site-nav" aria-label="Site">
+    <nav className={compact ? "site-nav site-nav-compact" : "site-nav"} aria-label="Site">
       <Link href="/" className="site-nav-home">
         {site.name}
       </Link>
       <ul>
-        {links.map((link) => {
+        {links.filter((link) => !compact || link.href !== askAi.href).map((link) => {
           // "page" for the exact page, "true" when inside the section (e.g. a post).
           const current =
             pathname === link.href

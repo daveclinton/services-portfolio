@@ -20,13 +20,14 @@ const (
 	maxConversationChars  = 24_000
 	maxChatRequestBytes   = 32_000
 	maxSearchRequestBytes = 12_000
-	maxOutputTokens       = 500
+	maxOutputTokens       = 1_000
 	chatTimeout           = 60 * time.Second
 	searchTimeout         = 30 * time.Second
 
 	missingKeyDetail       = "OPENAI_API_KEY is not configured on the server, so grounded answers cannot be generated"
 	creditsExhaustedDetail = "My OpenAI credits are exhausted. While I top them up, you can contact me or explore the homepage."
 	generationFailedDetail = "Ask AI could not complete that response. Please try again later, contact me, or explore the homepage."
+	truncatedAnswerDetail  = "That response was cut short. Please try again or ask a more focused question."
 )
 
 type chatTurn struct {
@@ -96,6 +97,13 @@ func parseChatRequest(body any) (*chatRequest, string, fieldErrors) {
 		role, _ := turn["role"].(string)
 		if role != "user" && role != "assistant" {
 			return nil, detail, invalid("messages", "role must be user or assistant")
+		}
+		expectedRole := "user"
+		if len(req.messages)%2 == 1 {
+			expectedRole = "assistant"
+		}
+		if role != expectedRole {
+			return nil, detail, invalid("messages", "messages must alternate user and assistant, starting with the user")
 		}
 		content, ok := turn["content"].(string)
 		if !ok || strings.TrimSpace(content) == "" {
@@ -204,10 +212,13 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 
 	decision := s.classify(ctx, question, history)
-	outcome, err := s.search(ctx, question, searchOptions{
-		Mode: req.mode, Limit: req.limit, IncludeContent: true,
-		Intent: &decision.Intent, RetrievalQueries: decision.Plan.RetrievalQueries,
-	})
+	outcome := &SearchOutcome{Intent: decision.Intent.Name, Strategies: map[string]int{}}
+	if !decision.PolicyOverride {
+		outcome, err = s.search(ctx, question, searchOptions{
+			Mode: req.mode, Limit: req.limit, IncludeContent: true,
+			Intent: &decision.Intent, RetrievalQueries: decision.Plan.RetrievalQueries,
+		})
+	}
 	if err != nil {
 		s.log.Error("chat retrieval failed", "err", err)
 		httpx.WriteJSON(w, http.StatusInternalServerError, httpx.Problem{Detail: "The assistant could not retrieve an answer."})
@@ -232,6 +243,13 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 		"intent":     outcome.Intent,
 	})
 	_ = stream.Send("citations", map[string]any{"sources": sources})
+	if decision.PolicyOverride {
+		entry.Answer, entry.Status = noEvidenceMessage, "no_evidence"
+		s.log.Info("policy override rejected", "turn_id", req.turnID, "guard", decision.Source)
+		_ = stream.Send("delta", map[string]string{"text": noEvidenceMessage})
+		_ = stream.Send("done", map[string]string{"finish_reason": "guardrail"})
+		return
+	}
 
 	fail := func(detail string) {
 		entry.Answer = detail
@@ -256,6 +274,7 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var answer strings.Builder
+	var firstTokenMs int64
 	entry.Model = s.cfg.OpenAIChatModel
 	usage, err := s.ai.StreamChat(ctx, openai.ChatRequest{
 		Model:       s.cfg.OpenAIChatModel,
@@ -263,13 +282,18 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 		Temperature: 0.2,
 		MaxTokens:   maxOutputTokens,
 	}, func(text string) error {
+		if answer.Len() == 0 {
+			firstTokenMs = time.Since(started).Milliseconds()
+		}
 		answer.WriteString(text)
 		return stream.Send("delta", map[string]string{"text": text})
 	})
 	entry.Answer = answer.String()
 	if err != nil {
-		s.log.Error("chat generation failed", "err", err)
-		if isCreditExhaustion(err) {
+		s.log.Error("chat generation failed", "turn_id", req.turnID, "err", err)
+		if errors.Is(err, openai.ErrTruncated) {
+			fail(truncatedAnswerDetail)
+		} else if isCreditExhaustion(err) {
 			fail(creditsExhaustedDetail)
 		} else {
 			fail(generationFailedDetail)
@@ -278,6 +302,7 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 	entry.Status = "completed"
 	s.log.Info("answer generated", "model", s.cfg.OpenAIChatModel,
+		"turn_id", req.turnID, "time_to_first_token_ms", firstTokenMs,
 		"prompt_tokens", usage.PromptTokens, "cached_tokens", usage.Details.CachedTokens,
 		"completion_tokens", usage.CompletionTokens)
 	_ = stream.Send("done", map[string]string{"finish_reason": "stop"})

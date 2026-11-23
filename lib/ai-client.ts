@@ -28,6 +28,33 @@ export type ChatEvent =
 
 export class AiApiError extends Error {}
 
+// Mirrors backend/internal/askai/handlers.go. Bound what is sent, not what the
+// reader can see: older turns remain in the UI and this tab's saved history.
+export const CHAT_LIMITS = { messages: 12, messageChars: 8_000, conversationChars: 24_000, requestBytes: 32_000 } as const
+
+export function prepareChatMessages(messages: ChatTurn[]): ChatTurn[] {
+  const latest = messages.at(-1)
+  if (!latest || latest.role !== "user" || !latest.content.trim()) throw new AiApiError("Please enter a question.")
+  if ([...latest.content].length > CHAT_LIMITS.messageChars) throw new AiApiError("Please shorten your question before sending it.")
+
+  const completed: ChatTurn[] = []
+  let question: ChatTurn | undefined
+  for (const turn of messages.slice(0, -1)) {
+    if (turn.role === "user") question = turn
+    else if (question && turn.content.trim()) {
+      if ([...question.content].length <= CHAT_LIMITS.messageChars && [...turn.content].length <= CHAT_LIMITS.messageChars) {
+        completed.push(question, turn)
+      }
+      question = undefined
+    }
+  }
+  let recent = [...completed.slice(-(CHAT_LIMITS.messages - 2)), latest]
+  while (recent.length > 1 && recent.reduce((total, turn) => total + [...turn.content].length, 0) > CHAT_LIMITS.conversationChars) {
+    recent = recent.slice(2)
+  }
+  return recent
+}
+
 export function stripCitationMarkers(text: string): string {
   return text.replace(/\s*(?:\[\d+\])+/g, "")
 }
@@ -114,6 +141,17 @@ export async function* streamChat({
   conversationId?: string
   turnId?: string
 }): AsyncGenerator<ChatEvent> {
+  const payload = {
+    messages: prepareChatMessages(messages),
+    improvementLogging,
+    ...(improvementLogging ? { conversationId, turnId } : {}),
+  }
+  let body = JSON.stringify(payload)
+  while (payload.messages.length > 1 && new TextEncoder().encode(body).length > CHAT_LIMITS.requestBytes) {
+    payload.messages = payload.messages.slice(2)
+    body = JSON.stringify(payload)
+  }
+  if (new TextEncoder().encode(body).length > CHAT_LIMITS.requestBytes) throw new AiApiError("Please shorten your question before sending it.")
   let response: Response
   try {
     response = await fetch(`${API_URL}/ask-ai/chat`, {
@@ -121,11 +159,7 @@ export async function* streamChat({
       // Sends the signed visitor cookie the API uses for rate limits.
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        messages,
-        improvementLogging,
-        ...(improvementLogging ? { conversationId, turnId } : {}),
-      }),
+      body,
       signal,
     })
   } catch (error) {
@@ -153,24 +187,35 @@ export async function* streamChat({
   const reader = response.body.getReader()
   const decoder = new TextDecoder()
   let buffer = ""
+  let completed = false
 
   try {
     for (;;) {
       const { done, value } = await reader.read()
       if (done) break
       buffer += decoder.decode(value, { stream: true })
+      buffer = buffer.replace(/\r\n/g, "\n")
       let boundary = buffer.indexOf("\n\n")
       while (boundary !== -1) {
         const event = parseFrame(buffer.slice(0, boundary))
         buffer = buffer.slice(boundary + 2)
-        if (event) yield event
+        if (event) {
+          if (event.type === "done") completed = true
+          yield event
+          if (completed) return
+        }
         boundary = buffer.indexOf("\n\n")
       }
     }
     const trailing = parseFrame(buffer + decoder.decode())
-    if (trailing) yield trailing
+    if (trailing) {
+      if (trailing.type === "done") completed = true
+      yield trailing
+    }
+    if (!completed) throw new AiApiError("The response was interrupted. Your messages are still here; please try again.")
   } finally {
     try {
+      await reader.cancel()
       reader.releaseLock()
     } catch {}
   }

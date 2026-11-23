@@ -100,9 +100,7 @@ func (s *Service) requestContext(r *http.Request) requestContext {
 
 func (s *Service) logTurn(ctx context.Context, e turnLog) error {
 	_, err := s.db.Exec(ctx, `
-		WITH purged AS (
-		  DELETE FROM knowledge_aiconversation WHERE expires_at <= NOW() RETURNING id
-		), conversation AS (
+		WITH conversation AS (
 		  INSERT INTO knowledge_aiconversation
 		    (id, network_hash, device_type, browser_family, os_family,
 		     consent_version, consented_at, created_at, updated_at, expires_at)
@@ -139,8 +137,29 @@ func (s *Service) releaseAlert(ctx context.Context, conversationID string) error
 }
 
 func (s *Service) purgeExpired(ctx context.Context) (int64, error) {
-	tag, err := s.db.Exec(ctx, "DELETE FROM knowledge_aiconversation WHERE expires_at <= NOW()")
-	return tag.RowsAffected(), err
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+	// Lock parents before removing children so a concurrent turn cannot be
+	// inserted between the two deletes. NOW() is stable within the transaction.
+	if _, err := tx.Exec(ctx, "SELECT id FROM knowledge_aiconversation WHERE expires_at <= NOW() FOR UPDATE"); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM knowledge_aiconversationturn AS turn
+		USING knowledge_aiconversation AS conversation
+		WHERE turn.conversation_id = conversation.id AND conversation.expires_at <= NOW()`); err != nil {
+		return 0, err
+	}
+	tag, err := tx.Exec(ctx, "DELETE FROM knowledge_aiconversation WHERE expires_at <= NOW()")
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
 }
 
 // storeAndAlert runs after the response: it stores the turn, then sends the

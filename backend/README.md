@@ -44,7 +44,8 @@ method and pass it to `server.New` in `cmd/api/main.go`.
 ## How answers are built
 
 Every answer gets the whole knowledge base (~34k tokens) plus
-`internal/askai/site_facts.md` as a fixed prompt prefix, which OpenAI's prompt
+`internal/askai/site_facts.md` as a fixed prompt prefix, separate from the system
+policy and encoded as reference data. OpenAI's prompt
 caching serves at a discount (`cached_tokens` in the "answer generated" log).
 Hybrid retrieval still runs to rank likely-relevant documents and fill the
 `citations` event. The answer policy lives in `internal/askai/generation.go`;

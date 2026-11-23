@@ -10,6 +10,7 @@ function ScrollArea({
   className,
   children,
   orientation = "vertical",
+  hideScrollbar = false,
   viewportRef,
   contentRef,
   viewportProps,
@@ -17,6 +18,7 @@ function ScrollArea({
   ...props
 }: ScrollAreaPrimitive.Root.Props & {
   orientation?: "vertical" | "horizontal"
+  hideScrollbar?: boolean
   viewportRef?: Ref<HTMLDivElement>
   contentRef?: Ref<HTMLDivElement>
   viewportProps?: ComponentProps<typeof ScrollAreaPrimitive.Viewport>
@@ -44,7 +46,7 @@ function ScrollArea({
           {children}
         </ScrollAreaPrimitive.Content>
       </ScrollAreaPrimitive.Viewport>
-      <ScrollBar orientation={orientation} />
+      {!hideScrollbar ? <ScrollBar orientation={orientation} /> : null}
       <ScrollAreaPrimitive.Corner />
     </ScrollAreaPrimitive.Root>
   )

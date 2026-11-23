@@ -17,7 +17,7 @@ export function VisibleViewport({ children }: { children: ReactNode }) {
   useEffect(() => {
     const element = ref.current
     const viewport = window.visualViewport
-    if (!element || !viewport) return
+    if (!element) return
 
     document.documentElement.classList.add("has-visible-viewport")
 
@@ -27,6 +27,7 @@ export function VisibleViewport({ children }: { children: ReactNode }) {
       frame = requestAnimationFrame(() => {
         // When the reader pinch-zooms, let the browser handle it normally
         // rather than shrinking the layout to the zoomed-in area.
+        if (!viewport) return
         if (viewport.scale > 1.01) {
           element.style.removeProperty("--visible-height")
           element.style.removeProperty("--visible-top")
@@ -43,12 +44,12 @@ export function VisibleViewport({ children }: { children: ReactNode }) {
     }
 
     update()
-    viewport.addEventListener("resize", update)
-    viewport.addEventListener("scroll", update)
+    viewport?.addEventListener("resize", update)
+    viewport?.addEventListener("scroll", update)
     return () => {
       cancelAnimationFrame(frame)
-      viewport.removeEventListener("resize", update)
-      viewport.removeEventListener("scroll", update)
+      viewport?.removeEventListener("resize", update)
+      viewport?.removeEventListener("scroll", update)
       document.documentElement.classList.remove("has-visible-viewport")
     }
   }, [])

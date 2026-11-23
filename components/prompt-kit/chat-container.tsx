@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef } from "react"
+import { useEffect, useRef } from "react"
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom"
 import { useReducedMotion } from "motion/react"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -30,17 +30,41 @@ function ChatContainerContent({
   children,
   className,
   onScrollDirectionChange,
+  followKey,
   ...props
 }: React.HTMLAttributes<HTMLDivElement> & {
-  onScrollDirectionChange?: (direction: "up" | "down") => void
+  onScrollDirectionChange?: (direction: "up" | "down", atStart: boolean) => void
+  followKey?: string
 }) {
-  const { scrollRef, contentRef, state } = useStickToBottomContext()
+  const { scrollRef, contentRef, state, scrollToBottom, stopScroll } = useStickToBottomContext()
+  const reducedMotion = useReducedMotion()
+  const followedTurn = useRef<string | undefined>(undefined)
   const lastScrollTop = useRef(0)
   const touchPosition = useRef<{ x: number; y: number } | null>(null)
+
+  // Follow a newly submitted turn once. Incoming tokens never override the
+  // existing library's free-reading/selection behavior (as in T3 Code).
+  useEffect(() => {
+    if (followedTurn.current === followKey) return
+    followedTurn.current = followKey
+    if (followKey) void scrollToBottom({ animation: reducedMotion ? "instant" : "smooth" })
+  }, [followKey, reducedMotion, scrollToBottom])
+
+  // Keep a selected passage still after the pointer is released, including
+  // long-press selection on phones. The library handles ordinary scroll intent.
+  useEffect(() => {
+    const pauseForSelection = () => {
+      const selection = document.getSelection()
+      if (selection && !selection.isCollapsed && selection.anchorNode && scrollRef.current?.contains(selection.anchorNode)) stopScroll()
+    }
+    document.addEventListener("selectionchange", pauseForSelection)
+    return () => document.removeEventListener("selectionchange", pauseForSelection)
+  }, [scrollRef, stopScroll])
 
   return (
     <ScrollArea
       className="min-h-0 flex-1"
+      hideScrollbar
       viewportRef={scrollRef}
       contentRef={contentRef}
       contentProps={{ ...props, className: cn("flex min-w-0 w-full flex-col", className) }}
@@ -55,13 +79,13 @@ function ChatContainerContent({
             lastScrollTop.current = top
             return
           }
-          if (Math.abs(delta) < 8) return
+          if (top > 0 && Math.abs(delta) < 8) return
           lastScrollTop.current = top
-          onScrollDirectionChange?.(delta < 0 ? "up" : "down")
+          onScrollDirectionChange?.(delta < 0 ? "up" : "down", top <= 0)
         },
         onWheel: (event) => {
           if (event.ctrlKey || event.shiftKey || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return
-          onScrollDirectionChange?.(event.deltaY < 0 ? "up" : "down")
+          onScrollDirectionChange?.(event.deltaY < 0 ? "up" : "down", event.currentTarget.scrollTop <= 0)
         },
         onTouchStart: (event) => {
           const touch = event.touches.length === 1 ? event.touches[0] : undefined
@@ -78,14 +102,14 @@ function ChatContainerContent({
           const delta = previous.y - touch.clientY
           if (Math.abs(delta) < 8 || Math.abs(delta) <= Math.abs(previous.x - touch.clientX)) return
           touchPosition.current = { x: touch.clientX, y: touch.clientY }
-          onScrollDirectionChange?.(delta < 0 ? "up" : "down")
+          onScrollDirectionChange?.(delta < 0 ? "up" : "down", event.currentTarget.scrollTop <= 0)
         },
         onKeyDown: (event) => {
           if (event.target !== event.currentTarget) return
           if (["ArrowUp", "PageUp", "Home"].includes(event.key) || (event.key === " " && event.shiftKey)) {
-            onScrollDirectionChange?.("up")
+            onScrollDirectionChange?.("up", event.key === "Home" || event.currentTarget.scrollTop <= 0)
           } else if (["ArrowDown", "PageDown", "End", " "].includes(event.key)) {
-            onScrollDirectionChange?.("down")
+            onScrollDirectionChange?.("down", false)
           }
         },
       }}
