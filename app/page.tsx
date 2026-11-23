@@ -1,17 +1,17 @@
 import type { Metadata } from "next"
-import Image from "next/image"
 import Link from "next/link"
 import { SiteNav } from "@/components/portfolio/site-nav"
 import { HomeComposer } from "@/components/portfolio/home-composer"
+import { IndustryPhoto } from "@/components/portfolio/industry-photo"
 import { RevealSection } from "@/components/portfolio/reveal-section"
-import portrait from "@/public/david.webp"
+import { CheckArt, ConnectArt, ControlArt, RunArt } from "@/components/portfolio/work-illustrations"
 import {
-  backgroundItems,
-  bio,
-  currentWork,
+  approach,
   email,
-  introduction,
+  industries,
+  intro,
   otherProfiles,
+  photoCredits,
   profile,
   services,
   site,
@@ -26,9 +26,7 @@ export const metadata: Metadata = {
   },
 }
 
-function roleDescription(id: string) {
-  return backgroundItems.find((item) => item.id === id)?.description ?? ""
-}
+const art = { connect: ConnectArt, control: ControlArt, check: CheckArt, run: RunArt }
 
 export default function Home() {
   const jsonLd = {
@@ -73,108 +71,126 @@ export default function Home() {
   const twitter = socialLinks.find((link) => link.icon === "x")
 
   return (
-    <div className="page">
+    <div className="page home">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
       <SiteNav />
       <main id="content">
-        <header className="page-header home-hero">
-          <Image
-            src={portrait}
-            alt={`Portrait of ${site.name}`}
-            width={96}
-            height={96}
-            loading="eager"
-            fetchPriority="high"
-            className="home-portrait size-24 rounded-full object-cover"
-          />
-          <h1>{site.name}</h1>
-          <p>{bio}</p>
+        <header className="home-hero">
+          <h1>{intro.headline}</h1>
+          <p>{intro.text}</p>
           <HomeComposer />
         </header>
 
-        <article className="home-article">
-          <RevealSection>
-            <h2>What I work on now</h2>
-            <p>
-              I&apos;m a software engineer at <a href={workLinks.mika}>Mika (Ideal Appliances)</a>,
-              a group of home appliance companies in Kenya and Rwanda.
-            </p>
-            <dl className="home-stats">
-              {currentWork.stats.map((stat) => (
-                <div key={stat.label}>
-                  <dt>{stat.label}</dt>
-                  <dd>{stat.value}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className="post-meta">{currentWork.note}</p>
-            <ul className="home-cards">
-              {currentWork.projects.map((project) => (
-                <li key={project.title}>
-                  <h3>{project.title}</h3>
-                  <p>{project.text}</p>
+        <section className="home-letter" aria-label="A letter from David Clinton">
+          <p>Hello,</p>
+          <p>
+            I am David Clinton, a software engineer in Kenya. I help companies put AI to work in the
+            software and data they already have.
+          </p>
+          <p>
+            Getting an AI demo to work is quick. Getting it to work every day takes more: the right
+            data, limits on what it can see and change, a way to check its answers, and an engineer
+            who fixes it when something breaks. That is the work I do.
+          </p>
+          <p>
+            At <a href={workLinks.mika}>Mika</a>, a group of home appliance companies with about 400
+            employees, I built and run an AI assistant that answers staff questions from live company
+            data. It shows each person only what they are allowed to see, and it asks before it
+            changes anything. The systems I support connect to business records that grow by about
+            480,000 documents a year, including those created in other tools.
+          </p>
+          <p>
+            Before that I built dashboards for investors, payment screens, school apps and guides for
+            developers. I work from the first version to live support, and I deal directly with the
+            people who will use it.
+          </p>
+          <p>
+            If you have an AI idea stuck at the demo stage, a slow process or a system nobody wants to
+            touch, <a href={email.href}>tell me about it</a>.
+          </p>
+          <p className="home-signature">
+            David Clinton
+            <span><Link href="/experience">See my work experience</Link></span>
+          </p>
+        </section>
+
+        <section className="home-section" aria-labelledby="approach">
+          <h2 id="approach">What it takes to make AI useful</h2>
+          <ul className="approach">
+            {approach.map((item) => {
+              const Art = art[item.id]
+              return (
+                <li key={item.id} data-tone={item.id}>
+                  <RevealSection>
+                    <Art />
+                    <h3>{item.title}</h3>
+                    <p>{item.text}</p>
+                  </RevealSection>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+
+        <section className="home-section" aria-labelledby="industries">
+          <h2 id="industries">Industries I have worked in</h2>
+          <ul className="industries">
+            {industries.map((item, index) => (
+              <li key={item.id}>
+                <IndustryPhoto src={`/industries/${item.id}.webp`} alt={item.alt} wide={index % 4 === 0 || index % 4 === 3} />
+                <h3>{item.title}</h3>
+                <p>{item.text}</p>
+                <p className="industry-companies">
+                  {item.companies.map((company, i) => (
+                    <span key={company.name}>
+                      {i > 0 ? " and " : null}
+                      {"href" in company ? <a href={company.href}>{company.name}</a> : company.name}
+                    </span>
+                  ))}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="home-rates" aria-labelledby="work-with-me">
+          <div>
+            <h2 id="work-with-me">Work with me</h2>
+            <p>Typical ranges in US dollars. The final price depends on the scope.</p>
+            <a href={email.href} className="home-action">Email me for a quote</a>
+          </div>
+          <dl>
+            {services.map((service) => (
+              <div key={service.title}>
+                <dt>{service.title}</dt>
+                <dd>{service.price}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+
+        <footer className="home-footer" id="links">
+          <p>
+            I write on <Link href="/blog">my blog</Link>. Find me on <a href={twitter?.href}>Twitter</a>,{" "}
+            <a href="https://github.com/daveclinton">GitHub</a> and{" "}
+            <a href="https://www.linkedin.com/in/clintondavid46/">LinkedIn</a>.
+          </p>
+          <details>
+            <summary>Photo credits</summary>
+            <p>The photos show each industry. They are not pictures of the companies. All were cropped and resized.</p>
+            <ul>
+              {photoCredits.map((photo) => (
+                <li key={photo.href}>
+                  <a href={photo.href}>{photo.title}</a>, {photo.author},{" "}
+                  {"licenseHref" in photo ? <a href={photo.licenseHref}>{photo.license}</a> : photo.license}
                 </li>
               ))}
             </ul>
-          </RevealSection>
-
-          <RevealSection>
-            <h2 id="work-with-me">Work with me</h2>
-            <p>
-              Typical ranges in US dollars. The price depends on the scope, so{" "}
-              <a href={email.href}>email me for a quote</a>.
-            </p>
-            <dl className="home-rates">
-              {services.map((service) => (
-                <div key={service.title}>
-                  <dt>{service.title}</dt>
-                  <dd>{service.price}</dd>
-                </div>
-              ))}
-            </dl>
-          </RevealSection>
-
-          <RevealSection>
-            <h2>Before and alongside Mika</h2>
-            <p>
-              I improved online payments for <a href={workLinks.givesuite}>GiveSuite</a> and{" "}
-              <a href={workLinks.elementPay}>Element Pay</a>, and I write guides for developers
-              through <a href={introduction.studio1hq}>Studio1HQ</a>. At{" "}
-              <a href={workLinks.untapped}>Untapped Global</a>, {roleDescription("2022-05")}{" "}
-              At <a href={introduction.paperspaceWriting}>Paperspace</a>,{" "}
-              {roleDescription("2021-01")} See all{" "}
-              <Link href="/experience">roles and dates</Link>.
-            </p>
-          </RevealSection>
-
-          <RevealSection>
-            <h2>Writing and contact</h2>
-            <p id="links">
-              I write on <Link href="/blog">my blog</Link>. You can find me on{" "}
-              <a href={twitter?.href}>Twitter</a> or <a href={email.href}>email me</a>.
-            </p>
-          </RevealSection>
-
-          <RevealSection>
-            <h2>Outside of work</h2>
-            <p>
-              I enjoy <a href={introduction.gameOfThrones}>Game of Thrones</a>, sci-fi shows,
-              and watching technical creators. I&apos;m also curious about where AI is going.
-            </p>
-          </RevealSection>
-
-          <RevealSection>
-            <h2>About this site</h2>
-            <p>
-              The home page follows <a href="https://grok.com/">Grok&apos;s</a> ask-first layout. The
-              reading pages were inspired by{" "}
-              <a href="https://dhh.dk/">David Heinemeier Hansson&apos;s website</a>.
-            </p>
-          </RevealSection>
-        </article>
+          </details>
+        </footer>
       </main>
     </div>
   )
