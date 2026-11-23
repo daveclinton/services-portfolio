@@ -1,4 +1,3 @@
-import { SiteNav } from "@/components/portfolio/site-nav"
 import { VisibleViewport } from "@/components/portfolio/visible-viewport"
 
 /**
@@ -10,7 +9,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <VisibleViewport>
       <div className="page page-app chat-page">
-        <SiteNav />
         <main id="content" className="flex min-h-0 min-w-0 flex-1 flex-col">
           {children}
         </main>

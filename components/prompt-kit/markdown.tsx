@@ -9,13 +9,20 @@ import { cn } from "@/lib/utils"
 // re-renders. Styles live in .chat-markdown in app/globals.css.
 
 const COMPONENTS: Partial<Components> = {
-  a: function Link({ href, children, ...props }) {
+  table: function Table({ children }) {
+    return (
+      <div className="overflow-x-auto" role="region" aria-label="Answer table" tabIndex={0}>
+        <table>{children}</table>
+      </div>
+    )
+  },
+  a: function Link({ href, children, title }) {
     const external = href?.startsWith("http")
     return (
       <a
         href={href}
+        title={title}
         {...(external ? { target: "_blank", rel: "noreferrer" } : {})}
-        {...props}
       >
         {children}
       </a>
@@ -24,28 +31,30 @@ const COMPONENTS: Partial<Components> = {
 }
 
 function parseMarkdownIntoBlocks(markdown: string): string[] {
-  return marked.lexer(markdown).map((token) => token.raw)
+  return marked.lexer(markdown).filter((token) => token.type !== "space").map((token) => token.raw)
 }
 
 const MarkdownBlock = memo(
-  function MarkdownBlock({ content }: { content: string }) {
+  function MarkdownBlock({ content, streaming }: { content: string; streaming: boolean }) {
     return (
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={COMPONENTS}>
-        {content}
-      </ReactMarkdown>
+      <div className={streaming ? "animate-in fade-in duration-200 ease-out motion-reduce:animate-none" : undefined}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={COMPONENTS}>
+          {content}
+        </ReactMarkdown>
+      </div>
     )
   },
-  (previous, next) => previous.content === next.content
+  (previous, next) => previous.content === next.content && previous.streaming === next.streaming
 )
 
-function MarkdownComponent({ children, className }: { children: string; className?: string }) {
+function MarkdownComponent({ children, className, streaming = false }: { children: string; className?: string; streaming?: boolean }) {
   const id = useId()
   const blocks = useMemo(() => parseMarkdownIntoBlocks(children), [children])
 
   return (
     <div className={cn("chat-markdown", className)}>
       {blocks.map((block, index) => (
-        <MarkdownBlock key={`${id}-${index}`} content={block} />
+        <MarkdownBlock key={`${id}-${index}`} content={block} streaming={streaming} />
       ))}
     </div>
   )

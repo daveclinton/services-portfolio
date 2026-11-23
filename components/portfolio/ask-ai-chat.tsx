@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ArrowUp, Briefcase, Check, Code, Copy, FolderGit2, RotateCcw, Square, SquarePen, UserRound } from "lucide-react"
+import { ArrowUp, Briefcase, Check, Code, Copy, FolderGit2, Maximize2, Minimize2, RotateCcw, Square, SquarePen, UserRound } from "lucide-react"
 import Link from "next/link"
 import { motion, useInView, useReducedMotion } from "motion/react"
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import { Message, MessageAction, MessageActions, MessageContent } from "@/compon
 import { PromptSuggestion } from "@/components/prompt-kit/prompt-suggestion"
 import { ScrollButton } from "@/components/prompt-kit/scroll-button"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
+import { SiteNav } from "@/components/portfolio/site-nav"
 import {
   AiApiError,
   streamChat,
@@ -25,7 +26,7 @@ import { cn } from "@/lib/utils"
 //   message structure, stick-to-bottom list, scroll button, text shimmer.
 // - assistant-ui's Claude, ChatGPT and Grok examples
 //   (https://www.assistant-ui.com/examples): flat bordered composer with the
-//   input above a button row, low-contrast user bubble, hover-only action bars,
+//   compact input with send/stop controls, low-contrast user bubble, action bars,
 //   a fade above the sticky composer, and a send button that morphs into stop.
 // - Starter questions follow Nielsen Norman Group's guidance on prompt
 //   suggestions: light, next to the input, and inserted for editing.
@@ -81,6 +82,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   const [turns, setTurns] = useState<Turn[]>([])
   const [draft, setDraft] = useState("")
   const [isStreaming, setIsStreaming] = useState(false)
+  const [focusMode, setFocusMode] = useState<boolean | null>(null)
   const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null)
   const [consented, setConsented] = useState(false)
   const [showConsentError, setShowConsentError] = useState(false)
@@ -95,6 +97,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   const restored = useRef(false)
 
   const hasConversation = turns.length > 0
+  const navigationHidden = focusMode ?? hasConversation
 
   // Blog-post version: offer a suggested question once the reader reaches it.
   useEffect(() => {
@@ -215,6 +218,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     }
     setShowConsentError(false)
     setDraft("")
+    setFocusMode(true)
     const userTurn: Turn = { id: newId("user"), role: "user", content: question, status: "done" }
     void streamAnswer([...turns, userTurn])
   }
@@ -239,6 +243,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     conversationIdRef.current = conversationId
     setTurns([])
     setDraft("")
+    setFocusMode(null)
     setShowConsentError(false)
     inputRef.current?.focus()
   }
@@ -248,7 +253,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
       <form
         data-empty={!draft.trim()}
         data-running={isStreaming}
-        className="group/composer flex w-full min-w-0 flex-col rounded-2xl border border-input bg-card px-3.5 pt-3 pb-2.5 transition-[border-color,box-shadow,background-color] hover:border-foreground/25 focus-within:border-ring focus-within:bg-background focus-within:ring-3 focus-within:ring-ring/20"
+        className="group/composer flex w-full min-w-0 items-end gap-2 rounded-2xl border border-input bg-card p-2.5 transition-[border-color,box-shadow,background-color] hover:border-foreground/25 focus-within:border-ring focus-within:bg-background focus-within:ring-3 focus-within:ring-ring/20"
         onSubmit={(event) => {
           event.preventDefault()
           if (isStreaming) stop()
@@ -278,12 +283,12 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           enterKeyHint="send"
           rows={1}
           aria-describedby="ask-ai-input-hint"
-          className="min-h-7 max-h-48 w-full resize-none overflow-y-auto bg-transparent px-0.5 text-base leading-7 text-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground"
+          className="chat-input min-h-8 max-h-48 min-w-0 flex-1 resize-none overflow-y-auto bg-transparent px-0.5 text-base leading-7 text-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground"
         />
         <span id="ask-ai-input-hint" className="sr-only">
           Press Enter to send and Shift and Enter for a new line. Press Escape to stop an answer.
         </span>
-        <div className="mt-2 flex items-center justify-end gap-2">
+        <div className="flex shrink-0 items-center justify-end gap-2">
           {/* Send and stop share one slot and swap with a scale animation. */}
           <div className="relative size-8 shrink-0">
             <Button
@@ -356,7 +361,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     if (turn.role === "user") {
       return (
         <Message key={turn.id} className="group flex-col items-end gap-1 pl-8 sm:pl-16">
-          <MessageContent className="max-w-full rounded-2xl bg-muted px-4 py-2.5 text-body whitespace-pre-wrap sm:max-w-[80%]">
+          <MessageContent className="min-w-0 max-w-full rounded-2xl bg-muted px-4 py-2.5 text-body whitespace-pre-wrap sm:max-w-[80%]">
             {turn.content}
           </MessageContent>
           <MessageActions className="-mr-1 opacity-100 transition-opacity duration-150 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
@@ -375,12 +380,12 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           </p>
         ) : null}
         {turn.content ? (
-          <MessageContent markdown className="w-full">
+          <MessageContent markdown streaming={turn.status === "streaming"} className="min-w-0 w-full">
             {turn.content}
           </MessageContent>
         ) : null}
         {turn.error ? (
-          <p className="text-caption break-words [overflow-wrap:anywhere] text-destructive">{turn.error}</p>
+          <p role="alert" className="text-caption break-words [overflow-wrap:anywhere] text-destructive">{turn.error}</p>
         ) : null}
         {finished ? (
           <MessageActions
@@ -427,67 +432,81 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     )
   }
 
-  // ---------- Full page: empty state ----------
-  if (!hasConversation) {
-    return (
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-6 overflow-y-auto pt-4 pb-[12vh]">
-          <h1 className="max-w-[32rem] text-balance break-words text-center text-[1.75rem] leading-tight font-normal text-foreground sm:text-[2rem]">
-            {askAi.title}?
-          </h1>
-          <div className="w-full">{composer}</div>
-          <motion.ul
-            initial={reducedMotion ? false : { opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.2, delay: 0.05 }}
-            aria-label="Suggested questions"
-            className="w-full divide-y divide-border"
-          >
-            {askAi.suggestions.map((suggestion, index) => {
-              const Icon = SUGGESTION_ICONS[index % SUGGESTION_ICONS.length]
-              return (
-                <li key={suggestion}>
-                  <PromptSuggestion
-                    onClick={() => {
-                      setDraft(suggestion)
-                      inputRef.current?.focus()
-                    }}
-                  >
-                    <Icon aria-hidden="true" />
-                    {suggestion}
-                  </PromptSuggestion>
-                </li>
-              )
-            })}
-          </motion.ul>
-        </div>
-      </div>
-    )
-  }
-
-  // ---------- Full page: conversation ----------
+  // Keep one composer mounted between the welcome screen and conversation.
+  // Replacing it on the first send dismisses the mobile keyboard and loses focus.
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div id="ask-ai-navigation" hidden={navigationHidden}>
+        <SiteNav />
+      </div>
       <h1 className="sr-only">{askAi.label}</h1>
-      <div className="flex shrink-0 justify-end pb-1">
+      <div className="flex shrink-0 items-center justify-between gap-2 pb-2">
         <Button
           variant="ghost"
-          size="sm"
-          onClick={newChat}
-          className="gap-1.5 rounded-full text-muted-foreground hover:text-foreground"
+          onClick={() => setFocusMode(!navigationHidden)}
+          aria-controls="ask-ai-navigation"
+          aria-pressed={navigationHidden}
+          aria-label={navigationHidden ? "Show site navigation" : "Hide site navigation for focused chat"}
+          className="rounded-full text-muted-foreground hover:text-foreground"
         >
-          <SquarePen aria-hidden="true" />
-          New chat
+          {navigationHidden ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
+          {navigationHidden ? "Show navigation" : "Focus"}
         </Button>
+        {hasConversation ? (
+          <Button
+            variant="ghost"
+            onClick={newChat}
+            className="rounded-full text-muted-foreground hover:text-foreground"
+          >
+            <SquarePen aria-hidden="true" />
+            New chat
+          </Button>
+        ) : null}
       </div>
-      <ChatContainerRoot className="min-h-0 flex-1 overscroll-contain" aria-live="polite" aria-relevant="additions text">
-        <ChatContainerContent className="gap-8 pt-2 pb-6">{messages}</ChatContainerContent>
-        <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center">
-          <ScrollButton className="pointer-events-auto" />
+      <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", !hasConversation && "justify-center-safe")}>
+        <ChatContainerRoot
+          className={cn("min-h-0 min-w-0 flex-1 overscroll-contain", !hasConversation && "hidden")}
+          aria-live="polite"
+          aria-relevant="additions text"
+        >
+          <ChatContainerContent className="gap-6 pt-2 pb-6 sm:gap-8">{messages}</ChatContainerContent>
+          <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center">
+            <ScrollButton className="pointer-events-auto" />
+          </div>
+        </ChatContainerRoot>
+        <div hidden={hasConversation} className="chat-welcome min-h-0 overflow-y-auto py-6">
+          <h2 className="text-name text-balance break-words text-center font-normal text-foreground">
+            {askAi.title}?
+          </h2>
         </div>
-      </ChatContainerRoot>
-      <div className="relative shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-gradient-to-t before:from-background before:to-transparent">
-        {composer}
+        <div className="relative shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-gradient-to-t before:from-background before:to-transparent">
+          {composer}
+        </div>
+        <motion.ul
+          initial={reducedMotion ? false : { opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2, ease: "easeOut" }}
+          aria-label="Suggested questions"
+          className={cn("chat-suggestions grid min-h-0 shrink overflow-y-auto pb-4 sm:grid-cols-2", hasConversation && "hidden")}
+        >
+          {askAi.suggestions.map((suggestion, index) => {
+            const Icon = SUGGESTION_ICONS[index % SUGGESTION_ICONS.length]
+            return (
+              <li key={suggestion} className="min-w-0">
+                <PromptSuggestion
+                  className="h-full"
+                  onClick={() => {
+                    setDraft(suggestion)
+                    inputRef.current?.focus()
+                  }}
+                >
+                  <Icon aria-hidden="true" />
+                  {suggestion}
+                </PromptSuggestion>
+              </li>
+            )
+          })}
+        </motion.ul>
       </div>
     </div>
   )

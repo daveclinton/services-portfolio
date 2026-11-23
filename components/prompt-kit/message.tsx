@@ -15,15 +15,17 @@ function Message({ children, className, ...props }: React.HTMLAttributes<HTMLDiv
 function MessageContent({
   children,
   markdown = false,
+  streaming = false,
   className,
 }: {
   children: React.ReactNode
   markdown?: boolean
+  streaming?: boolean
   className?: string
 }) {
   const classNames = cn("break-words [overflow-wrap:anywhere] text-foreground", className)
   return markdown ? (
-    <Markdown className={classNames}>{children as string}</Markdown>
+    <Markdown className={classNames} streaming={streaming}>{children as string}</Markdown>
   ) : (
     <div className={classNames}>{children}</div>
   )
