@@ -53,18 +53,18 @@ export const approach = [
 /** Photos show the industry, not the company. Sources and licenses are in photoCredits. */
 export const industries = [
   { id: "logistics", title: "Retail and logistics", companies: [{ name: "Mika", href: workLinks.mika }], text: "Stock, deliveries, shops and repairs, with an AI assistant staff use to ask about live company data.", alt: "Blue cranes and container trucks at the port of Mombasa" },
-  { id: "payments", title: "Payments and giving", companies: [{ name: "GiveSuite", href: workLinks.givesuite }, { name: "Element Pay", href: workLinks.elementPay }], text: "Donation and stablecoin payment screens, and financial data moved to a new database.", alt: "A brightly painted mobile money kiosk in Kenya" },
-  { id: "investment", title: "Investment", companies: [{ name: "Untapped Global", href: workLinks.untapped }], text: "Dashboards that let investors follow the small businesses they fund, from motorbikes to solar.", alt: "A motorcycle taxi rider on a road in Kenya" },
-  { id: "education", title: "Education", companies: [{ name: "Tai Ora" }], text: "Web and mobile apps with AI chat, used in schools.", alt: "A team of developers working together around a laptop" },
+  { id: "payments", title: "Payments and giving", companies: [{ name: "GiveSuite", href: workLinks.givesuite }, { name: "Element Pay", href: workLinks.elementPay }], text: "Donation and stablecoin payment screens, and financial data moved to a new database.", alt: "An M-Pesa till number sign on a shop counter" },
+  { id: "investment", title: "Investment", companies: [{ name: "Untapped Global", href: workLinks.untapped }], text: "Dashboards that let investors follow the small businesses they fund, from motorbikes to solar.", alt: "Solar panels on the roof of a building in Kenya" },
+  { id: "education", title: "Education", companies: [{ name: "Tai Ora" }], text: "Web and mobile apps with AI chat, used in schools.", alt: "A team room at iHub in Nairobi with a whiteboard and projector" },
   { id: "ai-cloud", title: "AI and cloud computing", companies: [{ name: "Paperspace", href: introduction.paperspaceWriting }], text: "Measured guides on training models and getting more from a GPU.", alt: "Rows of supercomputer racks joined by orange cables" },
-  { id: "developers", title: "Developer tools", companies: [{ name: "Studio1HQ", href: introduction.studio1hq }], text: "Tutorials, documentation and sample applications that developers can run.", alt: "A developer writing code on a laptop at a Nairobi hackathon" },
+  { id: "developers", title: "Developer tools", companies: [{ name: "Studio1HQ", href: introduction.studio1hq }], text: "Tutorials, documentation and sample applications that developers can run.", alt: "A laptop showing developer documentation at a Nairobi hackathon" },
 ] as const
 
 export const photoCredits = [
   { title: "Mombasa port", author: "Ministry of East African Affairs, Commerce and Tourism", license: "Public domain", href: "https://commons.wikimedia.org/wiki/File:2015_07_31_Mombasa_Port_JPEG_RESIZED_0018.jpg" },
-  { title: "M-Pesa kiosk, Kenya", author: "Fiona Graham", license: "CC BY-SA 2.0", licenseHref: "https://creativecommons.org/licenses/by-sa/2.0/", href: "https://commons.wikimedia.org/wiki/File:M-PESA_mobile_money_and_Equity_agent,_Nairobi,_Kenya.jpg" },
-  { title: "Boda boda, Kenya", author: "safaritravelplus", license: "CC0", href: "https://commons.wikimedia.org/wiki/File:Boda_Boda_Kenya.jpg" },
-  { title: "Developer team session", author: "Aristidek5maya", license: "CC BY-SA 4.0", licenseHref: "https://creativecommons.org/licenses/by-sa/4.0/", href: "https://commons.wikimedia.org/wiki/File:Africa_Wikimedia_Developers_2018_27.jpg" },
+  { title: "M-Pesa till", author: "Raidarmax", license: "CC BY-SA 3.0", licenseHref: "https://creativecommons.org/licenses/by-sa/3.0/", href: "https://commons.wikimedia.org/wiki/File:An_M-Pesa_Payment_Till.JPG" },
+  { title: "Solar installation, Kenya", author: "PowerAfricaSolar", license: "CC BY-SA 4.0", licenseHref: "https://creativecommons.org/licenses/by-sa/4.0/", href: "https://commons.wikimedia.org/wiki/File:3.6_Kw_Solar_System_Installation_In_Kenya.jpg" },
+  { title: "iHub, Nairobi", author: "Appleslerp", license: "CC BY-SA 4.0", licenseHref: "https://creativecommons.org/licenses/by-sa/4.0/", href: "https://commons.wikimedia.org/wiki/File:Nairobi_iHub.jpg" },
   { title: "Supercomputer", author: "U.S. Department of Energy", license: "Public domain", href: "https://commons.wikimedia.org/wiki/File:U.S._Department_of_Energy_-_Science_-_391_004_010_(9522400937).jpg" },
   { title: "Wikimania Nairobi hackathon", author: "JMcRae-WMF", license: "CC BY-SA 4.0", licenseHref: "https://creativecommons.org/licenses/by-sa/4.0/", href: "https://commons.wikimedia.org/wiki/File:Wikimania_Nairobi_Hackathon_(01).jpg" },
 ] as const
