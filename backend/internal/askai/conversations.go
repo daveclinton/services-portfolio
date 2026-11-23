@@ -3,7 +3,6 @@ package askai
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"html/template"
 	"net/http"
 	"regexp"
@@ -31,13 +30,14 @@ type turnLog struct {
 	TurnID           string
 	Question         string
 	Answer           string
-	Status           string // completed | no_evidence | error
+	Status           string // completed | no_evidence | degraded | error
 	Intent           string
 	IntentSource     string
 	IntentConfidence float64
 	Model            string
 	SourceCount      int
 	LatencyMs        int64
+	AlertReason      string
 }
 
 var (
@@ -169,7 +169,7 @@ func (s *Service) storeAndAlert(ctx context.Context, e turnLog) {
 		s.log.Error("store conversation turn", "err", err)
 		return
 	}
-	if s.mail == nil {
+	if s.mail == nil || !shouldNotifyConversation(s.cfg.ConversationAlerts, e) {
 		return
 	}
 	claimed, err := s.claimAlert(ctx, e.ConversationID)
@@ -202,9 +202,9 @@ var alertTemplate = template.Must(template.New("alert").Funcs(template.FuncMap{
     <main style="max-width:680px;margin:0 auto;padding:32px 20px">
       <section style="background:#fff;border:1px solid #dedbd5;border-radius:14px;padding:28px">
         <p style="margin:0 0 8px;color:#6b665e;font-size:13px">ASK AI SESSION ALERT</p>
-        <h1 style="margin:0 0 12px;font-size:24px">A visitor started a conversation</h1>
-        <p style="margin:0 0 24px;color:#6b665e;line-height:1.5">You will receive one email for this chat-window session. Later turns remain available in the stored conversation.</p>
-        <p style="margin:0 0 8px"><strong>Opening question</strong></p>
+        <h1 style="margin:0 0 12px;font-size:24px">A conversation needs your attention</h1>
+        <p style="margin:0 0 24px;color:#6b665e;line-height:1.5">A successful conversation matched your notification policy. This is the qualifying turn, which may follow earlier browsing. Later turns remain available in the stored conversation.</p>
+        <p style="margin:0 0 8px"><strong>Qualifying question</strong></p>
         <p style="margin:0 0 24px;line-height:1.6">{{paragraph .Turn.Question}}</p>
         <p style="margin:0 0 8px"><strong>Assistant response</strong></p>
         <p style="margin:0 0 24px;line-height:1.6">{{paragraph .Turn.Answer}}</p>
@@ -236,12 +236,48 @@ func (s *Service) sendAlert(ctx context.Context, e turnLog) error {
 	}); err != nil {
 		return err
 	}
-	intent := firstNonEmpty(e.Intent, "general")
+	intent := firstNonEmpty(e.AlertReason, e.Intent, "general")
+	return s.sendMail(ctx, "Ask AI: visitor interest · "+intent, body.String(), e.ConversationID)
+}
+
+func (s *Service) sendMail(ctx context.Context, subject, body, key string) error {
 	return s.mail.Send(ctx, brevo.Email{
 		Sender:         brevo.Address{Name: s.cfg.BrevoSenderName, Email: s.cfg.BrevoSenderEmail},
 		To:             []brevo.Address{{Name: "David Clinton", Email: s.cfg.BrevoAlertTo}},
-		Subject:        fmt.Sprintf("Ask AI: new conversation · %s", intent),
-		HTML:           body.String(),
-		IdempotencyKey: "ask-ai-session-" + e.ConversationID,
+		Subject:        subject,
+		HTML:           body,
+		IdempotencyKey: key,
 	})
+}
+
+func shouldNotifyConversation(mode string, e turnLog) bool {
+	if mode == "off" || e.Status != "completed" || e.DeviceType == "bot" {
+		return false
+	}
+	if mode == "all" {
+		return true
+	}
+	return e.AlertReason == "hiring" || e.AlertReason == "pricing" || e.AlertReason == "contact"
+}
+
+var hiringInterest = regexp.MustCompile(`\b(hire|hiring|work with|job description|role requirements|available for|availability)\b`)
+var contactInterest = regexp.MustCompile(`\b(contact|email|reach (him|david)|get in touch)\b`)
+
+func opportunityReason(question, workflow string, decision intentDecision) string {
+	if decision.PolicyOverride {
+		return ""
+	}
+	if workflow == "role_fit" || workflow == "interview" || decision.Plan.Goal == "evaluate_fit" {
+		return "hiring"
+	}
+	if decision.Plan.Goal == "pricing" || decision.Intent.Name == "rates" {
+		return "pricing"
+	}
+	if decision.Plan.Goal == "contact" || contactInterest.MatchString(normalize(question)) {
+		return "contact"
+	}
+	if hiringInterest.MatchString(normalize(question)) {
+		return "hiring"
+	}
+	return ""
 }

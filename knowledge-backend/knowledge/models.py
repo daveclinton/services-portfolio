@@ -192,6 +192,7 @@ class AIConversationTurn(models.Model):
     STATUS_CHOICES = [
         ("completed", "Completed"),
         ("no_evidence", "No evidence"),
+        ("degraded", "Evidence only"),
         ("error", "Error"),
     ]
 

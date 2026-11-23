@@ -90,6 +90,9 @@ func (s *Service) enforce(w http.ResponseWriter, r *http.Request, rules []limitR
 			key = ipKey
 		}
 		result := rule.window.Allow(key)
+		if rule.name == "global-day" && len(s.limits.chat) > 0 && rules[0].window == s.limits.chat[0].window && result.Remaining <= max(1, result.Limit/5) {
+			s.notifyOperator("daily_request_budget_low", fmt.Sprintf("The assistant has %d of %d requests remaining in its application daily request budget. This is a request counter, not your OpenAI credit balance. Review the AI_GLOBAL_DAILY_LIMIT setting and the provider billing dashboard.", result.Remaining, result.Limit))
+		}
 		if rule.name == "visitor-day" {
 			g.daily = &result
 		}

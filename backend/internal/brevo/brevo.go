@@ -43,7 +43,7 @@ func (c *Client) Send(ctx context.Context, email Email) error {
 		"htmlContent": email.HTML,
 	}
 	if email.IdempotencyKey != "" {
-		body["headers"] = map[string]string{"Idempotency-Key": email.IdempotencyKey}
+		body["headers"] = map[string]string{"idempotencyKey": email.IdempotencyKey}
 	}
 	payload, err := json.Marshal(body)
 	if err != nil {
@@ -63,6 +63,12 @@ func (c *Client) Send(ctx context.Context, email Email) error {
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 500))
+		var providerError struct {
+			Code string `json:"code"`
+		}
+		if email.IdempotencyKey != "" && resp.StatusCode == http.StatusBadRequest && json.Unmarshal(detail, &providerError) == nil && providerError.Code == "duplicate_parameter" {
+			return nil // the provider already accepted this idempotency key
+		}
 		return fmt.Errorf("brevo returned %d: %s", resp.StatusCode, detail)
 	}
 	return nil

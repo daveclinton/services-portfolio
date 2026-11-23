@@ -10,6 +10,7 @@ import urllib.request
 
 def evaluate(base, case):
     payload = {"messages": case["messages"], "improvementLogging": True,
+               "workflow": case.get("workflow", "chat"),
                "conversationId": str(uuid.uuid4()), "turnId": str(uuid.uuid4())}
     request = urllib.request.Request(base.rstrip("/") + "/ask-ai/chat", data=json.dumps(payload).encode(),
                                      headers={"Content-Type": "application/json"})

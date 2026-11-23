@@ -41,6 +41,7 @@ type chatRequest struct {
 	limit          int
 	conversationID string
 	turnID         string
+	workflow       string
 }
 
 type fieldErrors map[string][]string
@@ -88,6 +89,19 @@ func parseChatRequest(body any) (*chatRequest, string, fieldErrors) {
 		return nil, detail, invalid("messages", fmt.Sprintf("conversation is too long (max %d turns)", maxTurns))
 	}
 	req := &chatRequest{}
+	if raw, present := payload["workflow"]; present {
+		var ok bool
+		req.workflow, ok = raw.(string)
+		if !ok {
+			return nil, detail, invalid("workflow", "workflow must be a string")
+		}
+	}
+	if req.workflow == "" {
+		req.workflow = "chat"
+	}
+	if !slices.Contains([]string{"chat", "role_fit", "interview"}, req.workflow) {
+		return nil, detail, invalid("workflow", "workflow must be chat, role_fit or interview")
+	}
 	total := 0
 	for _, raw := range rawMessages {
 		turn, ok := raw.(map[string]any)
@@ -179,7 +193,7 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 	entry := turnLog{requestContext: reqCtx, ConversationID: req.conversationID, TurnID: req.turnID, Question: question}
 
 	// Small talk is answered without retrieval or a model call.
-	if reply := conversationalReply(question); reply != "" {
+	if reply := conversationalReply(question); reply != "" && req.workflow == "chat" {
 		entry.Answer, entry.Status, entry.Intent = reply, "completed", "general"
 		entry.IntentSource, entry.IntentConfidence = "rules", 1
 		entry.LatencyMs = time.Since(started).Milliseconds()
@@ -211,11 +225,22 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), chatTimeout)
 	defer cancel()
 
-	decision := s.classify(ctx, question, history)
+	modelAllowed, _, probe := s.availability.allow(time.Now())
+	defer s.availability.endProbe(probe)
+	modelAllowed = modelAllowed && s.ai.Enabled()
+	decision := s.classify(ctx, question, history, modelAllowed)
+	if reason := s.observeProviderError(decision.ProviderError); reason != "" {
+		modelAllowed = false
+	}
+	decision.Plan.Workflow = req.workflow
 	outcome := &SearchOutcome{Intent: decision.Intent.Name, Strategies: map[string]int{}}
 	if !decision.PolicyOverride {
+		mode := req.mode
+		if !modelAllowed {
+			mode = "structured"
+		}
 		outcome, err = s.search(ctx, question, searchOptions{
-			Mode: req.mode, Limit: req.limit, IncludeContent: true,
+			Mode: mode, Limit: req.limit, IncludeContent: true,
 			Intent: &decision.Intent, RetrievalQueries: decision.Plan.RetrievalQueries,
 		})
 	}
@@ -231,6 +256,7 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 	entry.IntentSource = decision.Source
 	entry.IntentConfidence = decision.Confidence
 	entry.SourceCount = len(sources)
+	entry.AlertReason = opportunityReason(question, req.workflow, decision)
 	defer func() {
 		entry.LatencyMs = time.Since(started).Milliseconds()
 		s.goBackground(func(ctx context.Context) { s.storeAndAlert(ctx, entry) })
@@ -248,6 +274,16 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 		s.log.Info("policy override rejected", "turn_id", req.turnID, "guard", decision.Source)
 		_ = stream.Send("delta", map[string]string{"text": noEvidenceMessage})
 		_ = stream.Send("done", map[string]string{"finish_reason": "guardrail"})
+		return
+	}
+	degraded := func() {
+		entry.Answer, entry.Status = evidenceOnlyReply(sources), "degraded"
+		_ = stream.Send("delta", map[string]string{"text": entry.Answer})
+		_ = stream.Send("done", map[string]string{"finish_reason": "evidence_only"})
+	}
+	blocked, _ := s.availability.blocked(time.Now())
+	if !modelAllowed || blocked {
+		degraded()
 		return
 	}
 
@@ -291,6 +327,10 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 	entry.Answer = answer.String()
 	if err != nil {
 		s.log.Error("chat generation failed", "turn_id", req.turnID, "err", err)
+		if reason := s.observeProviderError(err); reason != "" && answer.Len() == 0 {
+			degraded()
+			return
+		}
 		if errors.Is(err, openai.ErrTruncated) {
 			fail(truncatedAnswerDetail)
 		} else if isCreditExhaustion(err) {
@@ -301,6 +341,7 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	entry.Status = "completed"
+	s.availability.recovered(probe)
 	s.log.Info("answer generated", "model", s.cfg.OpenAIChatModel,
 		"turn_id", req.turnID, "time_to_first_token_ms", firstTokenMs,
 		"prompt_tokens", usage.PromptTokens, "cached_tokens", usage.Details.CachedTokens,

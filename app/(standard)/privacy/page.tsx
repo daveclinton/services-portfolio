@@ -42,7 +42,9 @@ export default function PrivacyPage() {
           <h2>Service providers</h2>
           <p>
             Conversation text is processed by OpenAI to generate the assistant&apos;s response and
-            sent through Brevo in a private notification so I can review the interaction. These
+            may be sent through Brevo in a private notification when a successful conversation
+            indicates hiring, pricing, or contact interest. Greetings, ordinary browsing, and
+            unsuccessful responses do not trigger these notifications under the default policy. These
             services process the conversation only as part of operating and improving Ask AI.
           </p>
         </section>

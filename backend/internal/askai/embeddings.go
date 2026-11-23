@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -32,6 +33,7 @@ type openAIEmbedder struct {
 	client     *openai.Client
 	model      string
 	dimensions int
+	onError    func(error)
 }
 
 func (e openAIEmbedder) Enabled() bool { return e.client.Enabled() }
@@ -42,7 +44,11 @@ func (e openAIEmbedder) Embed(ctx context.Context, inputs []string) ([][]float32
 	if strings.HasPrefix(e.model, "text-embedding-3") {
 		dimensions = e.dimensions
 	}
-	return e.client.Embed(ctx, e.model, inputs, dimensions)
+	vectors, err := e.client.Embed(ctx, e.model, inputs, dimensions)
+	if err != nil && e.onError != nil {
+		e.onError(err)
+	}
+	return vectors, err
 }
 
 type disabledEmbedder struct{}
@@ -90,6 +96,13 @@ func (s *Service) ensureEmbeddingSchema(ctx context.Context) error {
 func (s *Service) syncEmbeddings(ctx context.Context) (int, error) {
 	if !s.embedder.Enabled() {
 		return 0, nil
+	}
+	if s.cfg.EmbeddingsProvider == "openai" {
+		allowed, _, probe := s.availability.allow(time.Now())
+		if !allowed {
+			return 0, nil
+		}
+		defer s.availability.endProbe(probe)
 	}
 	total := 0
 	for {

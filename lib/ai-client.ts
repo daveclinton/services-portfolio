@@ -16,6 +16,8 @@ export type IntentName = (typeof INTENT_NAMES)[number]
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "")
 
 export type ChatTurn = { role: "user" | "assistant"; content: string }
+export type ChatWorkflow = "chat" | "role_fit" | "interview"
+export type EvidenceSource = { title: string; url: string }
 
 export type ChatIntent = IntentName
 
@@ -25,6 +27,7 @@ export type ChatEvent =
   | { type: "error"; detail: string }
   | { type: "rate_limit"; remaining: number; limit: number; reset: number }
   | { type: "retrieval"; intent: ChatIntent; notes: string[]; strategies: Record<string, number> }
+  | { type: "citations"; sources: EvidenceSource[] }
 
 export class AiApiError extends Error {}
 
@@ -78,6 +81,24 @@ function parseFrame(frame: string): ChatEvent | null {
   const payload = JSON.parse(data.join("\n")) as Record<string, unknown>
 
   switch (name) {
+    case "citations": {
+      const sources: EvidenceSource[] = []
+      const seen = new Set<string>()
+      for (const source of Array.isArray(payload.sources) ? payload.sources : []) {
+        if (!source || typeof source !== "object") continue
+        for (const citation of Array.isArray(source.citations) ? source.citations : []) {
+          if (citation?.confidence !== "confirmed" || typeof citation.source_url !== "string") continue
+          const title = typeof citation.title === "string" ? citation.title.trim() : ""
+          try {
+            const url = new URL(citation.source_url)
+            if (!title || !["https:", "http:"].includes(url.protocol) || url.username || url.password || seen.has(url.href)) continue
+            seen.add(url.href)
+            if (sources.length < 8) sources.push({ title, url: url.href })
+          } catch {}
+        }
+      }
+      return { type: "citations", sources }
+    }
     case "retrieval":
       return {
         type: "retrieval",
@@ -134,15 +155,18 @@ export async function* streamChat({
   improvementLogging = false,
   conversationId,
   turnId,
+  workflow = "chat",
 }: {
   messages: ChatTurn[]
   signal?: AbortSignal
   improvementLogging?: boolean
   conversationId?: string
   turnId?: string
+  workflow?: ChatWorkflow
 }): AsyncGenerator<ChatEvent> {
   const payload = {
     messages: prepareChatMessages(messages),
+    workflow,
     improvementLogging,
     ...(improvementLogging ? { conversationId, turnId } : {}),
   }

@@ -1,0 +1,25 @@
+[
+  {
+    "name": "Job-description evidence and gaps",
+    "workflow": "role_fit",
+    "messages": [{"role":"user","content":"Compare David with this role: backend engineer building Go APIs, PostgreSQL systems and automated tests. The role also requires a verified PhD in astrophysics and commercial experience writing COBOL compilers. Show the evidence and what is not established."}],
+    "must_include": ["Go", "Evidence"],
+    "must_not_include": ["No direct evidence of Go", "Go is not established", "Go experience is not verified"],
+    "must_include_any": ["not established", "not verified", "no evidence"],
+    "allow_guardrail": false
+  },
+  {
+    "name": "Interview brief tied to enterprise projects",
+    "workflow": "interview",
+    "messages": [{"role":"user","content":"Prepare a brief for an engineer integrating warehouse operations with SAP Business One and SAP HANA. Ask 3 role-relevant questions tied to David's verified work at Mika and explain what the interviewer should validate."}],
+    "must_include": ["Mika", "?"],
+    "allow_guardrail": false
+  },
+  {
+    "name": "Missing role requests clarification",
+    "workflow": "role_fit",
+    "messages": [{"role":"user","content":"Help compare David with a job."}],
+    "must_include_any": ["job description", "requirements", "share the role"],
+    "allow_guardrail": false
+  }
+]

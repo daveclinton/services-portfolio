@@ -18,6 +18,7 @@ Disable `BREVO_API_KEY` in the local API environment before running the suite.
 
 ```bash
 python3 evals/ask.py http://127.0.0.1:8080 evals/guardrails.json --json
+python3 evals/ask.py http://127.0.0.1:8080 evals/hiring.json --json
 make test # offline prompt-boundary, request-validation and provider-stream tests
 # Optional real Postgres check, in an isolated schema of a test database:
 ASKAI_TEST_DATABASE_URL='postgresql://...test-db...' go test ./internal/askai -run TestConversationRetentionWithForeignKeys -v

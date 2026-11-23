@@ -1,177 +1,187 @@
-# Portfolio
+# Portfolio + Ask AI
 
-A single-column portfolio homepage built with Next.js (App Router), Tailwind CSS v4,
-and shadcn/ui primitives. The visual language comes from a Figma reference:
-warm neutral palette, rounded beige cards, a quiet type scale, and one dark
-pill call to action.
+An open-source developer portfolio with an evidence-grounded AI assistant. Built with Next.js, Go, PostgreSQL and pgvector. Use it to publish your work, answer questions about your experience, compare a job description with verified projects, and prepare an interview brief.
+
+The repository includes David Clinton's portfolio content as a working example. Fork it, replace the content and knowledge base with your own, and run it locally or deploy the frontend and API separately.
+
+[Live portfolio](https://www.daveclintonn.cc) · [Ask AI](https://www.daveclintonn.cc/ask-ai) · [MIT license](LICENSE)
+
+## Features
+
+- **Grounded conversations:** answers use the published knowledge base and confirmed evidence; public evidence links can be expanded below a response.
+- **Role comparison:** paste a job description for a requirement/evidence/gap comparison. Demonstrated experience, transferable skills and unverified requirements are kept distinct; the assistant does not score or make hiring decisions.
+- **Interview briefs:** create role-specific questions tied to verified projects and identify what an interviewer should validate.
+- **Reading-aware streaming:** follow a new answer, pause to read or select earlier text, and jump back to the latest response. The mobile composer follows the visible viewport above the keyboard.
+- **Evidence-only fallback:** when generation is unconfigured or the provider reports billing, credential or availability problems, show clearly labelled excerpts instead of pretending to generate an assessment.
+- **Useful owner notifications:** optional email for successful hiring/pricing/contact interest, critical provider incidents and a warning near the application request budget. Greetings and ordinary browsing do not email by default.
+- **Operational controls:** per-visitor/IP/site limits, bounded conversation context, cancellation, recovery cooldowns, structured logs and local regression evaluations.
+- **Portfolio publishing:** MDX articles, RSS, metadata, light/dark themes and shared design tokens.
+
+## Architecture
+
+```text
+Next.js frontend (React, Tailwind, shadcn/Base UI, Prompt Kit)
+    │ POST /ask-ai/chat — Server-Sent Events
+    ▼
+Go API ── PostgreSQL + pgvector
+    ├── OpenAI: retrieval planning, streamed answers, optional embeddings
+    ├── optional self-hosted embeddings
+    └── optional Brevo: qualified visitor and operational notifications
+
+Offline Python/Django pipeline → Markdown ingestion, audits and retrieval evals
+```
+
+All HTTP APIs run in `backend/`. `knowledge-backend/` is an offline data pipeline, not a second web server. The whole knowledge base forms a stable reference prefix; hybrid retrieval selects relevant evidence. Reference data and visitor text remain separate from application policy. See [backend architecture and deployment](backend/README.md).
+
+## Requirements
+
+- Node.js 22.18+ and the pnpm version declared in `package.json`.
+- Docker with the Compose plugin for local PostgreSQL and the API.
+- Go 1.27.3+ to run or test the API outside Docker.
+- Python 3.12+ for knowledge ingestion; Python 3 is also used by the backend eval harness.
+- An OpenAI API key for generated answers. Without one, ingested knowledge can still be explored in evidence-only mode.
+- Brevo credentials only if you want email notifications.
+
+## Quick start
 
 ```bash
+git clone https://github.com/daveclinton/services-portfolio.git
+cd services-portfolio
 pnpm install
-pnpm dev      # http://localhost:3000
-pnpm build
+cp .env.example .env.local
+cp backend/.env.example backend/.env
+```
+
+The frontend example points to `http://localhost:8080`. Edit `backend/.env` to add `OPENAI_API_KEY` if you want generated answers. The example database password is for local development; set a strong password and matching database URL for your deployment. Do not commit populated environment files.
+
+Start PostgreSQL and the API:
+
+```bash
+cd backend
+make up
+cd ..
+```
+
+Ingest the bundled knowledge so retrieval has data:
+
+```bash
+python3 -m venv knowledge-backend/.venv
+knowledge-backend/.venv/bin/pip install -r knowledge-backend/requirements.txt
+cd backend
+make db-ingest
+cd ..
+```
+
+Start the frontend in another terminal:
+
+```bash
+pnpm dev
+```
+
+The frontend serves at `http://localhost:3000`; the API serves at `http://localhost:8080`. `GET /healthz` checks the API/database, not the validity of the model credential. Ask a real question to validate the complete generation path.
+
+## Make it your own
+
+| What to change | Location |
+| --- | --- |
+| Name, links, starter questions and copy | `lib/portfolio-data.ts` |
+| Home content and portrait | `app/page.tsx`, `public/` |
+| Articles | `content/blog/` |
+| Colors, typography and shared tokens | `app/globals.css` |
+| Knowledge content | `professional-knowledge/knowledge/` |
+| Fixed assistant facts and answer policy | `backend/internal/askai/site_facts.md`, `generation.go` |
+| API origin | `.env.local`, deployment environment |
+| Provider, email and request limits | `backend/.env` |
+
+Replace the included personal content and fixed site facts before publishing your own deployment. Run ingestion again after changing the Markdown knowledge base. The API refreshes its cached knowledge and embedding index periodically. The [offline pipeline guide](knowledge-backend/README.md) covers ingestion, evidence audits and migrations.
+
+## Notifications
+
+Email is optional. Configure `BREVO_API_KEY`, `BREVO_ALERT_TO_EMAIL` and `BREVO_SENDER_EMAIL` in the backend environment.
+
+| Setting | Behavior |
+| --- | --- |
+| `BREVO_CONVERSATION_ALERTS=important` (default) | One email per conversation after a successful hiring, pricing or contact-interest turn; the first greeting does not consume that alert. |
+| `BREVO_CONVERSATION_ALERTS=all` | One email after a successful conversation turn, including ordinary browsing. |
+| `BREVO_CONVERSATION_ALERTS=off` | No visitor-conversation emails. |
+| `BREVO_OPERATIONAL_ALERTS=true` (default) | Credential/billing incident alerts and an application daily request-budget warning at about 80% usage. |
+
+Failed, stopped, policy-blocked, bot and evidence-only responses do not qualify for visitor-interest alerts. Operational emails contain status and recovery guidance, not visitor conversation text. Each operational event kind is deduplicated for an hour per API process; failed sends release the claim for a later retry. Restarting the API resets those in-memory operational claims. Visitor notification claims are stored in PostgreSQL.
+
+## Credits, limits and recovery
+
+The application does **not** display or infer your remaining OpenAI prepaid balance. Its daily request counter is a separate application limit, not a dollar balance or account-wide cost report.
+
+- Set provider-side spend alerts and any appropriate spending limits in the OpenAI project/organization settings. [OpenAI spend-limit guidance](https://developers.openai.com/api/docs/guides/spend-limits).
+- Configure prepaid auto-reload in the provider's billing dashboard if desired. This repository never purchases credits or changes your billing settings. [OpenAI prepaid billing](https://help.openai.com/en/articles/8264644-setting-up-and-managing-prepaid-api-billing).
+- OpenAI's [Costs API](https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/costs) reports usage costs using administrative credentials; it is not used as a prepaid-balance lookup here.
+- An exhausted credit balance or billing/spend limit triggers a deduplicated operational email when configured. The API pauses provider calls and uses structured retrieval for evidence-only replies.
+- Billing/credential failures use a configurable cooldown (`AI_PROVIDER_COOLDOWN_SECONDS`, default 300). One subsequent request can probe recovery; other requests continue to use the fallback. A successful generated answer restores normal operation. Transient rate-limit/provider failures use a shorter cooldown.
+- After replacing an environment key, recreate the API container so it loads the new credential. Adding provider credits does not require a code change.
+
+The circuit and request limits are in process memory and assume the existing single-instance deployment. A multi-replica deployment needs shared coordination before those controls can be treated as global.
+
+## Privacy and safety
+
+The assistant requires explicit consent before storing conversations. Questions, responses and coarse device information are retained for 30 days; raw IP addresses and full user-agent strings are not stored in conversation records. Qualified conversation emails may include the relevant question and response. Avoid confidential job descriptions or private information. Review the [privacy page](https://www.daveclintonn.cc/privacy) and adapt its copy to your own deployment.
+
+Application policy, role-spoofing checks and the existing structured classifier provide application-specific defenses. They are not a guarantee against every prompt-injection attack or hallucination. Role comparisons are evidence summaries for human review, not automated hiring decisions.
+
+## Tests and evaluations
+
+```bash
 pnpm lint
+pnpm test
+pnpm build
+cd backend
+make test
 ```
 
-## Structure
-
-```
-app/
-  globals.css          design tokens (colour, radius, type scale) + base layer
-  layout.tsx           font loading, metadata, document shell
-  page.tsx             section composition only
-components/
-  ui/                  shadcn primitives (button, card, avatar, badge, tooltip, separator)
-  portfolio/           domain compositions (header, featured card, timeline, links, ...)
-lib/
-  portfolio-data.ts    every string and link the page renders
-  utils.ts             cn(), extended with the project's custom type scale
-```
-
-`app/page.tsx` stays small on purpose: it lists sections in order and nothing
-else. Layout lives in the section components, copy lives in `lib/portfolio-data.ts`.
-
-## Design tokens
-
-All colours are declared once in `app/globals.css` and mapped onto the shadcn
-variables, so primitives in `components/ui` inherit the palette.
-
-| Token | Value | Used for |
-| --- | --- | --- |
-| `--background` | `#FBFAF7` | page |
-| `--card` / `--muted` | `#F1EEE7` | cards, link rows |
-| `--foreground` | `#1D1C1A` | primary text, CTA pill |
-| `--muted-foreground` | `#6F6B64` | body text, labels |
-| `--subtle-foreground` | `#A8A39B` | decorative icons and strokes |
-| `--border` | `#E9E4DA` | hairlines, dividers |
-| `--accent-green` | `#4F9A6A` | featured artwork accent |
-
-`--radius: 1.25rem` makes `rounded-xl` resolve to the reference's 28px card
-radius. The custom type scale (`text-name`, `text-title`, `text-body`,
-`text-caption`, `text-label`) is registered with `cn` in `lib/utils.ts` so class
-merging treats it as font size rather than colour.
-
-## Swapping in real content
-
-1. **Copy and links** — edit `lib/portfolio-data.ts`.
-2. **Avatar** — drop a photo in `public/` and set `profile.avatarSrc`.
-3. **Featured artwork** — replace `FeaturedVisual` in
-   `components/portfolio/featured-project-card.tsx` with a real screenshot.
-4. **Font** — the reference's `Natadecoco` is not bundled. The page loads Zen
-   Maru Gothic as the closest available stand-in; if you license the real file,
-   put it in `public/fonts/` and switch `app/layout.tsx` to `next/font/local`
-   using the same `--font-portfolio-sans` variable.
-5. **Ask an AI** — the `/ask-ai` page talks to the Go API in `backend/`. See
-   below.
-
-## Ask AI
-
-`/ask-ai` is a real retrieval-augmented chat, not a scripted demo. The browser
-posts to the Go API, reads the answer as Server-Sent Events, and streams the
-answer text into the conversation.
-
-```txt
-browser ──POST /ask-ai/chat──▶ nginx ──▶ Go API in Docker (backend/)
-                                         ├─ retrieval over KnowledgeChunk (structured + semantic, RRF)
-                                         ├─ rules or model intent classifier
-                                         ├─ citations resolved to Evidence rows
-                                         └─ OpenAI, grounded on those chunks only
-browser ◀── event: retrieval / citations / delta × n / done
-```
-
-Everything that needs a server lives in `backend/`, a single Go binary deployed
-in Docker on a VPS behind nginx at `api.daveclintonn.cc`. The Next.js app only renders
-pages (including the MDX blog) and needs one setting:
-
-```dotenv
-NEXT_PUBLIC_API_URL=https://api.daveclintonn.cc   # http://localhost:8080 locally
-```
-
-See `backend/README.md` for the API's layout, routes, rate limits and
-environment variables, and the post
-`content/blog/moving-my-portfolio-backend-to-go.mdx` for the full VPS setup.
-
-Ask AI requires explicit conversation-storage consent before a question can be
-sent. Opted-in questions and responses are stored in `knowledge_aiconversation`
-and `knowledge_aiconversationturn` for 30 days, with only coarse device
-categories and a daily rotating network hash. The API purges expired
-conversations itself, and each browser-tab chat session triggers at most one
-private Brevo email.
-
-The Python code in `knowledge-backend/` is an offline workspace for the knowledge and model pipeline:
-ingestion, embedding generation, audits, retrieval evaluation, and database
-migrations. It has no HTTP deployment.
-
-## Setup and deployment
-
-Deploy the Next.js app to Vercel and the Go API to the VPS. The offline
-pipeline prepares the Postgres database that the API reads.
-
-### 1. Prepare the database
-
-The database now runs next to the API in Docker (`pgvector/pgvector:pg17`,
-see `backend/compose.yaml`) and creates its schema on first start, so the
-migrations below are only needed for a database outside Docker. Copy a direct connection string into `knowledge-backend/.env` as `DATABASE_URL`.
+`make test` runs Go vet/tests and the Python eval-harness unit tests. A Postgres retention test is opt-in with `ASKAI_TEST_DATABASE_URL` and uses its own temporary schema. Live model evaluations require a local API with email disabled and can incur provider usage:
 
 ```bash
-cd knowledge-backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env   # set DATABASE_URL, KNOWLEDGE_BASE_PATH, OPENAI_API_KEY
-
-python manage.py migrate
-python manage.py ingest_knowledge --strict
-python manage.py embed_knowledge
-python manage.py audit_knowledge
+python3 evals/ask.py http://127.0.0.1:8080 evals/questions.txt
+python3 evals/ask.py http://127.0.0.1:8080 evals/hiring.json --json
+python3 evals/ask.py http://127.0.0.1:8080 evals/guardrails.json --json
 ```
 
-Migrations create the required extensions and tables. The extension migration
-lives in `knowledge-backend/database/migrations/` and retains its historical `api` app
-label so existing migration records remain valid. No existing data or tables
-need to be removed.
+See [answer evaluation guidance](backend/evals/README.md). Live cases are targeted regressions, not a comprehensive security or grounding certification.
 
-The Markdown knowledge base is in `professional-knowledge/`. Run these commands
-locally or in a job with access to that folder and the database; no Python web
-service is needed. Existing workflows generate embeddings and evaluate
-retrieval; there is currently no separate model-training command.
+## Deployment
 
-### 2. Run locally
+Deploy Next.js to Vercel or a compatible Node host, setting `NEXT_PUBLIC_API_URL` to your API origin. Deploy the Go API and PostgreSQL with Docker Compose behind nginx/TLS. Do not point your fork's frontend at the example deployment's API.
+
+The [VPS setup guide](backend/README.md#deploy-docker--nginx) covers initial DNS, credentials, ports and TLS. After merging an update:
 
 ```bash
-cd backend && cp .env.example .env
-make up          # Postgres (pgvector) + API in Docker, API on :8080
-make db-ingest   # load the knowledge base via ../knowledge-backend from backend/
-cd .. && pnpm dev   # site on :3000
+cd /opt/services-portfolio
+git pull --ff-only origin main
+cd backend
+docker compose up -d --build --no-deps api
+curl -fsS https://your-api.example/healthz
+docker compose logs --since 5m -f api
 ```
 
-### 3. Deploy
+Then validate a real assistant request. A healthy database does not establish that credits or API credentials are valid.
 
-```bash
-# on the VPS, after cloning to /opt/services-portfolio and creating backend/.env
-cd /opt/services-portfolio/backend && ./deploy/setup.sh   # see backend/README.md
+## Contributing
+
+Issues and focused pull requests are welcome. Start a branch from current `main`, describe the problem and resulting behavior, and include the checks you ran. Reuse the existing components, tokens and backend services; add regression cases for changes to retrieval, notifications, generation or safety. Read [AGENTS.md](AGENTS.md) before using a coding agent in this repository.
+
+Do not include credentials, private conversations or confidential role descriptions in issues, logs or test fixtures. For a sensitive security issue, use a private contact channel listed on the maintainer's GitHub profile rather than a public issue.
+
+## Project layout
+
+```text
+app/                    Next.js pages, routes and theme
+components/             portfolio, chat and shared UI components
+lib/                    frontend API protocol and portfolio content
+content/blog/           MDX articles
+backend/                Go API, Docker setup, SQL schema and answer evals
+knowledge-backend/       offline Python ingestion and knowledge evaluation
+professional-knowledge/ bundled example Markdown knowledge base
 ```
 
-Then set `NEXT_PUBLIC_API_URL` in Vercel and redeploy the site.
+## License
 
-### 4. Smoke test
-
-```bash
-curl -sS https://api.daveclintonn.cc/healthz
-curl -sS https://api.daveclintonn.cc/ask-ai/search \
-  -H 'Content-Type: application/json' \
-  -d '{"query":"mobile apps","mode":"structured","limit":5}'
-```
-
-Then open `/ask-ai` and ask a question.
-
-## Accessibility notes
-
-Headings run `h1` (name) → `h2` (section labels) → `h3` (card titles) in order,
-decorative icons are `aria-hidden`, every interactive element has a visible
-focus ring, and the floating action keeps an accessible name when its label
-folds away on small screens.
-
-One deliberate tradeoff: `--subtle-foreground` is the reference's lightest tone
-and sits around 2.4:1 against the page background, so it is limited to
-decorative strokes. If you want every string to clear WCAG AA, darken that one
-value (for example to `#7C776F`) and the muted text steps up with it.
+[MIT](LICENSE), copyright David Clinton. Third-party components and fonts retain their own licenses and notices; Prompt Kit attribution is in [components/prompt-kit/README.md](components/prompt-kit/README.md).

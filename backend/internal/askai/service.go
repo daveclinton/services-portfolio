@@ -30,12 +30,16 @@ type Service struct {
 	db       *pgxpool.Pool
 	ai       *openai.Client
 	embedder embedder
-	mail     *brevo.Client // nil when alerts aren't configured
-	log      *slog.Logger
-	signer   visitor.Signer
-	privacy  visitor.Signer
-	limits   limits
-	locks    *ratelimit.Locks
+	mail     interface {
+		Send(context.Context, brevo.Email) error
+	} // nil when alerts aren't configured
+	log            *slog.Logger
+	signer         visitor.Signer
+	privacy        visitor.Signer
+	limits         limits
+	locks          *ratelimit.Locks
+	operatorAlerts *ratelimit.Locks
+	availability   providerAvailability
 
 	knowledge      atomic.Pointer[knowledgeSnapshot]
 	embeddingsDown atomic.Bool
@@ -49,18 +53,20 @@ func New(cfg config.Config, db *pgxpool.Pool, log *slog.Logger) *Service {
 		privacySecret = developmentPrivacySecret
 	}
 	s := &Service{
-		cfg:     cfg,
-		db:      db,
-		ai:      openai.New(cfg.OpenAIAPIKey),
-		log:     log.With("product", "ask-ai"),
-		signer:  visitor.NewSigner(cfg.RateLimitSecret),
-		privacy: visitor.NewSigner(privacySecret),
-		limits:  newLimits(cfg),
-		locks:   ratelimit.NewLocks(chatLockTTL),
+		cfg:            cfg,
+		db:             db,
+		ai:             openai.New(cfg.OpenAIAPIKey),
+		log:            log.With("product", "ask-ai"),
+		signer:         visitor.NewSigner(cfg.RateLimitSecret),
+		privacy:        visitor.NewSigner(privacySecret),
+		limits:         newLimits(cfg),
+		locks:          ratelimit.NewLocks(chatLockTTL),
+		operatorAlerts: ratelimit.NewLocks(time.Hour),
 	}
 	switch cfg.EmbeddingsProvider {
 	case "openai":
-		s.embedder = openAIEmbedder{client: s.ai, model: cfg.EmbeddingModel, dimensions: cfg.EmbeddingDimensions}
+		s.embedder = openAIEmbedder{client: s.ai, model: cfg.EmbeddingModel, dimensions: cfg.EmbeddingDimensions,
+			onError: func(err error) { s.observeProviderError(err) }}
 	case "tei":
 		s.embedder = embeddings.New(cfg.EmbeddingsURL)
 	default:
@@ -105,6 +111,7 @@ func (s *Service) Run(ctx context.Context) {
 		case <-sweep.C:
 			s.limits.sweep()
 			s.locks.Sweep()
+			s.operatorAlerts.Sweep()
 		case <-embed.C:
 			s.refreshKnowledge(ctx)
 			s.runEmbeddingSync(ctx)
