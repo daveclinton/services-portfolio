@@ -15,13 +15,13 @@ function ScrollButton({ className, ...props }: React.ComponentProps<typeof Butto
 
   return (
     <Button
-      variant="outline"
+      variant="ghost"
       size="lg"
       aria-label="Scroll to the latest message"
       aria-hidden={following}
       tabIndex={following ? -1 : 0}
       className={cn(
-        "gap-1.5 rounded-full bg-background shadow-sm transition-all duration-150 ease-out",
+        "glass-surface gap-1.5 rounded-full border-border transition-all duration-150 ease-out",
         following
           ? "pointer-events-none translate-y-4 scale-95 opacity-0"
           : "translate-y-0 scale-100 opacity-100",

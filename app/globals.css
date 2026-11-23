@@ -213,6 +213,10 @@
   margin-inline: auto;
 }
 
+#content {
+  @apply scroll-mt-24;
+}
+
 /* The Ask AI page needs the composer pinned to the bottom of the screen. */
 .page-app {
   display: flex;
@@ -350,12 +354,35 @@ html.has-visible-viewport body::-webkit-scrollbar {
 
 /* ---------- Site navigation ---------- */
 
+/* Glassy UI's frosted controls, expressed in this site's existing palette.
+ * Solid material is the baseline: unsupported filters stay fully readable.
+ * No filters or decorative layers are placed over the reading content. */
+@layer components {
+  .glass-surface {
+    @apply bg-card shadow-sm;
+  }
+
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass-surface {
+      @apply bg-card/85 backdrop-blur-md backdrop-saturate-150;
+      background-image: linear-gradient(to bottom, color-mix(in oklab, var(--background) 25%, transparent), transparent);
+    }
+  }
+}
+
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  .glass-surface {
+    background: var(--card) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+    box-shadow: none !important;
+  }
+}
+
 .site-nav {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.5rem 1.5rem;
+  position: sticky;
+  top: max(1rem, env(safe-area-inset-top));
+  z-index: 20;
   margin-bottom: 3.5rem;
   font-size: 1rem;
   line-height: 1.5;
@@ -364,28 +391,78 @@ html.has-visible-viewport body::-webkit-scrollbar {
 .site-nav ul {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.25rem 1.25rem;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.site-nav li {
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.site-nav .site-nav-home-item {
+  margin-right: auto;
+  flex-shrink: 1;
+}
+
+.site-nav a {
+  position: relative;
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+}
+
+.site-nav-label,
+.site-nav-home-icon {
+  position: relative;
+  white-space: nowrap;
+}
+
+.site-nav-highlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.site-nav-home-icon {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-nav-highlight {
+    transform: none !important;
+  }
+
+  .reveal-section {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Chat controls keep their existing automatic hide/reveal behavior. */
+.chat-page .site-nav {
+  position: relative;
+  top: auto;
 }
 
 @media (max-width: 48rem) {
-  .site-nav-compact {
-    flex-wrap: nowrap;
-    align-items: center;
-    gap: 0.75rem;
+  .site-nav {
     font-size: var(--text-caption);
     line-height: var(--text-caption--line-height);
   }
 
-  .site-nav-compact ul {
-    flex-wrap: nowrap;
-    flex-shrink: 0;
-    gap: 0.75rem;
+  .site-nav a {
+    padding-inline: 0.5rem;
   }
 
-  .site-nav-compact .site-nav-home {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .site-nav-home-icon {
+    display: block;
+  }
+
+  .site-nav-home .site-nav-label {
+    display: none;
   }
 }
 
@@ -404,6 +481,28 @@ html.has-visible-viewport body::-webkit-scrollbar {
 .page .site-nav .site-nav-home {
   color: var(--foreground);
   font-weight: 600;
+}
+
+/* Reading tools share navigation's material; article padding protects the footer. */
+.reading-progress {
+  inset-inline: max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.page .reading-progress a {
+  color: var(--foreground);
+  text-decoration: none;
+}
+
+@media (forced-colors: active) {
+  .reading-progress [role="progressbar"] {
+    border: 1px solid CanvasText;
+  }
+
+  .reading-progress [role="progressbar"] > div {
+    background: Highlight;
+    forced-color-adjust: none;
+  }
 }
 
 /* ---------- Page headers ---------- */

@@ -16,6 +16,13 @@ The repository includes David Clinton's portfolio content as a working example. 
 - **Useful owner notifications:** optional email for successful hiring/pricing/contact interest, critical provider incidents and a warning near the application request budget. Greetings and ordinary browsing do not email by default.
 - **Operational controls:** per-visitor/IP/site limits, bounded conversation context, cancellation, recovery cooldowns, structured logs and local regression evaluations.
 - **Portfolio publishing:** MDX articles, RSS, metadata, light/dark themes and shared design tokens.
+- **Glass navigation and reading tools:** frosted controls use the existing light/dark palette, with a spring navigation highlight, one-time section entrances and a reading-progress dock with a back-to-top link. Higher contrast and reduced-transparency preferences restore solid controls; reduced motion removes movement and progress smoothing.
+
+## Interface references
+
+The glass controls follow [Glassy UI's dock-and-surface approach](https://github.com/alexburlis/glassyui), adapted to this app's components and tokens without adding a package. [Apple's material guidance](https://developer.apple.com/design/human-interface-guidelines/materials) informs the separation between glass controls and readable, solid content. Browser-specific SVG refraction is intentionally omitted; browsers without backdrop-filter support keep solid surfaces.
+
+Three interactions use the existing Motion dependency: [shared layout highlights](https://motion.dev/docs/react-layout-animations) for pointer and keyboard navigation, [one-time scroll entrances](https://motion.dev/docs/react-scroll-animations) for homepage sections, and [scroll progress](https://motion.dev/docs/react-use-scroll) with [spring smoothing](https://motion.dev/docs/react-use-spring) for blog reading. Motion preferences are respected, static content remains visible without JavaScript, and native links retain keyboard behavior. The progress indicator is a JavaScript enhancement.
 
 ## Architecture
 

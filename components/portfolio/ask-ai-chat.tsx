@@ -273,7 +273,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
       <form
         data-empty={!draft.trim()}
         data-running={isStreaming}
-        className="group/composer flex w-full min-w-0 items-end gap-2 rounded-2xl border border-input bg-card p-2.5 transition-[border-color,box-shadow,background-color] hover:border-foreground/25 focus-within:border-ring focus-within:bg-background focus-within:ring-3 focus-within:ring-ring/20"
+        className="glass-surface group/composer flex w-full min-w-0 items-end gap-2 rounded-2xl border border-input p-2.5 transition-[border-color,box-shadow,background-color] hover:border-foreground/25 focus-within:border-ring focus-within:bg-background focus-within:ring-3 focus-within:ring-ring/20"
         onSubmit={(event) => {
           event.preventDefault()
           if (isStreaming) stop()
