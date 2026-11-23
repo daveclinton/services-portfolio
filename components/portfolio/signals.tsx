@@ -1,7 +1,9 @@
 "use client"
 
+import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
 import type { ReactNode } from "react"
+import portrait from "@/public/david.webp"
 
 const TONES = 6
 const number = (index: number) => String(index).padStart(2, "0")
@@ -51,7 +53,11 @@ export function Signals({ items, footer }: { items: { title: string; body: React
               <summary>
                 <span className="signal-number">{number(index)}.</span> <h2>{item.title}</h2>
               </summary>
-              <div className="signal-body">{item.body}</div>
+              <div className="signal-body">
+                {/* The speaker, beside every answer. Decorative: the page already names him. */}
+                <Image src={portrait} alt="" width={40} height={40} className="signal-avatar" />
+                {item.body}
+              </div>
             </details>
           </li>
         ))}
