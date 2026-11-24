@@ -149,7 +149,7 @@ func evidenceOnlyReply(sources []source) string {
 		}
 		if strings.TrimSpace(src.Excerpt) != "" {
 			if shown == 0 {
-				reply.WriteString(" The excerpts below are published background information, not a generated role assessment.")
+				reply.WriteString(" The excerpts below are published background information, not a generated role assessment or project brief.")
 			}
 			fmt.Fprintf(&reply, "\n\n> %s", strings.ReplaceAll(excerpt(src.Excerpt, 400), "\n", "\n> "))
 			shown++

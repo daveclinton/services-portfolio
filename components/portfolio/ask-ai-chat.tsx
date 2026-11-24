@@ -17,6 +17,7 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
 import { SiteNav } from "@/components/portfolio/site-nav"
+import { ProjectScopeForm } from "@/components/portfolio/project-scope-form"
 import {
   AiApiError,
   CHAT_LIMITS,
@@ -149,6 +150,9 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         // make the server and client HTML differ.
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setTurns(saved.map((turn) => (turn.status === "streaming" ? { ...turn, status: "stopped" } : turn)))
+        if (saved.findLast((turn) => turn.role === "user")?.workflow === "project_scope") {
+          setWorkflow("project_scope")
+        }
       }
     } catch {}
     restored.current = true
@@ -174,7 +178,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   }, [embedded])
 
   async function streamAnswer(history: Turn[], selectedWorkflow: ChatWorkflow = "chat") {
-    const assistantTurn: Turn = { id: newId("assistant"), role: "assistant", content: "", status: "streaming" }
+    const assistantTurn: Turn = { id: newId("assistant"), role: "assistant", content: "", status: "streaming", workflow: selectedWorkflow }
     setTurns([...history, assistantTurn])
     setIsStreaming(true)
 
@@ -238,7 +242,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     setDraft("")
     const userTurn: Turn = { id: newId("user"), role: "user", content: question, status: "done", workflow }
     void streamAnswer([...turns, userTurn], workflow)
-    setWorkflow("chat")
+    if (workflow !== "project_scope") setWorkflow("chat")
   }
 
   // Ask the last question again, replacing the last answer.
@@ -266,12 +270,53 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     inputRef.current?.focus()
   }
 
+  const consentNotice = (
+    <div className="mt-2 px-2 text-center text-label leading-snug text-muted-foreground">
+      {consented ? (
+        questionsRemaining !== null && questionsRemaining <= 5 ? (
+          <p aria-live="polite">
+            {questionsRemaining} question{questionsRemaining === 1 ? "" : "s"} left today
+          </p>
+        ) : null
+      ) : (
+        <label className="inline-flex cursor-pointer items-start gap-2 text-left text-caption">
+          <input
+            ref={consentRef}
+            type="checkbox"
+            checked={consented}
+            onChange={(event) => {
+              const checked = event.target.checked
+              setConsented(checked)
+              if (checked) {
+                localStorage.setItem(CONSENT_STORAGE_KEY, CONSENT_VERSION)
+                setShowConsentError(false)
+              }
+            }}
+            aria-describedby={showConsentError ? "conversation-consent-error" : undefined}
+            className="mt-0.5 size-4 shrink-0 accent-primary"
+          />
+          <span>
+            I consent to storing this conversation for 30 days to help improve the assistant.{" "}
+            <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
+              Privacy details
+            </Link>
+          </span>
+        </label>
+      )}
+      {showConsentError && !consented ? (
+        <p id="conversation-consent-error" role="alert" className="mt-1.5 text-caption text-destructive">
+          Please check the box to consent before sending your question.
+        </p>
+      ) : null}
+    </div>
+  )
+
   const composer = (
     <div>
       {workflow !== "chat" ? (
         <div className="mb-2 flex items-center justify-between gap-2 text-caption text-muted-foreground">
           <span>{askAi.workflows[workflow].label}</span>
-          <Button type="button" variant="ghost" size="sm" onClick={() => setWorkflow("chat")}>Cancel</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setWorkflow("chat")}>{workflow === "project_scope" ? "Finish scoping" : "Cancel"}</Button>
         </div>
       ) : null}
       <form
@@ -340,44 +385,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         </div>
       </form>
 
-      <div className="mt-2 px-2 text-center text-label leading-snug text-muted-foreground">
-        {consented ? (
-          questionsRemaining !== null && questionsRemaining <= 5 ? (
-            <p aria-live="polite">
-              {questionsRemaining} question{questionsRemaining === 1 ? "" : "s"} left today
-            </p>
-          ) : null
-        ) : (
-          <label className="inline-flex cursor-pointer items-start gap-2 text-left text-caption">
-            <input
-              ref={consentRef}
-              type="checkbox"
-              checked={consented}
-              onChange={(event) => {
-                const checked = event.target.checked
-                setConsented(checked)
-                if (checked) {
-                  localStorage.setItem(CONSENT_STORAGE_KEY, CONSENT_VERSION)
-                  setShowConsentError(false)
-                }
-              }}
-              aria-describedby={showConsentError ? "conversation-consent-error" : undefined}
-              className="mt-0.5 size-4 shrink-0 accent-primary"
-            />
-            <span>
-              I consent to storing this conversation for 30 days to help improve the assistant.{" "}
-              <Link href="/privacy" className="underline underline-offset-2 hover:text-foreground">
-                Privacy details
-              </Link>
-            </span>
-          </label>
-        )}
-        {showConsentError && !consented ? (
-          <p id="conversation-consent-error" role="alert" className="mt-1.5 text-caption text-destructive">
-            Please check the box to consent before sending your question.
-          </p>
-        ) : null}
-      </div>
+      {consentNotice}
     </div>
   )
 
@@ -408,6 +416,9 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           <MessageContent markdown streaming={turn.status === "streaming"} className="min-w-0 w-full">
             {turn.content}
           </MessageContent>
+        ) : null}
+        {turn.workflow === "project_scope" && turn.status === "done" ? (
+          <p className="text-caption text-muted-foreground">Proposed scope for discussion. David must confirm scope, pricing, availability, and delivery dates.</p>
         ) : null}
         {turn.error ? (
           <p role="alert" className="text-caption break-words [overflow-wrap:anywhere] text-destructive">{turn.error}</p>
@@ -464,6 +475,22 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           </div>
         ) : null}
         <div className="mt-4">{composer}</div>
+      </div>
+    )
+  }
+
+  if (!hasConversation && workflow === "project_scope") {
+    return (
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        <SiteNav />
+        <h1 className="sr-only">Scope a project with David</h1>
+        <div className="chat-column min-h-0 flex-1 overflow-y-auto py-6">
+          <ProjectScopeForm
+            onGenerate={ask}
+            onCancel={() => { setWorkflow("chat"); setDraft(""); setShowConsentError(false) }}
+            consent={consentNotice}
+          />
+        </div>
       </div>
     )
   }
