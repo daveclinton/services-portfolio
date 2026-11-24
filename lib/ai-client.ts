@@ -16,7 +16,7 @@ export type IntentName = (typeof INTENT_NAMES)[number]
 const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "")
 
 export type ChatTurn = { role: "user" | "assistant"; content: string }
-export type ChatWorkflow = "chat" | "role_fit" | "interview"
+export type ChatWorkflow = "chat" | "role_fit" | "interview" | "project_scope"
 export type EvidenceSource = { title: string; url: string }
 
 export type ChatIntent = IntentName

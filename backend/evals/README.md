@@ -19,6 +19,7 @@ Disable `BREVO_API_KEY` in the local API environment before running the suite.
 ```bash
 python3 evals/ask.py http://127.0.0.1:8080 evals/guardrails.json --json
 python3 evals/ask.py http://127.0.0.1:8080 evals/hiring.json --json
+python3 evals/ask.py http://127.0.0.1:8080 evals/project-scoping.json --json
 make test # offline prompt-boundary, request-validation and provider-stream tests
 # Optional real Postgres check, in an isolated schema of a test database:
 ASKAI_TEST_DATABASE_URL='postgresql://...test-db...' go test ./internal/askai -run TestConversationRetentionWithForeignKeys -v
@@ -40,6 +41,12 @@ These changes borrow the explicit boundary and repeatable-check approach from
 and [Anthropic's eval guidance](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents).
 No separate guard model or new runtime dependency is installed. These are
 application-specific defenses, not a complete prompt-injection detector.
+
+The project-scoping cases cover a grounded warehouse proposal, missing-problem
+clarification, budget/deadline requests that must not become commitments, and
+follow-up refinements. They require a configured local generation service; offline
+tests separately cover workflow acceptance, prompt boundaries, notification policy,
+and discovery request limits. Review generated briefs as well as case assertions.
 
 Baseline (Nov 2026): the original prompt with top-8 retrieval refused 5 of
 the first 15 questions. Whole-knowledge-base context, the new answer policy

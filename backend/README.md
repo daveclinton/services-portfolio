@@ -42,10 +42,18 @@ method and pass it to `server.New` in `cmd/api/main.go`.
 | `POST /ask-ai/search` | Ranked knowledge chunks with evidence citations |
 
 Chat accepts an optional `workflow`: `chat` (default), `role_fit` (a pasted job
-description comparison), or `interview` (an evidence-grounded interview brief).
+description comparison), `interview` (an evidence-grounded interview brief), or
+`project_scope` (a proposed project brief and subsequent refinements).
 The same retrieval and generation pipeline handles each; no hiring score or
 automated hiring decision is produced. Public, confirmed evidence links are
 included in `citations` for the frontend to display.
+
+Project discovery gathers six bounded answers locally, then submits the reviewed
+answers through the same chat endpoint and storage-consent checks. The workflow
+permits clearly labelled future recommendations while keeping claims about David
+grounded in verified work. Budgets and dates supplied by visitors are preferences,
+not commitments. Successful scoping qualifies as contact interest for the existing
+optional notifications; failed or evidence-only replies do not.
 
 `done.finish_reason=evidence_only` means generation is unavailable and the
 response consists of labelled knowledge excerpts, not a model-generated answer.

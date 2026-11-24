@@ -1,5 +1,27 @@
 # Ask AI roadmap
 
+## Shipped: project-scoping assistant
+
+- [x] Six-question discovery covering problem, users, systems, data/access,
+      constraints and success criteria, with Back, Enter-to-advance and review/edit.
+- [x] Reviewed answers use the existing consent, chat streaming, retrieval,
+      notifications, request limits and retention rather than a separate pipeline.
+- [x] Proposed first-release brief separates future recommendations from verified
+      experience and leaves scope, pricing, availability and dates for David's review.
+- [x] Follow-up chat and same-tab conversation restoration preserve scoping mode.
+- [x] Offline request/prompt/notification checks and live evaluation cases.
+
+The form follows Typeform's question-by-question approach, including
+[keyboard advance](https://help.typeform.com/hc/en-us/articles/4410017947412-Keyboard-shortcuts-and-text-formatting-in-Typeform)
+and [progress](https://help.typeform.com/hc/en-us/articles/360051557892-Activate-the-Progress-bar),
+using the portfolio's existing controls and theme. Discovery-to-contact follows
+[Intercom Fin for Sales](https://www.intercom.com/help/en/articles/13927077-how-to-train-fin-for-sales).
+
+Next additions are tracked as tasks in the feature PR: shareable evidence/brief
+packs, booking, uploads, claim-level evidence, voice, knowledge-building and
+optional returning-visitor memory. Existing answer feedback and blog ingestion
+remain supporting quality work.
+
 Step 1 (the chat redesign) is done. These are the remaining steps, in order.
 Each one should be measurable against the evaluation set from step 3 before
 moving on.

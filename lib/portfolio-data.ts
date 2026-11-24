@@ -188,6 +188,7 @@ export const askAi = {
     "Is he available for contract work?",
   ],
   workflows: {
+    project_scope: { label: "Scope a project", title: "What would you like to build?", placeholder: "Ask a follow-up or refine the proposed project…" },
     role_fit: { label: "Compare a job description", title: "How does this role match?", placeholder: "Paste the role and its requirements…" },
     interview: { label: "Prepare an interview brief", title: "What should the interview cover?", placeholder: "Paste a job description or describe the role…" },
   },

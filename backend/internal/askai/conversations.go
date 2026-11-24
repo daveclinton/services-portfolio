@@ -267,6 +267,9 @@ func opportunityReason(question, workflow string, decision intentDecision) strin
 	if decision.PolicyOverride {
 		return ""
 	}
+	if workflow == "project_scope" {
+		return "contact"
+	}
 	if workflow == "role_fit" || workflow == "interview" || decision.Plan.Goal == "evaluate_fit" {
 		return "hiring"
 	}

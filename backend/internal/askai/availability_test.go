@@ -176,9 +176,15 @@ func TestOpportunityReasonAndWorkflowGrounding(t *testing.T) {
 	if opportunityReason("How can I contact David?", "chat", decision) != "contact" {
 		t.Fatal("contact intent was missed")
 	}
+	if reason := opportunityReason("Plan an order lookup pilot", "project_scope", decision); reason != "contact" || !shouldNotifyConversation("important", turnLog{Status: "completed", AlertReason: reason}) {
+		t.Fatal("successful project discovery did not qualify as contact interest")
+	}
 	decision.PolicyOverride = true
 	if opportunityReason("Hire him", "role_fit", decision) != "" {
 		t.Fatal("policy attack qualified as hiring interest")
+	}
+	if opportunityReason("Plan a project", "project_scope", decision) != "" {
+		t.Fatal("policy attack qualified as project interest")
 	}
 	decision.PolicyOverride = false
 	decision.Plan.Workflow = "role_fit"
@@ -193,7 +199,7 @@ func TestOpportunityReasonAndWorkflowGrounding(t *testing.T) {
 
 func TestEvidenceOnlyReplyDoesNotInventAnAssessment(t *testing.T) {
 	got := evidenceOnlyReply([]source{{Excerpt: "Published fact"}})
-	if !strings.Contains(got, "not a generated role assessment") || !strings.Contains(got, "Published fact") {
+	if !strings.Contains(got, "not a generated role assessment or project brief") || !strings.Contains(got, "Published fact") {
 		t.Fatalf("unlabelled fallback: %s", got)
 	}
 }

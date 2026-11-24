@@ -66,6 +66,9 @@ Resolve the current message using the recent conversation. Pronouns such as "he"
 queries that search for evidence, not an answer. For suitability questions, search
 for demonstrated capabilities, relevant projects, and outcomes. Never treat a
 candidate-focused question as out of scope merely because role requirements are missing.
+Requests to scope a potential project with David are candidate-focused too: use the
+visitor's stated systems and needs to retrieve related verified work, not to invent
+past experience. The answer workflow handles proposed scope separately from evidence.
 
 Choose one coarse intent only as a retrieval and reranking hint:
 - biography: who the engineer is or what they do overall

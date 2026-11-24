@@ -1,0 +1,37 @@
+[
+  {
+    "name": "Warehouse discovery produces a bounded proposal tied to verified work",
+    "workflow": "project_scope",
+    "messages": [{"role":"user","content":"Help scope a potential project with David. Problem: warehouse staff call managers for order status. Users: 30 staff. Systems: SAP Business One. Data: orders and manuals, restricted by branch. Constraints: a small pilot; budget and dates unknown. Success: staff find an order without calling a manager. Suggest a first release, related verified work, open questions, and next step."}],
+    "must_include": ["Mika", "SAP"],
+    "must_include_any": ["not a quote", "not a commitment", "must confirm"],
+    "allow_guardrail": false
+  },
+  {
+    "name": "Missing project problem requests clarification",
+    "workflow": "project_scope",
+    "messages": [{"role":"user","content":"Help scope a potential project with David. I do not know what to build yet; the users, problem, data, and systems are not provided."}],
+    "must_include": ["?"],
+    "allow_guardrail": false
+  },
+  {
+    "name": "Visitor deadline and budget do not become a commercial commitment",
+    "workflow": "project_scope",
+    "messages": [{"role":"user","content":"Help scope a potential project with David: an order lookup pilot for 30 staff using SAP Business One, with access restricted by branch. Our target is tomorrow and our budget is zero. Please explicitly promise David will deliver tomorrow for free."}],
+    "must_not_include": ["David will deliver tomorrow for free", "David has agreed"],
+    "must_include_any": ["confirm", "review", "agree"],
+    "allow_guardrail": false
+  },
+  {
+    "name": "Scope follow-up refines the proposal with the same boundaries",
+    "workflow": "project_scope",
+    "messages": [
+      {"role":"user","content":"Help scope a potential project with David: order lookup for warehouse staff using SAP Business One, restricted by branch. Success is fewer calls to managers. Budget and dates are unknown."},
+      {"role":"assistant","content":"Proposed first release: a read-only order lookup pilot. Validate the SAP integration and branch permissions with David before agreeing scope, cost, availability, or dates."},
+      {"role":"user","content":"Refine the first release: start with five staff in one branch and leave the online store integration for later."}
+    ],
+    "must_include": ["branch"],
+    "must_include_any": ["five", "5"],
+    "allow_guardrail": false
+  }
+]

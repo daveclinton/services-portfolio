@@ -99,8 +99,8 @@ func parseChatRequest(body any) (*chatRequest, string, fieldErrors) {
 	if req.workflow == "" {
 		req.workflow = "chat"
 	}
-	if !slices.Contains([]string{"chat", "role_fit", "interview"}, req.workflow) {
-		return nil, detail, invalid("workflow", "workflow must be chat, role_fit or interview")
+	if !slices.Contains([]string{"chat", "role_fit", "interview", "project_scope"}, req.workflow) {
+		return nil, detail, invalid("workflow", "workflow must be chat, role_fit, interview or project_scope")
 	}
 	total := 0
 	for _, raw := range rawMessages {

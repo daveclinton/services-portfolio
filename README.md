@@ -11,6 +11,7 @@ The repository includes David Clinton's portfolio content as a working example. 
 - **Grounded conversations:** answers use the published knowledge base and confirmed evidence; public evidence links can be expanded below a response.
 - **Role comparison:** paste a job description for a requirement/evidence/gap comparison. Demonstrated experience, transferable skills and unverified requirements are kept distinct; the assistant does not score or make hiring decisions.
 - **Interview briefs:** create role-specific questions tied to verified projects and identify what an interviewer should validate.
+- **Project discovery:** scope a potential project through six questions, review or edit the answers, then generate a proposed first release, data/integration needs, relevant verified work and open questions. Continue refining the brief in chat; scope, pricing, availability and delivery dates require David's review.
 - **Reading-aware streaming:** follow a new answer, pause to read or select earlier text, and jump back to the latest response. The mobile composer follows the visible viewport above the keyboard.
 - **Evidence-only fallback:** when generation is unconfigured or the provider reports billing, credential or availability problems, show clearly labelled excerpts instead of pretending to generate an assessment.
 - **Useful owner notifications:** optional email for successful hiring/pricing/contact interest, critical provider incidents and a warning near the application request budget. Greetings and ordinary browsing do not email by default.
@@ -115,6 +116,8 @@ Email is optional. Configure `BREVO_API_KEY`, `BREVO_ALERT_TO_EMAIL` and `BREVO_
 
 Failed, stopped, policy-blocked, bot and evidence-only responses do not qualify for visitor-interest alerts. Operational emails contain status and recovery guidance, not visitor conversation text. Each operational event kind is deduplicated for an hour per API process; failed sends release the claim for a later retry. Restarting the API resets those in-memory operational claims. Visitor notification claims are stored in PostgreSQL.
 
+Successful project-scoping conversations qualify as contact interest under the same notification policy. Discovery answers remain on the page until the visitor reviews them and selects **Generate project brief**, with the existing conversation-storage consent required before sending. The generated brief and subsequent conversation use the same 30-day retention policy as chat.
+
 ## Credits, limits and recovery
 
 The application does **not** display or infer your remaining OpenAI prepaid balance. Its daily request counter is a separate application limit, not a dollar balance or account-wide cost report.
@@ -149,6 +152,7 @@ make test
 ```bash
 python3 evals/ask.py http://127.0.0.1:8080 evals/questions.txt
 python3 evals/ask.py http://127.0.0.1:8080 evals/hiring.json --json
+python3 evals/ask.py http://127.0.0.1:8080 evals/project-scoping.json --json
 python3 evals/ask.py http://127.0.0.1:8080 evals/guardrails.json --json
 ```
 
