@@ -1,6 +1,6 @@
 import Link from "next/link"
 import type { ReactNode } from "react"
-import { askAi, email, introduction, services, workLinks } from "@/lib/portfolio-data"
+import { askAi, email, introduction, workLinks } from "@/lib/portfolio-data"
 
 export type Signal = { title: string; body: ReactNode }
 
@@ -35,15 +35,15 @@ export const signals: Signal[] = [
   },
   {
     title: "My favorite role was at Untapped Global",
-    body: <><a href={workLinks.untapped}>Untapped Global</a> lets investors fund things that small businesses use to earn money. I joined in May 2022, the month it <a href="https://techcabal.com/2022/05/25/untapped-launches-investment-platform/">launched its investment platform</a>, and worked on that platform. From 2021 to January 2025, the company <a href="https://untapped-global.com/impact">supported 578,231 entrepreneurs</a> and helped them earn $46.5 million in revenue.</>,
+    body: <><a href={workLinks.untapped}>Untapped Global</a> lets investors fund things that small businesses use to earn money. When I joined, the investment platform had no guided tour and investors could not see their portfolio in charts. I built both, so new investors could learn the platform and follow how their money was doing.</>,
   },
   {
-    title: "Powering daily operations at Untapped Global",
-    body: <>Investors used Plaid to fund their investments, and I connected it to the platform. I also built the KYC screens, where people prove who they are. We integrated third-party tools that helped the company prevent money laundering and detect fraud. The investment and operations teams used the internal platform I worked on every day.</>,
+    title: "Replacing manual work at Untapped Global",
+    body: <>When I joined, the team checked each investor’s identity by hand, which is part of a process called KYC. I built the KYC screens, and we integrated third-party tools that helped prevent money laundering and detect fraud. I also connected Plaid so that investors could fund their investments on the platform.</>,
   },
   {
     title: "Turning data into decisions at Untapped Global",
-    body: <>Untapped Global used live information from the things it financed to see how each business was doing. I connected financial information from other services, handled errors and helped bring in new data as it arrived. I also reviewed code in a team of 12 engineers and worked between design and back-end teams.</>,
+    body: <>I worked on the internal platform that the investment and operations teams used every day. I connected financial information from other services, handled errors and helped bring in new data as it arrived. I also reviewed code in a team of 12 engineers and worked between design and back-end teams.</>,
   },
   {
     title: "My first tech job was in AI at Paperspace",
@@ -91,16 +91,8 @@ export const signals: Signal[] = [
   },
   {
     title: "What I charge",
-    body: (
-      <>
-        {services.map((service) => (
-          <span key={service} className="signal-line">{service}</span>
-        ))}
-        <span className="signal-line">
-          These prices are in US dollars and depend on the size of the work. <a href={email.href}>Email me for a quote</a>.
-        </span>
-      </>
-    ),
+    // Keep in sync with the contracting-rate-2026 evidence record.
+    body: <>I build AI agents that answer questions and do repeated work using your company’s own data. I connect the tools you already use, so your team stops copying information between them. I also build web and mobile products from the first idea to launch and support them afterwards. Most of this work costs $45 to $75 an hour, and you can <a href={email.href}>email me for a quote</a>.</>,
   },
   {
     title: "Work with me",
