@@ -3,7 +3,7 @@ type: project-evidence
 project: mika-enterprise-platform
 claims:
   - slug: mika-enterprise-platform-architecture
-    claim: Built tenant-aware Django and FastAPI services for warehouse, warranty, after-sales, staff, notifications, geofencing, analytics and SAP-connected workflows.
+    claim: "Built the shared platform Mika's teams use for stock, warranties, repairs, staff and messages, with each company's records kept separate."
     confidence: confirmed
     evidence_type: repository
     title: The main platform and WMS backend source

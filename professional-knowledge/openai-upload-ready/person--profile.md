@@ -22,12 +22,10 @@ career_focus:
 experience_years: 5
 ---
 
-I am a Software Engineer based in Nairobi, Kenya, with verified experience delivering
-enterprise operations systems, multi-tenant SaaS products, mobile applications,
-AI-enabled platforms, data-visualization tools and developer education. I work
-across product design, frontend and backend engineering, databases, external
-integrations, deployment, Linux infrastructure and networking, taking systems
-from implementation through operational delivery.
+I am a Software Engineer based in Nairobi, Kenya. I spend most of my days solving
+problems that we see every day, taking ownership of the problem nobody owns, and
+designing systems that run and scale. I talk to the people doing the work, build what
+they need and look after it once they start using it.
 
 Mika is a group of home appliance companies. Its employees use the systems I
 build and support every day to serve thousands of customers across Kenya, Uganda

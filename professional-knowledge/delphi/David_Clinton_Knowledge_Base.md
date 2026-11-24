@@ -25,7 +25,7 @@ This document is everything my Digital Mind should know about my work. It is wri
 
 # Profile
 
-I am a Software Engineer based in Nairobi, Kenya, with verified experience delivering enterprise operations systems, multi-tenant SaaS products, mobile applications, AI-enabled platforms, data-visualization tools and developer education. I work across product design, frontend and backend engineering, databases, external integrations, deployment, Linux infrastructure and networking, taking systems from implementation through operational delivery.
+I am a Software Engineer based in Nairobi, Kenya. I spend most of my days solving problems that we see every day, taking ownership of the problem nobody owns, and designing systems that run and scale. I talk to the people doing the work, build what they need and look after it once they start using it.
 
 Mika is a group of home appliance companies. Its employees use the systems I build and support every day to serve thousands of customers across Kenya, Uganda and Rwanda. The SAP environment my systems connect to records about 480,000 business documents a year across five group companies, including documents created in other tools.
 
@@ -57,6 +57,10 @@ Built the main back-end system and staff web application, with about 1,600 autom
 
 ### What I did
 
+David helps Mika's employees spend less time on repeated work, find answers in company records and keep those records correct, so they can serve customers across Kenya, Uganda and Rwanda. He talks to the people doing the work, builds what they need and supports it afterwards.
+
+#### How the work is done
+
 - Architected multi-tenant warehouse, eWarranty, after-sales, attendance/HR, analytics, and automation services using Django/DRF and FastAPI.
 - Built role-based warehouse mobile flows for Picker, Mantrap and Admin users with Kotlin, Jetpack Compose, Material 3, Navigation Compose, Hilt, Retrofit/OkHttp and DataStore.
 - Integrated Honeywell Data Collection Intent/AIDC scanner APIs for dedicated EDA-class warehouse devices, with scanner claim/release/control lifecycle, barcode broadcasts, device detection, and tested scan-feedback behavior.
@@ -81,13 +85,13 @@ Built the main back-end system and staff web application, with about 1,600 autom
 
 ### Outcomes
 
-- Architected a multi-tenant operations platform spanning warehouse, eWarranty, after-sales, attendance/HR, dashboards, telematics and automation across Django, FastAPI, PostgreSQL, Redis, SAP and native Android systems.
-- Built and shipped a Kotlin warehouse management system to Google Play, integrated with the production warehouse backend, on-premise SAP systems, Honeywell scanning hardware, geofencing and Firebase messaging. (https://play.google.com/store/apps/details?id=com.dawda.mikawms)
-- Automated signed APK/AAB builds, Firebase tester distribution and closed/production Google Play releases with GitHub Actions and federated Google Cloud authentication.
-- Integrated Honeywell warehouse scanners using the Data Collection Intent and AIDC APIs, alongside CameraX and ML Kit barcode scanning.
-- Shipped a warranty registration app for outlet stores that automates backend transactional documents, with ZKTeco attendance integration.
-- Built and operated production Linux deployment workflows using Nginx, systemd, Gunicorn, Uvicorn, Docker Compose, firewalls, health checks, backups and rollback procedures across internal and DMZ entry points.
-- Built a resilient Wialon-to-SAP HANA fleet-trip synchronization and reconciliation pipeline with transactional writes and scheduled Linux execution.
+- Gave Mika's teams one connected set of systems to follow sales, stock, deliveries, warranties, repairs and attendance, so they enter the same information fewer times.
+- Employees scan items and the system creates the stock document, which replaced typing it by hand. The app is on Google Play. (https://play.google.com/store/apps/details?id=com.dawda.mikawms)
+- Automated mobile releases, so updates are built and signed the same way each time and can go to a test group first.
+- Employees can scan items with work scanners or with a phone camera.
+- Customers can have a product warranty registered at the shop, and the sale and delivery records are created from the same information.
+- Runs Mika's services with security, backups, health checks and a way to return to the previous code, so the business can recover when something fails.
+- Vehicle trips are recorded without typing, and past trips can be corrected.
 - Builds and supports systems connected to an SAP environment that recorded about 480,000 business documents across five group companies in the 12 months to November 2026.
 - Author of nearly all commits to the main back-end system and staff web application at Mika, which has about 1,600 automated back-end tests.
 
@@ -501,7 +505,7 @@ Client surfaces include Kotlin Android applications, Next.js 16/React 19 admin a
 
 ### What I built and shipped
 
-- Built tenant-aware Django and FastAPI services for warehouse, warranty, after-sales, staff, notifications, geofencing, analytics and SAP-connected workflows.
+- Built the shared platform Mika's teams use for stock, warranties, repairs, staff and messages, with each company's records kept separate.
 - Used Next.js 16, React 19, TypeScript, Tailwind CSS 4, shadcn/ui, Better Auth, Drizzle ORM, Prisma, Zod and PostgreSQL for eWarranty and administration interfaces.
 
 ## Mika Integrations and Infrastructure

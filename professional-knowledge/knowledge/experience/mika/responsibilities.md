@@ -3,6 +3,13 @@ type: experience-responsibilities
 company: mika
 ---
 
+David helps Mika's employees spend less time on repeated work, find answers in
+company records and keep those records correct, so they can serve customers across
+Kenya, Uganda and Rwanda. He talks to the people doing the work, builds what they
+need and supports it afterwards.
+
+## How the work is done
+
 - Architected multi-tenant warehouse, eWarranty, after-sales, attendance/HR,
   analytics, and automation services using Django/DRF and FastAPI.
 - Built role-based warehouse mobile flows for Picker, Mantrap and Admin users with Kotlin, Jetpack Compose, Material 3, Navigation Compose, Hilt, Retrofit/OkHttp and DataStore.
