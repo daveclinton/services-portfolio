@@ -29,11 +29,11 @@ across product design, frontend and backend engineering, databases, external
 integrations, deployment, Linux infrastructure and networking, taking systems
 from implementation through operational delivery.
 
-Mika is a group of home appliance companies in Kenya and Rwanda with about 400
-employees. The SAP environment my systems connect to records about 480,000
+Mika is a group of home appliance companies. Its employees use the systems I
+build and support every day to serve thousands of customers across Kenya, Uganda
+and Rwanda. The SAP environment my systems connect to records about 480,000
 business documents a year across five group companies, including documents
-created in other tools. The 400 employees are the size of the company. The number of
-people who use my systems each day has not been counted.
+created in other tools.
 
 At Mika (Ideal Appliances), I build and operate warehouse, logistics,
 eWarranty, after-sales, employee-management, fleet-telematics, dashboard and

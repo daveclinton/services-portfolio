@@ -23,7 +23,7 @@ export const signals: Signal[] = [
   },
   {
     title: "The value I bring to Mika",
-    body: <><a href={workLinks.mika}>Mika</a> sells home appliances in Kenya and Rwanda and has about 400 employees. Because of my work, people there spend less time typing the same information twice. They can also find answers in company records by asking a question. I support these systems, so the teams know who to call when something goes wrong.</>,
+    body: <><a href={workLinks.mika}>Mika</a> sells home appliances in Kenya, Uganda and Rwanda. Its employees use the systems I build and support to serve thousands of customers across the three countries. They spend less time typing the same information twice. They can also find answers in company records by asking a question.</>,
   },
   {
     title: "Saving people time",

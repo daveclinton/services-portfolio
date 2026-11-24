@@ -27,7 +27,7 @@ This document is everything my Digital Mind should know about my work. It is wri
 
 I am a Software Engineer based in Kenya with verified experience delivering enterprise operations systems, multi-tenant SaaS products, mobile applications, AI-enabled platforms, data-visualization tools and developer education. I work across product design, frontend and backend engineering, databases, external integrations, deployment, Linux infrastructure and networking, taking systems from implementation through operational delivery.
 
-Mika is a group of home appliance companies in Kenya and Rwanda with about 400 employees. The SAP environment my systems connect to records about 480,000 business documents a year across five group companies, including documents created in other tools. The 400 employees are the size of the company. The number of people who use my systems each day has not been counted.
+Mika is a group of home appliance companies. Its employees use the systems I build and support every day to serve thousands of customers across Kenya, Uganda and Rwanda. The SAP environment my systems connect to records about 480,000 business documents a year across five group companies, including documents created in other tools.
 
 At Mika (Ideal Appliances), I build and operate warehouse, logistics, eWarranty, after-sales, employee-management, fleet-telematics, dashboard and automation systems connected to SAP Business One and SAP HANA. My warehouse work replaced manual SAP Business One entry by creating delivery notes, goods issues and goods receipts after source documents are scanned. I also delivered a warranty-registration application used by six outlets in Rwanda that automates sales orders, delivery notes and goods issues. This estate includes a native Kotlin warehouse application with Honeywell scanning, offline-safe workflows and automated Google Play delivery; FastAPI and Django services; PostgreSQL and Redis; and production Linux, Nginx, Docker, systemd and network operations.
 
@@ -49,7 +49,7 @@ Software engineering across MIKA's operational estate: warehouse management, eWa
 
 Architected and operated Django and FastAPI services backed by PostgreSQL and Redis, integrated with SAP Business One Service Layer, SAP HANA, MSSQL, Wialon, Firebase, WhatsApp, SMS, email, and object storage. Built React/Next.js and Vue/Vite interfaces alongside native Kotlin Android applications. Deployed the systems to self-managed Linux infrastructure using Nginx, systemd, Gunicorn, Uvicorn, Docker Compose, release scripts, health checks, and rollback workflows across LAN, DMZ, and public entry points.
 
-Mika is a group of home appliance companies in Kenya and Rwanda. Its warehouses, shops, delivery teams and repair teams use these systems every day. Built the main back-end system and staff web application, with about 1,600 automated back-end tests.
+Mika is a group of home appliance companies. Its employees use these systems to serve thousands of customers across Kenya, Uganda and Rwanda. Its warehouses, shops, delivery teams and repair teams use these systems every day. Built the main back-end system and staff web application, with about 1,600 automated back-end tests.
 
 The SAP environment these systems connect to recorded about 480,000 business documents across five group companies in the 12 months to November 2026, an average of about 1,300 a day. These include orders, deliveries, invoices, payments and stock movements. Not every document passes through the systems David built.
 

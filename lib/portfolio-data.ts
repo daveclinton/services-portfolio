@@ -77,7 +77,7 @@ export const backgroundItems: TimelineEntry[] = [
     location: "Kenya",
     start: "Oct 2025",
     description:
-      "I help the teams at Mika spend less time on repeated work, find the information they need and keep their records correct.",
+      "I build and support the systems that Mika’s employees use to serve thousands of customers across Kenya, Uganda and Rwanda.",
     highlights: [
       "Automated the copying of orders between companies, which staff said took about 20 minutes for each order.",
       "Built an AI assistant that answers staff questions and asks for approval before it changes anything.",

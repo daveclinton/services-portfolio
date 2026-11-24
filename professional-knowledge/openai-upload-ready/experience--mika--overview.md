@@ -21,7 +21,8 @@ systems to self-managed Linux infrastructure using Nginx, systemd, Gunicorn,
 Uvicorn, Docker Compose, release scripts, health checks, and rollback workflows
 across LAN, DMZ, and public entry points.
 
-Mika is a group of home appliance companies in Kenya and Rwanda. Its warehouses,
+Mika is a group of home appliance companies. Its employees use these systems to
+serve thousands of customers across Kenya, Uganda and Rwanda. Its warehouses,
 shops, delivery teams and repair teams use these systems every day. Built
 the main back-end system and staff web application, with about 1,600
 automated back-end tests.
