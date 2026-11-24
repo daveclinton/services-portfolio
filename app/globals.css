@@ -283,34 +283,35 @@ html.has-visible-viewport body::-webkit-scrollbar {
 .chat-page {
   height: 100%;
   min-height: 0;
-  padding-top: max(1.25rem, env(safe-area-inset-top));
-  padding-inline: max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right));
+  padding: max(0.5rem, env(safe-area-inset-top)) 0 0;
+}
+
+/* The list is as wide as the window, so it scrolls wherever the pointer is. */
+.chat-page > * {
+  max-width: none;
+}
+
+.chat-column {
+  width: 100%;
+  max-width: calc(var(--measure) + 2 * var(--chat-gutter));
+  margin-inline: auto;
+  --chat-gutter: clamp(1rem, 4vw, 2rem);
+  padding-inline: max(var(--chat-gutter), env(safe-area-inset-left)) max(var(--chat-gutter), env(safe-area-inset-right));
 }
 
 .chat-page .site-nav {
-  margin-bottom: 1rem;
-}
-
-/* Headroom-style navigation: out of the way until the reader returns upward.
- * Links remain keyboard reachable and reveal the header when focused. */
-.chat-navigation {
-  display: grid;
   flex-shrink: 0;
-  grid-template-rows: 1fr;
-  opacity: 1;
-  transition: grid-template-rows var(--default-transition-duration) ease-out,
-    opacity var(--default-transition-duration) ease-out;
+  width: 100%;
+  margin-bottom: 0.5rem;
+  padding-inline: clamp(0.9375rem, 2vw, 1.5rem);
 }
 
-.chat-navigation[data-hidden="true"]:not(:focus-within) {
-  grid-template-rows: 0fr;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.chat-navigation > div {
-  min-height: 0;
-  overflow: hidden;
+.chat-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, white 45%, transparent) transparent;
+  scrollbar-gutter: stable both-edges;
+  /* The library holds the reader's place itself. */
+  overflow-anchor: none;
 }
 
 /* The input keeps its native textarea behavior, with a quiet themed thumb. */
@@ -322,11 +323,15 @@ html.has-visible-viewport body::-webkit-scrollbar {
 /* Short screen, usually because the keyboard is open: give the space to the conversation. */
 @container chat (max-height: 34rem) {
   .chat-page {
-    padding-top: max(0.5rem, env(safe-area-inset-top));
+    padding-top: env(safe-area-inset-top);
   }
 
   .chat-page .site-nav {
-    margin-bottom: 0.25rem;
+    margin-bottom: 0;
+  }
+
+  .chat-page .site-nav nav {
+    min-height: 2.75rem;
   }
 
   .chat-welcome {
@@ -344,12 +349,6 @@ html.has-visible-viewport body::-webkit-scrollbar {
 
   .chat-input {
     max-height: 25cqh;
-  }
-}
-
-@media (min-width: 48rem) {
-  .chat-page {
-    padding-inline: 2rem;
   }
 }
 

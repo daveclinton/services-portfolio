@@ -5,11 +5,17 @@ import { ArrowUp, Briefcase, Check, Copy, FolderGit2, RotateCcw, Square, SquareP
 import Link from "next/link"
 import { motion, useInView, useReducedMotion } from "motion/react"
 import { Button } from "@/components/ui/button"
-import { ChatContainerContent, ChatContainerRoot } from "@/components/prompt-kit/chat-container"
 import { Message, MessageAction, MessageActions, MessageContent } from "@/components/prompt-kit/message"
 import { PromptSuggestion } from "@/components/prompt-kit/prompt-suggestion"
-import { ScrollButton } from "@/components/prompt-kit/scroll-button"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller"
 import { SiteNav } from "@/components/portfolio/site-nav"
 import {
   AiApiError,
@@ -26,7 +32,8 @@ import { cn } from "@/lib/utils"
 
 // Layout and interaction patterns borrowed from open-source implementations:
 // - prompt-kit conversation blocks (https://github.com/ibelick/prompt-kit, MIT):
-//   message structure, stick-to-bottom list, scroll button, text shimmer.
+//   message structure and text shimmer.
+// - shadcn/ui Message Scroller: where the list scrolls, and when it stays still.
 // - assistant-ui's Claude, ChatGPT and Grok examples
 //   (https://www.assistant-ui.com/examples): flat bordered composer with the
 //   compact input with send/stop controls, low-contrast user bubble, action bars,
@@ -88,7 +95,6 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   const [draft, setDraft] = useState("")
   const [workflow, setWorkflow] = useState<ChatWorkflow>("chat")
   const [isStreaming, setIsStreaming] = useState(false)
-  const [navigationHidden, setNavigationHidden] = useState(false)
   const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null)
   const [consented, setConsented] = useState(false)
   const [showConsentError, setShowConsentError] = useState(false)
@@ -171,7 +177,6 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     const assistantTurn: Turn = { id: newId("assistant"), role: "assistant", content: "", status: "streaming" }
     setTurns([...history, assistantTurn])
     setIsStreaming(true)
-    setNavigationHidden(true)
 
     abortRef.current?.abort()
     const controller = new AbortController()
@@ -257,7 +262,6 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     setTurns([])
     setDraft("")
     setWorkflow("chat")
-    setNavigationHidden(false)
     setShowConsentError(false)
     inputRef.current?.focus()
   }
@@ -287,10 +291,6 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           ref={inputRef}
           id="ask-ai-input"
           value={draft}
-          onFocus={() => setNavigationHidden(true)}
-          onBlur={() => {
-            if (!hasConversation) setNavigationHidden(false)
-          }}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Escape" && isStreaming) {
@@ -472,23 +472,10 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   // Replacing it on the first send dismisses the mobile keyboard and loses focus.
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-      {navigationHidden ? (
-        <div
-          aria-hidden="true"
-          className="absolute inset-x-0 top-0 z-10 h-2"
-          onPointerEnter={() => setNavigationHidden(false)}
-        />
-      ) : null}
-      <div
-        className="chat-navigation"
-        data-hidden={navigationHidden}
-        onFocusCapture={() => setNavigationHidden(false)}
-      >
-        <div><SiteNav compact /></div>
-      </div>
+      <SiteNav />
       <h1 className="sr-only">{askAi.label}</h1>
       {hasConversation ? (
-        <div className="flex shrink-0 justify-end pb-2">
+        <div className="chat-column flex shrink-0 justify-end pb-2">
           <Button
             variant="ghost"
             onClick={newChat}
@@ -500,33 +487,34 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         </div>
       ) : null}
       <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", !hasConversation && "justify-center-safe")}>
-        <ChatContainerRoot
-          className={cn("min-h-0 min-w-0 flex-1 overscroll-contain", !hasConversation && "hidden")}
-          aria-live="polite"
-          aria-relevant="additions text"
-        >
-          <ChatContainerContent
-            className="gap-6 pt-2 pb-6 sm:gap-8"
-            followKey={turns.at(-1)?.id}
-            onScrollDirectionChange={(direction, atStart) => {
-              // On phones, reading an earlier paragraph should not bring the
-              // navigation back over it. Reveal only at the conversation top.
-              if (direction === "down") setNavigationHidden(true)
-              else if (atStart || window.matchMedia("(min-width: 48rem)").matches) setNavigationHidden(false)
-            }}
-          >
-            {messages}
-          </ChatContainerContent>
-          <div className="pointer-events-none absolute inset-x-0 bottom-6 z-10 flex justify-center">
-            <ScrollButton className="pointer-events-auto" />
-          </div>
-        </ChatContainerRoot>
-        <div hidden={hasConversation} className="chat-welcome min-h-0 overflow-y-auto py-6">
+        {hasConversation ? (
+          <MessageScrollerProvider defaultScrollPosition="last-anchor" scrollPreviousItemPeek={40} scrollMargin={8}>
+            <MessageScroller>
+              <MessageScrollerViewport aria-label="Conversation" className="chat-viewport">
+                <MessageScrollerContent aria-busy={isStreaming} className="chat-column gap-6 pt-2 pb-8 sm:gap-8">
+                  {turns.map((turn, index) => (
+                    <MessageScrollerItem
+                      key={turn.id}
+                      messageId={turn.id}
+                      scrollAnchor={turn.role === "user"}
+                      // The new question fades in where it will stay.
+                      className={isStreaming && index === turns.length - 2 ? "animate-in fade-in duration-300 motion-reduce:animate-none" : undefined}
+                    >
+                      {messages[index]}
+                    </MessageScrollerItem>
+                  ))}
+                </MessageScrollerContent>
+              </MessageScrollerViewport>
+              <MessageScrollerButton />
+            </MessageScroller>
+          </MessageScrollerProvider>
+        ) : null}
+        <div hidden={hasConversation} className="chat-welcome chat-column min-h-0 overflow-y-auto py-6">
           <h2 className="text-name text-balance break-words text-center font-normal text-foreground">
             {workflow === "chat" ? `${askAi.title}?` : askAi.workflows[workflow].title}
           </h2>
         </div>
-        <div className="relative shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-gradient-to-t before:from-background before:to-transparent">
+        <div className="chat-column relative shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-gradient-to-t before:from-background before:to-transparent">
           {composer}
         </div>
         <motion.ul
@@ -534,7 +522,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2, ease: "easeOut" }}
           aria-label="Suggested questions"
-          className={cn("chat-suggestions grid min-h-0 shrink overflow-y-auto pb-4 sm:grid-cols-2", hasConversation && "hidden")}
+          className={cn("chat-suggestions chat-column grid min-h-0 shrink overflow-y-auto pb-4 sm:grid-cols-2", hasConversation && "hidden")}
         >
           {Object.entries(askAi.workflows).map(([key, option]) => (
             <li key={key} className="min-w-0">
