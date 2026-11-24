@@ -7,7 +7,8 @@ import { TONE_STORAGE_KEY, toneOf } from "@/lib/tone"
 import portrait from "@/public/david.webp"
 
 export type SignalItem = {
-  key?: string
+  /** Also the element id, so /#slug works as well as the item's own address. */
+  slug: string
   title: string
   body: ReactNode
   /** Shown beside the open text. Defaults to the portrait. */
@@ -19,8 +20,21 @@ const number = (index: number) => String(index).padStart(2, "0")
 // 37signals.com's approach: a numbered list on one flat color, each item opens
 // in place, and the dot moves to the next one. <details name> keeps one open and
 // works without JavaScript. Home, Writing and Experience all use it.
-export function Signals({ id, items, footer }: { id: string; items: SignalItem[]; footer: ReactNode }) {
-  const [open, setOpen] = useState(0)
+//
+// Every item has its own address (37signals.com/05 does the same), because the
+// part of a URL after "#" never reaches the sites that draw link previews.
+export function Signals({ id, items, listPath, basePath, initial, footer }: {
+  id: string
+  items: SignalItem[]
+  /** The list's own page. */
+  listPath: string
+  /** What comes before an item's slug. Home's is empty, and its first item is the page itself. */
+  basePath: string
+  /** The item this page was opened on. */
+  initial?: number
+  footer: ReactNode
+}) {
+  const [open, setOpen] = useState(initial ?? 0)
   const list = useRef<HTMLOListElement>(null)
   // The item that is open by default must not change a color chosen elsewhere.
   const chosen = useRef(false)
@@ -34,12 +48,35 @@ export function Signals({ id, items, footer }: { id: string; items: SignalItem[]
     requestAnimationFrame(() => details.scrollIntoView({ block: "center" }))
   }
 
+  function remember(index: number) {
+    document.documentElement.setAttribute("data-tone", toneOf(index))
+    try {
+      localStorage.setItem(TONE_STORAGE_KEY, String(index))
+      localStorage.setItem(storageKey, String(index))
+    } catch {}
+  }
+
+  // Put the open item in the address bar, ready to share. Some phones share the
+  // canonical link instead, so it has to match.
+  function address(index: number) {
+    const path = index === 0 && !basePath ? listPath : `${basePath}/${items[index].slug}`
+    window.history.replaceState(null, "", path)
+    const canonical = document.querySelector<HTMLLinkElement>("link[rel=canonical]")
+    if (canonical) canonical.href = new URL(path, canonical.href).href
+  }
+
   useEffect(() => {
     const fromHash = () => {
       const hash = window.location.hash.slice(1)
-      if (/^\d{2}$/.test(hash)) show(Number(hash))
+      // Two digits are the older links, from before items had names.
+      const index = /^\d{2}$/.test(hash) ? Number(hash) : items.findIndex((item) => item.slug === hash)
+      if (index >= 0) show(index)
     }
     if (window.location.hash) fromHash()
+    else if (initial !== undefined) {
+      remember(initial)
+      show(initial, false)
+    }
     else {
       // Return to the item last opened on this list.
       try {
@@ -49,7 +86,9 @@ export function Signals({ id, items, footer }: { id: string; items: SignalItem[]
     }
     window.addEventListener("hashchange", fromHash)
     return () => window.removeEventListener("hashchange", fromHash)
-  }, [storageKey])
+  // Runs once for each page. The lists do not change while they are on screen.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storageKey, initial])
 
   const next = items[(open + 1) % items.length]
 
@@ -57,20 +96,17 @@ export function Signals({ id, items, footer }: { id: string; items: SignalItem[]
     <div className="signals">
       <ol ref={list}>
         {items.map((item, index) => (
-          <li key={item.key ?? item.title} id={number(index)}>
+          <li key={item.slug} id={item.slug}>
             <details
               name={id}
-              open={index === 0}
+              open={index === (initial ?? 0)}
               onToggle={(event) => {
                 const details = event.currentTarget
                 if (!details.open) return
                 setOpen(index)
                 if (!chosen.current) return
-                document.documentElement.setAttribute("data-tone", toneOf(index))
-                try {
-                  localStorage.setItem(TONE_STORAGE_KEY, String(index))
-                  localStorage.setItem(storageKey, String(index))
-                } catch {}
+                remember(index)
+                address(index)
                 // Once it has finished opening, keep it clear of the bottom bar.
                 setTimeout(() => {
                   if (details.open) details.scrollIntoView({ block: "nearest" })

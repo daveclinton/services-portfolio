@@ -42,6 +42,7 @@ export const intro = {
 
 export type TimelineEntry = {
   id: string
+  slug: string
   company: string
   iconSrc?: string
   location?: string
@@ -64,6 +65,7 @@ export function formatRoleDates({
 export const backgroundItems: TimelineEntry[] = [
   {
     id: "2025-10",
+    slug: "mika",
     company: "Mika (Ideal Appliances)",
     iconSrc: "/mika.webp",
     location: "Kenya",
@@ -82,6 +84,7 @@ export const backgroundItems: TimelineEntry[] = [
   },
   {
     id: "2024-05",
+    slug: "studio1hq",
     company: "Studio1HQ",
     iconSrc: "/studio1hq.webp",
     arrangement: "Remote, contract",
@@ -91,6 +94,7 @@ export const backgroundItems: TimelineEntry[] = [
   },
   {
     id: "2024-01",
+    slug: "tai-ora",
     company: "Tai Ora",
     arrangement: "Remote, contract",
     start: "Jan 2024",
@@ -100,6 +104,7 @@ export const backgroundItems: TimelineEntry[] = [
   },
   {
     id: "2024-09",
+    slug: "givesuite",
     company: "GiveSuite · Element Pay",
     arrangement: "Remote, contract",
     start: "Sep 2024",
@@ -109,6 +114,7 @@ export const backgroundItems: TimelineEntry[] = [
   },
   {
     id: "2022-05",
+    slug: "untapped-global",
     company: "Untapped Global",
     iconSrc: "/untapped.webp",
     location: "Nairobi, Kenya",
@@ -129,6 +135,7 @@ export const backgroundItems: TimelineEntry[] = [
   },
   {
     id: "2021-01",
+    slug: "paperspace",
     company: "Paperspace (now DigitalOcean)",
     iconSrc: "/paperspace.webp",
     arrangement: "Remote",

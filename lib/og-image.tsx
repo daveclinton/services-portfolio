@@ -73,7 +73,7 @@ function darken(hex: string) {
 }
 
 function titleSize(title: string, article: boolean) {
-  if (!article) return title.length > 45 ? 76 : 84
+  if (!article) return title.length > 38 ? 70 : title.length > 28 ? 76 : 84
   return title.length > 60 ? 80 : title.length > 36 ? 92 : 112
 }
 

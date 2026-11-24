@@ -4,8 +4,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { askAi, site } from "@/lib/portfolio-data"
 
-const links = [
-  { href: "/blog", label: "Writing" },
+const links: { href: string; label: string; section?: string }[] = [
+  { href: "/blog", section: "/writing", label: "Writing" },
   { href: "/experience", label: "Experience" },
   { href: askAi.href, label: "Ask AI" },
 ]
@@ -23,7 +23,7 @@ export function SiteNav() {
                 <Link
                   href={link.href}
                   // "page" for the exact page, "true" when inside the section (e.g. a post).
-                  aria-current={pathname === link.href ? "page" : pathname.startsWith(`${link.href}/`) ? "true" : undefined}
+                  aria-current={pathname === link.href ? "page" : [link.href, link.section].some((path) => path && pathname.startsWith(`${path}/`)) ? "true" : undefined}
                 >
                   {link.label}
                 </Link>
