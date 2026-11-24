@@ -128,7 +128,8 @@ export const backgroundItems: TimelineEntry[] = [
     highlights: [
       "Joined in May 2022, the month the company launched its investment platform.",
       "The company supported 578,231 entrepreneurs and helped them earn $46.5 million from 2021 to January 2025.",
-      "Built the KYC screens and connected Plaid for payments.",
+      "Connected Plaid, which investors used to fund their investments.",
+      "Built the KYC screens and worked with third-party tools that help prevent money laundering and detect fraud.",
       "Worked on the internal management platform that the teams used in their daily work.",
       "Connected financial information from other services and helped bring in new data as it arrived.",
       "Built dashboards that showed investors how their investments were doing.",

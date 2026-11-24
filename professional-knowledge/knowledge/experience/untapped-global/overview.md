@@ -13,8 +13,9 @@ equipment and other things that small businesses use to earn money. David joined
 May 2022, the month it launched its digital investment platform.
 
 He worked on the investment platform, which processed investors' transactions and
-showed them how their investments were doing. He built the KYC screens and connected
-Plaid for payments. He also worked on the internal management platform that the
+showed them how their investments were doing. He connected Plaid, which investors used
+to fund their investments, and built the KYC screens. The team integrated third-party
+tools that helped the company prevent money laundering and detect fraud. He also worked on the internal management platform that the
 investment and operations teams used to run the business every day. He connected financial information from other services
 and helped bring in new data as it arrived.
 

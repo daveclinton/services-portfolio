@@ -13,7 +13,7 @@ accomplishments:
     confidence: confirmed
     source_path: sources/attestations/david-clinton-2026-11-24.md
   - slug: untapped-admin-kyc
-    claim: "Built the KYC screens and connected Plaid for payments at Untapped Global, and worked on the internal management platform its teams used every day."
+    claim: "Connected Plaid so investors could fund their investments, built the KYC screens with third-party tools for preventing money laundering and detecting fraud, and worked on the internal management platform its teams used every day."
     confidence: confirmed
     source_path: sources/attestations/david-clinton-2026-11-24.md
 ---

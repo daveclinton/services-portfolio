@@ -39,7 +39,7 @@ export const signals: Signal[] = [
   },
   {
     title: "Powering daily operations at Untapped Global",
-    body: <>Investors have to prove who they are and pay safely before a company can accept their money. I built the screens for that identity check, which is known as KYC, and connected Plaid for payments. I also worked on the internal platform that the investment and operations teams used every day.</>,
+    body: <>Investors used Plaid to fund their investments, and I connected it to the platform. I also built the KYC screens, where people prove who they are. We integrated third-party tools that helped the company prevent money laundering and detect fraud. The investment and operations teams used the internal platform I worked on every day.</>,
   },
   {
     title: "Turning data into decisions at Untapped Global",
