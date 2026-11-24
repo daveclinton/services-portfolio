@@ -5,7 +5,7 @@ name: Mika AI Assistant
 problem: |
   Staff needed answers from company records without writing queries or searching several screens, and without seeing data they are not allowed to see.
 context: |
-  Part of SapForge, the main back-end system and staff web application at Mika. It is in production.
+  Part of the main back-end system and staff web application at Mika. It is in production.
 skills:
   - slug: ai-integration
     name: AI product integration

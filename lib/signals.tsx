@@ -4,105 +4,106 @@ import { askAi, email, introduction, services, workLinks } from "@/lib/portfolio
 
 export type Signal = { title: string; body: ReactNode }
 
-/** The home page: how David works at staff level, with the evidence, and what it costs. */
+/**
+ * The home page. Very simple English about the value the work brings.
+ * Avoid slogans, colons, one-word sentences and lists of technologies.
+ */
 export const signals: Signal[] = [
   {
     title: "Start here",
-    body: <>I’m David Clinton, a staff-level software engineer in Kenya. I take the problem nobody owns, design the system, build it across web, mobile, back end and servers, and run it. Pick a number, or click the dot at the bottom right to keep going.</>,
+    body: <>I’m David Clinton, a Software Engineer based in Nairobi, Kenya. I spend most of my days solving problems that we see every day, taking ownership of the problem nobody owns, and designing systems that run and scale. On this site, pick a number or click the dot at the bottom right to keep going through my facts list.</>,
   },
   {
-    title: "Give me the whole problem",
-    body: <>I don’t need a ticket. Give me the mess: the process that’s slow, the system people fear, the AI idea nobody can ship. I’ll find out what’s really wrong, decide what to build and take it all the way to production.</>,
+    title: "The problems I take on",
+    body: <>Many businesses have a slow process that everyone has learned to live with. I talk to the people doing the work and find out what slows them down. Then I build something that fixes it and look after it once people start using it.</>,
   },
   {
     title: "Ask my AI",
-    body: <>Don’t take my word for it. I built an assistant that knows my work. Paste your job description and it will tell you what fits and what’s missing. <Link href={askAi.href}>Try to catch it out</Link>.</>,
+    body: <>I built an assistant that answers questions about my work. You can paste a job description and it will tell you which parts match my experience and which parts I have not done. <Link href={askAi.href}>You can try it here</Link>.</>,
   },
   {
-    title: "I run the stack",
-    body: <>At <a href={workLinks.mika}>Mika</a>, a group of home appliance companies with about 400 employees, I designed and built SapForge: the main back end, the staff web application, the Android warehouse app and an AI assistant. I deploy it. I support it. When it breaks, they call me.</>,
+    title: "The value I bring to Mika",
+    body: <><a href={workLinks.mika}>Mika</a> sells home appliances in Kenya and Rwanda and has about 400 employees. Because of my work, people there spend less time typing the same information twice. They can also find answers in company records by asking a question. I support these systems, so the teams know who to call when something goes wrong.</>,
   },
   {
-    title: "I change how the work gets done",
-    body: <>Warehouse staff used to type documents into SAP by hand. Now they scan, the system checks, and SAP gets the record. Less typing, more checking. That’s what software is for.</>,
+    title: "Saving people time",
+    body: <>Staff at Mika told me that one order took about 20 minutes to copy from one company’s records to another. I automated that work, and people can check what will happen before anything is saved. Unusual orders still go to a person.</>,
   },
   {
-    title: "AI that’s allowed near real data",
-    body: <>Anyone can make a demo. Mine is in production. It looks things up as the person asking, shows only what they’re allowed to see and waits for a yes before changing anything. If it quotes a figure it never looked up, it gets sent back to check.</>,
+    title: "Keeping records correct",
+    body: <>A business makes decisions from its records, so a wrong number can cost money. I reviewed about 30,000 repair cases at Mika and reported the problems I found to the finance team with evidence. They could then see what needed to be corrected.</>,
   },
   {
-    title: "Back end",
-    body: <>Python, Django, FastAPI, Go, Rust, PostgreSQL, Redis. Many companies on one platform, with each one’s data kept apart by rules the tests enforce. SapForge has about 1,600 automated tests on the back end alone.</>,
+    title: "Making AI safe to use at work",
+    body: <>People need to trust an AI assistant before they use it with company information. The one I built for Mika shows each person only what they are allowed to see. It also asks for approval before it changes anything, so people stay in charge.</>,
   },
   {
-    title: "Never twice",
-    body: <>An order that posts twice costs real money. I build for the moment the network dies halfway: each delivery update carries its own key, failures retry, and whatever can’t be fixed waits where a person can replay it.</>,
+    title: "Making sure work is not lost",
+    body: <>Every sale, delivery and payment has to be saved correctly, even when the connection fails. I build the part of the system that customers do not see. It keeps unfinished work, tries again and avoids entering the same thing twice.</>,
   },
   {
-    title: "Front end",
-    body: <>React, Next.js, Vue, Angular, TypeScript. I’ve built staff consoles, investor dashboards, payment screens and public sites. I design for the person doing it for the two hundredth time that day.</>,
+    title: "Making software easy to use",
+    body: <>Good software helps people finish their work without asking for help. I build the screens that employees, customers and investors use. I learn how they work first, so the most common task is the easiest one to do.</>,
   },
   {
-    title: "Mobile",
-    body: <>Kotlin, Flutter, React Native. Shipped to Google Play and the App Store. My warehouse app talks to Honeywell scanners and keeps working when the signal doesn’t, because warehouses have bad Wi-Fi.</>,
+    title: "Helping people who work away from a desk",
+    body: <>Some people do their work while standing, driving or visiting customers. I build phone apps that let them record the work where it happens. The apps can keep working when the internet is slow and send the information later.</>,
   },
   {
-    title: "Infrastructure",
-    body: <>Linux, Nginx, Docker, systemd, AWS. DNS, firewalls, TLS, backups. I run services on a company’s own servers and in the cloud, and I can follow a request from the browser to the database and find where it died.</>,
+    title: "Keeping systems available",
+    body: <>A business stops earning when the system it depends on stops working. I set up the servers, protect the information, keep backups and check that everything is healthy. When there is a problem, I find the cause and bring the system back.</>,
   },
   {
-    title: "Merge means ship",
-    body: <>Merge to main and the warehouse app versions itself, builds, signs and goes out to its release track. No release day. The cloud credentials it uses expire on their own. And there’s a written way back for when it goes wrong.</>,
+    title: "Improving software without stopping work",
+    body: <>Teams should get improvements without worrying that the next update will stop their work. I automate how updates are tested and released. I also write down how to return to the earlier version if an update causes a problem.</>,
   },
   {
-    title: "I’ll undo my own work",
-    body: <>I built the company’s automations as a separate Go service. It worked. It was also one more system to look after, so I moved it into the main platform and kept its history. Good architecture includes knowing when to have less of it.</>,
+    title: "Looking after systems I did not build",
+    body: <>When a developer leaves, the business still needs the system they built. I took over two of these systems at Mika and kept them running for the people who depend on them. I also made the passwords safer and fixed problems that users reported.</>,
   },
   {
-    title: "Own it before you understand it",
-    body: <>I took over two live systems another developer left behind. I moved code into version control, took the passwords out, fixed what was hurting people and kept the shops and repair teams working.</>,
+    title: "Handling work at a large scale",
+    body: <>The business records my systems connect to at Mika grow by about 480,000 documents a year across five companies. Some of those documents come from other tools. I design for that amount of work because a small mistake can be repeated many times.</>,
   },
   {
-    title: "Make everyone else faster",
-    body: <>I write the API specs, the conventions and the fake SAP server that lets app developers work without the real one. I wrote the handbook for the company’s systems. At <a href={workLinks.untapped}>Untapped Global</a> I reviewed code on a team of 12 engineers.</>,
+    title: "Helping other people do their work",
+    body: <>A business should not depend on one person remembering everything. I wrote a handbook that explains how Mika’s systems work and what to do when they fail. I also prepare guides and test systems so that other developers can work safely.</>,
   },
   {
-    title: "Find what nobody is looking for",
-    body: <>I went through a year of repair records, about 30,000 cases, against the stock and accounting behind them. I took 17 problems to the finance team, each with evidence. Nobody opened a ticket for that.</>,
+    title: "Keeping things simple",
+    body: <>Every extra system costs a business time and money to look after. I once built a separate system that worked well, then moved it into the main one because that was easier to support. The business kept its history and had one less thing to maintain.</>,
   },
   {
-    title: "Twenty minutes",
-    body: <>That’s how long staff said one order took to type from one company’s records into another’s. Now the system does it. Every run can be previewed, and anything odd goes to a person.</>,
+    title: "Helping businesses handle payments",
+    body: <>People expect a payment or donation to work the first time. I improved online payment experiences for <a href={workLinks.givesuite}>GiveSuite</a> and <a href={workLinks.elementPay}>Element Pay</a>. At GiveSuite, I also moved financial information to a new system.</>,
   },
   {
-    title: "480,000",
-    body: <>That’s about how many business documents a year are recorded by the SAP environment my systems connect to, across five group companies. Not all of them pass through my code. At that size, small mistakes don’t stay small.</>,
+    title: "Helping investors understand their money",
+    body: <>Investors at <a href={workLinks.untapped}>Untapped Global</a> needed to see how the small businesses they funded were doing. I turned complex information into clear charts and reports. That helped investors and the internal team explore the information for themselves.</>,
   },
   {
-    title: "Money has to add up",
-    body: <>At <a href={workLinks.givesuite}>GiveSuite</a> I moved financial data from SAP HANA to PostgreSQL. At <a href={workLinks.elementPay}>Element Pay</a> I built the screens for a stablecoin payments platform. Close enough doesn’t exist here.</>,
+    title: "Supporting education",
+    body: <>I worked on the Tai Ora web and mobile apps, which were introduced in three schools. I added an AI chat so people could ask questions inside the app. I also helped put the app in front of users on their phones.</>,
   },
   {
-    title: "I learn your business fast",
-    body: <>Appliances, payments, investment, schools, cloud computing. I built the dashboards investors used at <a href={workLinks.untapped}>Untapped Global</a> and worked across web, mobile and AWS for Tai Ora. <Link href="/experience">The full list is here</Link>.</>,
-  },
-  {
-    title: "If it isn’t written, it isn’t finished",
-    body: <>I wrote about GPUs for <a href={introduction.paperspaceWriting}>Paperspace</a> and write developer guides through <a href={introduction.studio1hq}>Studio1HQ</a>. I write down the decision too, so the next engineer can argue with it. The rest is on <Link href="/blog">my blog</Link>.</>,
+    title: "Explaining technical ideas",
+    body: <>Companies lose users when people cannot understand how to use their product. I write practical guides for developers through <a href={introduction.studio1hq}>Studio1HQ</a>, and I wrote for <a href={introduction.paperspaceWriting}>Paperspace</a>. You can read more on <Link href="/blog">my blog</Link>.</>,
   },
   {
     title: "What I charge",
     body: (
       <>
         {services.map((service) => (
-          <span key={service.title} className="signal-line">{service.title}: {service.price}.</span>
+          <span key={service} className="signal-line">{service}</span>
         ))}
-        <span className="signal-line">US dollars, typical ranges. <a href={email.href}>Email me for a quote</a>.</span>
+        <span className="signal-line">
+          These prices are in US dollars and depend on the size of the work. <a href={email.href}>Email me for a quote</a>.
+        </span>
       </>
     ),
   },
   {
-    title: "Hand it to me",
-    body: <>I’m open to staff roles, remote or willing to move, and to hard contract work. Bring the problem that keeps coming back. <a href={email.href}>Tell me about it</a>.</>,
+    title: "Work with me",
+    body: <>I am open to full-time roles and contract work. You can <a href={email.href}>email me</a> about the problem you want to solve, and I will tell you how I would approach it. My <Link href="/experience">work experience</Link> has the full list of companies and dates.</>,
   },
 ]

@@ -40,7 +40,7 @@ company: mika
 - Built an AI assistant in production that answers staff questions with live
   company data and asks for approval before changing anything.
 - Built the last-mile delivery, after-sales, showroom, consignment, marketplace
-  pricing and messaging modules in SapForge.
+  pricing and messaging modules in the main platform.
 - Automated order entry between group companies, with previews, run logs and
   review of unusual cases.
 - Took over the outlet and repair systems from a previous developer, support them

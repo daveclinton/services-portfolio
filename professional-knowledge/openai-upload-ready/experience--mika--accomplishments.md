@@ -5,7 +5,7 @@ accomplishments:
   - slug: mika-platform-architecture
     claim: Architected a multi-tenant operations platform spanning warehouse, eWarranty, after-sales, attendance/HR, dashboards, telematics and automation across Django, FastAPI, PostgreSQL, Redis, SAP and native Android systems.
     confidence: confirmed
-    source_path: /Users/daveclintonn/dawda-workspace/sapforge/README.md
+    source_path: sources/attestations/david-clinton-2026-11-23.md
   - slug: mika-warehouse-system-shipped
     claim: Built and shipped a Kotlin warehouse management system to Google Play, integrated with the production warehouse backend, on-premise SAP systems, Honeywell scanning hardware, geofencing and Firebase messaging.
     confidence: confirmed
@@ -26,7 +26,7 @@ accomplishments:
   - slug: mika-production-infrastructure
     claim: Built and operated production Linux deployment workflows using Nginx, systemd, Gunicorn, Uvicorn, Docker Compose, firewalls, health checks, backups and rollback procedures across internal and DMZ entry points.
     confidence: confirmed
-    source_path: /Users/daveclintonn/dawda-workspace/sapforge-deploy
+    source_path: sources/attestations/david-clinton-2026-11-23.md
   - slug: mika-wialon-sap-sync
     claim: Built a resilient Wialon-to-SAP HANA fleet-trip synchronization and reconciliation pipeline with transactional writes and scheduled Linux execution.
     confidence: confirmed
@@ -35,8 +35,8 @@ accomplishments:
     claim: "Builds and supports systems connected to an SAP environment that recorded about 480,000 business documents across five group companies in the 12 months to November 2026."
     confidence: confirmed
     source_path: sources/attestations/david-clinton-2026-11-23.md
-  - slug: mika-sapforge-authorship
-    claim: "Author of nearly all commits to SapForge, the main back-end system and staff web application at Mika, which has about 1,600 automated back-end tests."
+  - slug: mika-platform-authorship
+    claim: "Author of nearly all commits to the main back-end system and staff web application at Mika, which has about 1,600 automated back-end tests."
     confidence: confirmed
     source_path: sources/attestations/david-clinton-2026-11-23.md
 ---

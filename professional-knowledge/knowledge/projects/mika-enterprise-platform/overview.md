@@ -7,7 +7,7 @@ problem: |
   shared software foundation connected to SAP and usable across several group
   companies and client applications.
 context: |
-  Source-audited from the SapForge, WMS backend, mika-care, e-warranty, and
+  Source-audited from the main platform, WMS backend, mika-care, e-warranty, and
   related repositories in the Mika workspace.
 skills:
   - slug: full-stack-development

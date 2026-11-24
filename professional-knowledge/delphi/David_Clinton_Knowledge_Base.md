@@ -49,7 +49,7 @@ Software engineering across MIKA's operational estate: warehouse management, eWa
 
 Architected and operated Django and FastAPI services backed by PostgreSQL and Redis, integrated with SAP Business One Service Layer, SAP HANA, MSSQL, Wialon, Firebase, WhatsApp, SMS, email, and object storage. Built React/Next.js and Vue/Vite interfaces alongside native Kotlin Android applications. Deployed the systems to self-managed Linux infrastructure using Nginx, systemd, Gunicorn, Uvicorn, Docker Compose, release scripts, health checks, and rollback workflows across LAN, DMZ, and public entry points.
 
-Mika is a group of home appliance companies in Kenya and Rwanda. Its warehouses, shops, delivery teams and repair teams use these systems every day. Built SapForge, the main back-end system and staff web application, with about 1,600 automated back-end tests.
+Mika is a group of home appliance companies in Kenya and Rwanda. Its warehouses, shops, delivery teams and repair teams use these systems every day. Built the main back-end system and staff web application, with about 1,600 automated back-end tests.
 
 The SAP environment these systems connect to recorded about 480,000 business documents across five group companies in the 12 months to November 2026, an average of about 1,300 a day. These include orders, deliveries, invoices, payments and stock movements. Not every document passes through the systems David built.
 
@@ -71,7 +71,7 @@ The SAP environment these systems connect to recorded about 480,000 business doc
 - Built and maintained Linux deployments with Nginx reverse proxying, systemd services and timers, Gunicorn/Uvicorn processes, Docker Compose dependencies, PostgreSQL backups, health checks, logs, release symlinks, and rollback.
 - Configured internal DNS, LAN/DMZ routing, TLS termination boundaries, CORS and trusted-host policies, UFW rules, HTTP proxy headers, Unix sockets, and TCP/SSH connectivity tests for on-premise systems and devices.
 - Built an AI assistant in production that answers staff questions with live company data and asks for approval before changing anything.
-- Built the last-mile delivery, after-sales, showroom, consignment, marketplace pricing and messaging modules in SapForge.
+- Built the last-mile delivery, after-sales, showroom, consignment, marketplace pricing and messaging modules in the main platform.
 - Automated order entry between group companies, with previews, run logs and review of unusual cases.
 - Took over the outlet and repair systems from a previous developer, support them in production and wrote a handbook for the people who run them.
 - Work directly with finance, warehouse, shop and repair teams without a product manager in between.
@@ -87,7 +87,7 @@ The SAP environment these systems connect to recorded about 480,000 business doc
 - Built and operated production Linux deployment workflows using Nginx, systemd, Gunicorn, Uvicorn, Docker Compose, firewalls, health checks, backups and rollback procedures across internal and DMZ entry points.
 - Built a resilient Wialon-to-SAP HANA fleet-trip synchronization and reconciliation pipeline with transactional writes and scheduled Linux execution.
 - Builds and supports systems connected to an SAP environment that recorded about 480,000 business documents across five group companies in the 12 months to November 2026.
-- Author of nearly all commits to SapForge, the main back-end system and staff web application at Mika, which has about 1,600 automated back-end tests.
+- Author of nearly all commits to the main back-end system and staff web application at Mika, which has about 1,600 automated back-end tests.
 
 ### Technologies
 
@@ -412,13 +412,13 @@ Skills: Full-stack development, Mobile development, AI product integration.
 
 Problem: Repair complaints, job cards, spare parts and warranty records were spread across older systems, and their status did not always match what had happened.
 
-Context: Work on the after-sales module in SapForge and on Mika Care, the older PHP system that David took over and maintains.
+Context: Work on the after-sales module in the main platform and on Mika Care, the older PHP system that David took over and maintains.
 
 Skills: Full-stack development, SAP Business One integration, Data quality and reconciliation.
 
 Technologies: Django 5 / Django REST Framework, SAP HANA, SAP Business One, PHP, MySQL.
 
-Built the after-sales module in SapForge. Staff start a complaint from a phone number or serial number, assign technicians, record troubleshooting, complete and review job cards, and close or reopen cases. Each case shows its real stage and the next action.
+Built the after-sales module in the main platform. Staff start a complaint from a phone number or serial number, assign technicians, record troubleshooting, complete and review job cards, and close or reopen cases. Each case shows its real stage and the next action.
 
 Took over Mika Care, the older PHP repair system, and fixes problems in live use, including the serial numbers recorded on replacements, spare-part lists, approvals and stock received between warehouses. Reviewed a year of repair and warranty records against the stock and accounting entries behind them, about 30,000 cases, and reported the problems to the finance team with evidence for each.
 
@@ -426,14 +426,14 @@ At the time of review, the records held about 137,000 repair complaints, 134,000
 
 ### What I built and shipped
 
-- Built complaint registration, technician assignment, job-card stages, review and closing for the after-sales team in SapForge.
+- Built complaint registration, technician assignment, job-card stages, review and closing for the after-sales team in the main platform.
 - After-sales systems at Mika draw on about 137,000 repair complaints, 134,000 job cards and 200,000 warranty registrations.
 
 ## Mika AI Assistant
 
 Problem: Staff needed answers from company records without writing queries or searching several screens, and without seeing data they are not allowed to see.
 
-Context: Part of SapForge, the main back-end system and staff web application at Mika. It is in production.
+Context: Part of the main back-end system and staff web application at Mika. It is in production.
 
 Skills: AI product integration, Full-stack development, SAP Business One integration.
 
@@ -454,7 +454,7 @@ The assistant works with OpenAI and Gemini models, limits how many lookups each 
 
 Problem: Staff retyped orders between group companies and entered vehicle trips by hand.
 
-Context: First built as a single Go service, later moved into SapForge in Python on its own background worker.
+Context: First built as a single Go service, later moved into the main platform in Python on its own background worker.
 
 Skills: SAP Business One integration, Full-stack development, Data quality and reconciliation.
 
@@ -464,12 +464,12 @@ Automated order entry between group companies, the recording of vehicle trips an
 
 Every run is logged and can be previewed before it saves anything. The same job cannot run twice at once for a company, late runs are not repeated, and unusual cases go to a person for review. The vehicle trip records hold about 133,000 entries.
 
-Wrote the first version in Go with PostgreSQL and Docker. Moved it into SapForge to reduce the number of systems to support, keeping its schedules, history and settings.
+Wrote the first version in Go with PostgreSQL and Docker. Moved it into the main platform to reduce the number of systems to support, keeping its schedules, history and settings.
 
 ### What I built and shipped
 
 - Automated order entry between group companies, vehicle trip recording and loyalty-point reconciliation, with previews, run logs and review of unusual cases.
-- Moved the automations from a Go service into SapForge while keeping their schedules, history and settings.
+- Moved the automations from a Go service into the main platform while keeping their schedules, history and settings.
 
 ## Mika Enterprise Operations Platform
 
@@ -516,7 +516,7 @@ Integration work includes Wialon HTTP/JSON reports synchronized into SAP HANA; Z
 
 Problem: Deliveries to customers needed one record from the order to the customer's door, with drivers, vehicles, stops and proof of delivery in one place.
 
-Context: Last-mile module in SapForge, with a web console for planners and interfaces for drivers.
+Context: Last-mile module in the main platform, with a web console for planners and interfaces for drivers.
 
 Skills: Full-stack development, SAP Business One integration, Mobile development.
 
@@ -567,7 +567,7 @@ Wrote a handbook that covers the company's applications, servers, support steps 
 
 Problem: Showrooms and outlets needed stock, sales and prices that agree with SAP, and teams needed to reach customers by SMS.
 
-Context: Retail, consignment, marketplace and notification modules in SapForge.
+Context: Retail, consignment, marketplace and notification modules in the main platform.
 
 Skills: Full-stack development, SAP Business One integration, Mobile development.
 

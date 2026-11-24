@@ -5,7 +5,7 @@ name: Mika Business Automations
 problem: |
   Staff retyped orders between group companies and entered vehicle trips by hand.
 context: |
-  First built as a single Go service, later moved into SapForge in Python on its own background worker.
+  First built as a single Go service, later moved into the main platform in Python on its own background worker.
 skills:
   - slug: sap-business-one-integration
     name: SAP Business One integration
@@ -49,6 +49,6 @@ cannot run twice at once for a company, late runs are not repeated, and unusual
 cases go to a person for review. The vehicle trip records hold about 133,000
 entries.
 
-Wrote the first version in Go with PostgreSQL and Docker. Moved it into SapForge
+Wrote the first version in Go with PostgreSQL and Docker. Moved it into the main platform
 to reduce the number of systems to support, keeping its schedules, history and
 settings.

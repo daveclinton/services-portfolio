@@ -6,7 +6,7 @@ problem: |
   Mika's operational applications needed reliable links to ERP, fleet,
   communications, devices, storage, and secure on-premise production services.
 context: |
-  Source-audited from sapforge-deploy, nginx-vsvr26, wialon, scraping,
+  Source-audited from the deployment scripts, nginx-vsvr26, wialon, scraping,
   send-sms, openapi, and zte-socket-test.
 skills:
   - slug: full-stack-development

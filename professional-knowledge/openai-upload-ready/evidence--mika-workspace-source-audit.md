@@ -25,8 +25,8 @@ and deployment files were inspected where available.
 | `mika-care` | Legacy PHP after-sales, service, delivery, attendance, document and reporting workflows |
 | `nginx-vsvr26` | Production Nginx reverse-proxy, host routing and TLS configuration |
 | `openapi` | Vendored Meta WhatsApp OpenAPI specification used as an integration reference; not authored by David |
-| `sapforge` | Django/DRF enterprise backend and Next.js administration console |
-| `sapforge-deploy` | Linux bootstrap, release deployment, Nginx, systemd, Gunicorn, worker and DMZ scripts |
+| `main-platform` | Django/DRF enterprise backend and Next.js administration console |
+| `platform-deploy` | Linux bootstrap, release deployment, Nginx, systemd, Gunicorn, worker and DMZ scripts |
 | `scraping` | Playwright/httpx product scraping and SAP-keyed object-storage asset preparation |
 | `send-sms` | Python SMS campaign preparation and delivery automation |
 | `tv-dashboards-backend` | FastAPI dashboard service over PostgreSQL, Redis, SAP HANA and MSSQL |
@@ -39,7 +39,7 @@ and deployment files were inspected where available.
 ## Authorship evidence
 
 Local Git history identifies `daveclinton`/David Clinton as the dominant author
-of `dawda-dashboards`, `sapforge`, `sapforge-deploy`, `scraping`,
+of `dawda-dashboards`, `main-platform`, `platform-deploy`, `scraping`,
 `tv-dashboards-backend`, `wialon`, and `wms-backend`. Third-party repository
 history is explicitly excluded from original-authorship claims.
 

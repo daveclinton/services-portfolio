@@ -5,7 +5,7 @@ name: Mika After-Sales Operations
 problem: |
   Repair complaints, job cards, spare parts and warranty records were spread across older systems, and their status did not always match what had happened.
 context: |
-  Work on the after-sales module in SapForge and on Mika Care, the older PHP system that David took over and maintains.
+  Work on the after-sales module in the main platform and on Mika Care, the older PHP system that David took over and maintains.
 skills:
   - slug: full-stack-development
     name: Full-stack development
@@ -34,7 +34,7 @@ technologies:
     category: database
 ---
 
-Built the after-sales module in SapForge. Staff start a complaint from a phone
+Built the after-sales module in the main platform. Staff start a complaint from a phone
 number or serial number, assign technicians, record troubleshooting, complete
 and review job cards, and close or reopen cases. Each case shows its real stage
 and the next action.

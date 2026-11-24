@@ -2,7 +2,7 @@
 
 Date: 2026-11-23
 
-David Clinton confirmed that SapForge commits made through his work Git account
+David Clinton confirmed that commits to the main platform made through his work Git account
 are his own work.
 
 Scale figures are aggregate counts from read-only queries of the company's SAP

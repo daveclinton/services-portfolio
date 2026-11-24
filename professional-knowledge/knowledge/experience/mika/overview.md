@@ -23,7 +23,7 @@ across LAN, DMZ, and public entry points.
 
 Mika is a group of home appliance companies in Kenya and Rwanda. Its warehouses,
 shops, delivery teams and repair teams use these systems every day. Built
-SapForge, the main back-end system and staff web application, with about 1,600
+the main back-end system and staff web application, with about 1,600
 automated back-end tests.
 
 The SAP environment these systems connect to recorded about 480,000 business
