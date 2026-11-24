@@ -6,10 +6,10 @@ export const site = {
   name: "David Clinton",
   legalName: "David Clinton Hellen",
   alternateNames: ["David Clinton Hellen", "Dave Clinton", "daveclintonn"],
-  jobTitle: "Staff-Level Software Engineer",
-  title: "David Clinton | Staff-Level Software Engineer",
+  jobTitle: "Software Engineer",
+  title: "David Clinton | Software Engineer in Kenya",
   description:
-    "David Clinton is a staff-level software engineer in Kenya. He takes problems from first idea to production across AI, back end, front end, mobile and infrastructure.",
+    "David Clinton is a software engineer in Nairobi, Kenya. He solves everyday business problems and designs systems that run and scale.",
   url: "https://www.daveclintonn.cc",
   location: { country: "Kenya", countryCode: "KE" },
 } as const
@@ -37,15 +37,15 @@ export const workLinks = {
 } as const
 
 export const intro = {
-  headline: "I take the whole problem, from the first idea to production.",
+  headline: "I solve everyday problems with systems that run and scale.",
 } as const
 
 /** Typical ranges in USD, reviewed 2026-11-23. Keep in sync with the contracting-rate-2026 evidence record. */
 export const services = [
-  { title: "AI systems and automation", price: "$50–75 an hour" },
-  { title: "Full-stack web and mobile", price: "$45–55 an hour" },
-  { title: "AI assistant testing", price: "from $500" },
-  { title: "Technical articles", price: "$300–600 each" },
+  "AI systems and automation usually cost $50 to $75 an hour.",
+  "Web and mobile work usually costs $45 to $55 an hour.",
+  "Testing an AI assistant starts at $500.",
+  "A technical article usually costs $300 to $600.",
 ] as const
 
 export type TimelineEntry = {
@@ -77,15 +77,15 @@ export const backgroundItems: TimelineEntry[] = [
     location: "Kenya",
     start: "Oct 2025",
     description:
-      "I build and support the systems that warehouses, shops, delivery teams and repair teams use every day at a group of home appliance companies in Kenya and Rwanda.",
+      "I build and support the systems that Mika’s employees use to serve thousands of customers across Kenya, Uganda and Rwanda.",
     highlights: [
-      "Built SapForge, the main back-end system and staff web application, with about 1,600 automated back-end tests.",
-      "Built and run an AI assistant that shows each person only the data they are allowed to see and asks before changing anything.",
-      "Support systems connected to an SAP environment that records about 480,000 business documents a year across five group companies.",
-      "Automated order entry between group companies, replacing typing that staff estimate took 20 minutes per order.",
-      "Built last-mile delivery, after-sales, showroom, consignment and messaging modules, and a Kotlin warehouse app on Google Play.",
-      "Reviewed a year of repair and warranty records, about 30,000 cases, and reported the problems to the finance team with evidence for each.",
-      "Took over the shop and repair systems from a previous developer and wrote a handbook so others can run and support them.",
+      "Automated the copying of orders between companies, which staff said took about 20 minutes for each order.",
+      "Built an AI assistant that answers staff questions and asks for approval before it changes anything.",
+      "Reviewed about 30,000 repair cases and gave the finance team evidence of the problems found.",
+      "Built systems that help teams follow sales, deliveries and repairs from start to finish.",
+      "Support systems connected to business records that grow by about 480,000 documents a year across five companies.",
+      "Took over two systems from a previous developer and kept them running for the people who depend on them.",
+      "Wrote a handbook so that other people can run and support the company’s systems.",
     ],
   },
   {

@@ -25,11 +25,13 @@ This document is everything my Digital Mind should know about my work. It is wri
 
 # Profile
 
-I am a Software Engineer based in Kenya with verified experience delivering enterprise operations systems, multi-tenant SaaS products, mobile applications, AI-enabled platforms, data-visualization tools and developer education. I work across product design, frontend and backend engineering, databases, external integrations, deployment, Linux infrastructure and networking, taking systems from implementation through operational delivery.
+I am a Software Engineer based in Nairobi, Kenya. I spend most of my days solving problems that we see every day, taking ownership of the problem nobody owns, and designing systems that run and scale. I talk to the people doing the work, build what they need and look after it once they start using it.
 
-Mika is a group of home appliance companies in Kenya and Rwanda with about 400 employees. The SAP environment my systems connect to records about 480,000 business documents a year across five group companies, including documents created in other tools. The 400 employees are the size of the company. The number of people who use my systems each day has not been counted.
+Mika is a group of home appliance companies. Its employees use the systems I build and support every day to serve thousands of customers across Kenya, Uganda and Rwanda. The SAP environment my systems connect to records about 480,000 business documents a year across five group companies, including documents created in other tools.
 
-At Mika (Ideal Appliances), I build and operate warehouse, logistics, eWarranty, after-sales, employee-management, fleet-telematics, dashboard and automation systems connected to SAP Business One and SAP HANA. My warehouse work replaced manual SAP Business One entry by creating delivery notes, goods issues and goods receipts after source documents are scanned. I also delivered a warranty-registration application used by six outlets in Rwanda that automates sales orders, delivery notes and goods issues. This estate includes a native Kotlin warehouse application with Honeywell scanning, offline-safe workflows and automated Google Play delivery; FastAPI and Django services; PostgreSQL and Redis; and production Linux, Nginx, Docker, systemd and network operations.
+At Mika (Ideal Appliances), I help teams spend less time on repeated work, find the information they need and keep their records correct. Employees can ask an AI assistant about company records, follow deliveries and repairs, and register customer warranties. Documents that were typed by hand are created after an item is scanned.
+
+I built these systems with Django, FastAPI, PostgreSQL, Redis, Next.js and Kotlin, connected them to SAP Business One and SAP HANA, and run them on Linux servers.
 
 I have shipped cross-platform products through Apple's App Store and Google Play and deployed web and backend systems to AWS and Vercel. For Tai Ora, I contributed across Flutter, Django, Angular and Next.js applications, integrated OpenAI and other cloud services, and supported a rollout to three schools with approximately 30 monthly users. My wider product work includes Aqua Prana's Expo mobile, Next.js administration and Rust/Axum API stack; the ICAD web and mobile conference platform; and HANA Enterprise Intelligence, which provides a permissioned, read-only natural-language analytics layer over SAP HANA.
 
@@ -45,15 +47,19 @@ I take on AI assistant, SAP automation, full-stack and technical writing work. T
 
 Dates and location: 2025-10 to present | Mombasa County, Kenya (on-site)
 
-Software engineering across MIKA's operational estate: warehouse management, eWarranty, after-sales service, attendance and HR, fleet telematics, management dashboards, product-data pipelines, messaging automation, backend services, and Android scanner workflows.
-
-Architected and operated Django and FastAPI services backed by PostgreSQL and Redis, integrated with SAP Business One Service Layer, SAP HANA, MSSQL, Wialon, Firebase, WhatsApp, SMS, email, and object storage. Built React/Next.js and Vue/Vite interfaces alongside native Kotlin Android applications. Deployed the systems to self-managed Linux infrastructure using Nginx, systemd, Gunicorn, Uvicorn, Docker Compose, release scripts, health checks, and rollback workflows across LAN, DMZ, and public entry points.
-
-Mika is a group of home appliance companies in Kenya and Rwanda. Its warehouses, shops, delivery teams and repair teams use these systems every day. Built SapForge, the main back-end system and staff web application, with about 1,600 automated back-end tests.
+Mika is a group of home appliance companies. Its employees use the systems David builds and supports to serve thousands of customers across Kenya, Uganda and Rwanda. They spend less time typing the same information twice, can find answers in company records by asking a question, and can follow a sale, delivery or repair to the end. The company also has evidence of problems in past records and a handbook for running its systems.
 
 The SAP environment these systems connect to recorded about 480,000 business documents across five group companies in the 12 months to November 2026, an average of about 1,300 a day. These include orders, deliveries, invoices, payments and stock movements. Not every document passes through the systems David built.
 
+#### How it was built
+
+Built the main back-end system and staff web application, with about 1,600 automated back-end tests, along with native Kotlin Android applications. Architected and operated Django and FastAPI services backed by PostgreSQL and Redis, integrated with SAP Business One Service Layer, SAP HANA, MSSQL, Wialon, Firebase, WhatsApp, SMS, email and object storage. Built React/Next.js and Vue/Vite interfaces. Deployed the systems to self-managed Linux infrastructure using Nginx, systemd, Gunicorn, Uvicorn and Docker Compose, with backups, health checks and automatic return to the previous code when a release fails.
+
 ### What I did
+
+David helps Mika's employees spend less time on repeated work, find answers in company records and keep those records correct, so they can serve customers across Kenya, Uganda and Rwanda. He talks to the people doing the work, builds what they need and supports it afterwards.
+
+#### How the work is done
 
 - Architected multi-tenant warehouse, eWarranty, after-sales, attendance/HR, analytics, and automation services using Django/DRF and FastAPI.
 - Built role-based warehouse mobile flows for Picker, Mantrap and Admin users with Kotlin, Jetpack Compose, Material 3, Navigation Compose, Hilt, Retrofit/OkHttp and DataStore.
@@ -71,7 +77,7 @@ The SAP environment these systems connect to recorded about 480,000 business doc
 - Built and maintained Linux deployments with Nginx reverse proxying, systemd services and timers, Gunicorn/Uvicorn processes, Docker Compose dependencies, PostgreSQL backups, health checks, logs, release symlinks, and rollback.
 - Configured internal DNS, LAN/DMZ routing, TLS termination boundaries, CORS and trusted-host policies, UFW rules, HTTP proxy headers, Unix sockets, and TCP/SSH connectivity tests for on-premise systems and devices.
 - Built an AI assistant in production that answers staff questions with live company data and asks for approval before changing anything.
-- Built the last-mile delivery, after-sales, showroom, consignment, marketplace pricing and messaging modules in SapForge.
+- Built the last-mile delivery, after-sales, showroom, consignment, marketplace pricing and messaging modules in the main platform.
 - Automated order entry between group companies, with previews, run logs and review of unusual cases.
 - Took over the outlet and repair systems from a previous developer, support them in production and wrote a handbook for the people who run them.
 - Work directly with finance, warehouse, shop and repair teams without a product manager in between.
@@ -79,15 +85,15 @@ The SAP environment these systems connect to recorded about 480,000 business doc
 
 ### Outcomes
 
-- Architected a multi-tenant operations platform spanning warehouse, eWarranty, after-sales, attendance/HR, dashboards, telematics and automation across Django, FastAPI, PostgreSQL, Redis, SAP and native Android systems.
-- Built and shipped a Kotlin warehouse management system to Google Play, integrated with the production warehouse backend, on-premise SAP systems, Honeywell scanning hardware, geofencing and Firebase messaging. (https://play.google.com/store/apps/details?id=com.dawda.mikawms)
-- Automated signed APK/AAB builds, Firebase tester distribution and closed/production Google Play releases with GitHub Actions and federated Google Cloud authentication.
-- Integrated Honeywell warehouse scanners using the Data Collection Intent and AIDC APIs, alongside CameraX and ML Kit barcode scanning.
-- Shipped a warranty registration app for outlet stores that automates backend transactional documents, with ZKTeco attendance integration.
-- Built and operated production Linux deployment workflows using Nginx, systemd, Gunicorn, Uvicorn, Docker Compose, firewalls, health checks, backups and rollback procedures across internal and DMZ entry points.
-- Built a resilient Wialon-to-SAP HANA fleet-trip synchronization and reconciliation pipeline with transactional writes and scheduled Linux execution.
+- Gave Mika's teams one connected set of systems to follow sales, stock, deliveries, warranties, repairs and attendance, so they enter the same information fewer times.
+- Employees scan items and the system creates the stock document, which replaced typing it by hand. The app is on Google Play. (https://play.google.com/store/apps/details?id=com.dawda.mikawms)
+- Automated mobile releases, so updates are built and signed the same way each time and can go to a test group first.
+- Employees can scan items with work scanners or with a phone camera.
+- Customers can have a product warranty registered at the shop, and the sale and delivery records are created from the same information.
+- Runs Mika's services with security, backups, health checks and a way to return to the previous code, so the business can recover when something fails.
+- Vehicle trips are recorded without typing, and past trips can be corrected.
 - Builds and supports systems connected to an SAP environment that recorded about 480,000 business documents across five group companies in the 12 months to November 2026.
-- Author of nearly all commits to SapForge, the main back-end system and staff web application at Mika, which has about 1,600 automated back-end tests.
+- Author of nearly all commits to the main back-end system and staff web application at Mika, which has about 1,600 automated back-end tests.
 
 ### Technologies
 
@@ -412,13 +418,17 @@ Skills: Full-stack development, Mobile development, AI product integration.
 
 Problem: Repair complaints, job cards, spare parts and warranty records were spread across older systems, and their status did not always match what had happened.
 
-Context: Work on the after-sales module in SapForge and on Mika Care, the older PHP system that David took over and maintains.
+Context: Work on the after-sales module in the main platform and on Mika Care, the older PHP system that David took over and maintains.
 
 Skills: Full-stack development, SAP Business One integration, Data quality and reconciliation.
 
 Technologies: Django 5 / Django REST Framework, SAP HANA, SAP Business One, PHP, MySQL.
 
-Built the after-sales module in SapForge. Staff start a complaint from a phone number or serial number, assign technicians, record troubleshooting, complete and review job cards, and close or reopen cases. Each case shows its real stage and the next action.
+Customers who report a faulty product have one case that staff can follow until it is closed. Employees can see the next step and who is responsible for it. The finance team received evidence of problems in past records, so they could see what needed to be corrected.
+
+#### How it was built
+
+Built the after-sales module in the main platform. Staff start a complaint from a phone number or serial number, assign technicians, record troubleshooting, complete and review job cards, and close or reopen cases. Each case shows its real stage and the next action.
 
 Took over Mika Care, the older PHP repair system, and fixes problems in live use, including the serial numbers recorded on replacements, spare-part lists, approvals and stock received between warehouses. Reviewed a year of repair and warranty records against the stock and accounting entries behind them, about 30,000 cases, and reported the problems to the finance team with evidence for each.
 
@@ -426,18 +436,22 @@ At the time of review, the records held about 137,000 repair complaints, 134,000
 
 ### What I built and shipped
 
-- Built complaint registration, technician assignment, job-card stages, review and closing for the after-sales team in SapForge.
+- Built complaint registration, technician assignment, job-card stages, review and closing for the after-sales team in the main platform.
 - After-sales systems at Mika draw on about 137,000 repair complaints, 134,000 job cards and 200,000 warranty registrations.
 
 ## Mika AI Assistant
 
 Problem: Staff needed answers from company records without writing queries or searching several screens, and without seeing data they are not allowed to see.
 
-Context: Part of SapForge, the main back-end system and staff web application at Mika. It is in production.
+Context: Part of the main back-end system and staff web application at Mika. It is in production.
 
 Skills: AI product integration, Full-stack development, SAP Business One integration.
 
 Technologies: Django 5 / Django REST Framework, OpenAI API, Gemini API, Next.js 16, SAP HANA.
+
+Employees can ask a question and get an answer from live company records. They see only what they are allowed to see, and nothing is changed until a person approves it. This lets the company use AI with its own information while people stay in charge.
+
+#### How it was built
 
 Built an AI assistant that staff use to look up live company data. It runs every lookup as the signed-in person, so each person sees only what they are allowed to see. It can suggest a change, but the change is sent only after the person presses Approve, once, before it expires, and with that person's permissions.
 
@@ -454,22 +468,26 @@ The assistant works with OpenAI and Gemini models, limits how many lookups each 
 
 Problem: Staff retyped orders between group companies and entered vehicle trips by hand.
 
-Context: First built as a single Go service, later moved into SapForge in Python on its own background worker.
+Context: First built as a single Go service, later moved into the main platform in Python on its own background worker.
 
 Skills: SAP Business One integration, Full-stack development, Data quality and reconciliation.
 
 Technologies: Go, Python, Django 5 / Django REST Framework, Django Q2, Wialon HTTP API, SAP HANA, Docker Compose.
 
+Employees no longer have to copy every order from one company's records to another. Staff estimated that each order took 20 minutes to type. People can check the result before it is saved, and unusual orders still go to a person.
+
+#### How it was built
+
 Automated order entry between group companies, the recording of vehicle trips and the reconciliation of invoices paid with loyalty points. Staff estimate that each order took 20 minutes to type by hand.
 
 Every run is logged and can be previewed before it saves anything. The same job cannot run twice at once for a company, late runs are not repeated, and unusual cases go to a person for review. The vehicle trip records hold about 133,000 entries.
 
-Wrote the first version in Go with PostgreSQL and Docker. Moved it into SapForge to reduce the number of systems to support, keeping its schedules, history and settings.
+Wrote the first version in Go with PostgreSQL and Docker. Moved it into the main platform to reduce the number of systems to support, keeping its schedules, history and settings.
 
 ### What I built and shipped
 
 - Automated order entry between group companies, vehicle trip recording and loyalty-point reconciliation, with previews, run logs and review of unusual cases.
-- Moved the automations from a Go service into SapForge while keeping their schedules, history and settings.
+- Moved the automations from a Go service into the main platform while keeping their schedules, history and settings.
 
 ## Mika Enterprise Operations Platform
 
@@ -477,13 +495,17 @@ Problem: Warehouse, warranty, after-sales, staff, and operational processes need
 
 Skills: Full-stack development, API documentation.
 
+This platform gives Mika's teams one place to follow sales, stock, deliveries, warranties and repairs. Employees spend less time typing the same information twice, and the records stay separate for each company. This helps Mika serve thousands of customers across Kenya, Uganda and Rwanda.
+
+#### How it was built
+
 Built a tenant-aware enterprise platform using Django 5, Django REST Framework, FastAPI, PostgreSQL, Redis, SAP Business One Service Layer, SAP HANA, and MSSQL. The platform supports warehouse documents and scanning, eWarranty registrations and certificates, after-sales processes, user onboarding and roles, notifications, geofencing, analytics, and scheduled automation.
 
 Client surfaces include Kotlin Android applications, Next.js 16/React 19 admin and warranty applications, and legacy PHP operational modules. APIs use JWT, API-key and OTP flows, tenant isolation, throttling, structured logging, OpenAPI/Swagger/ReDoc schemas, and production-shaped mock services for offline development.
 
 ### What I built and shipped
 
-- Built tenant-aware Django and FastAPI services for warehouse, warranty, after-sales, staff, notifications, geofencing, analytics and SAP-connected workflows.
+- Built the shared platform Mika's teams use for stock, warranties, repairs, staff and messages, with each company's records kept separate.
 - Used Next.js 16, React 19, TypeScript, Tailwind CSS 4, shadcn/ui, Better Auth, Drizzle ORM, Prisma, Zod and PostgreSQL for eWarranty and administration interfaces.
 
 ## Mika Integrations and Infrastructure
@@ -491,6 +513,10 @@ Client surfaces include Kotlin Android applications, Next.js 16/React 19 admin a
 Problem: Mika's operational applications needed reliable links to ERP, fleet, communications, devices, storage, and secure on-premise production services.
 
 Skills: Full-stack development, Linux infrastructure and networking.
+
+Mika's systems exchange information without people copying it between them. Customers receive messages about their orders and warranties. The servers are set up with security, backups, health checks and a way to return to the previous code, so the company can recover when something fails.
+
+#### How it was built
 
 Built and operated Linux services using Nginx, systemd, Gunicorn, Uvicorn, Django Q, Docker Compose, Bash, Git/SSH deployment, UFW, journal logs, health checks, database backups, release directories, symlink activation, and code rollback. Configured internal DNS and Host routing, LAN and DMZ entry points, TLS termination boundaries, proxy headers, CORS/CSRF/trusted-host policy, Unix sockets, TCP connectivity, and scheduled services and timers.
 
@@ -516,11 +542,15 @@ Integration work includes Wialon HTTP/JSON reports synchronized into SAP HANA; Z
 
 Problem: Deliveries to customers needed one record from the order to the customer's door, with drivers, vehicles, stops and proof of delivery in one place.
 
-Context: Last-mile module in SapForge, with a web console for planners and interfaces for drivers.
+Context: Last-mile module in the main platform, with a web console for planners and interfaces for drivers.
 
 Skills: Full-stack development, SAP Business One integration, Mobile development.
 
 Technologies: Django 5 / Django REST Framework, PostgreSQL, SAP HANA, Next.js 16, MapLibre GL.
+
+Delivery planners can follow an order from the company to the customer's door. They can see who has it, where it is and whether the customer received it. The team can plan the load and the route before the vehicle leaves.
+
+#### How it was built
 
 Built the delivery module that takes orders from several sources and follows each one through warehouse allocation, route planning, vehicle loading, driver assignment and delivery. It records delivery attempts, proof of delivery, cash collected, live driver location and problems on the road.
 
@@ -535,6 +565,10 @@ Loading plans take vehicle space and stop order into account. Every change is ke
 Problem: Operational teams needed secure, continuously available dashboard views over SAP, attendance, reviews, and business data.
 
 Skills: Data visualization, Frontend development.
+
+Managers and teams can see attendance, deliveries and customer complaints on one screen without asking someone to prepare a report. This helps them notice work that needs attention.
+
+#### How it was built
 
 Built Vue 3/Vite and React/Next.js dashboard surfaces using TypeScript, Pinia, ECharts, Recharts/ApexCharts, Tailwind CSS, and reusable UI components. Built a FastAPI backend over PostgreSQL, Redis, SAP HANA, and MSSQL, with explicit read/admin access boundaries, CORS/trusted-host policy, structured logging, health endpoints, and scraper integrations.
 
@@ -555,6 +589,10 @@ Skills: Full-stack development, SAP Business One integration, Linux infrastructu
 
 Technologies: FastAPI, MySQL, Celery, RabbitMQ, SAP Business One.
 
+Shop teams in Kenya and Rwanda kept the system they depend on after its developer left. Problems that stopped their work were fixed, and the handbook means the company does not depend on one person's memory.
+
+#### How it was built
+
 Took over the system shop teams in Kenya and Rwanda use for outlet visits, stock counts and sales orders. Moved its code into version control with passwords removed, fixed live problems such as one-time codes not reaching customers, and corrected the records from a Rwanda stock count covering 1,213 units while keeping five later sales intact.
 
 Wrote a handbook that covers the company's applications, servers, support steps and past problems so that other people can run and support them.
@@ -567,11 +605,15 @@ Wrote a handbook that covers the company's applications, servers, support steps 
 
 Problem: Showrooms and outlets needed stock, sales and prices that agree with SAP, and teams needed to reach customers by SMS.
 
-Context: Retail, consignment, marketplace and notification modules in SapForge.
+Context: Retail, consignment, marketplace and notification modules in the main platform.
 
 Skills: Full-stack development, SAP Business One integration, Mobile development.
 
 Technologies: Django 5 / Django REST Framework, SAP Business One, SAP HANA, Glovo Partner API, Africa's Talking, Kotlin, Room, Next.js 16.
+
+Shop teams can sell, receive payment and check stock with records that agree with the company's main books. Online customers see prices that come from the same price list. Teams can also reach many customers by SMS and see which messages failed.
+
+#### How it was built
 
 Built showroom and outlet workflows that record sales, payments, deliveries and goods received in SAP. Built a consignment check for Rwanda that compares stock counts with serial records to find what a branch has sold, with a person approving each step.
 
@@ -591,6 +633,10 @@ Context: Kotlin app with Jetpack Compose, Material 3 and Hilt, deployed to the P
 Skills: Mobile development.
 
 Technologies: Kotlin, Android, Jetpack Compose, FastAPI, PostgreSQL, Redis, Firebase, Honeywell Data Collection Intent / AIDC APIs, CameraX, ML Kit Barcode Scanning, Retrofit / OkHttp / Moshi, WorkManager, GitHub Actions, Firebase App Distribution, Google Play Console and Android Publisher API.
+
+Employees used to type stock documents by hand. They now scan the items and the system creates the document after checking it. This saves repeated work and helps the company know what it has received and sent out. The app keeps work on the device when the connection is weak and sends it later, so the records stay in sync.
+
+#### How it was built
 
 Warehouse management system at Mika: role-based Kotlin Android app on the Play Store with scanner-driven floor workflows, geofenced warehouse presence, push notifications, offline-safe background work, and secure API integration. It is backed by FastAPI services on PostgreSQL/Redis connected to SAP inventory data and shipped through automated Firebase and Google Play release pipelines. Scanning base documents triggers automatic creation of SAP Business One delivery notes, goods issues and goods receipts, replacing manual entry through the SAP Business One client.
 
@@ -612,6 +658,10 @@ Context: App for outlet stores writing warranty and service data through the SAP
 Skills: Mobile development.
 
 Technologies: Kotlin, Android, SAP Business One, ZKTeco.
+
+Customers get their product warranty registered at the shop. The sale and delivery records are created from the same information, so shop staff do not have to enter them again. Six outlets in Rwanda use it.
+
+#### How it was built
 
 Warranty registration app for Mika outlet stores: automates creating transactional documents in the backend, with ZKTeco systems integrated for staff attendance.
 

@@ -5,7 +5,7 @@ module.exports = {
   headline: "Software Engineer, Systems and AI Integration",
   // One inner list per line.
   contact: [
-    ["Mombasa, Kenya", "+254 701 176 923", "clintondavid46@gmail.com"],
+    ["Nairobi, Kenya", "+254 701 176 923", "daveclintonn@icloud.com"],
     ["daveclintonn.cc", "linkedin.com/in/clintondavid46", "github.com/daveclinton"],
   ],
 
@@ -29,9 +29,9 @@ module.exports = {
       place: "Mombasa, Kenya",
       dates: "Oct 2025 – Present",
       bullets: [
-        "Built SapForge, the Django REST backend that connects warehouse, eWarranty and last-mile delivery workflows to SAP Business One (Service Layer) and SAP HANA for several group companies.",
+        "Built the Django REST backend that connects warehouse, eWarranty and last-mile delivery workflows to SAP Business One (Service Layer) and SAP HANA for several group companies.",
         "Replaced manual SAP entry in the warehouse. Delivery notes, goods issues and goods receipts are now posted to SAP after staff scan the source documents.",
-        "Built an AI assistant inside SapForge that answers staff questions by calling read-only lookup tools as the signed-in user. Writes are saved as proposed actions and run through the existing API endpoint, with its permission checks, only after the user approves them. A grounding check sends the model back to the data when it quotes figures it did not look up; actions and grounding have automated tests.",
+        "Built an AI assistant that answers staff questions by calling read-only lookup tools as the signed-in user. Writes are saved as proposed actions and run through the existing API endpoint, with its permission checks, only after the user approves them. A grounding check sends the model back to the data when it quotes figures it did not look up; actions and grounding have automated tests.",
         "Built a transactional outbox for delivery events sent to SAP. Each event is written in the same database transaction as the business change under a stable idempotency key, retried with exponential backoff, dead-lettered after the last attempt and replayable under the same key. The SAP Service Layer client behind it uses connect and read timeouts, ETag concurrency checks and typed errors marked retryable or permanent.",
         "Built the Wialon-to-SAP HANA fleet trip sync and intercompany sales-order automations in a Go service. Jobs run on a schedule, every run is logged to PostgreSQL, a preview mode shows changes before writing, and an HTTP API reports job status.",
         "Built two native Kotlin Android apps released on Google Play: a warehouse app with Honeywell scanner support that stores scans in a local queue and syncs them in the background when the network returns, and a warranty and service app for Azone.",

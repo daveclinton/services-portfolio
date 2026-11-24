@@ -6,7 +6,7 @@ problem: |
   Mika's operational applications needed reliable links to ERP, fleet,
   communications, devices, storage, and secure on-premise production services.
 context: |
-  Source-audited from sapforge-deploy, nginx-vsvr26, wialon, scraping,
+  Source-audited from the deployment scripts, nginx-vsvr26, wialon, scraping,
   send-sms, openapi, and zte-socket-test.
 skills:
   - slug: full-stack-development
@@ -16,6 +16,13 @@ skills:
     name: Linux infrastructure and networking
     category: infrastructure
 ---
+
+Mika's systems exchange information without people copying it between them.
+Customers receive messages about their orders and warranties. The servers are set up
+with security, backups, health checks and a way to return to the previous code, so
+the company can recover when something fails.
+
+## How it was built
 
 Built and operated Linux services using Nginx, systemd, Gunicorn, Uvicorn,
 Django Q, Docker Compose, Bash, Git/SSH deployment, UFW, journal logs, health

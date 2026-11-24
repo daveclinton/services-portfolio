@@ -9,7 +9,7 @@ claims:
     title: Mika Business Automations
     source_path: sources/attestations/david-clinton-2026-11-23.md
   - slug: mika-automations-migrated
-    claim: "Moved the automations from a Go service into SapForge while keeping their schedules, history and settings."
+    claim: "Moved the automations from a Go service into the main platform while keeping their schedules, history and settings."
     confidence: confirmed
     evidence_type: repository
     title: Mika Business Automations

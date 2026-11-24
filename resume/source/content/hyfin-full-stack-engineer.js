@@ -4,7 +4,7 @@ module.exports = {
   name: "David Clinton Hellen",
   headline: "Full-Stack Engineer | LLM Agents, Data Pipelines, and Financial Data Products",
   contact: [
-    ["Mombasa, Kenya (UTC+3, Remote)", "+254 701 176 923", "daveclintonn@icloud.com"],
+    ["Nairobi, Kenya (UTC+3, Remote)", "+254 701 176 923", "daveclintonn@icloud.com"],
     ["daveclintonn.cc", "github.com/daveclinton", "linkedin.com/in/clintondavid46"],
   ],
   splitJobs: true,
@@ -36,7 +36,7 @@ module.exports = {
         "Corrected the records from a Rwanda stock count covering 1,213 units, keeping 5 sales made after the count intact and setting aside unclear items for review instead of overwriting history.",
         "Automated order entry between group companies and the recording of vehicle trips, replacing manual typing that staff estimate takes 20 minutes per order. Every run is logged, can be previewed before it saves anything, and sends unusual cases to a person for review.",
         "Built a reliable way to send delivery updates to the finance and stock system, so that failed updates are retried and never recorded twice.",
-        "Built SapForge, the main back-end system and staff web application for warehouse work in Kenya and Rwanda. It records goods received, deliveries, returns, and stock counts in SAP only after items are scanned and checked, and it blocks duplicate entries.",
+        "Built the main back-end system and staff web application for warehouse work in Kenya and Rwanda. It records goods received, deliveries, returns, and stock counts in SAP only after items are scanned and checked, and it blocks duplicate entries.",
         "Took over the shop sales and repair systems from a previous developer, moved the sales system's code into version control with passwords removed, and wrote a handbook so that others can run and support them.",
         "Deploy and run these systems on Linux servers, with health checks, database backups, and written steps for undoing a bad release.",
       ],

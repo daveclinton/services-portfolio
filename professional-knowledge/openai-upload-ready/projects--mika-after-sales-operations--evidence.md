@@ -3,7 +3,7 @@ type: project-evidence
 project: mika-after-sales-operations
 claims:
   - slug: mika-after-sales-built
-    claim: "Built complaint registration, technician assignment, job-card stages, review and closing for the after-sales team in SapForge."
+    claim: "Built complaint registration, technician assignment, job-card stages, review and closing for the after-sales team in the main platform."
     confidence: confirmed
     evidence_type: repository
     title: Mika After-Sales Operations

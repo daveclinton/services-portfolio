@@ -5,7 +5,7 @@ name: Mika AI Assistant
 problem: |
   Staff needed answers from company records without writing queries or searching several screens, and without seeing data they are not allowed to see.
 context: |
-  Part of SapForge, the main back-end system and staff web application at Mika. It is in production.
+  Part of the main back-end system and staff web application at Mika. It is in production.
 skills:
   - slug: ai-integration
     name: AI product integration
@@ -33,6 +33,12 @@ technologies:
     name: SAP HANA
     category: database
 ---
+
+Employees can ask a question and get an answer from live company records. They see
+only what they are allowed to see, and nothing is changed until a person approves it.
+This lets the company use AI with its own information while people stay in charge.
+
+## How it was built
 
 Built an AI assistant that staff use to look up live company data. It runs every
 lookup as the signed-in person, so each person sees only what they are allowed

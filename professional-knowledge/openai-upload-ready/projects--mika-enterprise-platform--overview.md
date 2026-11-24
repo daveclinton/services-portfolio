@@ -7,7 +7,7 @@ problem: |
   shared software foundation connected to SAP and usable across several group
   companies and client applications.
 context: |
-  Source-audited from the SapForge, WMS backend, mika-care, e-warranty, and
+  Source-audited from the main platform, WMS backend, mika-care, e-warranty, and
   related repositories in the Mika workspace.
 skills:
   - slug: full-stack-development
@@ -17,6 +17,13 @@ skills:
     name: API documentation
     category: communication
 ---
+
+This platform gives Mika's teams one place to follow sales, stock, deliveries,
+warranties and repairs. Employees spend less time typing the same information
+twice, and the records stay separate for each company. This helps Mika serve
+thousands of customers across Kenya, Uganda and Rwanda.
+
+## How it was built
 
 Built a tenant-aware enterprise platform using Django 5, Django REST Framework,
 FastAPI, PostgreSQL, Redis, SAP Business One Service Layer, SAP HANA, and MSSQL.

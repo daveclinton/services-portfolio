@@ -63,6 +63,14 @@ technologies:
     category: mobile delivery
 ---
 
+Employees used to type stock documents by hand. They now scan the items and the
+system creates the document after checking it. This saves repeated work and helps
+the company know what it has received and sent out. The app keeps work on the
+device when the connection is weak and sends it later, so the records stay in
+sync.
+
+## How it was built
+
 Warehouse management system at Mika: role-based Kotlin Android app on the
 Play Store with scanner-driven floor workflows, geofenced warehouse presence,
 push notifications, offline-safe background work, and secure API integration.

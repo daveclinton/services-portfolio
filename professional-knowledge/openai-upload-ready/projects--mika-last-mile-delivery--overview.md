@@ -5,7 +5,7 @@ name: Mika Last-Mile Delivery
 problem: |
   Deliveries to customers needed one record from the order to the customer's door, with drivers, vehicles, stops and proof of delivery in one place.
 context: |
-  Last-mile module in SapForge, with a web console for planners and interfaces for drivers.
+  Last-mile module in the main platform, with a web console for planners and interfaces for drivers.
 skills:
   - slug: full-stack-development
     name: Full-stack development
@@ -33,6 +33,12 @@ technologies:
     name: MapLibre GL
     category: maps
 ---
+
+Delivery planners can follow an order from the company to the customer's door. They
+can see who has it, where it is and whether the customer received it.
+The team can plan the load and the route before the vehicle leaves.
+
+## How it was built
 
 Built the delivery module that takes orders from several sources and follows each
 one through warehouse allocation, route planning, vehicle loading, driver

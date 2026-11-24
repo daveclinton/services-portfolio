@@ -5,7 +5,7 @@ name: Mika Retail, Marketplace and Messaging
 problem: |
   Showrooms and outlets needed stock, sales and prices that agree with SAP, and teams needed to reach customers by SMS.
 context: |
-  Retail, consignment, marketplace and notification modules in SapForge.
+  Retail, consignment, marketplace and notification modules in the main platform.
 skills:
   - slug: full-stack-development
     name: Full-stack development
@@ -42,6 +42,12 @@ technologies:
     name: Next.js 16
     category: web framework
 ---
+
+Shop teams can sell, receive payment and check stock with records that agree with the
+company's main books. Online customers see prices that come from the same price list.
+Teams can also reach many customers by SMS and see which messages failed.
+
+## How it was built
 
 Built showroom and outlet workflows that record sales, payments, deliveries and
 goods received in SAP. Built a consignment check for Rwanda that compares stock

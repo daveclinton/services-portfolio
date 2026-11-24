@@ -6,8 +6,8 @@ claims:
     claim: Deployed and operated Mika services on Linux with Nginx, systemd, Gunicorn, Uvicorn, Docker Compose, UFW, health checks, backups and rollback workflows.
     confidence: confirmed
     evidence_type: repository
-    title: SapForge and service deployment repositories
-    source_path: /Users/daveclintonn/dawda-workspace/sapforge-deploy
+    title: The main platform and service deployment repositories
+    source_path: sources/attestations/david-clinton-2026-11-23.md
   - slug: mika-networking
     claim: Configured reverse proxies, internal DNS/host routing, LAN and DMZ entry points, TLS termination boundaries, HTTP forwarding, Unix sockets, firewall rules and TCP/SSH device connectivity.
     confidence: confirmed

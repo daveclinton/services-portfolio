@@ -4,7 +4,7 @@ module.exports = {
   name: "David Clinton Hellen",
   headline: "Software Engineer | AI Agents, Evaluation, and Production Backends",
   contact: [
-    ["Mombasa, Kenya (UTC+3, remote)", "+254 701 176 923", "daveclintonn@icloud.com"],
+    ["Nairobi, Kenya (UTC+3, remote)", "+254 701 176 923", "daveclintonn@icloud.com"],
     ["daveclintonn.cc", "github.com/daveclinton", "linkedin.com/in/clintondavid46"],
   ],
   order: ["summary", "skills", "experience", "projects", "writing", "education"],
@@ -28,12 +28,12 @@ module.exports = {
       place: "Mombasa, Kenya",
       dates: "Oct 2025 – Present",
       bullets: [
-        "Built and run a production AI agent inside SapForge that answers staff questions by calling read-only lookup tools as the signed-in user, so it can only see what that user is permitted to see.",
+        "Built and run a production AI agent inside the company's main platform that answers staff questions by calling read-only lookup tools as the signed-in user, so it can only see what that user is permitted to see.",
         "Designed its write path as a review gate: writes are saved as proposed actions and run through the existing API endpoint, with its permission checks, only after the user approves them.",
         "Added a grounding check that sends the model back to the data when it quotes figures it did not look up, with automated tests for agent actions and grounding.",
         "Built a transactional outbox for SAP delivery events: each event is written in the same transaction as the business change under a stable idempotency key, retried with exponential backoff, dead-lettered after the last attempt, and replayable under the same key.",
         "Built a scheduled Go service for fleet trip sync and intercompany sales-order automation, with every run logged to PostgreSQL, a preview mode that shows changes before writing, and an HTTP API for job status.",
-        "Built SapForge, the Django REST backend connecting warehouse, eWarranty, and delivery workflows to SAP Business One and SAP HANA for several group companies.",
+        "Built the Django REST backend connecting warehouse, eWarranty, and delivery workflows to SAP Business One and SAP HANA for several group companies.",
         "Run these services on Linux with Nginx, systemd, and Docker Compose, including health checks, database backups, and written rollback steps.",
         "Automated Android releases with GitHub Actions, using Google Cloud Workload Identity Federation for short-lived credentials in place of stored service-account keys.",
       ],
