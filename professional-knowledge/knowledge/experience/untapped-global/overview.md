@@ -19,11 +19,9 @@ tools that helped the company prevent money laundering and detect fraud. He also
 investment and operations teams used to run the business every day. He connected financial information from other services
 and helped bring in new data as it arrived.
 
-Untapped Global reports these company totals from 2021 to the end of January 2025. It
-supported 578,231 entrepreneurs, helped them earn $46.5 million in revenue, created
-$3.83 of small-business revenue for each $1 invested and displaced 2,243 tons of CO2.
-These are the company's results, which David's work contributed to. David worked there
-from May 2022 to May 2024.
+When David joined, the platform had no guided tour, investors could not see their
+portfolio in charts and KYC was done by hand. He built the guided tour, the portfolio
+dashboard and the KYC screens.
 
 ## More detail
 

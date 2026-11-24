@@ -40,14 +40,6 @@ export const intro = {
   headline: "I solve everyday problems with systems that run and scale.",
 } as const
 
-/** Typical ranges in USD, reviewed 2026-11-23. Keep in sync with the contracting-rate-2026 evidence record. */
-export const services = [
-  "AI systems and automation usually cost $50 to $75 an hour.",
-  "Web and mobile work usually costs $45 to $55 an hour.",
-  "Testing an AI assistant starts at $500.",
-  "A technical article usually costs $300 to $600.",
-] as const
-
 export type TimelineEntry = {
   id: string
   company: string
@@ -126,13 +118,12 @@ export const backgroundItems: TimelineEntry[] = [
     description:
       "I worked on the investment platform that processed investors’ transactions, and on the internal platform the team used to run the business.",
     highlights: [
-      "Joined in May 2022, the month the company launched its investment platform.",
-      "The company supported 578,231 entrepreneurs and helped them earn $46.5 million from 2021 to January 2025.",
+      "Built a guided tour for new investors, which the platform did not have.",
+      "Built the dashboard where investors could see their portfolio in charts.",
+      "Built the KYC screens that replaced manual checks, with third-party tools that help prevent money laundering and detect fraud.",
       "Connected Plaid, which investors used to fund their investments.",
-      "Built the KYC screens and worked with third-party tools that help prevent money laundering and detect fraud.",
       "Worked on the internal management platform that the teams used in their daily work.",
       "Connected financial information from other services and helped bring in new data as it arrived.",
-      "Built dashboards that showed investors how their investments were doing.",
       "Reviewed code in a team of 12 engineers and worked between design and back-end teams.",
     ],
   },

@@ -670,10 +670,6 @@ html:has(.numbered) body {
   margin-top: 0.4em;
 }
 
-.signal-line {
-  display: block;
-}
-
 .signals-bar {
   position: fixed;
   inset-inline: 0;

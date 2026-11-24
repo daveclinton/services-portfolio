@@ -16,6 +16,10 @@ accomplishments:
     claim: "Connected Plaid so investors could fund their investments, built the KYC screens with third-party tools for preventing money laundering and detecting fraud, and worked on the internal management platform its teams used every day."
     confidence: confirmed
     source_path: sources/attestations/david-clinton-2026-11-24.md
+  - slug: untapped-platform-improvements
+    claim: "Built a guided tour, a portfolio dashboard with charts and KYC screens for Untapped Global, which had no tour or portfolio charts and did KYC by hand when he joined."
+    confidence: confirmed
+    source_path: sources/attestations/david-clinton-2026-11-24.md
 ---
 
 Investor dashboard, public website, Superset deployment and financial API
