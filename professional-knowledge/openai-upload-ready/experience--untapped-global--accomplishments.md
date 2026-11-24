@@ -8,6 +8,14 @@ accomplishments:
   - slug: untapped-financial-api-integrations
     claim: Integrated third-party financial APIs with error handling for investor and high-net-worth client dashboards.
     confidence: probable
+  - slug: untapped-investment-platform
+    claim: "Worked on the Untapped Global investment platform, which processed investors' transactions."
+    confidence: confirmed
+    source_path: sources/attestations/david-clinton-2026-11-24.md
+  - slug: untapped-admin-kyc
+    claim: "Connected Plaid so investors could fund their investments, built the KYC screens with third-party tools for preventing money laundering and detecting fraud, and worked on the internal management platform its teams used every day."
+    confidence: confirmed
+    source_path: sources/attestations/david-clinton-2026-11-24.md
 ---
 
 Investor dashboard, public website, Superset deployment and financial API

@@ -23,27 +23,59 @@ export const signals: Signal[] = [
   },
   {
     title: "The value I bring to Mika",
-    body: <><a href={workLinks.mika}>Mika</a> sells home appliances in Kenya, Uganda and Rwanda. Its employees use the systems I build and support to serve thousands of customers across the three countries. They spend less time typing the same information twice. They can also find answers in company records by asking a question.</>,
+    body: <><a href={workLinks.mika}>Mika</a> sells home appliances in Kenya, Uganda and Rwanda. Its employees use the systems I build and support to serve thousands of customers across the three countries. I also took over two older systems and wrote a handbook, so the company does not depend on one person.</>,
   },
   {
-    title: "Saving people time",
-    body: <>Staff at Mika told me that one order took about 20 minutes to copy from one company’s records to another. I automated that work, and people can check what will happen before anything is saved. Unusual orders still go to a person.</>,
+    title: "Saving time and correcting records at Mika",
+    body: <>One order used to take about 20 minutes to copy from one company’s records to another, so I automated it. I also reviewed about 30,000 repair cases. I gave the finance team evidence of the problems I found, so they could see what needed to be corrected.</>,
   },
   {
-    title: "Keeping records correct",
-    body: <>A business makes decisions from its records, so a wrong number can cost money. I reviewed about 30,000 repair cases at Mika and reported the problems I found to the finance team with evidence. They could then see what needed to be corrected.</>,
+    title: "Making AI safe to use at Mika",
+    body: <>Employees can ask an AI assistant a question and get an answer from live company records. It shows each person only what they are allowed to see. It also asks for approval before it changes anything, so people stay in charge.</>,
   },
   {
-    title: "Making AI safe to use at work",
-    body: <>People need to trust an AI assistant before they use it with company information. The one I built for Mika shows each person only what they are allowed to see. It also asks for approval before it changes anything, so people stay in charge.</>,
+    title: "My favorite role was at Untapped Global",
+    body: <><a href={workLinks.untapped}>Untapped Global</a> lets investors fund things that small businesses use to earn money. I joined in May 2022, the month it <a href="https://techcabal.com/2022/05/25/untapped-launches-investment-platform/">launched its investment platform</a>, and worked on that platform. From 2021 to January 2025, the company <a href="https://untapped-global.com/impact">supported 578,231 entrepreneurs</a> and helped them earn $46.5 million in revenue.</>,
   },
   {
-    title: "Making sure work is not lost",
-    body: <>Every sale, delivery and payment has to be saved correctly, even when the connection fails. I build the part of the system that customers do not see. It keeps unfinished work, tries again and avoids entering the same thing twice.</>,
+    title: "Powering daily operations at Untapped Global",
+    body: <>Investors used Plaid to fund their investments, and I connected it to the platform. I also built the KYC screens, where people prove who they are. We integrated third-party tools that helped the company prevent money laundering and detect fraud. The investment and operations teams used the internal platform I worked on every day.</>,
   },
   {
-    title: "Making software easy to use",
-    body: <>Good software helps people finish their work without asking for help. I build the screens that employees, customers and investors use. I learn how they work first, so the most common task is the easiest one to do.</>,
+    title: "Turning data into decisions at Untapped Global",
+    body: <>Untapped Global used live information from the things it financed to see how each business was doing. I connected financial information from other services, handled errors and helped bring in new data as it arrived. I also reviewed code in a team of 12 engineers and worked between design and back-end teams.</>,
+  },
+  {
+    title: "My first tech job was in AI at Paperspace",
+    body: <>Paperspace gave developers the powerful computers they needed to build AI. It <a href="https://www.prweb.com/releases/paperspace-launches-gradient-workflows-introduces-new-plans-to-compete-with-google-colab-pro-and-passes-500-000-users-873730589.html">passed 500,000 users</a> in 2021 and later became part of DigitalOcean. I am really proud that I worked in AI before ChatGPT made it mainstream.</>,
+  },
+  {
+    title: "Helping developers build AI at Paperspace",
+    body: <>Paperspace’s platform helped developers train AI models, automate the steps and make the models available to people. I ran experiments and wrote <a href={introduction.paperspaceWriting}>six articles</a> about teaching computers to recognize images and using powerful computers well. Developers could use my results to get more from the computers they were paying for.</>,
+  },
+  {
+    title: "Supporting nonprofits at GiveSuite",
+    body: <><a href={workLinks.givesuite}>GiveSuite</a> helps nonprofits raise money and look after their donors. I rebuilt an older system as a new web experience and moved its financial information to a new database without losing records. I also improved how it handles large numbers of payments and used AI to reduce the manual work of following up with donors.</>,
+  },
+  {
+    title: "Making digital payments clear at Element Pay",
+    body: <><a href={workLinks.elementPay}>Element Pay</a> helps businesses in Africa use digital dollars and receive money on their phones. I built the screens that explain and support invoices, collections and cash withdrawals. I also built the pages that help developers connect to it.</>,
+  },
+  {
+    title: "Helping developers use new products at Studio1HQ",
+    body: <><a href={introduction.studio1hq}>Studio1HQ</a> helps technology companies reach developers. I test a product, build a working example and write a guide that shows developers how to use it. This helps them decide if the product fits their work.</>,
+  },
+  {
+    title: "Supporting schools with Tai Ora",
+    body: <>I worked on the Tai Ora web and mobile apps, which were introduced in three schools. I added an AI chat so that people could ask questions inside the app. I also helped release it on the Apple and Google app stores.</>,
+  },
+  {
+    title: "Running the ICAD conference from one place",
+    body: <>I built the web and mobile apps for the ICAD conference. Organizers can manage papers, reviewers, rooms and attendance in one place. Attendees can use the mobile app to follow the conference.</>,
+  },
+  {
+    title: "Building new products",
+    body: <>I have built early versions of products from the first screen to the server behind it. They include Aqua Prana, Seep Baby and SnapList. Seep Baby connects a phone to a physical device, and all of this work taught me to learn a new field quickly.</>,
   },
   {
     title: "Building mobile apps",
@@ -56,38 +88,6 @@ export const signals: Signal[] = [
   {
     title: "Releasing software safely",
     body: <>I keep every change in version control and release it through an automated process. Before a release, the process backs up the data. After the release, it checks that the system works and returns to the previous code if the checks fail. Mobile updates can go to a test group before everyone else receives them.</>,
-  },
-  {
-    title: "Looking after systems I did not build",
-    body: <>When a developer leaves, the business still needs the system they built. I took over two of these systems at Mika and kept them running for the people who depend on them. I also made the passwords safer and fixed problems that users reported.</>,
-  },
-  {
-    title: "Handling work at a large scale",
-    body: <>The business records my systems connect to at Mika grow by about 480,000 documents a year across five companies. Some of those documents come from other tools. I design for that amount of work because a small mistake can be repeated many times.</>,
-  },
-  {
-    title: "Helping other people do their work",
-    body: <>A business should not depend on one person remembering everything. I wrote a handbook that explains how Mika’s systems work and what to do when they fail. I also prepare guides and test systems so that other developers can work safely.</>,
-  },
-  {
-    title: "Keeping things simple",
-    body: <>Every extra system costs a business time and money to look after. I once built a separate system that worked well, then moved it into the main one because that was easier to support. The business kept its history and had one less thing to maintain.</>,
-  },
-  {
-    title: "Helping businesses handle payments",
-    body: <>People expect a payment or donation to work the first time. I improved online payment experiences for <a href={workLinks.givesuite}>GiveSuite</a> and <a href={workLinks.elementPay}>Element Pay</a>. At GiveSuite, I also moved financial information to a new system.</>,
-  },
-  {
-    title: "Helping investors understand their money",
-    body: <>Investors at <a href={workLinks.untapped}>Untapped Global</a> needed to see how the small businesses they funded were doing. I turned complex information into clear charts and reports. That helped investors and the internal team explore the information for themselves.</>,
-  },
-  {
-    title: "Supporting education",
-    body: <>I worked on the Tai Ora web and mobile apps, which were introduced in three schools. I added an AI chat so people could ask questions inside the app. I also helped put the app in front of users on their phones.</>,
-  },
-  {
-    title: "Explaining technical ideas",
-    body: <>Companies lose users when people cannot understand how to use their product. I write practical guides for developers through <a href={introduction.studio1hq}>Studio1HQ</a>, and I wrote for <a href={introduction.paperspaceWriting}>Paperspace</a>. You can read more on <Link href="/blog">my blog</Link>.</>,
   },
   {
     title: "What I charge",

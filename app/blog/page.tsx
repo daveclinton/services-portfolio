@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { SiteNav } from "@/components/portfolio/site-nav"
+import { NumberedPage } from "@/components/portfolio/numbered-page"
 import { formatPostDate, getPosts } from "@/lib/blog"
 
 export const metadata: Metadata = {
@@ -16,39 +16,29 @@ export default async function BlogPage() {
   const posts = await getPosts()
 
   return (
-    <div className="page">
-      <SiteNav />
-      <main id="content">
-        <header className="page-header">
-          <h1>Writing</h1>
-          <p>
-            Notes on building software, payments, AI, and developer tooling. Follow along with{" "}
-            <a href="/feed.xml">the RSS feed</a>.
-          </p>
-        </header>
-
-        <div className="blog-index">
-          {posts.length === 0 ? (
-            <p className="blog-empty">Nothing published yet. Check back soon.</p>
-          ) : (
-            <ol className="blog-list">
-              {posts.map((post) => (
-                <li key={post.slug}>
-                  <article className="blog-entry">
-                    <h2>
-                      <Link href={`/blog/${post.slug}`}>{post.title}</Link>
-                    </h2>
-                    <p className="post-meta">
-                      <time dateTime={post.date}>{formatPostDate(post.date, "short")}</time> ·{" "}
-                      {post.readingMinutes} min read
-                    </p>
-                  </article>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
-      </main>
-    </div>
+    <NumberedPage
+      id="writing"
+      heading="Writing"
+      items={[
+        ...posts.map((post) => ({
+          key: post.slug,
+          title: post.title,
+          body: (
+            <>
+              <p className="signal-meta">
+                <time dateTime={post.date}>{formatPostDate(post.date, "short")}</time> · {post.readingMinutes} min read
+              </p>
+              <p>{post.description}</p>
+              <p><Link href={`/blog/${post.slug}`}>Read the article</Link></p>
+            </>
+          ),
+        })),
+        {
+          key: "rss",
+          title: "Follow along",
+          body: <p>You can follow new articles with <a href="/feed.xml">the RSS feed</a>.</p>,
+        },
+      ]}
+    />
   )
 }
