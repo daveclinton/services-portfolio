@@ -35,27 +35,27 @@ export const signals: Signal[] = [
   },
   {
     title: "My favorite role was at Untapped Global",
-    body: <><a href={workLinks.untapped}>Untapped Global</a> finances things like vehicles and solar equipment that small businesses use to earn money. I built the website and the dashboards that its investors used. They could see how the businesses they funded were doing.</>,
+    body: <><a href={workLinks.untapped}>Untapped Global</a> lets investors fund vehicles, solar equipment and other things that small businesses use to earn money. I joined in May 2022, the month it <a href="https://techcabal.com/2022/05/25/untapped-launches-investment-platform/">launched its investment platform</a>. I worked on that platform, which processed investors’ transactions and showed them how their investments were doing.</>,
   },
   {
-    title: "Helping Untapped Global teams explore their data",
-    body: <>At Untapped Global, the investment and operations teams needed answers from a large amount of information. I set up a tool where they could explore it and build their own charts. I also published three chart packages that other developers can use for free.</>,
+    title: "Powering daily operations at Untapped Global",
+    body: <>I worked on the internal platform that Untapped Global’s team used to manage the business. It included KYC, which is how a financial company confirms who its customers are. The investment and operations teams depended on this platform to do their daily work.</>,
   },
   {
-    title: "Working in a larger team at Untapped Global",
-    body: <>I worked with a team of 12 engineers at Untapped Global. I turned the designers’ work into finished screens, agreed with other engineers on how information would be shared, and reviewed their code. This helped us build the same product together.</>,
+    title: "Turning data into decisions at Untapped Global",
+    body: <>Untapped Global used live information from the things it financed to see how each business was doing. I connected financial information from other services, handled errors and helped bring in new data as it arrived. I also reviewed code in a team of 12 engineers and worked between design and back-end teams.</>,
   },
   {
-    title: "Teaching developers at Paperspace",
-    body: <>Paperspace rented out powerful computers for building AI, and it is now part of DigitalOcean. I wrote six articles <a href={introduction.paperspaceWriting}>under my name</a>. They helped developers learn how computers recognize images and faces, and how to start building with AI.</>,
+    title: "My first tech job was in AI at Paperspace",
+    body: <>Paperspace gave developers the powerful computers they needed to build AI. It <a href="https://www.prweb.com/releases/paperspace-launches-gradient-workflows-introduces-new-plans-to-compete-with-google-colab-pro-and-passes-500-000-users-873730589.html">passed 500,000 users</a> in 2021 and later became part of DigitalOcean. I am really proud that I worked in AI before ChatGPT made it mainstream.</>,
   },
   {
-    title: "Helping Paperspace readers choose the right computer",
-    body: <>Powerful computers are expensive when they are used badly. At Paperspace, I explained how to measure their speed and memory and how to use more of what they can do. Readers could use this to choose a computer that fits their work.</>,
+    title: "Helping developers build AI at Paperspace",
+    body: <>Paperspace’s platform helped developers train AI models, automate the steps and make the models available to people. I ran experiments and wrote <a href={introduction.paperspaceWriting}>six articles</a> about teaching computers to recognize images and using powerful computers well. Developers could use my results to get more from the computers they were paying for.</>,
   },
   {
     title: "Supporting nonprofits at GiveSuite",
-    body: <><a href={workLinks.givesuite}>GiveSuite</a> helps nonprofits raise money and look after their donors. I rebuilt an older system as a new web experience and moved its financial information to a new database without losing records. I also improved how it handles more than 10,000 payment records.</>,
+    body: <><a href={workLinks.givesuite}>GiveSuite</a> helps nonprofits raise money and look after their donors. I rebuilt an older system as a new web experience and moved its financial information to a new database without losing records. I also improved how it handles large numbers of payments and used AI to reduce the manual work of following up with donors.</>,
   },
   {
     title: "Making digital payments clear at Element Pay",

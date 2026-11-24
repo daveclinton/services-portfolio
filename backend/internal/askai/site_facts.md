@@ -22,8 +22,8 @@ the site; the assistant treats it as a source like the knowledge base.
 - Studio1HQ, remote contract, May 2024 – present: researches, builds and writes practical guides and sample applications for developers.
 - Tai Ora, remote contract, Jan 2024 – Sep 2026: AI chat, web and mobile apps, and back-end deployment on AWS.
 - GiveSuite and Element Pay, remote contracts, Sep 2024 – Jun 2025: improved online payment experiences.
-- Untapped Global, Nairobi (hybrid), May 2022 – May 2024: turned complex investment data into clear charts for investors and internal teams.
-- Paperspace (now DigitalOcean), remote, Jan 2021 – Feb 2022: wrote practical articles on machine learning and cloud computing.
+- Untapped Global, Nairobi (hybrid), May 2022 – May 2024: his favorite role. He worked on the investment platform that processed investors' transactions, the internal management platform and KYC.
+- Paperspace (now DigitalOcean), remote, Jan 2021 – Feb 2022: his first job in tech. He wrote about AI and cloud computing before ChatGPT made AI mainstream.
 - Opesi Mansion was an independent idea that David has paused. It has no released product and is not current work.
 - Typical rates are published on the home page as ranges, with a quote for each project. Use the contracting-rate-2026 record.
 

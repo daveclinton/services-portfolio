@@ -124,7 +124,14 @@ export const backgroundItems: TimelineEntry[] = [
     start: "May 2022",
     end: "May 2024",
     description:
-      "I turned complex investment data into clear charts so investors and internal teams could understand and explore it.",
+      "I worked on the investment platform that processed investors’ transactions, and on the internal platform the team used to run the business.",
+    highlights: [
+      "Joined in May 2022, the month the company launched its investment platform.",
+      "Worked on the internal management platform and KYC, which the teams used in their daily work.",
+      "Connected financial information from other services and helped bring in new data as it arrived.",
+      "Built dashboards that showed investors how their investments were doing.",
+      "Reviewed code in a team of 12 engineers and worked between design and back-end teams.",
+    ],
   },
   {
     id: "2021-01",
@@ -134,7 +141,11 @@ export const backgroundItems: TimelineEntry[] = [
     start: "Jan 2021",
     end: "Feb 2022",
     description:
-      "I wrote practical articles that helped developers understand machine learning and make better use of cloud computing.",
+      "This was my first job in tech. I worked in AI before ChatGPT made it mainstream.",
+    highlights: [
+      "Ran experiments on powerful computers and explained how developers could get more from them.",
+      "Wrote six articles about teaching computers to recognize images, training AI models and measuring performance.",
+    ],
   },
 ]
 

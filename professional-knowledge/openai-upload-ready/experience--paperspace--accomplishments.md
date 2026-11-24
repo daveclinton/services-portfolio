@@ -26,6 +26,10 @@ accomplishments:
     claim: Published a hands-on tutorial using dlib and deep learning for facial recognition.
     confidence: confirmed
     source_url: https://blog.paperspace.com/facial-recognition-with-deep-learning/
+  - slug: paperspace-first-tech-role
+    claim: "Paperspace was David's first job in tech, and he worked in AI there before ChatGPT was released in November 2022."
+    confidence: confirmed
+    source_path: sources/attestations/david-clinton-2026-11-24.md
 ---
 
 All six pieces are publicly bylined to David Clinton on the Paperspace author

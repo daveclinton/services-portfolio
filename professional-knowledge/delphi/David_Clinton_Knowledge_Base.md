@@ -235,6 +235,12 @@ Technologies I used at Tai Ora: Python, Django 5 / Django REST Framework, Postgr
 
 Dates and location: 2022-05 to 2024-05 | Nairobi County, Kenya (hybrid)
 
+This was David's favorite role. Untapped Global lets investors fund vehicles, solar equipment and other things that small businesses use to earn money. David joined in May 2022, the month it launched its digital investment platform.
+
+He worked on the investment platform, which processed investors' transactions and showed them how their investments were doing. He also worked on the internal management platform, including KYC, that the investment and operations teams used to run the business every day. He connected financial information from other services and helped bring in new data as it arrived.
+
+#### More detail
+
 Web platforms team at Untapped Global. Dashboard and data-visualization surfaces for investment and operations teams, including high-net-worth client interfaces.
 
 ### What I did
@@ -248,6 +254,8 @@ Web platforms team at Untapped Global. Dashboard and data-visualization surfaces
 
 - Built investor dashboards and the public website with Next.js and React, and deployed customized Apache Superset for real-time data exploration.
 - Integrated third-party financial APIs with error handling for investor and high-net-worth client dashboards.
+- Worked on the Untapped Global investment platform, which processed investors' transactions.
+- Worked on the internal management platform and KYC that Untapped Global's teams used in their daily operations.
 
 Investor dashboard, public website, Superset deployment and financial API integration work.
 
@@ -257,7 +265,11 @@ Technologies I used at Untapped Global: Next.js, React, TypeScript, Apache Super
 
 ## Paperspace (now DigitalOcean): Technical Author, Cloud GPUs and Applied Machine Learning
 
-Dates and location: 2021-01 to 2023-05 | New York, United States (remote)
+Dates and location: 2021-01 to 2023-05 | Remote
+
+This was David's first job in tech and he is proud of it. Paperspace gave developers the powerful computers they needed to build AI. He worked in AI there before ChatGPT was released in November 2022 and AI became mainstream. His experiments and articles helped developers get more from the computers they were paying for.
+
+#### More detail
 
 Technical-author contract at Paperspace, now part of DigitalOcean. Published six bylined, developer-facing articles combining runnable Python and deep-learning examples with practical explanations of cloud GPUs, computer vision, training performance, hardware benchmarking, memory bandwidth, facial recognition, and GPU rendering.
 
@@ -282,6 +294,7 @@ The publication record demonstrates the ability to translate GPU architecture an
 - Published a tutorial benchmarking GPUs for mixed precision training with deep learning. (https://blog.paperspace.com/mixed-precision-training-benchmark/)
 - Published an article on computing GPU memory bandwidth with deep learning benchmarks. (https://blog.paperspace.com/understanding-memory-bandwidth-benchmarks/)
 - Published a hands-on tutorial using dlib and deep learning for facial recognition. (https://blog.paperspace.com/facial-recognition-with-deep-learning/)
+- Paperspace was David's first job in tech, and he worked in AI there before ChatGPT was released in November 2022.
 
 All six pieces are publicly bylined to David Clinton on the Paperspace author profile and their individual publication pages.
 
