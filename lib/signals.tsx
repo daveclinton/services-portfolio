@@ -35,11 +35,11 @@ export const signals: Signal[] = [
   },
   {
     title: "My favorite role was at Untapped Global",
-    body: <><a href={workLinks.untapped}>Untapped Global</a> lets investors fund vehicles, solar equipment and other things that small businesses use to earn money. I joined in May 2022, the month it <a href="https://techcabal.com/2022/05/25/untapped-launches-investment-platform/">launched its investment platform</a>. I worked on that platform, which processed investors’ transactions and showed them how their investments were doing.</>,
+    body: <><a href={workLinks.untapped}>Untapped Global</a> lets investors fund things that small businesses use to earn money. I joined in May 2022, the month it <a href="https://techcabal.com/2022/05/25/untapped-launches-investment-platform/">launched its investment platform</a>, and worked on that platform. From 2021 to January 2025, the company <a href="https://untapped-global.com/impact">supported 578,231 entrepreneurs</a> and helped them earn $46.5 million in revenue.</>,
   },
   {
     title: "Powering daily operations at Untapped Global",
-    body: <>I worked on the internal platform that Untapped Global’s team used to manage the business. It included KYC, which is how a financial company confirms who its customers are. The investment and operations teams depended on this platform to do their daily work.</>,
+    body: <>Investors have to prove who they are and pay safely before a company can accept their money. I built the screens for that identity check, which is known as KYC, and connected Plaid for payments. I also worked on the internal platform that the investment and operations teams used every day.</>,
   },
   {
     title: "Turning data into decisions at Untapped Global",

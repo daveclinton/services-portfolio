@@ -127,7 +127,9 @@ export const backgroundItems: TimelineEntry[] = [
       "I worked on the investment platform that processed investors’ transactions, and on the internal platform the team used to run the business.",
     highlights: [
       "Joined in May 2022, the month the company launched its investment platform.",
-      "Worked on the internal management platform and KYC, which the teams used in their daily work.",
+      "The company supported 578,231 entrepreneurs and helped them earn $46.5 million from 2021 to January 2025.",
+      "Built the KYC screens and connected Plaid for payments.",
+      "Worked on the internal management platform that the teams used in their daily work.",
       "Connected financial information from other services and helped bring in new data as it arrived.",
       "Built dashboards that showed investors how their investments were doing.",
       "Reviewed code in a team of 12 engineers and worked between design and back-end teams.",
