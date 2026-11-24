@@ -34,6 +34,13 @@ technologies:
     category: database
 ---
 
+Customers who report a faulty product have one case that staff can follow until it
+is closed. Employees can see the next step and who is responsible for it. The
+finance team received evidence of problems in past records, so they could see what
+needed to be corrected.
+
+## How it was built
+
 Built the after-sales module in the main platform. Staff start a complaint from a phone
 number or serial number, assign technicians, record troubleshooting, complete
 and review job cards, and close or reopen cases. Each case shows its real stage

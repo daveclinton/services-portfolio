@@ -34,6 +34,12 @@ technologies:
     category: database
 ---
 
+Employees can ask a question and get an answer from live company records. They see
+only what they are allowed to see, and nothing is changed until a person approves it.
+This lets the company use AI with its own information while people stay in charge.
+
+## How it was built
+
 Built an AI assistant that staff use to look up live company data. It runs every
 lookup as the signed-in person, so each person sees only what they are allowed
 to see. It can suggest a change, but the change is sent only after the person

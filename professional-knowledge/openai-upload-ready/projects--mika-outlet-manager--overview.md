@@ -34,6 +34,12 @@ technologies:
     category: erp
 ---
 
+Shop teams in Kenya and Rwanda kept the system they depend on after its developer
+left. Problems that stopped their work were fixed, and the handbook means the company
+does not depend on one person's memory.
+
+## How it was built
+
 Took over the system shop teams in Kenya and Rwanda use for outlet visits, stock
 counts and sales orders. Moved its code into version control with passwords
 removed, fixed live problems such as one-time codes not reaching customers, and

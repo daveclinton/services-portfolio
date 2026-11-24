@@ -46,16 +46,16 @@ export const signals: Signal[] = [
     body: <>Good software helps people finish their work without asking for help. I build the screens that employees, customers and investors use. I learn how they work first, so the most common task is the easiest one to do.</>,
   },
   {
-    title: "Helping people who work away from a desk",
-    body: <>Some people do their work while standing, driving or visiting customers. I build phone apps that let them record the work where it happens. The apps can keep working when the internet is slow and send the information later.</>,
+    title: "Building mobile apps",
+    body: <>I build mobile apps that are able to work in different internet connectivity strengths. The apps save the work on the phone and send it when the connection allows. This way, we can always keep our systems in sync.</>,
   },
   {
-    title: "Keeping systems available",
-    body: <>A business stops earning when the system it depends on stops working. I set up the servers, protect the information, keep backups and check that everything is healthy. When there is a problem, I find the cause and bring the system back.</>,
+    title: "Designing systems that recover",
+    body: <>I design systems so that the business can recover when one part fails. I plan the servers, network, security and backups before people depend on them. I also monitor the systems, which helps me find the cause of a problem and restore the service.</>,
   },
   {
-    title: "Improving software without stopping work",
-    body: <>Teams should get improvements without worrying that the next update will stop their work. I automate how updates are tested and released. I also write down how to return to the earlier version if an update causes a problem.</>,
+    title: "Releasing software safely",
+    body: <>I keep every change in version control and release it through an automated process. Before a release, the process backs up the data. After the release, it checks that the system works and returns to the previous code if the checks fail. Mobile updates can go to a test group before everyone else receives them.</>,
   },
   {
     title: "Looking after systems I did not build",

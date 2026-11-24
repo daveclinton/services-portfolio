@@ -40,6 +40,12 @@ technologies:
     category: containers
 ---
 
+Employees no longer have to copy every order from one company's records to another.
+Staff estimated that each order took 20 minutes to type. People can check the result
+before it is saved, and unusual orders still go to a person.
+
+## How it was built
+
 Automated order entry between group companies, the recording of vehicle trips and
 the reconciliation of invoices paid with loyalty points. Staff estimate that each
 order took 20 minutes to type by hand.

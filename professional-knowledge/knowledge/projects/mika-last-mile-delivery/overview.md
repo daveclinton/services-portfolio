@@ -34,6 +34,12 @@ technologies:
     category: maps
 ---
 
+Delivery planners can follow an order from the company to the customer's door. They
+can see who has it, where it is and whether the customer received it.
+The team can plan the load and the route before the vehicle leaves.
+
+## How it was built
+
 Built the delivery module that takes orders from several sources and follows each
 one through warehouse allocation, route planning, vehicle loading, driver
 assignment and delivery. It records delivery attempts, proof of delivery, cash

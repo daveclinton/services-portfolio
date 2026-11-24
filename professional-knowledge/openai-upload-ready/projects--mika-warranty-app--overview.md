@@ -28,6 +28,12 @@ technologies:
     category: hardware
 ---
 
+Customers get their product warranty registered at the shop. The sale and delivery
+records are created from the same information, so shop staff do not have to enter
+them again. Six outlets in Rwanda use it.
+
+## How it was built
+
 Warranty registration app for Mika outlet stores: automates creating
 transactional documents in the backend, with ZKTeco systems integrated
 for staff attendance.

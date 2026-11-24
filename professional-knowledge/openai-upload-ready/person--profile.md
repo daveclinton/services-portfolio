@@ -3,7 +3,7 @@ type: person-profile
 slug: david-clinton
 name: David Clinton
 title: Software Engineer
-location: Mombasa, Kenya
+location: Nairobi, Kenya
 specializations:
   - Full-stack web applications
   - Linux infrastructure, deployment and networking
@@ -22,7 +22,7 @@ career_focus:
 experience_years: 5
 ---
 
-I am a Software Engineer based in Kenya with verified experience delivering
+I am a Software Engineer based in Nairobi, Kenya, with verified experience delivering
 enterprise operations systems, multi-tenant SaaS products, mobile applications,
 AI-enabled platforms, data-visualization tools and developer education. I work
 across product design, frontend and backend engineering, databases, external
@@ -35,17 +35,13 @@ and Rwanda. The SAP environment my systems connect to records about 480,000
 business documents a year across five group companies, including documents
 created in other tools.
 
-At Mika (Ideal Appliances), I build and operate warehouse, logistics,
-eWarranty, after-sales, employee-management, fleet-telematics, dashboard and
-automation systems connected to SAP Business One and SAP HANA. My warehouse
-work replaced manual SAP Business One entry by creating delivery notes, goods
-issues and goods receipts after source documents are scanned. I also delivered
-a warranty-registration application used by six outlets in Rwanda that
-automates sales orders, delivery notes and goods issues. This estate includes a
-native Kotlin warehouse application with Honeywell scanning, offline-safe
-workflows and automated Google Play delivery; FastAPI and Django services;
-PostgreSQL and Redis; and production Linux, Nginx, Docker, systemd and network
-operations.
+At Mika (Ideal Appliances), I help teams spend less time on repeated work, find the
+information they need and keep their records correct. Employees can ask an AI
+assistant about company records, follow deliveries and repairs, and register customer
+warranties. Documents that were typed by hand are created after an item is scanned.
+
+I built these systems with Django, FastAPI, PostgreSQL, Redis, Next.js and Kotlin,
+connected them to SAP Business One and SAP HANA, and run them on Linux servers.
 
 I have shipped cross-platform products through Apple's App Store and Google
 Play and deployed web and backend systems to AWS and Vercel. For Tai Ora, I

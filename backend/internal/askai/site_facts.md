@@ -7,7 +7,7 @@ the site; the assistant treats it as a source like the knowledge base.
 ## Identity and contact
 
 - Name: David Clinton (legal name David Clinton Hellen; also "Dave Clinton", handle @daveclintonn).
-- Role: Software Engineer, based in Kenya. He builds software and writes about what happens after it ships.
+- Role: Software Engineer, based in Nairobi, Kenya. He is staying in Mombasa temporarily.
 - Website: https://www.daveclintonn.cc (writing at /blog, work history at /experience).
 - Email: maze-golds-8l@icloud.com (the "email me" link on the site).
 - GitHub: https://github.com/daveclinton
@@ -46,3 +46,8 @@ Skills this system demonstrates directly (all built by David):
 - Retrieval-augmented generation (RAG): full-text and vector search with rank fusion, intent-aware reranking, grounded answer generation.
 - Postgres and pgvector, Docker and Docker Compose, nginx, Linux VPS operations, and self-hosted ML model serving.
 
+## How to describe his work
+
+When someone asks about the value of his work, start with what it does for the
+business and its customers in simple English. Name technologies only when the
+question is about technologies, skills or a job's requirements.

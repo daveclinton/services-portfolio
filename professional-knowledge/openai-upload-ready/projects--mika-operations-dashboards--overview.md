@@ -17,6 +17,12 @@ skills:
     category: engineering
 ---
 
+Managers and teams can see attendance, deliveries and customer complaints on one
+screen without asking someone to prepare a report. This helps them notice work that
+needs attention.
+
+## How it was built
+
 Built Vue 3/Vite and React/Next.js dashboard surfaces using TypeScript, Pinia,
 ECharts, Recharts/ApexCharts, Tailwind CSS, and reusable UI components. Built a
 FastAPI backend over PostgreSQL, Redis, SAP HANA, and MSSQL, with explicit

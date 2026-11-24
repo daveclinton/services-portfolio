@@ -17,6 +17,13 @@ skills:
     category: infrastructure
 ---
 
+Mika's systems exchange information without people copying it between them.
+Customers receive messages about their orders and warranties. The servers are set up
+with security, backups, health checks and a way to return to the previous code, so
+the company can recover when something fails.
+
+## How it was built
+
 Built and operated Linux services using Nginx, systemd, Gunicorn, Uvicorn,
 Django Q, Docker Compose, Bash, Git/SSH deployment, UFW, journal logs, health
 checks, database backups, release directories, symlink activation, and code
