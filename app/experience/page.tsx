@@ -1,10 +1,12 @@
 import type { Metadata } from "next"
 import { NumberedPage } from "@/components/portfolio/numbered-page"
-import { backgroundItems, formatRoleDates } from "@/lib/portfolio-data"
+import { backgroundItems, formatRoleDates, site } from "@/lib/portfolio-data"
 
 export const metadata: Metadata = {
   title: "Work experience",
   alternates: { canonical: "/experience" },
+  openGraph: { type: "website", siteName: site.name, title: "Work experience", description: site.description, url: "/experience" },
+  twitter: { card: "summary_large_image", title: "Work experience", description: site.description },
 }
 
 export default function ExperiencePage() {

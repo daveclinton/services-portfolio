@@ -11,16 +11,14 @@ const links = [
 ]
 
 // Plain bold links on the left, the name on the right, after 37signals.com.
-export function SiteNav({ compact = false }: { compact?: boolean }) {
+export function SiteNav() {
   const pathname = usePathname()
 
   return (
     <header className="site-nav">
       <nav aria-label="Site">
         <ul>
-          {links
-            .filter((link) => !compact || link.href !== askAi.href)
-            .map((link) => (
+          {links.map((link) => (
               <li key={link.href}>
                 <Link
                   href={link.href}

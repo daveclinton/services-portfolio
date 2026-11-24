@@ -1,10 +1,10 @@
-import { getPosts } from "@/lib/blog"
-import { ogImageSize, renderOgImage } from "@/lib/og-image"
+import { formatPostDate, getPosts } from "@/lib/blog"
+import { ogContentType, ogImageSize, renderOgImage } from "@/lib/og-image"
 import { site } from "@/lib/portfolio-data"
 
-export const alt = `Blog post by ${site.name}`
+export const alt = `Article by ${site.name}`
 export const size = ogImageSize
-export const contentType = "image/png"
+export const contentType = ogContentType
 
 export async function generateStaticParams() {
   const posts = await getPosts()
@@ -13,10 +13,16 @@ export async function generateStaticParams() {
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const post = (await getPosts()).find((candidate) => candidate.slug === slug)
+  const posts = await getPosts()
+  const index = posts.findIndex((candidate) => candidate.slug === slug)
+  const post = posts[index]
+  if (!post) return renderOgImage({ title: site.name, tone: 0, art: "article" })
 
   return renderOgImage({
-    title: post?.title ?? site.name,
-    subtitle: post?.description ?? site.description,
+    title: post.title,
+    // Counted from the oldest, so an article keeps its color as new ones arrive.
+    tone: posts.length - 1 - index,
+    note: formatPostDate(post.date),
+    art: "article",
   })
 }

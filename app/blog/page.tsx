@@ -2,14 +2,19 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { NumberedPage } from "@/components/portfolio/numbered-page"
 import { formatPostDate, getPosts } from "@/lib/blog"
+import { site } from "@/lib/portfolio-data"
+
+const description = "Notes and guides on building software, payments, AI, and developer tooling."
 
 export const metadata: Metadata = {
   title: "Writing",
-  description: "Notes and guides on building software, payments, AI, and developer tooling.",
+  description,
   alternates: {
     canonical: "/blog",
     types: { "application/rss+xml": "/feed.xml" },
   },
+  openGraph: { type: "website", siteName: site.name, title: "Writing", description, url: "/blog" },
+  twitter: { card: "summary_large_image", title: "Writing", description },
 }
 
 export default async function BlogPage() {

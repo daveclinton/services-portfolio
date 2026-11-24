@@ -30,6 +30,7 @@ export async function generateMetadata({ params }: PageProps<"/blog/[slug]">): P
       authors: [site.name],
     },
     twitter: {
+      card: "summary_large_image",
       title: post.title,
       description: post.description,
     },
