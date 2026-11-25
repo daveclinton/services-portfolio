@@ -1,6 +1,7 @@
 "use client"
 
 import Image, { type StaticImageData } from "next/image"
+import { usePathname } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import type { ReactNode } from "react"
 import { TONE_STORAGE_KEY, toneOf } from "@/lib/tone"
@@ -23,72 +24,89 @@ const number = (index: number) => String(index).padStart(2, "0")
 //
 // Every item has its own address (37signals.com/05 does the same), because the
 // part of a URL after "#" never reaches the sites that draw link previews.
-export function Signals({ id, items, listPath, basePath, initial, footer }: {
+export function Signals({ id, items, listPath, basePath, initial, addressMode = "path", footer }: {
   id: string
   items: SignalItem[]
   /** The list's own page. */
   listPath: string
-  /** What comes before an item's slug. Home's is empty, and its first item is the page itself. */
+  /** What comes before an item's slug. Home's is empty. */
   basePath: string
   /** The item this page was opened on. */
   initial?: number
+  /** Articles keep their canonical page and link to individual sections by hash. */
+  addressMode?: "path" | "hash"
   footer: ReactNode
 }) {
-  const [open, setOpen] = useState(initial ?? 0)
+  const [open, setOpen] = useState(initial ?? -1)
+  const pathname = usePathname()
   const list = useRef<HTMLOListElement>(null)
-  // The item that is open by default must not change a color chosen elsewhere.
+  // URL-driven selection does not rewrite the address as an interaction would.
   const chosen = useRef(false)
-  const storageKey = `last-item:${id}`
+
+  // Next can retain this component when navigation returns to a list URL.
+  // Closing on that transition also covers state kept in the router cache.
+  useEffect(() => {
+    if (addressMode !== "path" || pathname !== listPath || window.location.hash) return
+    chosen.current = false
+    list.current?.querySelectorAll<HTMLDetailsElement>(":scope > li > details").forEach((entry) => { entry.open = false })
+  }, [pathname, listPath, addressMode])
 
   function show(index: number, choose = true) {
-    const details = list.current?.querySelectorAll("details")[index]
+    const entries = list.current?.querySelectorAll<HTMLDetailsElement>(":scope > li > details")
+    const details = entries?.[index]
     if (!details) return
     if (choose) chosen.current = true
+    entries?.forEach((entry) => { if (entry !== details) entry.open = false })
     details.open = true
-    requestAnimationFrame(() => details.scrollIntoView({ block: "center" }))
+    requestAnimationFrame(() => details.scrollIntoView({ block: "start" }))
   }
 
   function remember(index: number) {
     document.documentElement.setAttribute("data-tone", toneOf(index))
     try {
       localStorage.setItem(TONE_STORAGE_KEY, String(index))
-      localStorage.setItem(storageKey, String(index))
     } catch {}
   }
 
   // Put the open item in the address bar, ready to share. Some phones share the
   // canonical link instead, so it has to match.
-  function address(index: number) {
-    const path = index === 0 && !basePath ? listPath : `${basePath}/${items[index].slug}`
-    window.history.replaceState(null, "", path)
+  function address(index: number | null) {
+    if (addressMode === "hash") {
+      const url = new URL(window.location.href)
+      url.hash = index === null ? "" : items[index].slug
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash)
+      return
+    }
+    const path = index === null ? listPath : `${basePath}/${items[index].slug}`
+    window.history.replaceState(null, "", path + window.location.search)
     const canonical = document.querySelector<HTMLLinkElement>("link[rel=canonical]")
     if (canonical) canonical.href = new URL(path, canonical.href).href
   }
 
   useEffect(() => {
     const fromHash = () => {
-      const hash = window.location.hash.slice(1)
+      chosen.current = false
+      let hash = window.location.hash.slice(1)
+      try { hash = decodeURIComponent(hash) } catch {}
       // Two digits are the older links, from before items had names.
       const index = /^\d{2}$/.test(hash) ? Number(hash) : items.findIndex((item) => item.slug === hash)
-      if (index >= 0) show(index)
+      if (index >= 0 && index < items.length) {
+        remember(index)
+        show(index, false)
+      } else {
+        list.current?.querySelectorAll<HTMLDetailsElement>(":scope > li > details").forEach((entry) => { entry.open = false })
+      }
     }
     if (window.location.hash) fromHash()
     else if (initial !== undefined) {
       remember(initial)
       show(initial, false)
     }
-    else {
-      // Return to the item last opened on this list.
-      try {
-        const saved = Number(localStorage.getItem(storageKey))
-        if (saved > 0) show(saved, false)
-      } catch {}
-    }
     window.addEventListener("hashchange", fromHash)
     return () => window.removeEventListener("hashchange", fromHash)
   // Runs once for each page. The lists do not change while they are on screen.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey, initial])
+  }, [id, initial])
 
   const next = items[(open + 1) % items.length]
 
@@ -99,17 +117,24 @@ export function Signals({ id, items, listPath, basePath, initial, footer }: {
           <li key={item.slug} id={item.slug}>
             <details
               name={id}
-              open={index === (initial ?? 0)}
+              open={index === open}
               onToggle={(event) => {
+                if (event.target !== event.currentTarget) return
                 const details = event.currentTarget
-                if (!details.open) return
+                if (!details.open) {
+                  if (!list.current?.querySelector(":scope > li > details[open]")) {
+                    setOpen(-1)
+                    if (chosen.current) address(null)
+                  }
+                  return
+                }
                 setOpen(index)
                 if (!chosen.current) return
                 remember(index)
                 address(index)
                 // Once it has finished opening, keep it clear of the bottom bar.
                 setTimeout(() => {
-                  if (details.open) details.scrollIntoView({ block: "nearest" })
+                  if (details.open) details.querySelector("summary")?.scrollIntoView({ block: "nearest" })
                 }, 280)
               }}
             >

@@ -23,6 +23,9 @@ registerHooks({
     return nextResolve(specifier, context)
   },
   load(url, context, nextLoad) {
+    if (url.endsWith("/public/david.webp")) {
+      return { format: "commonjs", shortCircuit: true, source: 'exports.default = { src: "/david.webp", width: 40, height: 40 }' }
+    }
     if (url.startsWith(pathToFileURL(root).href) && !url.includes("/node_modules/") && /\.tsx?$/.test(url)) {
       return { format: "commonjs", shortCircuit: true, source: ts.transpileModule(readFileSync(fileURLToPath(url), "utf8"), { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText }
     }
@@ -38,6 +41,9 @@ const { newsletterAvailable, subscribeToNewsletter } = require("../lib/newslette
 const { TONE_COLORS } = require("../lib/tone.ts")
 const { NewsletterStudio } = require("../components/portfolio/newsletter-studio.tsx")
 const { studioSession, studioSave, studioAction, studioPreview, nairobiSchedule } = require("../lib/newsletter-studio.ts")
+const { Signals } = require("../components/portfolio/signals.tsx")
+const { ArticleSections } = require("../components/portfolio/article-sections.tsx")
+
 
 test("discovery starts with only three categories and reveals one group at a time", () => {
   const props = { groupId: null, onGroupChange() {}, onChoose() {} }
@@ -275,4 +281,36 @@ test("studio preserves conflict messages and requires an explicit valid Nairobi 
   await assert.rejects(() => studioSave("csrf", studioDraft, "Changed", "Body"), /Reload this changed draft/)
   assert.equal(nairobiSchedule("2100-01-15T12:30"), "2100-01-15T09:30:00.000Z")
   for (const invalid of ["", "2100-02-30T12:00", "2020-01-01T12:00", "2100-01-15T12:30Z"]) assert.throws(() => nairobiSchedule(invalid))
+})
+
+
+test("shared lists start completely closed and the next control starts at item zero", () => {
+  const items = [
+    { slug: "first", title: "First item", body: "First body" },
+    { slug: "second", title: "Second item", body: "Second body" },
+  ]
+  for (const id of ["home", "experience", "writing"]) {
+    const html = renderToStaticMarkup(React.createElement(Signals, { id, items, listPath: "/", basePath: "", footer: "Contact" }))
+    assert.equal((html.match(/<details\b/g) ?? []).length, 2)
+    assert(!/<details\b[^>]*\bopen(?:=|\s|>)/.test(html))
+    assert(html.includes("Next: First item"))
+  }
+  for (const initial of [0, 1]) {
+    const html = renderToStaticMarkup(React.createElement(Signals, { id: "home", items, listPath: "/", basePath: "", initial, footer: "Contact" }))
+    assert.equal((html.match(/<details[^>]* open=""/g) ?? []).length, 1)
+    const target = html.slice(html.indexOf(`id="${items[initial].slug}"`))
+    assert(/^id="[^"]+"><details[^>]* open=""/.test(target))
+    assert(html.includes(`Next: ${items[(initial + 1) % 2].title}`))
+  }
+})
+
+test("articles reuse the closed numbered list and preserve rich section content", () => {
+  const html = renderToStaticMarkup(React.createElement(ArticleSections, { id: "article-example" }, [
+    React.createElement("section", { key: "intro", id: "introduction", "data-section-title": "Introduction" }, React.createElement("p", null, "Original introduction")),
+    React.createElement("section", { key: "content", id: "example", "data-section-title": "An example" }, React.createElement("pre", null, React.createElement("code", null, "const amount = 42")), React.createElement("details", null, React.createElement("summary", null, "Study units"), "Supporting material")),
+  ]))
+  assert.equal((html.match(/name="article-example"/g) ?? []).length, 2)
+  assert(!/<details\b[^>]*\bopen(?:=|\s|>)/.test(html))
+  for (const value of ["00.", "01.", "Original introduction", "const amount = 42", "Study units", "Supporting material", "All writing", "Next: Introduction"]) assert(html.includes(value))
+  assert(html.includes('id="example"'))
 })

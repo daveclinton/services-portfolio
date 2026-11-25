@@ -23,9 +23,11 @@ The repository includes David Clinton's portfolio content as a working example. 
 - **Useful owner notifications:** optional email for successful hiring/pricing/contact interest, critical provider incidents and a warning near the application request budget. Greetings and ordinary browsing do not email by default.
 - **Operational controls:** per-visitor/IP/site limits, bounded conversation context, cancellation, recovery cooldowns, structured logs and local regression evaluations.
 - **Portfolio publishing:** MDX articles, RSS, metadata, light/dark themes and shared design tokens.
-- **Glass navigation and reading tools:** frosted controls use the existing light/dark palette, with a spring navigation highlight, one-time section entrances and a reading-progress dock with a back-to-top link. Higher contrast and reduced-transparency preferences restore solid controls; reduced motion removes movement and progress smoothing.
+- **Numbered reading:** Home, Experience and Writing start with every item closed, including on return visits. A direct item link opens its selection. Articles reuse the same numbered, one-section-at-a-time reader with shareable section anchors and a next-section control. Ask AI keeps its chat flow and mobile composer while sharing the homepage's typeface, responsive text size and reading measure.
 
 ## Interface references
+
+The portfolio lists and article reader follow [37signals' numbered index](https://37signals.com/) and [directly linked item](https://37signals.com/01): choose an item, read it in place, and use the dot to continue. Article sections come from existing Markdown headings; code, tables, media and interactive content remain intact. Only the selected section is expanded, and the article retains its canonical address. This uses the existing native disclosure component and site palette. Ask AI adopts the same typography and spacing while preserving its conversation and keyboard behavior.
 
 The current discovery flow follows the two Grok desktop screenshots supplied for the November 2026 redesign: composer first, a few category rows, then the selected category's suggestions. [NN/g's progressive-disclosure guidance](https://www.nngroup.com/articles/progressive-disclosure/) supports revealing specialized choices only when requested. Results follow Grok's [title-and-open result cards](https://docs.x.ai/grok-bot/files-and-results), with item disclosure informed by the [GOV.UK accordion](https://design-system.service.gov.uk/components/accordion/) and [details](https://design-system.service.gov.uk/components/details/) guidance. Essential findings and caveats stay visible in chat. The app retains its own components, icons and tokens; references inform behavior rather than branding.
 
@@ -33,7 +35,7 @@ The follow-up revision uses [Google's concise conversation language](https://dev
 
 The glass controls follow [Glassy UI's dock-and-surface approach](https://github.com/alexburlis/glassyui), adapted to this app's components and tokens without adding a package. [Apple's material guidance](https://developer.apple.com/design/human-interface-guidelines/materials) informs the separation between glass controls and readable, solid content. Browser-specific SVG refraction is intentionally omitted; browsers without backdrop-filter support keep solid surfaces.
 
-Three interactions use the existing Motion dependency: [shared layout highlights](https://motion.dev/docs/react-layout-animations) for pointer and keyboard navigation, [one-time scroll entrances](https://motion.dev/docs/react-scroll-animations) for homepage sections, and [scroll progress](https://motion.dev/docs/react-use-scroll) with [spring smoothing](https://motion.dev/docs/react-use-spring) for blog reading. Motion preferences are respected, static content remains visible without JavaScript, and native links retain keyboard behavior. The progress indicator is a JavaScript enhancement.
+The numbered reader uses native `details` disclosures and respects reduced motion. Its content is rendered on the server; section-anchor opening, saved color preferences and the next-section control enhance it after hydration. Saved preferences never reopen a list item on a clean visit.
 
 ## Architecture
 

@@ -7,7 +7,7 @@ export const size = ogImageSize
 export const contentType = ogContentType
 
 export function generateStaticParams() {
-  return signals.slice(1).map((item) => ({ section: item.slug }))
+  return signals.map((item) => ({ section: item.slug }))
 }
 
 export default async function Image({ params }: { params: Promise<{ section: string }> }) {

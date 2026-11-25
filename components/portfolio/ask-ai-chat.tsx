@@ -524,7 +524,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     if (turn.role === "user") {
       return (
         <Message key={turn.id} className="group flex-col items-end gap-1 pl-8 sm:pl-16">
-          <MessageContent className="min-w-0 max-w-full rounded-2xl bg-muted px-4 py-2.5 text-body whitespace-pre-wrap sm:max-w-[80%]">
+          <MessageContent className="min-w-0 max-w-full rounded-2xl bg-muted px-4 py-2.5 whitespace-pre-wrap sm:max-w-[80%]">
             {turn.content}
           </MessageContent>
           {turn.interactionContext ? <p className="text-caption text-muted-foreground">Included your selected item or project brief.</p> : null}
@@ -698,7 +698,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           </MessageScrollerProvider>
         ) : null}
         <div hidden={hasConversation} className={cn("chat-welcome chat-column min-h-0 flex-1 flex-col justify-end overflow-y-auto pb-6", hasConversation ? "hidden" : "flex")}>
-          <h2 className="text-name text-balance break-words text-center font-normal text-foreground">
+          <h2 className="text-balance break-words text-center font-bold text-foreground">
             {workflow === "chat" ? `${askAi.title}?` : askAi.workflows[workflow].title}
           </h2>
         </div>

@@ -2,6 +2,7 @@ import type { MDXComponents } from "mdx/types"
 import { AutomationFlowVisual } from "@/components/portfolio/automation-flow-visual"
 import { ModelConceptVisual } from "@/components/portfolio/model-concept-visual"
 import { StudyUnits } from "@/components/portfolio/study-units"
+import { ArticleSections } from "@/components/portfolio/article-sections"
 
 function YouTubePreview({ videoId, title }: { videoId: string; title: string }) {
   return (
@@ -17,7 +18,7 @@ function YouTubePreview({ videoId, title }: { videoId: string; title: string }) 
   )
 }
 
-const components: MDXComponents = { YouTubePreview, AutomationFlowVisual, ModelConceptVisual, StudyUnits }
+const components: MDXComponents = { YouTubePreview, AutomationFlowVisual, ModelConceptVisual, StudyUnits, ArticleSections }
 
 export function useMDXComponents(): MDXComponents {
   return components
