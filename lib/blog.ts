@@ -79,6 +79,8 @@ export const getPosts=cache(async ():Promise<Post[]>=>{
   if(Array.isArray(remote?.posts)) for(const value of remote.posts) {
     if(typeof value.slug==="string"&&/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value.slug)&&typeof value.title==="string"&&typeof value.description==="string"&&/^\d{4}-\d{2}-\d{2}$/.test(value.date)&&Number.isSafeInteger(value.readingMinutes)&&value.readingMinutes>0)posts.set(value.slug,value)
   }
+  // The bundled copy of an unpublished or deleted article must stay hidden too.
+  if(Array.isArray(remote?.removed)) for(const slug of remote.removed) posts.delete(slug)
   return [...posts.values()].sort((a,b)=>b.date.localeCompare(a.date))
 })
 

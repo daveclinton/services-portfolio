@@ -33,7 +33,7 @@ type Post struct {
 // bootstrap bounded even with one hundred 40 KB drafts.
 func (s *Service) draftSummaries(ctx context.Context, kind string) ([]Draft, error) {
 	columns := strings.Replace(draftColumns, ",markdown,", ",''::text,", 1)
-	rows, err := s.db.Query(ctx, `SELECT `+columns+` FROM newsletter_studio_drafts WHERE kind=$1 AND ($1<>'post' OR published_revision<revision) ORDER BY updated_at DESC,id DESC LIMIT 100`, kind)
+	rows, err := s.db.Query(ctx, `SELECT `+columns+` FROM newsletter_studio_drafts WHERE kind=$1 ORDER BY updated_at DESC,id DESC LIMIT 1000`, kind)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +178,7 @@ func (s *Service) publish(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 409, httpx.Problem{Detail: "That post URL is already in use."})
 		return
 	}
-	tag, err := tx.Exec(r.Context(), `INSERT INTO studio_posts(slug,draft_id,title,description,markdown,html,revision,reading_minutes) VALUES($1,$2::text::uuid,$3,$4,$5,$6,$7,$8) ON CONFLICT(slug) DO UPDATE SET title=EXCLUDED.title,description=EXCLUDED.description,markdown=EXCLUDED.markdown,html=EXCLUDED.html,revision=EXCLUDED.revision,reading_minutes=EXCLUDED.reading_minutes,legacy=false,updated_at=NOW() WHERE studio_posts.draft_id=EXCLUDED.draft_id`, slug, d.ID, d.Subject, description, d.Markdown, html, d.Revision, readingMinutes(d.Markdown))
+	tag, err := tx.Exec(r.Context(), `INSERT INTO studio_posts(slug,draft_id,title,description,markdown,html,revision,reading_minutes,published_at) VALUES($1,$2::text::uuid,$3,$4,$5,$6,$7,$8,COALESCE((SELECT first_published_at FROM newsletter_studio_drafts WHERE id=$2::text::uuid),NOW())) ON CONFLICT(slug) DO UPDATE SET title=EXCLUDED.title,description=EXCLUDED.description,markdown=EXCLUDED.markdown,html=EXCLUDED.html,revision=EXCLUDED.revision,reading_minutes=EXCLUDED.reading_minutes,legacy=false,updated_at=NOW() WHERE studio_posts.draft_id=EXCLUDED.draft_id`, slug, d.ID, d.Subject, description, d.Markdown, html, d.Revision, readingMinutes(d.Markdown))
 	if err != nil {
 		httpx.WriteJSON(w, 409, httpx.Problem{Detail: "Could not publish at that URL. Reload and try again."})
 		return
@@ -188,6 +188,9 @@ func (s *Service) publish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	d, err = scanDraft(tx.QueryRow(r.Context(), `UPDATE newsletter_studio_drafts SET slug=$1,description=$2,published_revision=revision,legacy=false,updated_at=NOW() WHERE id=$3::text::uuid RETURNING `+draftColumns, slug, description, d.ID))
+	if err == nil {
+		_, err = tx.Exec(r.Context(), `DELETE FROM studio_deleted_posts WHERE slug=$1`, slug)
+	}
 	if err == nil {
 		err = tx.Commit(r.Context())
 	}
@@ -247,7 +250,12 @@ func (s *Service) publicPosts(w http.ResponseWriter, r *http.Request) {
 		draftFailure(w, err)
 		return
 	}
-	publicJSON(w, r, map[string]any{"posts": posts})
+	removed, err := s.removedSlugs(r.Context())
+	if err != nil {
+		draftFailure(w, err)
+		return
+	}
+	publicJSON(w, r, map[string]any{"posts": posts, "removed": removed})
 }
 func (s *Service) publicPost(w http.ResponseWriter, r *http.Request) {
 	var p Post

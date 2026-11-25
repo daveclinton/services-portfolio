@@ -24,6 +24,10 @@ ALTER TABLE newsletter_studio_drafts ADD COLUMN IF NOT EXISTS slug text NOT NULL
 ALTER TABLE newsletter_studio_drafts ADD COLUMN IF NOT EXISTS description text NOT NULL DEFAULT '';
 ALTER TABLE newsletter_studio_drafts ADD COLUMN IF NOT EXISTS published_revision bigint NOT NULL DEFAULT 0;
 ALTER TABLE newsletter_studio_drafts ADD COLUMN IF NOT EXISTS legacy boolean NOT NULL DEFAULT false;
+ALTER TABLE newsletter_studio_drafts ADD COLUMN IF NOT EXISTS first_published_at timestamptz;
+CREATE TABLE IF NOT EXISTS studio_deleted_posts (
+ slug text PRIMARY KEY, deleted_at timestamptz NOT NULL DEFAULT NOW()
+);
 CREATE INDEX IF NOT EXISTS studio_drafts_kind_updated ON newsletter_studio_drafts(kind,updated_at DESC,id DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS studio_post_draft_slug ON newsletter_studio_drafts(slug) WHERE kind='post' AND slug<>'';
 CREATE TABLE IF NOT EXISTS studio_posts (
