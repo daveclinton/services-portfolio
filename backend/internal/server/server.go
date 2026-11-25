@@ -47,7 +47,8 @@ func cors(allowed []string, next http.Handler) http.Handler {
 		if origin != "" && slices.Contains(allowed, strings.TrimRight(origin, "/")) {
 			h.Set("Access-Control-Allow-Origin", origin)
 			h.Set("Access-Control-Allow-Credentials", "true")
-			h.Set("Access-Control-Expose-Headers", "Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset")
+			h.Set("Access-Control-Expose-Headers", "Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Server-Timing")
+			h.Set("Timing-Allow-Origin", origin)
 			if r.Method == http.MethodOptions {
 				h.Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 				h.Set("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token")

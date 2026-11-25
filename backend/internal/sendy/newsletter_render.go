@@ -10,6 +10,7 @@ import (
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/text"
 )
 
@@ -29,8 +30,31 @@ func RenderNewsletter(subject, markdown, siteURL string) (string, error) {
 	if strings.TrimSpace(markdown) == "" || len(markdown) > NewsletterBodyLimit {
 		return "", errors.New("Write a newsletter of up to 40,000 bytes")
 	}
+	body, err := RenderMarkdown(markdown, siteURL)
+	if err != nil {
+		return "", err
+	}
+	// Reuse the inline email typography/spacing already defined in note.html.
+	for _, tag := range []string{"p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "blockquote", "pre"} {
+		body = strings.ReplaceAll(body, "<"+tag+">", "<"+tag+` style="margin:0 0 24px;font-size:16px;line-height:1.6">`)
+	}
+	body = strings.ReplaceAll(body, "<a ", `<a style="color:#ffffff;text-decoration:underline" `)
+	body = strings.ReplaceAll(body, "<img ", `<img style="max-width:100%;height:auto" `)
+	html, _, err := RenderNote(Note{Title: subject, SiteURL: siteURL, Campaign: true, UnsubscribeURL: unsubscribePlaceholder, Body: template.HTML(body)})
+	if err == nil && len(html) > NewsletterHTMLLimit {
+		return "", errors.New("This email is too large; shorten it before sending")
+	}
+	return html, err
+}
+
+// RenderMarkdown is the shared safe renderer for published posts and email.
+// Never evaluate uploaded MDX, raw HTML, or template expressions as code.
+func RenderMarkdown(markdown, siteURL string) (string, error) {
+	if strings.TrimSpace(markdown) == "" || len(markdown) > NewsletterBodyLimit {
+		return "", errors.New("Write content of up to 40,000 bytes")
+	}
 	source := []byte(markdown)
-	parser := goldmark.New()
+	parser := goldmark.New(goldmark.WithExtensions(extension.Table, extension.Strikethrough, extension.TaskList))
 	doc := parser.Parser().Parse(text.NewReader(source))
 	base, err := url.Parse(siteURL)
 	if err != nil {
@@ -59,7 +83,8 @@ func RenderNewsletter(subject, markdown, siteURL string) (string, error) {
 			if u.User != nil || (u.Scheme != "https" && u.Scheme != "http" && u.Scheme != "mailto") || ((u.Scheme == "https" || u.Scheme == "http") && u.Host == "") {
 				return ast.WalkStop, errors.New("Use web or email links in the newsletter")
 			}
-			if _, image := node.(*ast.Image); image && u.Scheme != "https" {
+			localImage := base.Scheme == "http" && u.Scheme == "http" && u.Hostname() == base.Hostname()
+			if _, image := node.(*ast.Image); image && u.Scheme != "https" && !localImage {
 				return ast.WalkStop, errors.New("Use HTTPS image URLs")
 			}
 			*destination = []byte(u.String())
@@ -75,15 +100,5 @@ func RenderNewsletter(subject, markdown, siteURL string) (string, error) {
 	}
 	body := strings.ReplaceAll(output.String(), "{{", "&#123;&#123;")
 	body = strings.ReplaceAll(body, "{%", "&#123;%")
-	// Reuse the inline email typography/spacing already defined in note.html.
-	for _, tag := range []string{"p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "blockquote", "pre"} {
-		body = strings.ReplaceAll(body, "<"+tag+">", "<"+tag+` style="margin:0 0 24px;font-size:16px;line-height:1.6">`)
-	}
-	body = strings.ReplaceAll(body, "<a ", `<a style="color:#ffffff;text-decoration:underline" `)
-	body = strings.ReplaceAll(body, "<img ", `<img style="max-width:100%;height:auto" `)
-	html, _, err := RenderNote(Note{Title: subject, SiteURL: siteURL, Campaign: true, UnsubscribeURL: unsubscribePlaceholder, Body: template.HTML(body)})
-	if err == nil && len(html) > NewsletterHTMLLimit {
-		return "", errors.New("This email is too large; shorten it before sending")
-	}
-	return html, err
+	return body, nil
 }

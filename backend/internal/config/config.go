@@ -55,6 +55,7 @@ type Config struct {
 	NewsletterGitHubOwnerID      int64
 	NewsletterOAuthCallbackURL   string
 	NewsletterTestEmail          string
+	ContentRevalidationSecret    string
 
 	ConversationRetentionDays int
 }
@@ -103,6 +104,7 @@ func Load() (Config, error) {
 		NewsletterGitHubClientSecret: env("NEWSLETTER_GITHUB_CLIENT_SECRET", ""),
 		NewsletterOAuthCallbackURL:   env("NEWSLETTER_OAUTH_CALLBACK_URL", ""),
 		NewsletterTestEmail:          env("NEWSLETTER_TEST_EMAIL", env("SENDY_ALERT_TO_EMAIL", "")),
+		ContentRevalidationSecret:    env("CONTENT_REVALIDATION_SECRET", ""),
 
 		ConversationRetentionDays: positiveInt(env("CONVERSATION_RETENTION_DAYS", ""), 30),
 	}
@@ -117,6 +119,9 @@ func Load() (Config, error) {
 	}
 
 	var problems []error
+	if c.ContentRevalidationSecret != "" && len(c.ContentRevalidationSecret) < 32 {
+		problems = append(problems, errors.New("CONTENT_REVALIDATION_SECRET must contain at least 32 characters"))
+	}
 	if c.NewsletterAdminEnabled {
 		callback, err := url.Parse(c.NewsletterOAuthCallbackURL)
 		if c.NewsletterGitHubClientID == "" || c.NewsletterGitHubClientSecret == "" || c.NewsletterGitHubOwnerID < 1 || len(c.RateLimitSecret) < 32 {
@@ -136,6 +141,10 @@ func Load() (Config, error) {
 	if urlErr != nil || publicURL == nil || publicURL.Host == "" || publicURL.User != nil || publicURL.RawQuery != "" || publicURL.Fragment != "" || publicURL.Path != "" || (publicURL.Scheme != "https" && (c.Production() || publicURL.Scheme != "http")) {
 		problems = append(problems, errors.New("SITE_URL must be an absolute site origin (HTTPS in production)"))
 	}
+	api, apiErr := url.Parse(c.NewsletterPublicAPIURL)
+	if apiErr != nil || api == nil || api.Host == "" || api.User != nil || api.Path != "" || api.RawQuery != "" || api.Fragment != "" || (api.Scheme != "https" && (c.Production() || api.Scheme != "http")) {
+		problems = append(problems, errors.New("NEWSLETTER_PUBLIC_API_URL must be the public API origin (HTTPS in production)"))
+	}
 
 	if c.SendyAPIKey != "" {
 		for _, address := range []struct{ name, value string }{{"SENDY_SENDER_EMAIL", c.SendySenderEmail}, {"SENDY_ALERT_TO_EMAIL", c.SendyAlertTo}} {
@@ -148,10 +157,6 @@ func Load() (Config, error) {
 			}
 		}
 		if c.NewsletterEnabled {
-			api, err := url.Parse(c.NewsletterPublicAPIURL)
-			if err != nil || api.Host == "" || api.User != nil || api.Path != "" || api.RawQuery != "" || api.Fragment != "" || (api.Scheme != "https" && (c.Production() || api.Scheme != "http")) {
-				problems = append(problems, errors.New("NEWSLETTER_PUBLIC_API_URL must be the public API origin (HTTPS in production)"))
-			}
 			if len(c.RateLimitSecret) < 32 {
 				problems = append(problems, errors.New("newsletter email links require RATE_LIMIT_SECRET (32+ characters)"))
 			}

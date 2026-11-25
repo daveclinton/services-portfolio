@@ -9,6 +9,7 @@ import vm from "node:vm"
 import ts from "typescript"
 import React from "react"
 import { renderToStaticMarkup } from "react-dom/server"
+import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime.js"
 import { answerViewFixture } from "./fixtures/answer-views.mjs"
 
 const root = fileURLToPath(new URL("../", import.meta.url))
@@ -41,12 +42,13 @@ const { NewsletterSignup, NewsletterConfirmation } = require("../components/port
 const { newsletterAvailable, subscribeToNewsletter } = require("../lib/newsletter.ts")
 const { TONE_COLORS, toneScript } = require("../lib/tone.ts")
 const { NewsletterStudio } = require("../components/portfolio/newsletter-studio.tsx")
-const { studioSession, studioSave, studioAction, studioPreview, nairobiSchedule, newsletterFromPost } = require("../lib/newsletter-studio.ts")
+const { studioSession, studioSave, studioAction, studioPreview, studioFromPost, studioUpload, studioPublish, nairobiSchedule } = require("../lib/newsletter-studio.ts")
 const { Signals } = require("../components/portfolio/signals.tsx")
 const { ArticleSections } = require("../components/portfolio/article-sections.tsx")
 const { default: LegacyStudioPage } = require("../app/(desk)/admin/writing/page.tsx")
 const { AdminShell } = require("../components/portfolio/admin-shell.tsx")
 const { SelectField } = require("../components/ui/select.tsx")
+const { PublishedPostContent } = require("../components/portfolio/published-post-content.tsx")
 
 test("the writing shortcut redirects to Posts while preserving a failed login", async () => {
   for (const [query, target] of [[{}, "/admin/posts"], [{ login: "failed" }, "/admin/posts?login=failed"]]) {
@@ -99,9 +101,14 @@ test("shared select fields use an accessible custom trigger rather than a native
   assert(!html.includes("<select"))
 })
 
-test("published-post newsletter content uses the real post title, summary, and canonical link", () => {
-  const seed = newsletterFromPost({ slug: "published-article", title: "A published article", description: "The existing summary.", date: "2026-11-25" }, "https://example.com")
-  assert.deepEqual(seed, { subject: "A published article", markdown: "The existing summary.\n\n[Read the post](<https://example.com/blog/published-article>)" })
+test("newsletter creation sends a published URL to the backend and uses the saved server document", async(t) => {
+  let sent
+  t.mock.method(globalThis,"fetch",async(url,options)=>{sent={url,options};return Response.json(studioDraft)})
+  const draft=await studioFromPost("owner-csrf","published-article")
+  assert.equal(draft.id,studioDraft.id)
+  assert(sent.url.endsWith("/from-post"))
+  assert.deepEqual(JSON.parse(sent.options.body),{slug:"published-article"})
+  assert.equal(sent.options.headers["X-CSRF-Token"],"owner-csrf")
 })
 
 
@@ -294,8 +301,29 @@ test("newsletter failures and malformed success responses do not pretend to subs
 
 const studioDraft = { id: "a5cd8282-68f1-4b4a-9c19-000000000001", subject: "A note", markdown: "Hello", revision: 1, state: "draft", campaign_id: 0, scheduled_at: null, tested_revision: 0, last_error: "", updated_at: "2026-11-25T09:00:00Z" }
 
+test("image uploads use authenticated multipart data and reject unsupported files before requesting",async(t)=>{
+ let sent,calls=0
+ t.mock.method(globalThis,"fetch",async(url,options)=>{calls++;sent={url,options};return Response.json({url:"https://api.example.com/media/image"})})
+ await assert.rejects(()=>studioUpload("csrf",new File(["<svg/>"],"image.svg",{type:"image/svg+xml"})),/PNG, JPEG or GIF/)
+ assert.equal(calls,0)
+ const url=await studioUpload("csrf",new File(["png bytes"],"image.png",{type:"image/png"}))
+ assert.equal(url,"https://api.example.com/media/image")
+ assert(sent.options.body instanceof FormData)
+ assert.equal(sent.options.headers["Content-Type"],undefined,"fetch supplies the multipart boundary")
+ assert.equal(sent.options.headers["X-CSRF-Token"],"csrf")
+ assert.equal(sent.options.credentials,"include")
+})
+
+test("publication requires acknowledgement of the saved revision",async(t)=>{
+ let body={...studioDraft,slug:"a-note",published_revision:0}
+ t.mock.method(globalThis,"fetch",async()=>Response.json(body))
+ await assert.rejects(()=>studioPublish("csrf",studioDraft,"a-note","Summary"),/not confirmed/)
+ body={...body,published_revision:1}
+ assert.equal((await studioPublish("csrf",studioDraft,"a-note","Summary")).published_revision,1)
+})
+
 test("newsletter studio mounts no private data or send controls before owner verification", () => {
-  const html = renderToStaticMarkup(React.createElement(NewsletterStudio))
+  const html = renderToStaticMarkup(React.createElement(AppRouterContext.Provider,{value:{push(){}}},React.createElement(NewsletterStudio)))
   assert(html.includes('aria-label="Loading posts"'))
   assert(html.includes('data-slot="skeleton"'))
   assert(!html.includes("<textarea"))
@@ -374,6 +402,18 @@ test("articles reuse the closed numbered list and preserve rich section content"
   assert(!/<details\b[^>]*\bopen(?:=|\s|>)/.test(html))
   for (const value of ["00.", "01.", "Original introduction", "const amount = 42", "Study units", "Supporting material", "All writing", "Next: Introduction"]) assert(html.includes(value))
   assert(html.includes('id="example"'))
+})
+
+test("database articles retain sections, tables and trusted imported widgets without evaluating arbitrary MDX",()=>{
+ const markdown='Intro **text**.\n\n## First section\n\n| A | B |\n| --- | --- |\n| One | Two |\n\n```portfolio-widget\n'+JSON.stringify({name:"YouTubePreview",props:{videoId:"v12aSIZIXUs",title:"A video"}})+'\n```\n\n## First section\n\n<script>alert(1)</script>'
+ const html=renderToStaticMarkup(React.createElement(PublishedPostContent,{slug:"stored-post",markdown}))
+ for(const value of ['id="first-section"','id="first-section-2"',"<strong>text</strong>","<table>","youtube-nocookie.com/embed/v12aSIZIXUs"])assert(html.includes(value),value)
+ assert(!html.includes("<script>"))
+ const imported=JSON.parse(readFileSync(new URL("../backend/internal/studio/posts.json",import.meta.url),"utf8"))
+ const models=imported.find((post)=>post.slug==="understanding-ai-models")
+ const modelHtml=renderToStaticMarkup(React.createElement(PublishedPostContent,{slug:models.slug,markdown:models.markdown}))
+ assert(modelHtml.includes("Study this at university"))
+ assert(modelHtml.includes("Artificial Intelligence Applications"))
 })
 
 test("article section links and selections preserve the page color while other lists still change it", () => {

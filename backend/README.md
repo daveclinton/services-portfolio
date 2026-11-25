@@ -150,13 +150,39 @@ improves which documents are ranked as relevant. `knowledge-backend`'s
 
 The frontend routes are `/admin/posts` and `/admin/newsletters`;
 `/admin/writing` redirects to Posts. The existing OAuth callback returns to
-Newsletters, preserving its login result. The owner edits a post
-title and rich text body in one canvas, previews the saved draft, then optionally
-previews the actual email, chooses delivery, and reviews a final confirmation.
-Drafts still save as Markdown with revision checks. Blog publication and media
-uploads are not connected in this frontend release. The actual email preview, tests and
-campaigns share the backend renderer and existing Postmark email shell. Core
-Markdown is supported; raw HTML and template expressions are restricted.
+Newsletters, preserving its login result. Preview lives in the fixed editor
+header; only the document scrolls. The private shell reuses the neutral palette,
+blue primary actions, favicon, glass surfaces and profile menu.
+
+Posts and newsletters are separate document kinds in PostgreSQL. Post drafts
+autosave with revision checks. Publishing asks for a URL, a summary, then review;
+the API snapshots the confirmed revision transactionally. Later autosaves do not
+change the public version. Published posts can be reopened and updated at their
+existing URL. Creating a newsletter selects a published post; the API copies its
+title, summary and canonical link into a new editable document. Publishing and
+creating that draft do not send email. Tests, immediate delivery and scheduling
+still use the existing reviewed delivery flow and durable campaign worker.
+
+The initial migration imports the 14 published repository articles once from
+`internal/studio/posts.json`; restarts never overwrite owner edits. Their original
+MDX views stay intact until republishing. Imported images, video links, model/flow
+visuals, chat and study asides survive in portable Markdown blocks. These blocks
+restore only an allowlist of existing React components; database MDX is never
+executed. Tables remain in source mode in the current editor to preserve content.
+Regenerate the trusted seed with `node backend/scripts/import-posts.mjs` from the
+repository root when preparing a new import, not to overwrite published records.
+
+Image selection, paste and drop upload through the owner/CSRF-protected API.
+PNG/JPEG/GIF files are limited to 5 MB and 16 megapixels, decoded on the server,
+deduplicated by SHA-256 and stored in PostgreSQL with the normal backups. Public
+image responses use immutable caching and ETags. HTTPS is required in production.
+[Cloudinary signed uploads](https://cloudinary.com/documentation/upload_images)
+were evaluated; this release reuses existing durable storage without requiring
+another service/account. A large media library would warrant object storage/CDN
+offload. No new package was added for uploads.
+
+The actual email preview, tests and campaigns share the backend renderer and
+existing email shell. Raw HTML is rejected; template expressions are escaped.
 
 The UX reference is [Ghost's newsletter flow](https://ghost.org/help/delivering-emails/)
 and its [publishing/scheduling controls](https://ghost.org/help/publishing-content/).
@@ -164,10 +190,57 @@ Source reviewed: Ghost's MIT-licensed
 [publish flow](https://github.com/TryGhost/Ghost/blob/main/apps/admin/src/editor/publish/publish-flow-modal.tsx)
 and [email preview](https://github.com/TryGhost/Ghost/blob/main/apps/admin/src/editor/preview/email-preview.tsx).
 [listmonk](https://github.com/knadh/listmonk) was compared for campaign lifecycle
-handling, without copying its AGPL code. The selected editor is Markdown rather
-than the researched [Maily rich-text editor](https://github.com/arikchakma/maily.to).
-There is no new frontend editor dependency. Goldmark (MIT) and Go's OAuth2 client
+handling, without copying its AGPL code. The rich editor uses existing Tiptap
+with [Novel's document controls](https://github.com/steven-tey/novel/blob/main/apps/web/components/tailwind/advanced-editor.tsx)
+as a reference. Goldmark (MIT) and Go's OAuth2 client
 (BSD-3-Clause) are included with their license notices in the API image.
+
+#### Public publishing and performance rollout
+
+Deploy the API before this frontend: the desk now reads its catalogue and draft
+summaries from `GET /admin/newsletters/bootstrap`. Owner verification and the list
+load take one HTTP request; bodies load only when opening a document. An index
+supports the limited, ordered draft query, and reading time is computed on
+publication rather than rescanning post bodies for every catalogue request.
+`Server-Timing: db` and the existing duration logs expose server processing time.
+
+Public `/blog/posts` and `/blog/posts/{slug}` supply the blog, metadata, feed and
+sitemap. Next caches public reads with a 30-second ISR interval and the `posts`
+tag. Set the same private `CONTENT_REVALIDATION_SECRET` (32+ characters) in both
+the frontend environment and `backend/.env` for immediate cache invalidation.
+After committing publication, the API releases its database connection and calls
+`POST /api/content/revalidate` with that secret. The call has a two-second deadline;
+publication stays saved if it fails, and ISR is the fallback. The response reports
+cache invalidation, not a guarantee that every visitor has refreshed. Next's
+[in-flight cache invalidation race](https://github.com/vercel/next.js/issues/102007)
+can still allow an older in-flight render to finish; the short ISR interval is
+the recovery path. Failed API reads
+retain the last good ISR page instead of silently removing database articles.
+
+**Existing VPS nginx configuration needs a one-time update for uploads.**
+`deploy/update.sh` updates the API container, not nginx. Regenerate the managed
+site config using the updated setup workflow, or add an exact
+`location = /admin/newsletters/media` with the same proxy headers/upstream and
+`client_max_body_size 6m`, leaving other requests at `64k`. Run `nginx -t` before
+reloading. `deploy/setup.sh` now generates this split and enables gzip only on
+public `/blog/` JSON; private owner responses and SSE stay uncompressed.
+
+Measured without a browser on the local production build: initial admin route
+chunks fell from 497,161 to about 204,000 gzip bytes after deferring the editor.
+With 100 large test drafts, the old list returned 3,831,213 bytes; bootstrap,
+including the published catalogue, returned 35,237 bytes. This is payload/bundle
+evidence, not a claim about production Core Web Vitals. A production session GET
+took 0.82 s on a fresh connection versus 0.22–0.27 s reused; the admin now hints
+the API connection early and uses client navigation instead of full reloads.
+
+Research: [Next lazy loading](https://nextjs.org/docs/app/guides/lazy-loading),
+[fetching/caching](https://nextjs.org/docs/app/getting-started/fetching-data),
+[cache invalidation](https://nextjs.org/docs/app/api-reference/functions/revalidateTag),
+[TTFB diagnosis](https://web.dev/articles/optimize-ttfb),
+[ordered PostgreSQL indexes](https://www.postgresql.org/docs/current/indexes-ordering.html),
+[nginx upload limits](https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size),
+[compression](https://nginx.org/en/docs/http/ngx_http_gzip_module.html), and
+[glass/accessibility fallback](https://developer.chrome.com/blog/css-prefers-reduced-transparency/).
 
 #### One-time owner setup
 

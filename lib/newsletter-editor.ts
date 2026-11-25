@@ -15,7 +15,7 @@ export const writingBlocks = [
   { id: "blockquote", label: "Quote", description: "A passage worth calling out", search: "blockquote citation" },
   { id: "codeBlock", label: "Code block", description: "A code snippet", search: "fenced source" },
   { id: "horizontalRule", label: "Divider", description: "A break between sections", search: "line separator" },
-  { id: "image", label: "Image", description: "An image from a web address", search: "photo picture media" },
+  { id: "image", label: "Image", description: "Upload or use an image address", search: "photo picture media upload" },
 ] as const
 export type WritingBlock = typeof writingBlocks[number]
 

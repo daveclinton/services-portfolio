@@ -90,7 +90,7 @@ type fixture struct {
 	token, csrf string
 }
 
-func newFixture(t *testing.T) *fixture {
+func newFixture(t testing.TB) *fixture {
 	t.Helper()
 	dsn := os.Getenv("NEWSLETTER_STUDIO_TEST_DATABASE_URL")
 	if dsn == "" {

@@ -5,6 +5,7 @@ export type NewsletterDraft = {
   id: string; subject: string; markdown: string; revision: number
   state: "draft" | "error" | "checking" | "scheduled" | "sending" | "sent" | "stopped"
   campaign_id: number; scheduled_at: string | null; tested_revision: number; last_error: string; updated_at: string
+  kind?: "post" | "newsletter"; slug?: string; description?: string; published_revision?: number; legacy?: boolean; cache_invalidated?: boolean
 }
 export type StudioMeta = { sender: { name: string; email: string }; audience: string; subscribers: number; test_email: string; timezone: string }
 export const STUDIO_SUBJECT_LIMIT = 180
@@ -13,18 +14,13 @@ export const studioLoginURL = `${API_URL}/admin/newsletters/auth/login`
 
 export type PublishedStudioPost = { slug: string; title: string; description: string; date: string }
 
-export function newsletterFromPost(post: PublishedStudioPost, siteURL: string) {
-  const url = new URL(`/blog/${encodeURIComponent(post.slug)}`, siteURL).href
-  return { subject: post.title, markdown: `${post.description}\n\n[Read the post](<${url}>)` }
-}
-
-async function request(path: string, csrf?: string, body?: Record<string, unknown>): Promise<Record<string, unknown>> {
+async function request(path: string, csrf?: string, body?: Record<string, unknown> | FormData): Promise<Record<string, unknown>> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 30_000)
   try {
     const response = await fetch(`${API_URL}/admin/newsletters/${path}`, {
       method: body ? "POST" : "GET", credentials: "include", cache: "no-store", signal: controller.signal,
-      ...(body ? { headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf ?? "" }, body: JSON.stringify(body) } : {}),
+      ...(body ? { headers: { ...(body instanceof FormData ? {} : { "Content-Type": "application/json" }), "X-CSRF-Token": csrf ?? "" }, body: body instanceof FormData ? body : JSON.stringify(body) } : {}),
     })
     const value: unknown = await response.json().catch(() => null)
     const result = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null
@@ -46,15 +42,50 @@ function draft(value: unknown): NewsletterDraft {
 }
 export async function studioSession(): Promise<StudioSession> {
   const result = await request("session")
+  return session(result)
+}
+function session(result: Record<string, unknown>): StudioSession {
   if (typeof result.configured !== "boolean" || typeof result.authenticated !== "boolean" || (result.authenticated && (typeof result.csrf !== "string" || !/^[0-9a-f]{64}$/.test(result.csrf) || typeof result.login !== "string"))) throw new Error("Couldn’t verify your sign-in. Reload the dashboard.")
   return result as StudioSession
+}
+export async function studioBootstrap(section: "posts" | "newsletters") {
+  const result = await request(`bootstrap?section=${section}`)
+  if (!result.session || typeof result.session !== "object" || !Array.isArray(result.drafts) || !Array.isArray(result.posts)) throw new Error("Couldn’t load the writing desk.")
+  const posts = result.posts.map((value): PublishedStudioPost => {
+    if (!value || typeof value !== "object") throw new Error("Couldn’t read published posts.")
+    const p=value as Record<string, unknown>
+    if (typeof p.slug !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(p.slug) || typeof p.title !== "string" || typeof p.description !== "string" || typeof p.date !== "string") throw new Error("Couldn’t read published posts.")
+    return p as PublishedStudioPost
+  })
+  return { session: session(result.session as Record<string, unknown>), drafts: result.drafts.map(draft), posts }
+}
+export async function studioDraft(id: string): Promise<NewsletterDraft> { return draft(await request(`drafts/${id}`)) }
+export async function studioEditPost(slug: string): Promise<NewsletterDraft> { return draft(await request(`posts/${encodeURIComponent(slug)}/draft`)) }
+export async function studioFromPost(csrf: string, slug: string): Promise<NewsletterDraft> { return draft(await request("from-post", csrf, { slug })) }
+export async function studioPublish(csrf: string, current: NewsletterDraft, slug: string, description: string): Promise<NewsletterDraft> {
+  const result=draft(await request(`drafts/${current.id}/publish`,csrf,{revision:current.revision,slug,description}))
+  if(result.published_revision!==current.revision || result.slug!==slug) throw new Error("Publication was not confirmed. Reload this post to check its status.")
+  return result
+}
+export async function studioUpload(csrf: string, file: File): Promise<string> {
+  if (!['image/png', 'image/jpeg', 'image/gif'].includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error("Choose a PNG, JPEG or GIF of up to 5 MB.")
+  const data=new FormData(); data.set("file", file)
+  const result=await request("media",csrf,data)
+  if(typeof result.url!=="string" || !studioImageURL(result.url)) throw new Error("Couldn’t confirm the uploaded image.")
+  return result.url
+}
+export function studioImageURL(value: string): boolean {
+  try {
+    const url=new URL(value)
+    return !url.username && !url.password && (url.protocol==="https:" || (process.env.NODE_ENV==="development" && url.protocol==="http:" && url.origin===new URL(API_URL).origin))
+  } catch {return false}
 }
 export async function studioDrafts(): Promise<NewsletterDraft[]> {
   const result = await request("drafts")
   if (!Array.isArray(result.drafts)) throw new Error("Couldn’t read your newsletters.")
   return result.drafts.map(draft)
 }
-export async function studioCreate(csrf: string, subject: string): Promise<NewsletterDraft> { return draft(await request("drafts", csrf, { subject })) }
+export async function studioCreate(csrf: string, subject: string, kind: "post" | "newsletter" = "newsletter"): Promise<NewsletterDraft> { return draft(await request("drafts", csrf, { subject, kind })) }
 export async function studioSave(csrf: string, current: NewsletterDraft, subject: string, markdown: string): Promise<NewsletterDraft> {
   if (new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT) throw new Error("This newsletter is too long. Shorten it before saving.")
   const result = draft(await request(`drafts/${current.id}/save`, csrf, { subject, markdown, revision: current.revision }))

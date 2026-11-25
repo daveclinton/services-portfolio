@@ -45,6 +45,9 @@ func (s *Service) owner(r *http.Request) (string, string, bool) {
 func (s *Service) sameOrigin(r *http.Request) bool { return r.Header.Get("Origin") == s.cfg.SiteURL }
 func (s *Service) protect(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 28*time.Second)
+		defer cancel()
+		r = r.WithContext(ctx)
 		w.Header().Set("Cache-Control", "no-store")
 		if origin := r.Header.Get("Origin"); origin != "" && !s.sameOrigin(r) {
 			httpx.WriteJSON(w, 403, httpx.Problem{Detail: "This dashboard request is not allowed."})

@@ -2,6 +2,7 @@ import { getPosts } from "@/lib/blog"
 import { site } from "@/lib/portfolio-data"
 
 export const dynamic = "force-static"
+export const revalidate = 30
 
 function escapeXml(value: string) {
   return value
