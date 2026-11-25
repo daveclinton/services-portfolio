@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ArrowUp, Check, Copy, RotateCcw, Square, SquarePen } from "lucide-react"
+import { ArrowUp, Check, Copy, RotateCcw, Square, SquarePen, X } from "lucide-react"
 import Link from "next/link"
 import { useInView } from "motion/react"
 import { Button } from "@/components/ui/button"
@@ -37,7 +37,7 @@ import {
   type EvidenceSource,
   type ViewState,
 } from "@/lib/ai-client"
-import { askAi, askAiStatus } from "@/lib/portfolio-data"
+import { aiTaskGroups, askAi, askAiStatus } from "@/lib/portfolio-data"
 import { cn } from "@/lib/utils"
 
 // Layout and interaction patterns borrowed from open-source implementations:
@@ -119,6 +119,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   const [showTasks, setShowTasks] = useState(false)
   const [showScope, setShowScope] = useState(false)
   const [scopeSeed, setScopeSeed] = useState("")
+  const [suggestionGroup, setSuggestionGroup] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const consentRef = useRef<HTMLInputElement | null>(null)
@@ -130,6 +131,8 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   const restored = useRef(false)
 
   const hasConversation = turns.length > 0
+  const taskGroup = aiTaskGroups.find((group) => group.id === suggestionGroup)
+  const modeLabel = taskGroup?.label ?? (workflow === "project_scope" ? "Plan a project" : workflow === "role_fit" || workflow === "interview" ? "Hiring" : null)
   const activeContext = turns.findLast((turn) => turn.contextActive && turn.status === "done" && turn.view && (turn.view.kind === "scope" || turn.viewState?.selectedId))
 
   useEffect(() => {
@@ -137,7 +140,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
       inputRef.current.focus()
       focusComposerRef.current = false
     }
-  }, [draft, workflow, showTasks, showScope])
+  }, [draft, workflow, showTasks, showScope, suggestionGroup])
 
   // Blog-post version: offer a suggested question once the reader reaches it.
   useEffect(() => {
@@ -285,8 +288,10 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     setDraft("")
     setShowScope(false)
     setShowTasks(false)
-    const userTurn: Turn = { id: newId("user"), role: "user", content: question, status: "done", workflow, interactionContext: viewInteractionContext(activeContext?.view, activeContext?.viewState) }
-    void streamAnswer([...turns, userTurn], workflow)
+    const selectedWorkflow = workflow === "chat" && suggestionGroup === "planning" ? "project_scope" : workflow
+    setWorkflow(selectedWorkflow)
+    const userTurn: Turn = { id: newId("user"), role: "user", content: question, status: "done", workflow: selectedWorkflow, interactionContext: viewInteractionContext(activeContext?.view, activeContext?.viewState) }
+    void streamAnswer([...turns, userTurn], selectedWorkflow)
   }
 
   // Ask the last question again, replacing the last answer.
@@ -317,6 +322,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     setTurns([])
     setDraft("")
     setWorkflow("chat")
+    setSuggestionGroup(null)
     setShowScope(false)
     setShowTasks(false)
     setShowConsentError(false)
@@ -335,6 +341,12 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
       setDraft(prompt)
       focusComposerRef.current = true
     }
+  }
+
+  function changeSuggestionGroup(groupId: string | null) {
+    setSuggestionGroup(groupId)
+    setWorkflow("chat")
+    focusComposerRef.current = true
   }
 
   function prepareFollowUp(prompt: string, turn: Turn) {
@@ -387,12 +399,6 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
 
   const composer = (
     <div>
-      {workflow !== "chat" ? (
-        <div className="mb-2 flex items-center justify-between gap-2 text-caption text-muted-foreground">
-          <span>{askAi.workflows[workflow].label}</span>
-          <Button type="button" variant="ghost" size="sm" onClick={() => setWorkflow("chat")}>General chat</Button>
-        </div>
-      ) : null}
       <form
         data-empty={!draft.trim()}
         data-running={isStreaming}
@@ -403,6 +409,11 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           else ask(draft)
         }}
       >
+        {modeLabel ? (
+          <Button type="button" variant="ghost" size="sm" className="shrink-0 self-center text-primary" disabled={isStreaming} aria-label={`Clear ${modeLabel} mode`} onClick={() => changeSuggestionGroup(null)}>
+            {modeLabel}<X aria-hidden="true" />
+          </Button>
+        ) : null}
         <label htmlFor="ask-ai-input" className="sr-only">
           {askAi.inputLabel}
         </label>
@@ -421,7 +432,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
             event.preventDefault()
             ask(draft)
           }}
-          placeholder={workflow === "chat" ? askAi.placeholder : askAi.workflows[workflow].placeholder}
+          placeholder={workflow === "chat" ? taskGroup?.placeholder ?? askAi.placeholder : askAi.workflows[workflow].placeholder}
           autoComplete="off"
           enterKeyHint="send"
           rows={1}
@@ -461,7 +472,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
 
       {activeContext ? (
         <div className="mt-2 flex items-center justify-between gap-2 text-caption text-muted-foreground">
-          <span>{activeContext.view?.kind === "scope" ? "Your reviewed brief is included with the next question." : "Your selected answer context is included with the next question."}</span>
+          <span>{activeContext.view?.kind === "scope" ? "This project brief is included with the next question." : "Your selected answer context is included with the next question."}</span>
           <Button type="button" variant="ghost" size="sm" disabled={isStreaming} onClick={() => setTurns((previous) => previous.map((turn) => ({ ...turn, contextActive: false })))}>Clear context</Button>
         </div>
       ) : null}
@@ -478,7 +489,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           <MessageContent className="min-w-0 max-w-full rounded-2xl bg-muted px-4 py-2.5 text-body whitespace-pre-wrap sm:max-w-[80%]">
             {turn.content}
           </MessageContent>
-          {turn.interactionContext ? <p className="text-caption text-muted-foreground">Included your selected context or reviewed brief.</p> : null}
+          {turn.interactionContext ? <p className="text-caption text-muted-foreground">Included your selected item or project brief.</p> : null}
           <MessageActions className="-mr-1 opacity-100 transition-opacity duration-150 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
             <CopyAction text={turn.content} label="Copy question" />
           </MessageActions>
@@ -509,7 +520,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           <p role="alert" className="text-caption break-words [overflow-wrap:anywhere] text-destructive">{turn.error}</p>
         ) : null}
         {turn.status === "stopped" ? <p className="text-caption text-muted-foreground">Response stopped</p> : null}
-        {finished && turn.content && turn.sources?.length ? (
+        {finished && turn.content && turn.sources?.length && (!turn.view || turn.view.kind === "text" || turn.status !== "done") ? (
           <details className="w-full text-caption text-muted-foreground">
             <summary className="cursor-pointer py-2">Published evidence ({turn.sources.length})</summary>
             <ul className="space-y-2 pb-2 pl-4">
@@ -596,7 +607,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         <div className="chat-column min-h-0 flex-1 overflow-y-auto py-6">
           <h1 className="text-title">What would you like to do next?</h1>
           <Button type="button" variant="ghost" className="my-4" onClick={() => { setShowTasks(false); focusComposerRef.current = true }}>Back to conversation</Button>
-          <AiTaskSuggestions onChoose={chooseTask} />
+          <AiTaskSuggestions groupId={suggestionGroup} onGroupChange={changeSuggestionGroup} onChoose={chooseTask} />
         </div>
       </div>
     )
@@ -621,7 +632,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           </Button>
         </div>
       ) : null}
-      <div className={cn("flex min-h-0 min-w-0 flex-1 flex-col", !hasConversation && "justify-center-safe")}>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         {hasConversation ? (
           <MessageScrollerProvider defaultScrollPosition="last-anchor" scrollPreviousItemPeek={40} scrollMargin={8}>
             <MessageScroller>
@@ -644,15 +655,19 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
             </MessageScroller>
           </MessageScrollerProvider>
         ) : null}
-        <div hidden={hasConversation} className="chat-welcome chat-column min-h-0 overflow-y-auto py-6">
+        <div hidden={hasConversation} className={cn("chat-welcome chat-column min-h-0 flex-1 flex-col justify-end overflow-y-auto pb-6", hasConversation ? "hidden" : "flex")}>
           <h2 className="text-name text-balance break-words text-center font-normal text-foreground">
             {workflow === "chat" ? `${askAi.title}?` : askAi.workflows[workflow].title}
           </h2>
-          {workflow === "chat" ? <div className="mt-6"><AiTaskSuggestions onChoose={chooseTask} /></div> : <p className="mt-4 text-center text-body text-muted-foreground">{askAi.workflows[workflow].placeholder}</p>}
         </div>
         <div className="chat-column relative shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-gradient-to-t before:from-background before:to-transparent">
           {composer}
         </div>
+        {!hasConversation ? (
+          <div className="chat-column min-h-0 flex-1 overflow-y-auto pt-4 pb-4">
+            {workflow === "chat" && !draft.trim() ? <AiTaskSuggestions groupId={suggestionGroup} onGroupChange={changeSuggestionGroup} onChoose={chooseTask} /> : null}
+          </div>
+        ) : null}
       </div>
     </div>
   )

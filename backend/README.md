@@ -59,6 +59,10 @@ Clients can opt in with `interactive: true`. The same answer-generation call use
 strict structured output with `answer` first and a bounded `view` second. The API
 decodes complete JSON string units into ordinary `delta` events while streaming,
 then emits `view` before `done` only after successful generation and validation.
+Interactive prose is a short summary with essential caveats; detailed content
+lives in the result opened by the visitor. Complete generated view text is also
+included in the existing consented conversation record for quality review and
+owner notifications, while plain clients continue to receive full prose.
 Allowed views are text, projects, comparison, architecture, timeline and scope;
 scope requires the project-scoping workflow. Views reference evidence by index;
 the server hydrates excerpts, confirmed public links and available review dates
