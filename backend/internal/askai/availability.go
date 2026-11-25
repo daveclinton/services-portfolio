@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"html"
 	"net"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/daveclinton/portfolio/backend/internal/brevo"
 	"github.com/daveclinton/portfolio/backend/internal/httpx"
 	"github.com/daveclinton/portfolio/backend/internal/openai"
 )
@@ -130,9 +130,8 @@ func (s *Service) notifyOperator(kind, detail string) {
 		return
 	}
 	s.goBackground(func(ctx context.Context) {
-		body := "<h1>Assistant needs attention</h1><p>" + html.EscapeString(detail) + "</p>" +
-			"<p>Evidence-only browsing remains available when the database is healthy. Check backend logs for the provider request ID.</p>"
-		if err := s.sendMail(ctx, "Ask AI: "+strings.ReplaceAll(kind, "_", " "), body, httpx.NewUUID()); err != nil {
+		note := brevo.Note{Title: "Ask AI needs attention", Intro: detail, SiteURL: s.cfg.SiteURL}
+		if err := s.sendMail(ctx, "Ask AI: "+strings.ReplaceAll(kind, "_", " "), note, httpx.NewUUID()); err != nil {
 			s.operatorAlerts.Release(kind, token)
 			s.log.Error("send operational alert", "kind", kind, "err", err)
 		}

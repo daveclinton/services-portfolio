@@ -5,6 +5,7 @@ import { formatPostDate, getPostContent, getPosts } from "@/lib/blog"
 import { SiteNav } from "@/components/portfolio/site-nav"
 import { ReadingProgress } from "@/components/portfolio/reading-progress"
 import { site } from "@/lib/portfolio-data"
+import { NewsletterSignup } from "@/components/portfolio/newsletter-signup"
 
 export async function generateStaticParams() {
   const posts = await getPosts()
@@ -83,6 +84,7 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
               Written by <Link href="/">{site.name}</Link>. If this was useful, you can{" "}
               <Link href="/blog">read more of my writing</Link>.
             </p>
+            <div className="mt-6"><NewsletterSignup /></div>
           </footer>
         </article>
         <ReadingProgress />

@@ -5,6 +5,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -44,6 +45,8 @@ type Config struct {
 	ConversationAlerts        string
 	OperationalAlerts         bool
 	AIProviderCooldownSeconds int
+	SiteURL                   string
+	NewsletterEnabled         bool
 
 	ConversationRetentionDays int
 }
@@ -85,6 +88,8 @@ func Load() (Config, error) {
 		ConversationAlerts:        env("BREVO_CONVERSATION_ALERTS", "important"),
 		OperationalAlerts:         boolean(env("BREVO_OPERATIONAL_ALERTS", "true")),
 		AIProviderCooldownSeconds: positiveInt(env("AI_PROVIDER_COOLDOWN_SECONDS", ""), 300),
+		SiteURL:                   strings.TrimRight(env("SITE_URL", "https://www.daveclintonn.cc"), "/"),
+		NewsletterEnabled:         boolean(env("NEWSLETTER_ENABLED", "true")),
 
 		ConversationRetentionDays: positiveInt(env("CONVERSATION_RETENTION_DAYS", ""), 30),
 	}
@@ -94,6 +99,10 @@ func Load() (Config, error) {
 	}
 
 	var problems []error
+	publicURL, urlErr := url.Parse(c.SiteURL)
+	if urlErr != nil || publicURL == nil || publicURL.Host == "" || publicURL.User != nil || publicURL.RawQuery != "" || publicURL.Fragment != "" || publicURL.Path != "" || (publicURL.Scheme != "https" && (c.Production() || publicURL.Scheme != "http")) {
+		problems = append(problems, errors.New("SITE_URL must be an absolute site origin (HTTPS in production)"))
+	}
 	if c.ConversationAlerts != "important" && c.ConversationAlerts != "all" && c.ConversationAlerts != "off" {
 		problems = append(problems, errors.New("BREVO_CONVERSATION_ALERTS must be important, all or off"))
 	}

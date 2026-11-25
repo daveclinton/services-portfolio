@@ -1,14 +1,11 @@
 package askai
 
 import (
-	"bytes"
 	"context"
-	"html/template"
 	"net/http"
 	"regexp"
 	"strings"
 	"time"
-	_ "time/tzdata" // embed zone data so Africa/Nairobi works on minimal servers
 
 	"github.com/daveclinton/portfolio/backend/internal/brevo"
 	"github.com/daveclinton/portfolio/backend/internal/httpx"
@@ -187,66 +184,37 @@ func (s *Service) storeAndAlert(ctx context.Context, e turnLog) {
 	}
 }
 
-var alertTemplate = template.Must(template.New("alert").Funcs(template.FuncMap{
-	"paragraph": func(value string) template.HTML {
-		if value == "" {
-			value = "(no response was generated)"
-		}
-		escaped := template.HTMLEscapeString(value)
-		return template.HTML(strings.ReplaceAll(escaped, "\n", "<br>"))
-	},
-	"percent": func(v float64) int { return int(v*100 + 0.5) },
-}).Parse(`<!doctype html>
-<html>
-  <body style="margin:0;background:#f5f3ef;color:#171717;font-family:Arial,sans-serif">
-    <main style="max-width:680px;margin:0 auto;padding:32px 20px">
-      <section style="background:#fff;border:1px solid #dedbd5;border-radius:14px;padding:28px">
-        <p style="margin:0 0 8px;color:#6b665e;font-size:13px">ASK AI SESSION ALERT</p>
-        <h1 style="margin:0 0 12px;font-size:24px">A conversation needs your attention</h1>
-        <p style="margin:0 0 24px;color:#6b665e;line-height:1.5">A successful conversation matched your notification policy. This is the qualifying turn, which may follow earlier browsing. Later turns remain available in the stored conversation.</p>
-        <p style="margin:0 0 8px"><strong>Qualifying question</strong></p>
-        <p style="margin:0 0 24px;line-height:1.6">{{paragraph .Turn.Question}}</p>
-        <p style="margin:0 0 8px"><strong>Assistant response</strong></p>
-        <p style="margin:0 0 24px;line-height:1.6">{{paragraph .Turn.Answer}}</p>
-        <table style="width:100%;border-collapse:collapse;font-size:14px;color:#4d4943">
-          <tr><td style="padding:6px 0"><strong>Status</strong></td><td>{{.Turn.Status}}</td></tr>
-          <tr><td style="padding:6px 0"><strong>Intent</strong></td><td>{{.Turn.Intent}} ({{.Turn.IntentSource}}, {{percent .Turn.IntentConfidence}}%)</td></tr>
-          <tr><td style="padding:6px 0"><strong>Sources</strong></td><td>{{.Turn.SourceCount}}</td></tr>
-          <tr><td style="padding:6px 0"><strong>Device</strong></td><td>{{.Turn.DeviceType}} · {{.Turn.BrowserFamily}} · {{.Turn.OSFamily}}</td></tr>
-          <tr><td style="padding:6px 0"><strong>Latency</strong></td><td>{{.Turn.LatencyMs}} ms</td></tr>
-          <tr><td style="padding:6px 0"><strong>Time</strong></td><td>{{.Time}}</td></tr>
-          <tr><td style="padding:6px 0"><strong>Conversation</strong></td><td>{{.Turn.ConversationID}}</td></tr>
-        </table>
-        <p style="margin:24px 0 0;color:#6b665e;font-size:12px">Stored for {{.RetentionDays}} days under the visitor's explicit consent. Raw IP addresses are not included.</p>
-      </section>
-    </main>
-  </body>
-</html>`))
-
 func (s *Service) sendAlert(ctx context.Context, e turnLog) error {
-	location, err := time.LoadLocation("Africa/Nairobi")
-	if err != nil {
-		location = time.UTC
+	title := "A new question"
+	switch e.AlertReason {
+	case "hiring":
+		title = "Someone asked about working with you"
+	case "pricing":
+		title = "Someone asked about pricing"
+	case "contact":
+		title = "Someone wants to get in touch"
 	}
-	var body bytes.Buffer
-	if err := alertTemplate.Execute(&body, map[string]any{
-		"Turn":          e,
-		"Time":          time.Now().In(location).Format("2 Jan 2006, 15:04:05 MST"),
-		"RetentionDays": s.cfg.ConversationRetentionDays,
-	}); err != nil {
-		return err
-	}
-	intent := firstNonEmpty(e.AlertReason, e.Intent, "general")
-	return s.sendMail(ctx, "Ask AI: visitor interest · "+intent, body.String(), e.ConversationID)
+	// The full, consented conversation remains in its existing record. Only a
+	// short preview belongs in the notification, not the generated view transcript.
+	summary, _, _ := strings.Cut(e.Answer, "\n\n")
+	return s.sendMail(ctx, "Ask AI · "+title, brevo.Note{
+		Title: title, SiteURL: s.cfg.SiteURL,
+		Sections: []brevo.NoteSection{
+			{Label: "They asked", Text: excerpt(e.Question, 320)},
+			{Label: "The short answer", Text: excerpt(summary, 400)},
+		},
+	}, e.ConversationID)
 }
 
-func (s *Service) sendMail(ctx context.Context, subject, body, key string) error {
+func (s *Service) sendMail(ctx context.Context, subject string, note brevo.Note, key string) error {
+	html, text, err := brevo.RenderNote(note)
+	if err != nil {
+		return err
+	}
 	return s.mail.Send(ctx, brevo.Email{
-		Sender:         brevo.Address{Name: s.cfg.BrevoSenderName, Email: s.cfg.BrevoSenderEmail},
-		To:             []brevo.Address{{Name: "David Clinton", Email: s.cfg.BrevoAlertTo}},
-		Subject:        subject,
-		HTML:           body,
-		IdempotencyKey: key,
+		Sender:  brevo.Address{Name: s.cfg.BrevoSenderName, Email: s.cfg.BrevoSenderEmail},
+		To:      []brevo.Address{{Name: "David Clinton", Email: s.cfg.BrevoAlertTo}},
+		Subject: subject, HTML: html, Text: text, IdempotencyKey: key,
 	})
 }
 

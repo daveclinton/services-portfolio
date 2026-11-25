@@ -191,6 +191,13 @@ export const askAi = {
   },
 } as const
 
+export const newsletter = {
+  href: "/subscribe",
+  title: "Follow along",
+  description: "Occasional notes on what I’m building, learning, and writing.",
+  consent: "By subscribing, you agree to occasional emails from David. Free to read. Unsubscribe anytime.",
+} as const
+
 export const aiTaskGroups = [
   {
     id: "explore", label: "Explore my work", description: "Follow a project from the problem to the result.", placeholder: "Ask about a project, outcome, or architecture…",

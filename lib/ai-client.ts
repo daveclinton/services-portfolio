@@ -13,7 +13,7 @@ export const INTENT_NAMES = [
 export type IntentName = (typeof INTENT_NAMES)[number]
 
 // The Go API (backend/) runs on its own origin, e.g. https://api.daveclintonn.cc.
-const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "")
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, "")
 
 export type ChatTurn = { role: "user" | "assistant"; content: string }
 export type ChatWorkflow = "chat" | "role_fit" | "interview" | "project_scope"

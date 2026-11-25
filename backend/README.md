@@ -23,6 +23,7 @@ internal/visitor/     signed anonymous visitor cookie and HMAC hashing
 internal/openai/      chat streaming and structured output (answers and intent planning)
 internal/embeddings/  client for the self-hosted Text Embeddings Inference server
 internal/brevo/       transactional email
+internal/newsletter/  independent double-opt-in newsletter signup and limits
 internal/askai/       product: Ask AI (retrieval, intent, generation, conversation logs)
 db/init/              schema (from knowledge-backend migrations), applied on first start
 deploy/setup.sh       VPS setup: free ports, docker compose, nginx site, TLS
@@ -43,6 +44,22 @@ method and pass it to `server.New` in `cmd/api/main.go`.
 | `GET /healthz` | Liveness and database check |
 | `POST /ask-ai/chat` | Grounded answer, streamed as SSE (`retrieval`, `citations`, `delta`, `done`, `error`) |
 | `POST /ask-ai/search` | Ranked knowledge chunks with evidence citations |
+| `GET /newsletter/status` | Whether newsletter provisioning has completed |
+| `POST /newsletter/subscribe` | Request an email confirmation; does not enroll directly |
+
+Newsletter signup is independent of chat storage and needs no database migration.
+It accepts bounded JSON with an email address and `consent: true`, requests Brevo
+double opt-in, and returns `202 {"status":"pending"}`. Confirmation redirects to
+`SITE_URL/subscribe/confirmed`; the browser does not add a contact directly.
+Use Brevo Campaigns and its unsubscribe controls for future notes.
+
+When `BREVO_API_KEY` and the existing sender are configured, the newsletter worker
+provisions its own named folder, list and confirmation template in the background.
+It reuses resources by name, updates only the app's template, and retries setup
+failures without blocking the rest of the API. It sends no emails during setup.
+`GET /newsletter/status` stays disabled until setup succeeds. Set
+`NEWSLETTER_ENABLED=false` to turn it off. See the root README for resource names,
+rate limits and the adapted, MIT-licensed Postmark email design.
 
 Chat accepts an optional `workflow`: `chat` (default), `role_fit` (a pasted job
 description comparison), `interview` (an evidence-grounded interview brief), or

@@ -1,0 +1,38 @@
+<!doctype html>
+<!-- Adapted from Postmark's Plain welcome/comment templates (MIT, Wildbit).
+     See LICENSE. Table layout and inline styles work without an email CSS runtime.
+     Email-safe equivalents of the existing portfolio default tone, white ink,
+     Georgia reading fallback, 40rem measure and page gutters; no new palette. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="x-apple-disable-message-reformatting">
+  <meta name="color-scheme" content="light">
+  <title>[[.Title]]</title>
+</head>
+<body style="margin:0;padding:0;background-color:#1557c0;color:#ffffff;font-family:Georgia,'Times New Roman',serif;-webkit-text-size-adjust:100%">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#1557c0;color:#ffffff">
+    <tr><td align="center">
+      [[outlookOpen]]
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto">
+        <tr><td style="padding:48px 24px;font-family:Georgia,'Times New Roman',serif;overflow-wrap:anywhere">
+          <p style="margin:0 0 24px;font-size:16px;line-height:1.6"><a href="[[.SiteURL]]" style="color:#ffffff;text-decoration:underline">David Clinton</a></p>
+          <h1 style="margin:0 0 24px;font-size:28px;font-weight:normal;line-height:1.2">[[.Title]]</h1>
+          [[if .Intro]]<p style="margin:0 0 24px;font-size:16px;line-height:1.6">[[.Intro]]</p>[[end]]
+          [[range .Sections]]
+          <h2 style="margin:0 0 8px;font-size:16px;line-height:1.4">[[.Label]]</h2>
+          <p style="margin:0 0 24px;font-size:16px;line-height:1.6;white-space:pre-wrap">[[.Text]]</p>
+          [[end]]
+          [[if .Confirmation]]
+          <p style="margin:0 0 24px;font-size:16px;line-height:1.6"><a href="{{ params.DOIurl }}" style="color:#ffffff;font-weight:bold;text-decoration:underline">Confirm my email &rarr;</a></p>
+          <p style="margin:0 0 24px;font-size:14px;line-height:1.45">By confirming, you agree to occasional emails from David. Free to read. Unsubscribe anytime. <a href="[[.SiteURL]]/privacy" style="color:#ffffff">Privacy</a>.</p>
+          [[end]]
+          [[if .Footer]]<p style="margin:0;font-size:14px;line-height:1.45">[[.Footer]]</p>[[end]]
+        </td></tr>
+      </table>
+      [[outlookClose]]
+    </td></tr>
+  </table>
+</body>
+</html>
