@@ -17,7 +17,7 @@ The repository includes David Clinton's portfolio content as a working example. 
 - **Context-aware follow-ups:** two suggested next questions accompany completed answers. Selected items and saved brief edits are included with the next question as visitor context; selections and views survive a same-tab reload. Copying a brief includes saved edits and its proposal disclaimer.
 - **Question refinement:** sent text and discovery categories clear from the composer, which becomes a labelled follow-up input while actual workflows remain visible. Edit any question without changing the visible conversation until sending; cancel restores the previous draft. Sending a revision replaces later turns in the tab's conversation. Regenerate explicitly requests another answer to the last question.
 - **Sources for plain answers:** even without a project card or diagram, completed text answers can open retrieved excerpts, public links and available review dates. The inspector labels this as retrieved material rather than claim-by-claim verification; older and interrupted responses retain their link fallback.
-- **Follow along by email:** one email field on Writing, article footers and `/subscribe`, with a quiet homepage invitation. A confirmation email completes signup; subscriber lists and unsubscribe handling live in Brevo, separately from chat consent. RSS remains available.
+- **Follow along by email:** a short invitation opens a guided email-and-review flow on Writing, article footers and `/subscribe`. A confirmation email completes signup; existing subscribers see their own result without another email. Subscriber lists and unsubscribe handling live in Brevo, separately from chat consent. RSS remains available.
 - **Reading-aware streaming:** follow a new answer, pause to read or select earlier text, and jump back to the latest response. The mobile composer follows the visible viewport above the keyboard.
 - **Evidence-only fallback:** when generation is unconfigured or the provider reports billing, credential or availability problems, show clearly labelled excerpts instead of pretending to generate an assessment.
 - **Useful owner notifications:** optional email for successful hiring/pricing/contact interest, critical provider incidents and a warning near the application request budget. Greetings and ordinary browsing do not email by default.
@@ -126,10 +126,13 @@ templates](https://github.com/ActiveCampaign/postmark-templates), using the
 portfolio's default blue/white palette and serif reading fallback. The MIT notice
 is retained with the template and in the API image.
 
-The personal invitation follows [Cassidy Williams' newsletter](https://cassidoo.co/newsletter/):
-explain what readers receive, offer something to read, and keep RSS available.
-The form follows [Typeform's one-question sequence](https://help.typeform.com/hc/en-us/articles/360053660271-My-first-form):
-enter an email, review it, then request confirmation, with progress and a Back button.
+The invitation keeps the personal tone of [Cassidy Williams' newsletter](https://cassidoo.co/newsletter/):
+explain what readers receive without a marketing pitch. RSS remains available
+through feed discovery and the unavailable-state alternative.
+The form follows [Typeform's welcome screen](https://help.typeform.com/hc/en-us/articles/360052366812-Welcome-Screen)
+and [one-question sequence](https://help.typeform.com/hc/en-us/articles/360053660271-My-first-form):
+one invitation and Subscribe button, then an email question, a short review with
+consent, and an outcome-specific ending. Progress and Back appear only after starting.
 
 With a Brevo API key and sender configured, newsletter setup runs in the background:
 it reuses or creates the `daveclintonn.cc portfolio` folder, `daveclintonn.cc — Follow
@@ -140,8 +143,11 @@ Before requesting confirmation, signup checks the contact's newsletter membershi
 and email preferences. Existing members receive no repeat confirmation; contacts
 outside this list still confirm before joining. Blocked contacts and newsletter
 opt-outs are preserved, with a contact link in the form for help rejoining.
-All accepted requests use the same public response and conditional inbox guidance,
-including visible Spam/Junk advice; the API does not disclose list membership.
+The public signup response distinguishes pending confirmation, existing newsletter
+membership and suppressed addresses so the form can show a concise, relevant
+ending. Pending requests include a short Spam/Junk hint; existing members are
+told they are already subscribed. Rate limits still apply to every lookup, and
+the email cooldown suppresses repeat sends without hiding current membership.
 Set `NEWSLETTER_ENABLED=false` to disable signup, or `SITE_URL` to change the public
 site origin. The API key needs contacts/lists and templates permissions. If setup
 or delivery fails, signup reports unavailable rather than pretending to succeed.

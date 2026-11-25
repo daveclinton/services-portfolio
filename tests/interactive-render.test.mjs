@@ -155,21 +155,42 @@ test("generated text remains escaped React content", () => {
   assert(html.includes("&lt;script&gt;"))
 })
 
-test("newsletter has one email question and reuses the site's palette and reading font", () => {
+test("newsletter begins with one invitation and a start button, without mounting later steps", () => {
   const html = renderToStaticMarkup(React.createElement(NewsletterSignup))
-  assert.equal((html.match(/type="email"/g) ?? []).length, 1)
-  assert(html.includes("Email address"))
-  assert(html.includes('autoComplete="email"'))
-  assert(html.includes("Unsubscribe anytime"))
-  assert(html.includes('href="/privacy"'))
-  assert(html.includes('name="website"'))
-  assert(!html.includes('type="password"'))
+  assert.equal((html.match(/<button/g) ?? []).length, 1)
+  assert(html.includes("Subscribe"))
+  assert(html.includes("Occasional notes"))
+  assert(!html.includes("<form"))
+  assert(!html.includes("<input"))
+  assert(!html.includes("Unsubscribe anytime"))
+  assert(!html.includes('href="/privacy"'))
+  assert(!html.includes("1 of 2"))
+  const embedded = renderToStaticMarkup(React.createElement(NewsletterSignup, { showHeading: false }))
+  assert(!embedded.includes("<h2"))
+  assert.equal((embedded.match(/<button/g) ?? []).length, 1)
   const confirmation = renderToStaticMarkup(React.createElement(NewsletterConfirmation))
   assert(confirmation.includes("You’re in."))
   assert(confirmation.includes("Back to reading"))
   const email = readFileSync(new URL("../backend/internal/brevo/templates/note.html", import.meta.url), "utf8")
   assert(email.includes(TONE_COLORS[0]))
   assert(email.includes("Georgia,'Times New Roman',serif"))
+})
+
+test("newsletter endings show only the actual result and its next action", () => {
+  const pending = renderToStaticMarkup(React.createElement(NewsletterConfirmation, { status: "pending", onChangeEmail() {} }))
+  assert(pending.includes("Check your inbox."))
+  assert(pending.includes("Spam/Junk"))
+  assert(!pending.includes("already subscribed"))
+  assert(!pending.includes("Still no email?"))
+  const subscribed = renderToStaticMarkup(React.createElement(NewsletterConfirmation, { status: "subscribed" }))
+  assert(subscribed.includes("You’re already subscribed."))
+  assert(!subscribed.includes("Check your inbox"))
+  assert(!subscribed.includes("Spam/Junk"))
+  const suppressed = renderToStaticMarkup(React.createElement(NewsletterConfirmation, { status: "suppressed" }))
+  assert(suppressed.includes("Contact David to subscribe"))
+  assert(suppressed.includes('href="mailto:'))
+  assert(!suppressed.includes("You’re already subscribed"))
+  assert(!suppressed.includes("Check your inbox"))
 })
 
 test("newsletter requests explicitly opt in and only report a pending confirmation", async (t) => {
@@ -179,10 +200,18 @@ test("newsletter requests explicitly opt in and only report a pending confirmati
     return new Response(JSON.stringify(url.endsWith("/status") ? { enabled: true } : { status: "pending" }), { status: url.endsWith("/status") ? 200 : 202 })
   })
   assert.equal(await newsletterAvailable(), true)
-  await subscribeToNewsletter(" reader@example.com ")
+  assert.equal(await subscribeToNewsletter(" reader@example.com "), "pending")
   assert(requests[1].url.endsWith("/newsletter/subscribe"))
   assert.deepEqual(JSON.parse(requests[1].options.body), { email: "reader@example.com", consent: true, website: "" })
   assert.equal(requests[1].options.cache, "no-store")
+})
+
+test("newsletter client preserves confirmed-membership and suppressed results", async (t) => {
+  let status = "subscribed"
+  t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ status }), { status: 202 }))
+  assert.equal(await subscribeToNewsletter("reader@example.com"), "subscribed")
+  status = "suppressed"
+  assert.equal(await subscribeToNewsletter("reader@example.com"), "suppressed")
 })
 
 test("newsletter failures and malformed success responses do not pretend to subscribe", async (t) => {

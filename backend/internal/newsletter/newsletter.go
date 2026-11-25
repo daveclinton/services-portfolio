@@ -23,7 +23,7 @@ import (
 
 type provider interface {
 	EnsureNewsletter(context.Context, brevo.Address, string) (brevo.NewsletterIDs, error)
-	RequestSubscription(context.Context, string, brevo.NewsletterIDs, string) error
+	RequestSubscription(context.Context, string, brevo.NewsletterIDs, string, bool) (brevo.SubscriptionStatus, error)
 }
 
 type Service struct {
@@ -115,7 +115,7 @@ func (s *Service) subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if trap, _ := input["website"].(string); trap != "" {
-		writePending(w)
+		writeStatus(w, brevo.SubscriptionPending)
 		return
 	}
 	ids := s.ready.Load()
@@ -137,21 +137,18 @@ func (s *Service) subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	emailKey := s.privacy.Hash("newsletter-email:" + strings.ToLower(email))
 	token, allowed := s.cooldown.Acquire(emailKey)
-	if !allowed {
-		writePending(w)
-		return
-	}
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
 	defer cancel()
-	if err := s.mail.RequestSubscription(ctx, email, *ids, s.cfg.SiteURL+"/subscribe/confirmed"); err != nil {
+	status, err := s.mail.RequestSubscription(ctx, email, *ids, s.cfg.SiteURL+"/subscribe/confirmed", allowed)
+	if err != nil {
 		s.cooldown.Release(emailKey, token)
 		s.log.Error("request subscription confirmation", "err", err)
 		httpx.Unavailable(w, "We couldn’t send the confirmation. Please try again shortly.", 60)
 		return
 	}
-	writePending(w)
+	writeStatus(w, status)
 }
 
-func writePending(w http.ResponseWriter) {
-	httpx.WriteJSON(w, http.StatusAccepted, map[string]string{"status": "pending"})
+func writeStatus(w http.ResponseWriter, status brevo.SubscriptionStatus) {
+	httpx.WriteJSON(w, http.StatusAccepted, map[string]brevo.SubscriptionStatus{"status": status})
 }

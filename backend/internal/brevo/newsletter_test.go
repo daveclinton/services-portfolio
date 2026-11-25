@@ -201,7 +201,11 @@ func TestSubscriptionRequestsUseDOIAndHideProviderPersonalData(t *testing.T) {
 		return providerResponse(status, map[string]any{"code": code, "message": "private visitor@example.com details"}), nil
 	})
 	send := func() error {
-		return client.RequestSubscription(context.Background(), "visitor@example.com", NewsletterIDs{2, 3}, "https://example.com/subscribe/confirmed")
+		result, err := client.RequestSubscription(context.Background(), "visitor@example.com", NewsletterIDs{2, 3}, "https://example.com/subscribe/confirmed", true)
+		if err == nil && result != SubscriptionPending {
+			t.Fatal("DOI response claimed confirmed membership", result)
+		}
+		return err
 	}
 	if err := send(); err != nil {
 		t.Fatal(err)
@@ -221,47 +225,50 @@ func TestSubscriptionSkipsConfirmedAndSuppressedContactsButConfirmsOtherContacts
 		name                string
 		status              int
 		contact             any
+		wantStatus          SubscriptionStatus
 		wantSend, wantError bool
 	}{
-		{"new contact", 404, map[string]any{"code": "document_not_found"}, true, false},
-		{"other list", 200, map[string]any{"id": 1, "emailBlacklisted": false, "listIds": []int{7}}, true, false},
-		{"no lists", 200, map[string]any{"id": 1, "emailBlacklisted": false, "listIds": []int{}}, true, false},
-		{"confirmed newsletter", 200, map[string]any{"id": 1, "emailBlacklisted": false, "listIds": []int{2}}, false, false},
-		{"blocked member", 200, map[string]any{"id": 1, "emailBlacklisted": true, "listIds": []int{2}}, false, false},
-		{"blocked nonmember", 200, map[string]any{"id": 1, "emailBlacklisted": true, "listIds": []int{}}, false, false},
-		{"unsubscribed newsletter", 200, map[string]any{"id": 1, "emailBlacklisted": false, "listIds": []int{2}, "listUnsubscribed": []int{2}}, false, false},
-		{"removed unsubscribed newsletter", 200, map[string]any{"id": 1, "emailBlacklisted": false, "listIds": []int{}, "listUnsubscribed": []int{2}}, false, false},
-		{"unsubscribed other list", 200, map[string]any{"id": 1, "emailBlacklisted": false, "listIds": []int{7}, "listUnsubscribed": []int{7}}, true, false},
-		{"lookup unauthorized", 401, map[string]any{"code": "unauthorized", "message": "private reader@example.com"}, false, true},
-		{"lookup unavailable", 503, map[string]any{"code": "unavailable"}, false, true},
-		{"empty contact", 200, map[string]any{}, false, true},
-		{"null contact", 200, nil, false, true},
-		{"missing blocklist status", 200, map[string]any{"id": 1, "listIds": []int{2}}, false, true},
-		{"invalid blocklist status", 200, map[string]any{"id": 1, "emailBlacklisted": "unknown"}, false, true},
+		{"new contact", 404, map[string]any{"code": "document_not_found"}, SubscriptionPending, true, false},
+		{"other list", 200, map[string]any{"id": 1, "emailBlacklisted": false, "listIds": []int{7}}, SubscriptionPending, true, false},
+		{"no lists", 200, map[string]any{"id": 1, "emailBlacklisted": false, "listIds": []int{}}, SubscriptionPending, true, false},
+		{"confirmed newsletter", 200, map[string]any{"id": 1, "emailBlacklisted": false, "listIds": []int{2}}, SubscriptionSubscribed, false, false},
+		{"blocked member", 200, map[string]any{"id": 1, "emailBlacklisted": true, "listIds": []int{2}}, SubscriptionSuppressed, false, false},
+		{"blocked nonmember", 200, map[string]any{"id": 1, "emailBlacklisted": true, "listIds": []int{}}, SubscriptionSuppressed, false, false},
+		{"unsubscribed newsletter", 200, map[string]any{"id": 1, "emailBlacklisted": false, "listIds": []int{2}, "listUnsubscribed": []int{2}}, SubscriptionSuppressed, false, false},
+		{"removed unsubscribed newsletter", 200, map[string]any{"id": 1, "emailBlacklisted": false, "listIds": []int{}, "listUnsubscribed": []int{2}}, SubscriptionSuppressed, false, false},
+		{"unsubscribed other list", 200, map[string]any{"id": 1, "emailBlacklisted": false, "listIds": []int{7}, "listUnsubscribed": []int{7}}, SubscriptionPending, true, false},
+		{"lookup unauthorized", 401, map[string]any{"code": "unauthorized", "message": "private reader@example.com"}, "", false, true},
+		{"lookup unavailable", 503, map[string]any{"code": "unavailable"}, "", false, true},
+		{"empty contact", 200, map[string]any{}, "", false, true},
+		{"null contact", 200, nil, "", false, true},
+		{"missing blocklist status", 200, map[string]any{"id": 1, "listIds": []int{2}}, "", false, true},
+		{"invalid blocklist status", 200, map[string]any{"id": 1, "emailBlacklisted": "unknown"}, "", false, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			client := New("key")
-			lookups, sends := 0, 0
-			client.http.Transport = mailTransport(func(r *http.Request) (*http.Response, error) {
-				if r.Method == http.MethodGet && r.URL.Path == "/v3/contacts/reader@example.com" {
-					lookups++
-					if r.URL.Query().Get("identifierType") != "email_id" {
-						t.Fatal("contact identifier type missing")
+			for _, allowConfirmation := range []bool{true, false} {
+				client := New("key")
+				lookups, sends := 0, 0
+				client.http.Transport = mailTransport(func(r *http.Request) (*http.Response, error) {
+					if r.Method == http.MethodGet && r.URL.Path == "/v3/contacts/reader@example.com" {
+						lookups++
+						if r.URL.Query().Get("identifierType") != "email_id" {
+							t.Fatal("contact identifier type missing")
+						}
+						return providerResponse(tc.status, tc.contact), nil
 					}
-					return providerResponse(tc.status, tc.contact), nil
+					if r.Method != http.MethodPost || r.URL.Path != "/v3/contacts/doubleOptinConfirmation" {
+						t.Fatalf("unexpected contact mutation: %s %s", r.Method, r.URL.Path)
+					}
+					sends++
+					return providerResponse(201, map[string]any{}), nil
+				})
+				result, err := client.RequestSubscription(context.Background(), "reader@example.com", NewsletterIDs{2, 3}, "https://example.com/subscribe/confirmed", allowConfirmation)
+				if (err != nil) != tc.wantError || result != tc.wantStatus || lookups != 1 || (sends == 1) != (tc.wantSend && allowConfirmation) || sends > 1 {
+					t.Fatalf("allowConfirmation=%t lookup=%d sends=%d result=%s err=%v", allowConfirmation, lookups, sends, result, err)
 				}
-				if r.Method != http.MethodPost || r.URL.Path != "/v3/contacts/doubleOptinConfirmation" {
-					t.Fatalf("unexpected contact mutation: %s %s", r.Method, r.URL.Path)
+				if err != nil && strings.Contains(err.Error(), "reader@example.com") {
+					t.Fatal("contact lookup error leaked email")
 				}
-				sends++
-				return providerResponse(201, map[string]any{}), nil
-			})
-			err := client.RequestSubscription(context.Background(), "reader@example.com", NewsletterIDs{2, 3}, "https://example.com/subscribe/confirmed")
-			if (err != nil) != tc.wantError || lookups != 1 || (sends == 1) != tc.wantSend || sends > 1 {
-				t.Fatalf("lookup=%d sends=%d err=%v", lookups, sends, err)
-			}
-			if err != nil && strings.Contains(err.Error(), "reader@example.com") {
-				t.Fatal("contact lookup error leaked email")
 			}
 		})
 	}
@@ -276,7 +283,7 @@ func TestContactLookupEscapesEmailAndRedactsTransportErrors(t *testing.T) {
 		}
 		return nil, errors.New("network failure containing private " + email)
 	})
-	err := client.RequestSubscription(context.Background(), email, NewsletterIDs{2, 3}, "https://example.com/subscribe/confirmed")
+	_, err := client.RequestSubscription(context.Background(), email, NewsletterIDs{2, 3}, "https://example.com/subscribe/confirmed", true)
 	if err == nil || strings.Contains(err.Error(), email) || strings.Contains(err.Error(), "/contacts/") {
 		t.Fatal("transport error exposed contact URL or hid failure", err)
 	}
