@@ -8,6 +8,7 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /portfolio-api ./cmd/ap
 
 FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=build /portfolio-api /portfolio-api
+COPY internal/brevo/templates/LICENSE /licenses/postmark-templates.txt
 EXPOSE 8080
 USER nonroot:nonroot
 ENTRYPOINT ["/portfolio-api"]

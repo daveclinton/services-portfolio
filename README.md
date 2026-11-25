@@ -17,6 +17,7 @@ The repository includes David Clinton's portfolio content as a working example. 
 - **Context-aware follow-ups:** two suggested next questions accompany completed answers. Selected items and saved brief edits are included with the next question as visitor context; selections and views survive a same-tab reload. Copying a brief includes saved edits and its proposal disclaimer.
 - **Question refinement:** sent text and discovery categories clear from the composer, which becomes a labelled follow-up input while actual workflows remain visible. Edit any question without changing the visible conversation until sending; cancel restores the previous draft. Sending a revision replaces later turns in the tab's conversation. Regenerate explicitly requests another answer to the last question.
 - **Sources for plain answers:** even without a project card or diagram, completed text answers can open retrieved excerpts, public links and available review dates. The inspector labels this as retrieved material rather than claim-by-claim verification; older and interrupted responses retain their link fallback.
+- **Follow along by email:** one email field on Writing, article footers and `/subscribe`, with a quiet homepage invitation. A confirmation email completes signup; subscriber lists and unsubscribe handling live in Brevo, separately from chat consent. RSS remains available.
 - **Reading-aware streaming:** follow a new answer, pause to read or select earlier text, and jump back to the latest response. The mobile composer follows the visible viewport above the keyboard.
 - **Evidence-only fallback:** when generation is unconfigured or the provider reports billing, credential or availability problems, show clearly labelled excerpts instead of pretending to generate an assessment.
 - **Useful owner notifications:** optional email for successful hiring/pricing/contact interest, critical provider incidents and a warning near the application request budget. Greetings and ordinary browsing do not email by default.
@@ -117,6 +118,33 @@ Replace the included personal content and fixed site facts before publishing you
 ## Notifications
 
 Email is optional. Configure `BREVO_API_KEY`, `BREVO_ALERT_TO_EMAIL` and `BREVO_SENDER_EMAIL` in the backend environment.
+
+Visitor notifications are short notes containing the question and an answer preview,
+without device details, confidence scores, IDs or the full generated result.
+Confirmation emails and alerts share a minimal adaptation of [Postmark's Plain
+templates](https://github.com/ActiveCampaign/postmark-templates), using the
+portfolio's default blue/white palette and serif reading fallback. The MIT notice
+is retained with the template and in the API image.
+
+The personal invitation follows [Cassidy Williams' newsletter](https://cassidoo.co/newsletter/):
+explain what readers receive, offer something to read, and keep RSS available.
+The form follows [Typeform's one-question sequence](https://help.typeform.com/hc/en-us/articles/360053660271-My-first-form):
+enter an email, review it, then request confirmation, with progress and a Back button.
+
+With a Brevo API key and sender configured, newsletter setup runs in the background:
+it reuses or creates the `daveclintonn.cc portfolio` folder, `daveclintonn.cc — Follow
+along` list and `daveclintonn.cc — Confirm email` template. This does not enroll
+anyone or send email. It only updates the application-owned template. Contacts
+join through [Brevo's double opt-in API](https://developers.brevo.com/reference/create-doi-contact).
+Set `NEWSLETTER_ENABLED=false` to disable signup, or `SITE_URL` to change the public
+site origin. The API key needs contacts/lists and templates permissions. If setup
+or delivery fails, signup reports unavailable rather than pretending to succeed.
+
+Write and send future notes through Brevo's Campaigns interface to the confirmed
+list, including its unsubscribe link. Signup currently accepts up to five attempts
+per network per hour and 100 per API process per day, with a 15-minute cooldown
+per email. These controls reuse the existing in-memory limiter and assume one API
+instance; network and email rate-limit keys are hashed and temporary.
 
 | Setting | Behavior |
 | --- | --- |

@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { NumberedPage } from "@/components/portfolio/numbered-page"
 import { formatPostDate, getPosts } from "@/lib/blog"
+import { NewsletterSignup } from "@/components/portfolio/newsletter-signup"
 
 export async function WritingList({ initial }: { initial?: number }) {
   const posts = await getPosts()
@@ -29,7 +30,7 @@ export async function WritingList({ initial }: { initial?: number }) {
         {
           slug: "follow-along",
           title: "Follow along",
-          body: <p>You can follow new articles with <a href="/feed.xml">the RSS feed</a>.</p>,
+          body: <NewsletterSignup showHeading={false} />,
         },
       ]}
     />

@@ -33,6 +33,9 @@ registerHooks({
 const { AiAnswerView, AiAnswerContent, EvidenceDetails } = require("../components/portfolio/ai-answer-view.tsx")
 const { AiTaskSuggestions } = require("../components/portfolio/ai-task-suggestions.tsx")
 const { ProjectScopeForm } = require("../components/portfolio/project-scope-form.tsx")
+const { NewsletterSignup, NewsletterConfirmation } = require("../components/portfolio/newsletter-signup.tsx")
+const { newsletterAvailable, subscribeToNewsletter } = require("../lib/newsletter.ts")
+const { TONE_COLORS } = require("../lib/tone.ts")
 
 test("discovery starts with only three categories and reveals one group at a time", () => {
   const props = { groupId: null, onGroupChange() {}, onChoose() {} }
@@ -150,4 +153,44 @@ test("generated text remains escaped React content", () => {
   const html = renderToStaticMarkup(React.createElement(AiAnswerContent, { view, onChange() {}, state: { selectedId: "orders" } }))
   assert(!html.includes("<script>alert("))
   assert(html.includes("&lt;script&gt;"))
+})
+
+test("newsletter has one email question and reuses the site's palette and reading font", () => {
+  const html = renderToStaticMarkup(React.createElement(NewsletterSignup))
+  assert.equal((html.match(/type="email"/g) ?? []).length, 1)
+  assert(html.includes("Email address"))
+  assert(html.includes('autoComplete="email"'))
+  assert(html.includes("Unsubscribe anytime"))
+  assert(html.includes('href="/privacy"'))
+  assert(html.includes('name="website"'))
+  assert(!html.includes('type="password"'))
+  const confirmation = renderToStaticMarkup(React.createElement(NewsletterConfirmation))
+  assert(confirmation.includes("You’re in."))
+  assert(confirmation.includes("Back to reading"))
+  const email = readFileSync(new URL("../backend/internal/brevo/templates/note.html", import.meta.url), "utf8")
+  assert(email.includes(TONE_COLORS[0]))
+  assert(email.includes("Georgia,'Times New Roman',serif"))
+})
+
+test("newsletter requests explicitly opt in and only report a pending confirmation", async (t) => {
+  const requests = []
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    requests.push({ url, options })
+    return new Response(JSON.stringify(url.endsWith("/status") ? { enabled: true } : { status: "pending" }), { status: url.endsWith("/status") ? 200 : 202 })
+  })
+  assert.equal(await newsletterAvailable(), true)
+  await subscribeToNewsletter(" reader@example.com ")
+  assert(requests[1].url.endsWith("/newsletter/subscribe"))
+  assert.deepEqual(JSON.parse(requests[1].options.body), { email: "reader@example.com", consent: true, website: "" })
+  assert.equal(requests[1].options.cache, "no-store")
+})
+
+test("newsletter failures and malformed success responses do not pretend to subscribe", async (t) => {
+  let response = new Response("Unavailable", { status: 503 })
+  t.mock.method(globalThis, "fetch", async () => response)
+  await assert.rejects(() => subscribeToNewsletter("reader@example.com"), /unavailable/)
+  response = new Response(JSON.stringify({ status: "confirmed" }), { status: 200 })
+  await assert.rejects(() => subscribeToNewsletter("reader@example.com"), /couldn’t confirm/)
+  response = new Response("{}", { status: 429 })
+  await assert.rejects(() => subscribeToNewsletter("reader@example.com"), /wait a little/)
 })

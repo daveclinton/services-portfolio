@@ -13,7 +13,7 @@ export const signals: Signal[] = [
   {
     slug: "start-here",
     title: "Start here",
-    body: <>I’m David Clinton, a Software Engineer based in Nairobi, Kenya. I spend most of my days solving problems that we see every day, taking ownership of the problem nobody owns, and designing systems that run and scale. On this site, pick a number or click the dot at the bottom right to keep going through my facts list.</>,
+    body: <>I’m David Clinton, a Software Engineer based in Nairobi, Kenya. I spend most of my days solving problems that we see every day, taking ownership of the problem nobody owns, and designing systems that run and scale. On this site, pick a number or click the dot at the bottom right to keep going through my facts list. You can also <Link href="/subscribe">follow along by email</Link>.</>,
   },
   {
     slug: "problems",

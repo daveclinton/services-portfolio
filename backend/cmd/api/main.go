@@ -17,6 +17,7 @@ import (
 
 	"github.com/daveclinton/portfolio/backend/internal/askai"
 	"github.com/daveclinton/portfolio/backend/internal/config"
+	"github.com/daveclinton/portfolio/backend/internal/newsletter"
 	"github.com/daveclinton/portfolio/backend/internal/server"
 )
 
@@ -77,10 +78,12 @@ func run(log *slog.Logger) error {
 		return errors.Join(errors.New("prepare ask-ai schema"), err)
 	}
 	go askAI.Run(ctx)
+	subscriptions := newsletter.New(cfg, log)
+	go subscriptions.Run(ctx)
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           server.New(db, cfg.AllowedOrigins, log, askAI),
+		Handler:           server.New(db, cfg.AllowedOrigins, log, askAI, subscriptions),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		// No WriteTimeout: chat answers stream for up to a minute. Each

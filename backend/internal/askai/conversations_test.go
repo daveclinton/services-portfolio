@@ -14,6 +14,40 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+func TestConversationAlertIsAShortEscapedNoteWithoutTechnicalMetadata(t *testing.T) {
+	mail := &recordingMailer{}
+	s := &Service{mail: mail, cfg: config.Config{SiteURL: "https://example.com", BrevoSenderEmail: "notes@example.com", BrevoAlertTo: "owner@example.com"}}
+	e := turnLog{Question: `<script>alert("bad")</script> Can we work together?`, Answer: "David can discuss the requirements.\n\nPRIVATE_FULL_BRIEF_AND_VIEW_TRANSCRIPT", ConversationID: "conversation-id", AlertReason: "hiring",
+		requestContext: requestContext{DeviceType: "PRIVATE_DEVICE", BrowserFamily: "PRIVATE_BROWSER", OSFamily: "PRIVATE_OS"}, IntentSource: "PRIVATE_CLASSIFIER", LatencyMs: 987654}
+	if err := s.sendAlert(context.Background(), e); err != nil {
+		t.Fatal(err)
+	}
+	if len(mail.messages) != 1 {
+		t.Fatal("missing notification")
+	}
+	message := mail.messages[0]
+	if !strings.Contains(message.HTML, "David can discuss the requirements.") || !strings.Contains(message.HTML, "&lt;script&gt;") || strings.Contains(message.HTML, "<script>") {
+		t.Fatal("question or preview was unsafe or missing")
+	}
+	for _, unwanted := range []string{"PRIVATE_FULL_BRIEF", "PRIVATE_DEVICE", "PRIVATE_BROWSER", "PRIVATE_OS", "PRIVATE_CLASSIFIER", "987654", "conversation-id", "notification policy", "qualifying turn"} {
+		if strings.Contains(message.HTML, unwanted) || strings.Contains(message.Text, unwanted) {
+			t.Errorf("notification included unnecessary information: %s", unwanted)
+		}
+	}
+	if message.IdempotencyKey != e.ConversationID || message.Text == "" {
+		t.Fatal("deduplication or plain text was lost")
+	}
+	mail.messages = nil
+	e.Question = strings.Repeat("🛠", 500) + "PRIVATE_QUESTION_TAIL"
+	e.Answer = strings.Repeat("word ", 150) + "PRIVATE_ANSWER_TAIL"
+	if err := s.sendAlert(context.Background(), e); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(mail.messages[0].HTML, "PRIVATE_QUESTION_TAIL") || strings.Contains(mail.messages[0].HTML, "PRIVATE_ANSWER_TAIL") {
+		t.Fatal("notification previews were not bounded")
+	}
+}
+
 // Uses an isolated schema in an explicitly supplied test database. No OpenAI,
 // embeddings or email integrations are used by this regression test.
 func TestConversationRetentionWithForeignKeys(t *testing.T) {
