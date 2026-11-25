@@ -43,7 +43,7 @@ export const signals: Signal[] = [
   {
     slug: "untapped-global",
     title: "My favorite role was at Untapped Global",
-    body: <><a href={workLinks.untapped}>Untapped Global</a> lets investors fund things that small businesses use to earn money. When I joined, the investment platform had no guided tour and investors could not see their portfolio in charts. I built both, so new investors could learn the platform and follow how their money was doing.</>,
+    body: <><a href={workLinks.untapped}>Untapped Global</a> connects embedded finance pioneers to global investors, using real-time data to scale opportunities for underserved communities. When I joined, the investment platform had no guided tour and investors could not see their portfolio in charts. I built both, so new investors could learn the platform and follow how their money was doing.</>,
   },
   {
     slug: "untapped-kyc",
