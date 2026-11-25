@@ -148,8 +148,9 @@ improves which documents are ranked as relevant. `knowledge-backend`'s
 
 ### Newsletter writing dashboard
 
-The frontend route is `/admin/writing`; `/admin/newsletters` redirects there,
-including the existing OAuth callback's login result. The owner edits a post
+The frontend routes are `/admin/posts` and `/admin/newsletters`;
+`/admin/writing` redirects to Posts. The existing OAuth callback returns to
+Newsletters, preserving its login result. The owner edits a post
 title and rich text body in one canvas, previews the saved draft, then optionally
 previews the actual email, chooses delivery, and reviews a final confirmation.
 Drafts still save as Markdown with revision checks. Blog publication and media
@@ -204,7 +205,7 @@ There is no new frontend editor dependency. Goldmark (MIT) and Go's OAuth2 clien
    curl -fsS https://api.daveclintonn.cc/healthz
    ```
 
-   Open `https://www.daveclintonn.cc/admin/writing` and sign in as the owner.
+   Open `https://www.daveclintonn.cc/admin/posts` and sign in as the owner.
    API startup initializes `newsletter_studio_*`, `newsletter_subscribers`,
    `newsletter_campaigns`, and `newsletter_deliveries` idempotently; include all in backups. No campaign is sent during setup.
    For local development, use a separate OAuth app with a localhost API callback,

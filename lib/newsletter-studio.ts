@@ -11,6 +11,13 @@ export const STUDIO_SUBJECT_LIMIT = 180
 export const STUDIO_BODY_LIMIT = 40_000
 export const studioLoginURL = `${API_URL}/admin/newsletters/auth/login`
 
+export type PublishedStudioPost = { slug: string; title: string; description: string; date: string }
+
+export function newsletterFromPost(post: PublishedStudioPost, siteURL: string) {
+  const url = new URL(`/blog/${encodeURIComponent(post.slug)}`, siteURL).href
+  return { subject: post.title, markdown: `${post.description}\n\n[Read the post](<${url}>)` }
+}
+
 async function request(path: string, csrf?: string, body?: Record<string, unknown>): Promise<Record<string, unknown>> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 30_000)

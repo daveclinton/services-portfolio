@@ -9,6 +9,15 @@ export const TONES = TONE_COLORS.length
 
 export const toneOf = (index: number) => String(index % TONES)
 
+/** Enter private neutral chrome without changing the reader's saved palette. */
+export function enterAdminTheme() {
+  const root = document.documentElement
+  let previous = root.getAttribute("data-tone") ?? "0"
+  try { const saved = Number.parseInt(localStorage.getItem(TONE_STORAGE_KEY) ?? "", 10); if (saved >= 0) previous = toneOf(saved) } catch {}
+  root.removeAttribute("data-tone")
+  return () => { root.setAttribute("data-tone", previous) }
+}
+
 const { bowl, stem } = MARK
 const markShapes = `<circle cx='${bowl.cx}' cy='${bowl.cy}' r='${bowl.r}' fill='white'/><rect x='${stem.x}' y='${stem.y}' width='${stem.width}' height='${stem.height}' fill='white'/>`
 
