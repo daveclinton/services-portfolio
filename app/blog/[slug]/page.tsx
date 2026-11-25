@@ -3,7 +3,6 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { formatPostDate, getPostContent, getPosts } from "@/lib/blog"
 import { SiteNav } from "@/components/portfolio/site-nav"
-import { ReadingProgress } from "@/components/portfolio/reading-progress"
 import { site } from "@/lib/portfolio-data"
 import { NewsletterSignup } from "@/components/portfolio/newsletter-signup"
 
@@ -57,7 +56,7 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
   }
 
   return (
-    <div className="page" id="top">
+    <div className="page numbered" id="top">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
@@ -65,19 +64,17 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
       <SiteNav />
 
       <main id="content">
-        <article className="blog-post pb-16">
-          <header className="blog-post-header">
-            <p className="post-meta">
+        <article className="blog-post">
+          <header className="signals">
+            <h1 className="font-bold">{post.title}</h1>
+            <p className="signal-meta mt-4">
               <time dateTime={post.date}>{formatPostDate(post.date)}</time> ·{" "}
               {post.readingMinutes} min read
             </p>
-            <h1>{post.title}</h1>
-            {post.description ? <p className="post-description">{post.description}</p> : null}
+            {post.description ? <p className="signal-meta mt-4">{post.description}</p> : null}
           </header>
 
-          <div className="blog-prose">
-            <Content />
-          </div>
+          <Content />
 
           <footer className="blog-post-footer">
             <p>
@@ -87,7 +84,6 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
             <div className="mt-6"><NewsletterSignup /></div>
           </footer>
         </article>
-        <ReadingProgress />
       </main>
     </div>
   )

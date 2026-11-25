@@ -10,12 +10,11 @@ const find = async ({ params }: Props) => {
   const { section } = await params
   const index = signals.findIndex((item) => item.slug === section)
   if (index < 0) redirect("/blog")
-  if (index === 0) redirect("/")
   return index
 }
 
 export function generateStaticParams() {
-  return signals.slice(1).map((item) => ({ section: item.slug }))
+  return signals.map((item) => ({ section: item.slug }))
 }
 
 export async function generateMetadata(props: Props): Promise<Metadata> {

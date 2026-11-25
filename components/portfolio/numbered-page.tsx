@@ -19,6 +19,7 @@ export function NumberedPage({ heading, children, ...list }: Omit<ComponentProps
       <main id="content">
         <h1 className="sr-only">{heading}</h1>
         <Signals
+          key={`${list.id}:${list.initial ?? "closed"}`}
           {...list}
           footer={
             <ul aria-label="Contact">

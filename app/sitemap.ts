@@ -18,8 +18,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: absoluteUrl("/ask-ai") },
     { url: absoluteUrl("/privacy") },
     { url: absoluteUrl("/subscribe") },
-    // Home's first item is the page itself.
-    ...signals.slice(1).map((item) => ({ url: absoluteUrl(`/${item.slug}`) })),
+    ...signals.map((item) => ({ url: absoluteUrl(`/${item.slug}`) })),
     ...backgroundItems.map((role) => ({ url: absoluteUrl(`/experience/${role.slug}`) })),
     ...posts.map((post) => ({
       url: absoluteUrl(`/blog/${post.slug}`),
