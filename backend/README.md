@@ -27,6 +27,9 @@ internal/askai/       product: Ask AI (retrieval, intent, generation, conversati
 db/init/              schema (from knowledge-backend migrations), applied on first start
 deploy/setup.sh       VPS setup: free ports, docker compose, nginx site, TLS
 deploy/import-db.sh   copy data from another Postgres (e.g. Neon) into the container
+deploy/update.sh      routine API-only deploy and public health check
+deploy/github-ssh.sh  restricted GitHub deployment entry point
+deploy/install-github-deploy.sh  one-time authorization of the Actions SSH key
 Dockerfile, compose.yaml
 ```
 
@@ -232,9 +235,71 @@ redeploy the site.
 ### Updating later
 
 ```bash
-cd /opt/services-portfolio && git pull
-cd backend && ./deploy/setup.sh
+cd /opt/services-portfolio
+git switch main
+git pull --ff-only origin main
+bash backend/deploy/update.sh
 ```
+
+### Automatic deploys from GitHub
+
+The **Deploy VPS API** workflow runs backend and deployment-script checks on PRs
+and updates to `main`. After checks pass on `main`, GitHub connects to the VPS,
+fast-forwards its clean `main` checkout, builds only `api`, waits for the container
+health check, checks the public HTTPS health endpoint, and captures recent API
+logs. It also supports **Actions → Deploy VPS API → Run workflow** on `main`.
+Frontend deployment remains with Vercel. Database imports, knowledge ingestion,
+nginx configuration and TLS setup remain separate operations.
+
+One-time setup for an existing VPS:
+
+1. Create a dedicated inbound SSH key on your trusted workstation:
+
+   ```bash
+   ssh-keygen -t ed25519 -f /tmp/portfolio-actions-key -N '' -C services-portfolio-github-actions
+   ```
+
+2. Add four repository Actions secrets through GitHub's settings or `gh secret set`:
+
+   | Secret | Value |
+   | --- | --- |
+   | `VPS_HOST` | VPS hostname or IP (SSH port 22) |
+   | `VPS_USER` | Existing deploy user, such as `clinton` |
+   | `VPS_SSH_KEY` | Contents of the new private key; never commit it |
+   | `VPS_KNOWN_HOSTS` | Previously verified OpenSSH host-key entries for that hostname/IP |
+
+   Reuse a trusted `known_hosts` entry or verify the host-key fingerprint through
+   the VPS console before saving it. The workflow requires strict host verification;
+   it does not trust an unauthenticated host-key scan during deployment.
+
+3. After merging the workflow, run once on the VPS as that user, substituting the
+   contents of the new `.pub` file in the last command:
+
+   ```bash
+   cd /opt/services-portfolio
+   git switch main
+   git pull --ff-only origin main
+   bash backend/deploy/install-github-deploy.sh 'ssh-ed25519 AAAA... services-portfolio-github-actions'
+   ```
+
+   This installs a forced-command launcher and appends a restricted key without
+   replacing existing SSH keys. The user needs non-interactive Docker access,
+   `flock`, `curl`, an existing `backend/.env`, and its existing read access to
+   GitHub. The inbound Actions key is separate from the VPS's GitHub deploy key.
+
+4. Run the workflow once to verify connectivity. Future pushes and merges to
+   `main` deploy automatically. A first workflow run before the one-time key
+   installation will fail SSH authentication; rerun it after installation. Once
+   the private key is safely stored in Actions, remove its temporary workstation
+   copy. No approval gate is added to the deployment environment.
+
+Deployments are serialized in GitHub and locked on the VPS. Old queued commits
+are skipped when `main` has advanced. A dirty checkout, another checked-out branch,
+divergent history, failed build or failed health check produces a failed workflow;
+there is no destructive reset or automatic rollback. A failed public health check
+can leave the newly deployed API running, so inspect the workflow's logs. Container
+recreation can briefly interrupt service. Changes to the installed launcher itself
+require rerunning the installer with the same public key.
 
 ### Running the knowledge pipeline against the VPS database
 
