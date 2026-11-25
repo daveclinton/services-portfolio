@@ -33,7 +33,10 @@ func TestNewsletterProvisioningIsRepeatableAndNeverEnrollsOrEmailsContacts(t *te
 			}
 			for _, field := range []string{"folders", "lists", "templates"} {
 				if strings.HasSuffix(r.URL.Path, "/"+field) {
-					return providerResponse(200, map[string]any{field: resources[field]}), nil
+					if len(resources[field]) == 0 {
+						return providerResponse(200, map[string]any{"count": 0}), nil
+					}
+					return providerResponse(200, map[string]any{"count": len(resources[field]), field: resources[field]}), nil
 				}
 			}
 		}
@@ -97,6 +100,46 @@ func TestResourceLookupChecksLaterPagesBeforeCreatingAnything(t *testing.T) {
 	id, err := client.findNamed(context.Background(), "/contacts/lists", "lists", newsletterList)
 	if err != nil || id != 99 {
 		t.Fatalf("later resource lost: %d %v", id, err)
+	}
+}
+
+func TestResourceLookupAcceptsOmittedCollectionsOnlyWhenCountIsZero(t *testing.T) {
+	for _, resource := range []struct{ path, field string }{
+		{"/contacts/folders", "folders"},
+		{"/contacts/lists", "lists"},
+		{"/smtp/templates", "templates"},
+	} {
+		t.Run(resource.field, func(t *testing.T) {
+			for _, body := range []string{`{"count":0}`, `{"count":0,"` + resource.field + `":null}`, `{"count":0,"` + resource.field + `":[]}`} {
+				client := New("key")
+				client.http.Transport = mailTransport(func(r *http.Request) (*http.Response, error) {
+					if r.Method != http.MethodGet {
+						t.Fatal("lookup mutated provider resources")
+					}
+					return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: http.Header{}}, nil
+				})
+				id, err := client.findNamed(context.Background(), resource.path, resource.field, "portfolio")
+				if err != nil || id != 0 {
+					t.Fatalf("empty collection %s: id=%d err=%v", body, id, err)
+				}
+			}
+		})
+	}
+}
+
+func TestMalformedResourceCollectionsRemainErrorsWithEndpointContext(t *testing.T) {
+	for _, body := range []string{`{}`, `{"count":1}`, `{"count":1,"templates":null}`, `{"templates":{}}`, `{"templates":`} {
+		client := New("key")
+		client.http.Transport = mailTransport(func(r *http.Request) (*http.Response, error) {
+			if r.Method != http.MethodGet {
+				t.Fatal("malformed response caused a mutation")
+			}
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body)), Header: http.Header{}}, nil
+		})
+		_, err := client.findNamed(context.Background(), "/smtp/templates", "templates", confirmationTemplate)
+		if err == nil || !strings.Contains(err.Error(), "/smtp/templates") {
+			t.Fatalf("malformed response %s should fail with endpoint context: %v", body, err)
+		}
 	}
 }
 
