@@ -3,6 +3,8 @@ import { getPosts } from "@/lib/blog"
 import { backgroundItems, site } from "@/lib/portfolio-data"
 import { signals } from "@/lib/signals"
 
+export const revalidate = 30
+
 function absoluteUrl(path: string) {
   return path === "/" ? site.url : `${site.url}${path}`
 }

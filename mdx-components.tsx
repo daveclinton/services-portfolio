@@ -4,7 +4,7 @@ import { ModelConceptVisual } from "@/components/portfolio/model-concept-visual"
 import { StudyUnits } from "@/components/portfolio/study-units"
 import { ArticleSections } from "@/components/portfolio/article-sections"
 
-function YouTubePreview({ videoId, title }: { videoId: string; title: string }) {
+export function YouTubePreview({ videoId, title }: { videoId: string; title: string }) {
   return (
     <iframe
       title={title}

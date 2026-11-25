@@ -156,6 +156,10 @@ func (s *Service) campaignAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer release()
+	if d.Kind != "newsletter" {
+		httpx.BadRequest(w, "Create a newsletter from the published post before sending.", nil)
+		return
+	}
 	if d.Revision != revisionOf(body) || d.Operation != "" {
 		httpx.WriteJSON(w, 409, httpx.Problem{Detail: "This newsletter changed or its last action needs a status check."})
 		return

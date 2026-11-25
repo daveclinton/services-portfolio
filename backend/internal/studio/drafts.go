@@ -16,25 +16,31 @@ import (
 )
 
 type Draft struct {
-	DeliveryProvider string     `json:"-"`
-	ID               string     `json:"id"`
-	Subject          string     `json:"subject"`
-	Markdown         string     `json:"markdown"`
-	Revision         int64      `json:"revision"`
-	State            string     `json:"state"`
-	CampaignID       int64      `json:"campaign_id"`
-	Operation        string     `json:"-"`
-	ScheduledAt      *time.Time `json:"scheduled_at"`
-	TestedRevision   int64      `json:"tested_revision"`
-	LastError        string     `json:"last_error"`
-	UpdatedAt        time.Time  `json:"updated_at"`
+	CacheInvalidated  *bool      `json:"cache_invalidated,omitempty"`
+	DeliveryProvider  string     `json:"-"`
+	ID                string     `json:"id"`
+	Subject           string     `json:"subject"`
+	Markdown          string     `json:"markdown"`
+	Revision          int64      `json:"revision"`
+	State             string     `json:"state"`
+	CampaignID        int64      `json:"campaign_id"`
+	Operation         string     `json:"-"`
+	ScheduledAt       *time.Time `json:"scheduled_at"`
+	TestedRevision    int64      `json:"tested_revision"`
+	LastError         string     `json:"last_error"`
+	UpdatedAt         time.Time  `json:"updated_at"`
+	Kind              string     `json:"kind"`
+	Slug              string     `json:"slug"`
+	Description       string     `json:"description"`
+	PublishedRevision int64      `json:"published_revision"`
+	Legacy            bool       `json:"legacy"`
 }
 
-const draftColumns = `id::text,subject,markdown,revision,state,campaign_id,operation,scheduled_at,tested_revision,last_error,updated_at,delivery_provider`
+const draftColumns = `id::text,subject,markdown,revision,state,campaign_id,operation,scheduled_at,tested_revision,last_error,updated_at,delivery_provider,kind,slug,description,published_revision,legacy`
 
 func scanDraft(row pgx.Row) (Draft, error) {
 	var d Draft
-	err := row.Scan(&d.ID, &d.Subject, &d.Markdown, &d.Revision, &d.State, &d.CampaignID, &d.Operation, &d.ScheduledAt, &d.TestedRevision, &d.LastError, &d.UpdatedAt, &d.DeliveryProvider)
+	err := row.Scan(&d.ID, &d.Subject, &d.Markdown, &d.Revision, &d.State, &d.CampaignID, &d.Operation, &d.ScheduledAt, &d.TestedRevision, &d.LastError, &d.UpdatedAt, &d.DeliveryProvider, &d.Kind, &d.Slug, &d.Description, &d.PublishedRevision, &d.Legacy)
 	return d, err
 }
 func (s *Service) getDraft(ctx context.Context, id string) (Draft, error) {
@@ -64,10 +70,10 @@ func revisionOf(body map[string]any) int64 {
 }
 func draftFailure(w http.ResponseWriter, err error) {
 	if errors.Is(err, pgx.ErrNoRows) {
-		httpx.WriteJSON(w, 404, httpx.Problem{Detail: "Newsletter not found."})
+		httpx.WriteJSON(w, 404, httpx.Problem{Detail: "Document not found."})
 		return
 	}
-	httpx.Unavailable(w, "Could not load this newsletter. Please try again.", 30)
+	httpx.Unavailable(w, "Could not load your content. Please try again.", 30)
 }
 func (s *Service) listDrafts(w http.ResponseWriter, r *http.Request) {
 	rows, err := s.db.Query(r.Context(), `SELECT `+draftColumns+` FROM newsletter_studio_drafts ORDER BY updated_at DESC LIMIT 100`)
@@ -102,7 +108,15 @@ func (s *Service) createDraft(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, "Enter a subject of up to 180 characters.", nil)
 		return
 	}
-	draft, err := scanDraft(s.db.QueryRow(r.Context(), `INSERT INTO newsletter_studio_drafts(id,subject) VALUES($1::text::uuid,$2) RETURNING `+draftColumns, httpx.NewUUID(), subject))
+	kind, _ := body["kind"].(string)
+	if kind == "" {
+		kind = "newsletter"
+	}
+	if kind != "post" && kind != "newsletter" {
+		httpx.BadRequest(w, "Choose posts or newsletters.", nil)
+		return
+	}
+	draft, err := scanDraft(s.db.QueryRow(r.Context(), `INSERT INTO newsletter_studio_drafts(id,subject,kind) VALUES($1::text::uuid,$2,$3) RETURNING `+draftColumns, httpx.NewUUID(), subject, kind))
 	if err != nil {
 		draftFailure(w, err)
 		return

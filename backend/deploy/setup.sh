@@ -114,9 +114,10 @@ if ! curl -fsS "http://127.0.0.1:$API_PORT/healthz" >/dev/null 2>&1; then
 fi
 
 # --- 3. nginx + TLS -----------------------------------------------------------
-proxy_block() {
+proxy_location() {
+	local route="$1" body_limit="$2" compression="${3:-off}"
 	cat <<EOF
-    location / {
+    location $route {
         proxy_pass http://127.0.0.1:$API_PORT;
         proxy_http_version 1.1;
         proxy_set_header Connection "";
@@ -131,9 +132,19 @@ proxy_block() {
         proxy_read_timeout 120s;
         proxy_send_timeout 120s;
 
-        client_max_body_size 64k;
+        client_max_body_size $body_limit;
+        gzip $compression;
+        gzip_vary on;
+        gzip_min_length 1024;
+        gzip_types application/json;
     }
 EOF
+}
+
+proxy_block() {
+	proxy_location '= /admin/newsletters/media' 6m
+	proxy_location '^~ /blog/' 64k on
+	proxy_location / 64k
 }
 
 write_site() {

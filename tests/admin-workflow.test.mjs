@@ -10,7 +10,7 @@ const published = { slug: "a-published-post", title: "An existing article", desc
 const baseDraft = { id: "a5cd8282-68f1-4b4a-9c19-000000000001", subject: published.title, markdown: "", revision: 1, state: "draft", campaign_id: 0, scheduled_at: null, tested_revision: 0, last_error: "", updated_at: "2026-11-25T09:00:00Z" }
 const settle = () => new Promise((resolve) => setImmediate(resolve))
 
-function desk({ failSave = false } = {}) {
+function desk({ failSave = false, section = "newsletters" } = {}) {
   const slots = [], effects = [], calls = [], host = new Map()
   let cursor = 0, pending = [], tree, nodes = []
   const same = (a, b) => a && b && a.length === b.length && a.every((item, index) => item === b[index])
@@ -22,20 +22,21 @@ function desk({ failSave = false } = {}) {
   }
   const api = {
     STUDIO_SUBJECT_LIMIT: 180, STUDIO_BODY_LIMIT: 40_000,
-    studioSession: async () => ({ authenticated: true, configured: true, csrf: "owner-csrf", login: "owner" }),
-    studioDrafts: async () => [],
-    studioCreate: async (_csrf, subject) => { calls.push(["create", subject]); return { ...baseDraft, subject } },
+    studioBootstrap: async () => ({session:{ authenticated: true, configured: true, csrf: "owner-csrf", login: "owner" },drafts:[],posts:[published]}),
+    studioFromPost: async (_csrf, slug) => {calls.push(["from-post",slug]);return {...baseDraft,markdown:`${published.description}\n\n[Read the post](<https://example.com/blog/${slug}>)`}},
+    studioCreate: async (_csrf, subject, kind) => { calls.push(["create", subject, kind]); return { ...baseDraft, subject,kind } },
     studioSave: async (_csrf, draft, subject, markdown) => { calls.push(["save", subject, markdown]); if (failSave) throw new Error("Save failed"); return { ...draft, subject, markdown, revision: draft.revision + 1 } },
     studioPreview: async () => { calls.push(["preview"]); return "<p>Rendered email</p>" },
     studioMeta: async () => ({ sender: { name: "Owner", email: "owner@example.com" }, test_email: "owner@example.com", subscribers: 1, audience: "Readers" }),
     studioAction: async () => { calls.push(["send"]); throw new Error("No email action expected") },
     studioLogout: async () => { calls.push(["logout"]) },
+    studioPublish: async (_csrf, draft,slug,description)=>{calls.push(["publish",draft.revision,slug,description]);return {...draft,slug,description,published_revision:draft.revision,cache_invalidated:true}},
     newsletterStateLabel: (state) => state,
-    newsletterFromPost: (post, siteURL) => ({ subject: post.title, markdown: `${post.description}\n\n[Read the post](<${siteURL}/blog/${post.slug}>)` }),
   }
   const jsx = (type, props) => ({ type, props: props ?? {} })
   const modules = {
     react: hooks, "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "fragment" },
+    "next/dynamic": {default:()=>"editor"}, "next/navigation": {useRouter:()=>({push:(href)=>calls.push(["navigate",href])})},
     "lucide-react": new Proxy({}, { get: () => "svg" }),
     "@/components/ui/button": { Button: "button" }, "@/components/ui/badge": { Badge: "badge" },
     "@/components/ui/skeleton": { Skeleton: "skeleton" }, "@/components/ui/select": { SelectField: "select-field" },
@@ -47,7 +48,7 @@ function desk({ failSave = false } = {}) {
   const exports = {}
   const source = ts.transpileModule(readFileSync(new URL("../components/portfolio/newsletter-studio.tsx", import.meta.url), "utf8"), { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS } }).outputText
   vm.runInNewContext(source, { exports, TextEncoder, URLSearchParams, setTimeout: () => 1, clearTimeout() {}, window: { location: { search: "", assign: (url) => calls.push(["navigate", url]) }, addEventListener() {}, removeEventListener() {} }, require(name) { assert(name in modules, name); return modules[name] } })
-  const props = { section: "newsletters", publishedPosts: [published] }
+  const props = { section }
   function render() {
     cursor = 0; pending = []; nodes = []; tree = exports.NewsletterStudio(props)
     function visit(node) {
@@ -60,7 +61,7 @@ function desk({ failSave = false } = {}) {
       if (node.props.ref) node.props.ref.current = element
       visit(node.props.children)
     }
-    visit(tree); pending.forEach((effect) => effect())
+    visit(tree); visit(tree.props.actions); pending.forEach((effect) => effect())
   }
   const text = (node) => Array.isArray(node) ? node.map(text).join("") : node?.props ? text(node.props.children) : typeof node === "string" ? node : ""
   const button = (label) => { const found = nodes.find((node) => node.type === "button" && text(node.props.children) === label); assert(found, label); return found }
@@ -73,6 +74,9 @@ function desk({ failSave = false } = {}) {
     submit() { nodes.find((node) => node.type === "form").props.onSubmit({ preventDefault() {} }) },
     edit(value) { nodes.find((node) => node.type === "editor").props.onChange(value); render() },
     editor: () => nodes.find((node) => node.type === "editor"),
+    input(id,value) { nodes.find((node)=>node.props.id===id).props.onChange({target:{value}});render() },
+    node:(label)=>nodes.find((node)=>node.props["aria-label"]===label),
+    header:()=>tree.props.actions,
     navigate: (href) => tree.props.onNavigate(href),
     setFailSave(value) { failSave = value },
   }
@@ -83,18 +87,34 @@ test("choosing a published post creates an editable saved newsletter without sen
   ui.click("New newsletter"); await ui.flush()
   ui.select(published.slug); ui.submit(); await ui.flush()
   assert.equal(ui.editor().props.value, "The published summary.\n\n[Read the post](<https://example.com/blog/a-published-post>)")
-  assert.deepEqual(ui.calls.map((call) => call[0]), ["create", "save"])
+  assert.deepEqual(ui.calls.map((call) => call[0]), ["from-post"])
   ui.click("Preview"); await ui.flush()
-  assert.deepEqual(ui.calls.map((call) => call[0]), ["create", "save", "preview"])
+  assert.deepEqual(ui.calls.map((call) => call[0]), ["from-post", "preview"])
 })
 
 test("a failed newsletter save retains its content, and navigation saves before leaving", async () => {
   const ui = desk({ failSave: true }); await ui.flush()
   ui.click("New newsletter"); await ui.flush(); ui.select(published.slug); ui.submit(); await ui.flush()
-  assert(ui.editor().props.value.includes(published.description))
+  ui.edit("A revised newsletter"); ui.click("Preview"); await ui.flush()
+  assert.equal(ui.editor().props.value,"A revised newsletter")
   ui.setFailSave(false); ui.click("Retry save"); await ui.flush()
   ui.edit("A revised newsletter")
   await ui.navigate("/admin/posts")
   assert.deepEqual(ui.calls.slice(-2), [["save", published.title, "A revised newsletter"], ["navigate", "/admin/posts"]])
   assert(!ui.calls.some((call) => call[0] === "send"))
+})
+
+test("post preview lives in the top bar, the document has its own scroll region, and publication requires review", async()=>{
+ const ui=desk({section:"posts"});await ui.flush();ui.click("New post");await ui.flush()
+ ui.input("post-title","An article");ui.edit("A draft body")
+ assert(ui.header(),"editor controls must be passed to the shell header")
+ assert.equal(ui.node("Article editor").props.className,"admin-editor-scroll")
+ ui.click("Preview");await ui.flush()
+ assert(!ui.calls.some((call)=>call[0]==="publish"),"preview must not publish")
+ ui.click("Publish");await ui.flush();ui.submit();await ui.flush()
+ ui.input("post-summary","A useful summary.");ui.submit();await ui.flush()
+ assert(!ui.calls.some((call)=>call[0]==="publish"),"review must precede publication")
+ ui.click("Publish post");await ui.flush()
+ assert.deepEqual(ui.calls.at(-1),["publish",2,"an-article","A useful summary."])
+ assert(!ui.calls.some((call)=>call[0]==="send"))
 })

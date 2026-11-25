@@ -3,7 +3,8 @@
 import { useLayoutEffect, useState, type ReactNode } from "react"
 import { Dialog } from "@base-ui/react/dialog"
 import { Menu } from "@base-ui/react/menu"
-import { FileText, Mail, PenLine, PanelLeft, ChevronsUpDown, ExternalLink, LogOut, X, LoaderCircle } from "lucide-react"
+import Image from "next/image"
+import { FileText, Mail, PanelLeft, ChevronsUpDown, ExternalLink, LogOut, X, LoaderCircle } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -13,16 +14,16 @@ import { site } from "@/lib/portfolio-data"
 import type { StudioSession } from "@/lib/newsletter-studio"
 
 export type AdminSection = "posts" | "newsletters"
-type Props = { section: AdminSection; session: StudioSession | null; loading: boolean; busy: boolean; onNavigate: (href: string) => Promise<void>; onLogout: () => void; children: ReactNode }
+type Props = { section: AdminSection; session: StudioSession | null; loading: boolean; busy: boolean; title?: string; actions?: ReactNode; editing?: boolean; onNavigate: (href: string) => Promise<void>; onLogout: () => void; children: ReactNode }
 
 // Header / content / profile-footer hierarchy follows shadcn sidebar-07.
 // https://ui.shadcn.com/blocks/sidebar#sidebar-07
-export function AdminShell({ section, session, loading, busy, onNavigate, onLogout, children }: Props) {
+export function AdminShell({ section, session, loading, busy, title, actions, editing, onNavigate, onLogout, children }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
   useLayoutEffect(enterAdminTheme, [])
 
   const content = <>
-    <div className="admin-sidebar-header"><PenLine className="size-5" /><div><p className="text-body font-semibold">Writing desk</p><p className="text-caption text-muted-foreground">{site.name}</p></div></div>
+    <div className="admin-sidebar-header"><Image src="/icon.svg" alt="" width={32} height={32} className="size-8 shrink-0" /><div><p className="text-body font-semibold">Writing desk</p><p className="text-caption text-muted-foreground">{site.name}</p></div></div>
     <div className="admin-sidebar-content">
       <p className="px-3 pb-2 text-caption text-muted-foreground">Content</p>
       <nav aria-label="Admin navigation"><ul className="flex flex-col gap-1">
@@ -51,21 +52,21 @@ export function AdminShell({ section, session, loading, busy, onNavigate, onLogo
   </>
 
   return <TooltipProvider delay={300}><div className="admin-shell">
-    <aside className="admin-sidebar" aria-label="Admin sidebar">{content}</aside>
-    <div className="min-w-0 flex-1">
-      <header className="admin-header">
+    <aside className="admin-sidebar glass-surface" aria-label="Admin sidebar">{content}</aside>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <header className="admin-header glass-surface">
         <Dialog.Root open={mobileOpen} onOpenChange={setMobileOpen}>
           <Dialog.Trigger render={<Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation" />}><PanelLeft /></Dialog.Trigger>
-          <Dialog.Portal><Dialog.Backdrop className="fixed inset-0 z-40 bg-background/85" /><Dialog.Popup className="admin-mobile-sidebar">
+          <Dialog.Portal><Dialog.Backdrop className="fixed inset-0 z-40 bg-background/85" /><Dialog.Popup className="admin-mobile-sidebar glass-surface">
             <Dialog.Title className="sr-only">Admin navigation</Dialog.Title>
             <Dialog.Close render={<Button variant="ghost" size="icon" className="absolute top-3 right-2" aria-label="Close navigation" />}><X /></Dialog.Close>
             {content}
           </Dialog.Popup></Dialog.Portal>
         </Dialog.Root>
-        <span className="text-caption text-muted-foreground">Content</span><span className="text-caption text-muted-foreground" aria-hidden="true">/</span><span className="text-caption font-medium">{section === "posts" ? "Posts" : "Newsletters"}</span>
-        {busy ? <span role="status" aria-label="Working" className="ml-auto"><LoaderCircle className="size-4 motion-safe:animate-spin" /></span> : null}
+        <span className="min-w-0 truncate text-caption font-medium">{title ?? (section === "posts" ? "Posts" : "Newsletters")}</span>
+        <div className="ml-auto flex shrink-0 items-center gap-2">{busy ? <span role="status" aria-label="Working"><LoaderCircle className="size-4 motion-safe:animate-spin" /></span> : null}{actions}</div>
       </header>
-      <main id="content" className="admin-content" aria-busy={loading || busy}>{children}</main>
+      <main id="content" className={`admin-content${editing ? " admin-content-editing" : ""}`} aria-busy={loading || busy}>{children}</main>
     </div>
   </div></TooltipProvider>
 }

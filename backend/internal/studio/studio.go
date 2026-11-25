@@ -54,14 +54,23 @@ func New(cfg config.Config, db *pgxpool.Pool, log *slog.Logger, listIDs func() (
 }
 
 func (s *Service) Init(ctx context.Context) error {
-	if !s.cfg.NewsletterAdminEnabled {
-		return nil
-	}
 	_, err := s.db.Exec(ctx, schema)
-	return err
+	if err != nil {
+		return err
+	}
+	return s.importPosts(ctx)
 }
 
 func (s *Service) Routes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /admin/newsletters/bootstrap", s.bootstrap)
+	mux.HandleFunc("GET /admin/newsletters/drafts/{id}", s.protect(s.readDraft))
+	mux.HandleFunc("GET /admin/newsletters/posts/{slug}/draft", s.protect(s.editPost))
+	mux.HandleFunc("POST /admin/newsletters/drafts/{id}/publish", s.protect(s.publish))
+	mux.HandleFunc("POST /admin/newsletters/from-post", s.protect(s.newsletterFromPost))
+	mux.HandleFunc("POST /admin/newsletters/media", s.protect(s.uploadMedia))
+	mux.HandleFunc("GET /media/{id}", s.media)
+	mux.HandleFunc("GET /blog/posts", s.publicPosts)
+	mux.HandleFunc("GET /blog/posts/{slug}", s.publicPost)
 	mux.HandleFunc("GET /admin/newsletters/session", s.session)
 	mux.HandleFunc("GET /admin/newsletters/auth/login", s.login)
 	mux.HandleFunc("GET /admin/newsletters/auth/callback", s.callback)
