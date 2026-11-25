@@ -5,6 +5,7 @@ import { existsSync, readFileSync } from "node:fs"
 import { createRequire, registerHooks } from "node:module"
 import { fileURLToPath, pathToFileURL } from "node:url"
 import test from "node:test"
+import vm from "node:vm"
 import ts from "typescript"
 import React from "react"
 import { renderToStaticMarkup } from "react-dom/server"
@@ -313,4 +314,48 @@ test("articles reuse the closed numbered list and preserve rich section content"
   assert(!/<details\b[^>]*\bopen(?:=|\s|>)/.test(html))
   for (const value of ["00.", "01.", "Original introduction", "const amount = 42", "Study units", "Supporting material", "All writing", "Next: Introduction"]) assert(html.includes(value))
   assert(html.includes('id="example"'))
+})
+
+test("article section links and selections preserve the page color while other lists still change it", () => {
+  const article = ArticleSections({ id: "article-example", children: [
+    React.createElement("section", { key: "intro", id: "introduction", "data-section-title": "Introduction" }, "Intro"),
+    React.createElement("section", { key: "example", id: "example", "data-section-title": "Example" }, "Body"),
+  ] })
+  const source = ts.transpileModule(readFileSync(new URL("../components/portfolio/signals.tsx", import.meta.url), "utf8"), { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText
+  for (const props of [article.props, { ...article.props, changeTone: undefined }]) {
+    const effects = [], colors = [], saved = [], addresses = []
+    const exports = {}
+    const location = { hash: "#introduction", href: "https://example.com/blog/example#introduction" }
+    const modules = {
+      react: { useState: (initial) => [initial, () => {}], useRef: (current) => ({ current }), useEffect: (effect) => effects.push(effect) },
+      "react/jsx-runtime": { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
+      "next/image": { default: "img" }, "next/navigation": { usePathname: () => "/blog/example" },
+      "@/lib/tone": { TONE_STORAGE_KEY: "site-tone", toneOf: (index) => String(index % 6) },
+      "@/lib/scroll": { revealAfterLayout: () => () => {} }, "@/public/david.webp": { default: {} },
+    }
+    vm.runInNewContext(source, { exports, URL, require(name) { assert(name in modules, name); return modules[name] },
+      document: { documentElement: { setAttribute: (key, value) => colors.push([key, value]) } },
+      localStorage: { setItem: (key, value) => saved.push([key, value]) },
+      window: { location, addEventListener() {}, removeEventListener() {}, history: { replaceState: (_, __, address) => addresses.push(address) } },
+    })
+    const tree = exports.Signals(props)
+    const ol = tree.props.children[0]
+    const entries = ol.props.children.map(() => ({ open: false, querySelector: () => ({}) }))
+    ol.props.ref.current = { querySelectorAll: () => entries }
+    effects.forEach((effect) => effect())
+    assert.equal(entries[0].open, true, "a linked section opens without changing the article color")
+    const details = ol.props.children[1].props.children
+    details.props.children[0].props.onClick()
+    entries[0].open = false
+    entries[1].open = true
+    details.props.onToggle({ target: entries[1], currentTarget: entries[1] })
+    assert.equal(addresses.at(-1), "/blog/example#example")
+    if (props.changeTone === false) {
+      assert.equal(colors.length, 0)
+      assert.equal(saved.length, 0)
+    } else {
+      assert.equal(colors.at(-1)[1], "1")
+      assert.equal(saved.at(-1)[1], "1")
+    }
+  }
 })

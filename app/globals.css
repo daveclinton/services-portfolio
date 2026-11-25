@@ -592,6 +592,9 @@ html:has(.numbered) body {
 
 .signals > ol {
   padding-top: clamp(1.5rem, 4vw, 3.5rem);
+  /* Closing the preceding section must not anchor a moving title under the nav.
+   * The shared disclosure handler positions the selected title after layout. */
+  overflow-anchor: none;
 }
 
 .signals > ol > li > details {

@@ -9,24 +9,33 @@ export function ViewportFocus() {
     const root = document.documentElement
     const viewport = window.visualViewport
     let frame = 0
+    let needsReveal = false
     let cancelReveal: (() => void) | undefined
     const inputState = () => root.toggleAttribute("data-input-active", isTextEntry(document.activeElement))
     const update = (reveal = false) => {
+      needsReveal ||= reveal
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
         inputState()
         const active = document.activeElement
         const bounds = updateViewportMetrics(active instanceof HTMLElement ? active : undefined)
-        if (reveal && bounds && isTextEntry(active)) cancelReveal = scheduleReveal(active, { animate: false })
+        if (needsReveal && bounds && isTextEntry(active)) cancelReveal = scheduleReveal(active, { animate: false })
+        needsReveal = false
       })
     }
     const focus = (event: FocusEvent) => {
       inputState()
       if (event.target instanceof HTMLElement) cancelReveal = scheduleReveal(event.target)
     }
+    // Tapping an already-focused field emits no new focusin event.
+    const click = (event: MouseEvent) => {
+      const target = event.target
+      if (target instanceof HTMLElement && isTextEntry(target)) cancelReveal = scheduleReveal(target)
+    }
     const resize = () => update(true)
     const scroll = () => update()
     document.addEventListener("focusin", focus)
+    document.addEventListener("click", click)
     document.addEventListener("focusout", scroll)
     window.addEventListener("resize", resize)
     viewport?.addEventListener("resize", resize)
@@ -38,6 +47,7 @@ export function ViewportFocus() {
       cancelAnimationFrame(frame)
       cancelReveal?.()
       document.removeEventListener("focusin", focus)
+      document.removeEventListener("click", click)
       document.removeEventListener("focusout", scroll)
       window.removeEventListener("resize", resize)
       viewport?.removeEventListener("resize", resize)

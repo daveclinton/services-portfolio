@@ -3,7 +3,7 @@ import Link from "next/link"
 import { Signals, type SignalItem } from "@/components/portfolio/signals"
 
 // The MDX plugin supplies one section per h2, with the original content intact.
-// Reuse the same native disclosures, numbering, colors and next control as Home.
+// Reuse Home's native disclosures, numbering and next control on one page color.
 export function ArticleSections({ id, children }: { id: string; children: ReactNode }) {
   const items: SignalItem[] = []
   for (const child of Children.toArray(children)) {
@@ -22,6 +22,7 @@ export function ArticleSections({ id, children }: { id: string; children: ReactN
       listPath=""
       basePath=""
       addressMode="hash"
+      changeTone={false}
       footer={<ul><li><Link href="/blog">All writing</Link></li><li><a href="#top">Back to top</a></li></ul>}
     />
   )
