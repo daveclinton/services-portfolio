@@ -89,15 +89,27 @@ func (c *Client) findNamed(ctx context.Context, path, field, name string) (int64
 	for offset := 0; offset < 5000; offset += 50 {
 		var page map[string]json.RawMessage
 		if err := c.request(ctx, http.MethodGet, fmt.Sprintf("%s?limit=50&offset=%d", path, offset), nil, &page); err != nil {
-			return 0, err
+			return 0, fmt.Errorf("lookup newsletter %s: %w", path, err)
+		}
+		collection := page[field]
+		// Brevo's collection fields are optional. Empty accounts can return
+		// only {"count":0}; don't unmarshal a missing RawMessage as JSON.
+		// Require an explicit zero count so malformed responses can't trigger
+		// duplicate resource creation by looking like an empty account.
+		if len(collection) == 0 || string(collection) == "null" {
+			var count *int
+			if err := json.Unmarshal(page["count"], &count); err == nil && count != nil && *count == 0 {
+				return 0, nil
+			}
+			return 0, fmt.Errorf("lookup newsletter %s: missing %s collection without a zero count", path, field)
 		}
 		var entries []struct {
 			ID           int64  `json:"id"`
 			Name         string `json:"name"`
 			TemplateName string `json:"templateName"`
 		}
-		if err := json.Unmarshal(page[field], &entries); err != nil {
-			return 0, err
+		if err := json.Unmarshal(collection, &entries); err != nil {
+			return 0, fmt.Errorf("decode newsletter %s collection: %w", path, err)
 		}
 		for _, entry := range entries {
 			if entry.Name == name || entry.TemplateName == name {
