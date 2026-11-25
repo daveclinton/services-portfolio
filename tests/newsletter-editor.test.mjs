@@ -2,7 +2,7 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { MarkdownManager } from "@tiptap/markdown"
 import { Editor, getSchema } from "@tiptap/react"
-import { newsletterEditorExtensions, newsletterRichTextIssue } from "../lib/newsletter-editor.ts"
+import { applyWritingBlock, writingBlocks, newsletterEditorExtensions, newsletterRichTextIssue } from "../lib/newsletter-editor.ts"
 
 // Exercise the real parser, serializer, and ProseMirror schema without a DOM or
 // browser. These are the boundaries between the new UI and existing saved mail.
@@ -84,4 +84,19 @@ test("real formatting and image commands produce saveable content without a brow
     assert.equal(editor.getMarkdown(), "A newly opened draft")
     assert.equal(changes.length, 2, "Opening drafts and disabling controls must not trigger autosave")
   } finally { editor.destroy() }
+})
+
+test("the block picker and slash commands retain text and round-trip through saved drafts", () => {
+  for (const block of writingBlocks.filter((block) => block.id !== "image")) {
+    const editor = new Editor({ element: null, extensions: newsletterEditorExtensions, content: "A paragraph", contentType: "markdown" })
+    try {
+      editor.commands.setTextSelection(editor.state.doc.content.size - 1)
+      applyWritingBlock(editor, block.id)
+      const expected = block.id.startsWith("heading") ? "heading" : block.id === "horizontalRule" ? "paragraph" : block.id
+      assert.equal(editor.getJSON().content[0].type, expected)
+      const markdown = editor.getMarkdown()
+      assert(markdown.includes("A paragraph"), block.id)
+      roundtrip(markdown)
+    } finally { editor.destroy() }
+  }
 })

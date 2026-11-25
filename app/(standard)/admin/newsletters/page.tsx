@@ -1,11 +1,12 @@
 import type { Metadata } from "next"
-import { NewsletterStudio } from "@/components/portfolio/newsletter-studio"
+import { redirect } from "next/navigation"
 
 export const metadata: Metadata = {
-  title: "Newsletter desk",
+  title: "Writing desk",
   robots: { index: false, follow: false },
 }
 
-export default function NewsletterStudioPage() {
-  return <NewsletterStudio />
+export default async function LegacyStudioPage({ searchParams }: PageProps<"/admin/newsletters">) {
+  const query = await searchParams
+  redirect(query.login === "failed" ? "/admin/writing?login=failed" : "/admin/writing")
 }

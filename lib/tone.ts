@@ -20,14 +20,16 @@ export const toneScript = `(function(){try{
 var d=document,h=d.documentElement,c=${JSON.stringify(TONE_COLORS)};
 var m=/^#(\\d{2})$/.exec(location.hash),n=NaN;
 try{n=parseInt(m?m[1]:localStorage.getItem("${TONE_STORAGE_KEY}"),10)}catch(e){}
-if(n>=0)h.setAttribute("data-tone",String(n%${TONES}));
+if(/^\\/admin(?:\\/|$)/.test(location.pathname))h.removeAttribute("data-tone");
+else if(n>=0)h.setAttribute("data-tone",String(n%${TONES}));
 var icon=d.createElement("link");icon.rel="icon";icon.type="image/svg+xml";icon.setAttribute("sizes","any");
 /* Moving to another page adds the default icon and color again. */
 function start(){paint();new MutationObserver(paint).observe(d.head,{childList:true})}
 function paint(){var t=c[h.getAttribute("data-tone")]||c[0];
 icon.href="data:image/svg+xml,"+encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='"+t+"'/>${markShapes}</svg>");
 last();
-d.querySelectorAll("meta[name=theme-color]").forEach(function(e){if(e.content!==t)e.setAttribute("content",t)})}
+var theme=h.hasAttribute("data-tone")?t:getComputedStyle(d.body||h).backgroundColor;
+d.querySelectorAll("meta[name=theme-color]").forEach(function(e){if(e.content!==theme)e.setAttribute("content",theme)})}
 function last(){var a=d.querySelectorAll("link[rel=icon]");if(a[a.length-1]!==icon)d.head.appendChild(icon)}
 new MutationObserver(paint).observe(h,{attributes:true,attributeFilter:["data-tone"]});
 if(d.readyState==="loading")d.addEventListener("DOMContentLoaded",start);else start();

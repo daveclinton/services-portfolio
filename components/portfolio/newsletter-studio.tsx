@@ -4,13 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { focusElement } from "@/lib/scroll"
 import { NewsletterEditor } from "@/components/portfolio/newsletter-editor"
+import { Markdown } from "@/components/prompt-kit/markdown"
 import {
   studioSession, studioDrafts, studioCreate, studioSave, studioPreview, studioMeta, studioAction, studioLogout,
   studioLoginURL, nairobiSchedule, newsletterStateLabel, STUDIO_SUBJECT_LIMIT, STUDIO_BODY_LIMIT,
   type NewsletterDraft, type StudioSession, type StudioMeta,
 } from "@/lib/newsletter-studio"
 
-type Stage = "loading" | "signin" | "list" | "subject" | "write" | "preview" | "delivery" | "confirm" | "outcome"
+type Stage = "loading" | "signin" | "list" | "write" | "preview" | "delivery" | "confirm" | "outcome"
 const inputClass = "chat-input min-h-8 w-full min-w-0 bg-transparent px-0.5 text-base leading-7 text-foreground outline-none"
 const surfaceClass = "glass-surface rounded-2xl border border-input p-2.5 focus-within:border-ring focus-within:bg-background focus-within:ring-3 focus-within:ring-ring/20"
 
@@ -31,13 +32,14 @@ export function NewsletterStudio() {
   const [meta, setMeta] = useState<StudioMeta | null>(null)
   const [filter, setFilter] = useState("all")
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop")
+  const [previewMode, setPreviewMode] = useState<"post" | "email">("post")
   const [later, setLater] = useState(false)
   const [schedule, setSchedule] = useState("")
   const currentRef = useRef<NewsletterDraft | null>(null)
   const text = useRef({ subject: "", markdown: "" })
   const saveQueue = useRef<Promise<unknown>>(Promise.resolve())
   const heading = useRef<HTMLHeadingElement>(null)
-  const subjectInput = useRef<HTMLInputElement>(null)
+  const subjectInput = useRef<HTMLTextAreaElement>(null)
   const mounted = useRef(false)
   const actionPending = useRef(false)
 
@@ -62,10 +64,9 @@ export function NewsletterStudio() {
   }, [fail])
 
   useEffect(() => {
-    if (stage === "subject") focusElement(subjectInput.current)
-    else if (stage === "write") focusElement(subjectInput.current)
+    if (stage === "write" && !busy) { focusElement(subjectInput.current); if (subjectInput.current?.value === "Untitled post") subjectInput.current.select() }
     else if (stage !== "loading") focusElement(heading.current)
-  }, [stage])
+  }, [stage, busy])
 
   const save = useCallback((): Promise<NewsletterDraft> => {
     const queued = saveQueue.current.catch(() => undefined).then(async () => {
@@ -114,10 +115,19 @@ export function NewsletterStudio() {
     accept(d); text.current = { subject: d.subject, markdown: d.markdown }; setSubject(d.subject); setMarkdown(d.markdown)
     setSaved("saved"); setError(""); setNotice(""); setStage(["draft", "error"].includes(d.state) ? "write" : "outcome")
   }
+  async function newPost() {
+    if (currentRef.current && ["draft", "error"].includes(currentRef.current.state)) await save()
+    open(await studioCreate(session!.csrf, "Untitled post"))
+  }
   async function preview() {
-    const d = await save()
+    await save()
+    setHTML(""); setMeta(null); setPreviewMode("post"); setStage("preview")
+  }
+  async function previewEmail() {
+    const d = currentRef.current
+    if (!d) return
     const [email, audience] = await Promise.all([studioPreview(session!.csrf, d), studioMeta()])
-    setHTML(email); setMeta(audience); setStage("preview")
+    setHTML(email); setMeta(audience); setPreviewMode("email")
   }
   async function action(kind: "test" | "send" | "schedule" | "cancel" | "refresh") {
     if (!currentRef.current || !session?.csrf) return
@@ -127,63 +137,78 @@ export function NewsletterStudio() {
     if (kind === "test" && result.state === "draft" && result.tested_revision === result.revision) setNotice(`Test sent to ${meta?.test_email}.`)
     else { setStage("outcome"); if (result.last_error) setError(result.last_error) }
   }
-  const title = { loading: "Newsletter desk", signin: "Newsletter desk", list: "Your newsletters", subject: "What’s the subject?", write: subject || "Write your newsletter", preview: "How it will look", delivery: "When should it go out?", confirm: "Ready to send?", outcome: current ? newsletterStateLabel(current.state) : "Newsletter" }[stage]
-  const step = ({ subject: "1 of 5 · Subject", write: "2 of 5 · Write", preview: "3 of 5 · Preview", delivery: "4 of 5 · Delivery", confirm: "5 of 5 · Confirm" } as Partial<Record<Stage, string>>)[stage]
+  const title = { loading: "Writing desk", signin: "Writing desk", list: "Your posts", write: subject || "Untitled post", preview: "Preview your post", delivery: "Email delivery", confirm: "Review email delivery", outcome: current ? newsletterStateLabel(current.state) : "Post" }[stage]
   const formatDate = (value: string) => new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Nairobi" }).format(new Date(value)) + " EAT"
 
   return (
-    <article className="flex min-h-0 flex-1 flex-col gap-6 pb-16" aria-busy={busy}>
+    <article className="studio-layout min-h-0 flex-1 pb-16" aria-busy={busy}>
+      <aside className="studio-index">
+        <p className="text-title font-bold">Writing desk</p>
+        <p className="mt-2 hidden text-caption text-muted-foreground lg:block">A place for your next post.</p>
+        {session?.authenticated ? <>
+          <nav aria-label="Writing desk" className="mt-6 flex flex-wrap gap-4 lg:flex-col lg:gap-2">
+            <button type="button" className="studio-index-link" disabled={busy} aria-current={stage === "list" ? "page" : undefined} onClick={() => void work(backToList)}><span className="signal-number">00.</span> All posts</button>
+            <button type="button" className="studio-index-link" disabled={busy} onClick={() => void work(newPost)}><span className="signal-number">01.</span> New post</button>
+          </nav>
+          {current && stage !== "list" ? <div className="mt-8 hidden border-t border-border pt-4 lg:block">
+            <p className="text-caption text-muted-foreground">Working on</p><p className="mt-2 break-words text-body font-semibold">{subject || "Untitled post"}</p>
+            <ol aria-label="Post workflow" className="mt-4 flex flex-col gap-2 text-caption">{["Write", "Preview", "Email delivery"].map((label, index) => <li key={label} className={index === (stage === "write" ? 0 : stage === "preview" ? 1 : 2) ? "font-semibold" : "text-muted-foreground"}><span className="signal-number">{String(index + 1).padStart(2, "0")}.</span> {label}</li>)}</ol>
+          </div> : null}
+          <p className="mt-8 hidden text-caption text-muted-foreground lg:block">Blog publishing comes next. For now, save drafts and send them by email.</p>
+          <Button className="mt-4" variant="ghost" disabled={busy} onClick={() => void work(async () => { await studioLogout(session!.csrf); currentRef.current = null; setCurrent(null); setSession({ configured: true, authenticated: false, csrf: "", login: "" }); setStage("signin") })}>Sign out</Button>
+        </> : null}
+      </aside>
+      <div className="studio-document flex min-w-0 flex-col gap-6">
       <header className={stage === "write" ? "sr-only" : "page-header"}>
-        {step ? <p className="text-caption text-muted-foreground">{step}</p> : null}
         <h1 ref={heading} tabIndex={-1}>{title}</h1>
       </header>
       {error ? <p role="alert" className="text-body text-destructive">{error}</p> : null}
       {notice ? <p role="status" className="text-body">{notice}</p> : null}
-      {stage === "loading" ? <p role="status" className="text-body">Loading your newsletters…</p> : null}
+      {stage === "loading" ? <p role="status" className="text-body">Loading your posts…</p> : null}
       {stage === "signin" ? <div className="flex flex-col gap-4">
-        <p className="text-body">{session?.configured === false ? "This dashboard hasn’t been enabled yet." : "Sign in to write and send your newsletter."}</p>
+        <p className="text-body">{session?.configured === false ? "This writing desk hasn’t been enabled yet." : "Sign in to work on your posts."}</p>
         {session?.configured !== false ? <a href={studioLoginURL} className="text-body">Continue with GitHub</a> : null}
       </div> : null}
       {stage === "list" ? <>
         <div className="flex flex-wrap gap-2">
-          <Button disabled={busy} onClick={() => { currentRef.current = null; setCurrent(null); text.current = { subject: "", markdown: "" }; setSubject(""); setMarkdown(""); setError(""); setStage("subject") }}>New newsletter</Button>
-          <Button variant="ghost" disabled={busy} onClick={() => void work(async () => { await studioLogout(session!.csrf); currentRef.current = null; setCurrent(null); setSession({ configured: true, authenticated: false, csrf: "", login: "" }); setStage("signin") })}>Sign out</Button>
-          {error ? <Button variant="ghost" disabled={busy} onClick={() => void work(async () => { setDrafts(await studioDrafts()) })}>Reload newsletters</Button> : null}
+          <Button disabled={busy} onClick={() => void work(newPost)}>Write a post</Button>
+          {error ? <Button variant="ghost" disabled={busy} onClick={() => void work(async () => { setDrafts(await studioDrafts()) })}>Reload posts</Button> : null}
         </div>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter newsletters">{["all", "draft", "scheduled", "sent"].map((value) => <Button key={value} size="sm" variant={filter === value ? "secondary" : "ghost"} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === "all" ? "All" : value === "draft" ? "Drafts" : value === "scheduled" ? "Scheduled" : "Sent"}</Button>)}</div>
-        {drafts.length === 0 && !error ? <p className="text-body">Your first note starts here.</p> : <ul className="flex flex-col gap-4">{drafts.filter((d) => filter === "all" || (filter === "draft" ? ["draft", "error", "checking"].includes(d.state) : d.state === filter)).map((d) => <li key={d.id} className="border-b border-border pb-4"><button type="button" disabled={busy} className="flex w-full flex-col gap-2 text-left" onClick={() => open(d)}><span className="text-title">{d.subject}</span><span className="text-caption text-muted-foreground">{newsletterStateLabel(d.state)}{d.scheduled_at ? ` · ${formatDate(d.scheduled_at)}` : ""}</span></button></li>)}</ul>}
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter posts">{["all", "draft", "scheduled", "sent"].map((value) => <Button key={value} size="sm" variant={filter === value ? "secondary" : "ghost"} aria-pressed={filter === value} onClick={() => setFilter(value)}>{value === "all" ? "All" : value === "draft" ? "Drafts" : value === "scheduled" ? "Scheduled email" : "Emailed"}</Button>)}</div>
+        {drafts.length === 0 && !error ? <p className="text-body">Your first post starts here.</p> : <ol className="flex flex-col gap-4">{drafts.filter((d) => filter === "all" || (filter === "draft" ? ["draft", "error", "checking"].includes(d.state) : d.state === filter)).map((d, index) => <li key={d.id} className="border-b border-border pb-4"><button type="button" disabled={busy} className="flex w-full items-baseline gap-3 text-left" onClick={() => open(d)}><span className="signal-number text-title font-semibold">{String(index + 1).padStart(2, "0")}.</span><span className="min-w-0"><span className="block break-words text-name font-semibold">{d.subject}</span><span className="mt-2 block text-caption text-muted-foreground">{newsletterStateLabel(d.state)} · Updated {formatDate(d.updated_at)}{d.scheduled_at ? ` · Email scheduled ${formatDate(d.scheduled_at)}` : ""}</span></span></button></li>)}</ol>}
       </> : null}
-      {stage === "subject" ? <form className="flex flex-col gap-4" onSubmit={(event) => { event.preventDefault(); void work(async () => {
-        if (currentRef.current) await save()
-        else { const d = await studioCreate(session!.csrf, subject); accept(d); text.current.subject = d.subject; setSubject(d.subject) }
-        setStage("write")
-      }) }}>
-        <label htmlFor="newsletter-subject" className="sr-only">Subject</label>
-        <div className={surfaceClass}><input ref={subjectInput} id="newsletter-subject" className={inputClass} value={subject} required maxLength={STUDIO_SUBJECT_LIMIT} disabled={busy} enterKeyHint="next" onChange={(e) => { text.current.subject = e.target.value; setSubject(e.target.value) }} /></div>
-        <div className="flex flex-wrap gap-2"><Button disabled={busy || !subject.trim()} type="submit">Next</Button><Button variant="ghost" disabled={busy} type="button" onClick={() => void work(backToList)}>Back</Button></div>
-      </form> : null}
       {stage === "write" ? <>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-4">
-          <Button variant="ghost" disabled={busy} onClick={() => void work(backToList)}>Back to newsletters</Button>
-          <Button disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(preview)}>Preview email</Button>
+          <p className="text-caption text-muted-foreground">Draft post</p>
+          <Button disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(preview)}>Preview</Button>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-2 text-caption text-muted-foreground">
-          <p>2 of 5 · Write</p>
+          <p>Write</p>
           <div className="flex items-center gap-2"><p role="status">{saved === "saving" ? "Saving…" : saved === "error" ? "Changes not saved" : dirty ? "Unsaved changes" : "Saved"}</p>{saved === "error" ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void work(async () => { await save() })}>Retry save</Button> : null}</div>
         </div>
         <div className="flex flex-col gap-2">
-          <label htmlFor="newsletter-subject" className="text-caption text-muted-foreground">Email subject</label>
-          <input ref={subjectInput} id="newsletter-subject" className="min-h-8 w-full min-w-0 rounded-lg border border-transparent bg-transparent px-0.5 text-name leading-tight font-semibold text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20" value={subject} required maxLength={STUDIO_SUBJECT_LIMIT} disabled={busy} placeholder="Your newsletter subject" onChange={(event) => { text.current.subject = event.target.value; setSubject(event.target.value); setSaved("unsaved") }} />
+          <label htmlFor="post-title" className="sr-only">Post title</label>
+          <textarea ref={subjectInput} id="post-title" rows={2} className="studio-title w-full resize-none bg-transparent pl-8 font-bold text-foreground outline-none sm:pl-0" value={subject} required maxLength={STUDIO_SUBJECT_LIMIT} disabled={busy} placeholder="Untitled post" onChange={(event) => { const value = event.target.value.replace(/[\r\n]+/g, " "); text.current.subject = value; setSubject(value); setSaved("unsaved") }} />
         </div>
         <NewsletterEditor key={current?.id} value={markdown} disabled={busy} onChange={(value) => { text.current.markdown = value; setMarkdown(value); setSaved("unsaved") }} />
       </> : null}
-      {stage === "preview" && meta ? <>
+      {stage === "preview" ? <>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Preview format">
+          <Button size="sm" variant={previewMode === "post" ? "secondary" : "ghost"} aria-pressed={previewMode === "post"} disabled={busy} onClick={() => setPreviewMode("post")}>Post</Button>
+          <Button size="sm" variant={previewMode === "email" ? "secondary" : "ghost"} aria-pressed={previewMode === "email"} disabled={busy} onClick={() => { if (html && meta) setPreviewMode("email"); else void work(previewEmail) }}>Email</Button>
+        </div>
+        {previewMode === "post" ? <>
+          <div className="border-y border-border py-6"><h2 className="studio-title font-bold">{subject}</h2><Markdown className="mt-6">{markdown}</Markdown></div>
+          <p className="text-caption text-muted-foreground">This is a saved draft preview. Publishing it to the blog will be available in the next release.</p>
+        </> : meta ? <>
         <p className="text-caption text-muted-foreground">From {meta.sender.name} · {meta.sender.email}</p>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Email preview device"><Button size="sm" variant={device === "desktop" ? "secondary" : "ghost"} aria-pressed={device === "desktop"} onClick={() => setDevice("desktop")}>Desktop</Button><Button size="sm" variant={device === "mobile" ? "secondary" : "ghost"} aria-pressed={device === "mobile"} onClick={() => setDevice("mobile")}>Mobile</Button></div>
         <div className={device === "mobile" ? "mx-auto w-full max-w-sm" : "w-full"}><iframe title="Newsletter email preview" sandbox="" srcDoc={html} className="min-h-96 w-full rounded-2xl border border-input" /></div>
-        <div className="flex flex-wrap gap-2"><Button disabled={busy} onClick={() => { setLater(false); setStage("delivery") }}>Continue</Button><Button variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}>Send me a test</Button><Button variant="ghost" disabled={busy} onClick={() => setStage("write")}>Back to writing</Button></div>
+        <div className="flex flex-wrap gap-2"><Button disabled={busy} onClick={() => { setLater(false); setStage("delivery") }}>Set up email delivery</Button><Button variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}>Send me a test</Button></div>
         {current?.tested_revision === current?.revision ? <p className="text-caption text-muted-foreground">A test was sent for this version.</p> : null}
         {!meta.test_email ? <p className="text-caption text-muted-foreground">Set a test email in the dashboard configuration to send yourself a preview.</p> : null}
+        </> : null}
+        <Button className="w-fit" variant="ghost" disabled={busy} onClick={() => setStage("write")}>Back to writing</Button>
       </> : null}
       {stage === "delivery" ? <form className="flex flex-col gap-4" onSubmit={(event) => { event.preventDefault(); void work(async () => { if (later) nairobiSchedule(schedule); setMeta(await studioMeta()); setStage("confirm") }) }}>
         <div className="flex flex-wrap gap-2" role="group" aria-label="Delivery time"><Button type="button" variant={!later ? "secondary" : "ghost"} aria-pressed={!later} onClick={() => setLater(false)}>Send now</Button><Button type="button" variant={later ? "secondary" : "ghost"} aria-pressed={later} onClick={() => setLater(true)}>Schedule</Button></div>
@@ -201,9 +226,10 @@ export function NewsletterStudio() {
         <div className="flex flex-wrap gap-2">
           {!["draft", "error"].includes(current.state) ? <Button disabled={busy} onClick={() => void work(() => action("refresh"))}>Check status</Button> : <Button disabled={busy} onClick={() => setStage("write")}>Return to draft</Button>}
           {current.state === "scheduled" ? <Button variant="secondary" disabled={busy} onClick={() => void work(() => action("cancel"))}>Cancel schedule</Button> : null}
-          <Button variant="ghost" disabled={busy} onClick={() => void work(backToList)}>Back to newsletters</Button>
+          <Button variant="ghost" disabled={busy} onClick={() => void work(backToList)}>Back to posts</Button>
         </div>
       </> : null}
+      </div>
     </article>
   )
 }

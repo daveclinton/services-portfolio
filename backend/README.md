@@ -148,10 +148,12 @@ improves which documents are ranked as relevant. `knowledge-backend`'s
 
 ### Newsletter writing dashboard
 
-The frontend route is `/admin/newsletters`. The owner writes a subject, then a
-Markdown note, previews the actual email, chooses delivery, and reviews a final
-confirmation. Drafts autosave with revision checks. The formatted writing view
-reuses the existing Markdown component; the actual email preview, tests and
+The frontend route is `/admin/writing`; `/admin/newsletters` redirects there,
+including the existing OAuth callback's login result. The owner edits a post
+title and rich text body in one canvas, previews the saved draft, then optionally
+previews the actual email, chooses delivery, and reviews a final confirmation.
+Drafts still save as Markdown with revision checks. Blog publication and media
+uploads are not connected in this frontend release. The actual email preview, tests and
 campaigns share the backend renderer and existing Postmark email shell. Core
 Markdown is supported; raw HTML and template expressions are restricted.
 
@@ -202,7 +204,7 @@ There is no new frontend editor dependency. Goldmark (MIT) and Go's OAuth2 clien
    curl -fsS https://api.daveclintonn.cc/healthz
    ```
 
-   Open `https://www.daveclintonn.cc/admin/newsletters` and sign in as the owner.
+   Open `https://www.daveclintonn.cc/admin/writing` and sign in as the owner.
    API startup initializes `newsletter_studio_*`, `newsletter_subscribers`,
    `newsletter_campaigns`, and `newsletter_deliveries` idempotently; include all in backups. No campaign is sent during setup.
    For local development, use a separate OAuth app with a localhost API callback,

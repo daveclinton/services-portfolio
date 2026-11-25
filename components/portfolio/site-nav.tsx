@@ -2,7 +2,9 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
+import { useLayoutEffect } from "react"
 import { askAi, site } from "@/lib/portfolio-data"
+import { TONE_STORAGE_KEY, toneOf } from "@/lib/tone"
 
 const links: { href: string; label: string; section?: string }[] = [
   { href: "/blog", section: "/writing", label: "Writing" },
@@ -13,6 +15,16 @@ const links: { href: string; label: string; section?: string }[] = [
 // Plain bold links on the left, the name on the right, after 37signals.com.
 export function SiteNav() {
   const pathname = usePathname()
+
+  // The public palette is remembered, but never carried into private writing.
+  useLayoutEffect(() => {
+    if (!pathname.startsWith("/admin/")) return
+    const root = document.documentElement
+    let previous = root.getAttribute("data-tone") ?? "0"
+    try { const saved = Number.parseInt(localStorage.getItem(TONE_STORAGE_KEY) ?? "", 10); if (saved >= 0) previous = toneOf(saved) } catch {}
+    root.removeAttribute("data-tone")
+    return () => { root.setAttribute("data-tone", previous) }
+  }, [pathname])
 
   return (
     <header className="site-nav">
