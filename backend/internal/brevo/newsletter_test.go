@@ -34,6 +34,10 @@ func TestNewsletterProvisioningIsRepeatableAndNeverEnrollsOrEmailsContacts(t *te
 			for _, field := range []string{"folders", "lists", "templates"} {
 				if strings.HasSuffix(r.URL.Path, "/"+field) {
 					if len(resources[field]) == 0 {
+						if field == "templates" {
+							// Observed on the VPS: an empty template list is HTTP 200 {}.
+							return providerResponse(200, map[string]any{}), nil
+						}
 						return providerResponse(200, map[string]any{"count": 0}), nil
 					}
 					return providerResponse(200, map[string]any{"count": len(resources[field]), field: resources[field]}), nil
@@ -127,8 +131,34 @@ func TestResourceLookupAcceptsOmittedCollectionsOnlyWhenCountIsZero(t *testing.T
 	}
 }
 
+func TestEmptyObjectIsAcceptedOnlyForTheObservedTemplateListEndpoint(t *testing.T) {
+	for _, resource := range []struct{ path, field string }{
+		{"/smtp/templates", "templates"},
+		{"/contacts/folders", "folders"},
+		{"/contacts/lists", "lists"},
+	} {
+		t.Run(resource.field, func(t *testing.T) {
+			client := New("key")
+			client.http.Transport = mailTransport(func(r *http.Request) (*http.Response, error) {
+				if r.Method != http.MethodGet {
+					t.Fatal("lookup mutated provider resources")
+				}
+				return providerResponse(200, map[string]any{}), nil
+			})
+			id, err := client.findNamed(context.Background(), resource.path, resource.field, "portfolio")
+			if resource.field == "templates" {
+				if id != 0 || err != nil {
+					t.Fatalf("observed empty template list rejected: id=%d err=%v", id, err)
+				}
+			} else if err == nil {
+				t.Fatal("empty object from another endpoint was silently accepted")
+			}
+		})
+	}
+}
+
 func TestMalformedResourceCollectionsRemainErrorsWithEndpointContext(t *testing.T) {
-	for _, body := range []string{`{}`, `{"count":1}`, `{"count":1,"templates":null}`, `{"templates":{}}`, `{"templates":`} {
+	for _, body := range []string{`null`, `{"unexpected":true}`, `{"count":null}`, `{"count":-1}`, `{"count":1}`, `{"count":1,"templates":null}`, `{"templates":{}}`, `{"templates":`} {
 		client := New("key")
 		client.http.Transport = mailTransport(func(r *http.Request) (*http.Response, error) {
 			if r.Method != http.MethodGet {

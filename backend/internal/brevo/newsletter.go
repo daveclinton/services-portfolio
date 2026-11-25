@@ -91,6 +91,12 @@ func (c *Client) findNamed(ctx context.Context, path, field, name string) (int64
 		if err := c.request(ctx, http.MethodGet, fmt.Sprintf("%s?limit=50&offset=%d", path, offset), nil, &page); err != nil {
 			return 0, fmt.Errorf("lookup newsletter %s: %w", path, err)
 		}
+		// The live templates endpoint returns HTTP 200 {} for an empty list.
+		// Limit this exception to that exact object/endpoint; null and other
+		// incomplete responses must still fail rather than create duplicates.
+		if path == "/smtp/templates" && page != nil && len(page) == 0 {
+			return 0, nil
+		}
 		collection := page[field]
 		// Brevo's collection fields are optional. Empty accounts can return
 		// only {"count":0}; don't unmarshal a missing RawMessage as JSON.
