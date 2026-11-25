@@ -1,62 +1,62 @@
 "use client"
 
-import { useEffect, useRef, type ReactNode } from "react"
+import { useEffect, type ReactNode } from "react"
+import { isTextEntry, scheduleReveal, updateViewportMetrics } from "@/lib/scroll"
 
-/**
- * Pins its children to the visible part of the screen.
- *
- * Android Chrome shrinks the page when the keyboard opens (we opt in with
- * `interactive-widget=resizes-content` in the root viewport), but iOS Safari
- * does not: the keyboard draws over the page, and Safari may scroll the page
- * up to reveal the focused field. `visualViewport` reports the area that is
- * really visible, so we size the container to it and follow its offset.
- */
-export function VisibleViewport({ children }: { children: ReactNode }) {
-  const ref = useRef<HTMLDivElement>(null)
-
+/** One keyboard/focus coordinator for every page, form, and dialog. */
+export function ViewportFocus() {
   useEffect(() => {
-    const element = ref.current
+    const root = document.documentElement
     const viewport = window.visualViewport
-    if (!element) return
-
-    document.documentElement.classList.add("has-visible-viewport")
-
     let frame = 0
-    const update = () => {
+    let cancelReveal: (() => void) | undefined
+    const inputState = () => root.toggleAttribute("data-input-active", isTextEntry(document.activeElement))
+    const update = (reveal = false) => {
       cancelAnimationFrame(frame)
       frame = requestAnimationFrame(() => {
-        // When the reader pinch-zooms, let the browser handle it normally
-        // rather than shrinking the layout to the zoomed-in area.
-        if (!viewport) return
-        if (viewport.scale > 1.01) {
-          element.style.removeProperty("--visible-height")
-          element.style.removeProperty("--visible-top")
-          return
-        }
-        element.style.setProperty("--visible-height", `${viewport.height}px`)
-        element.style.setProperty("--visible-top", `${viewport.offsetTop}px`)
-
+        inputState()
         const active = document.activeElement
-        if (active instanceof HTMLElement && element.contains(active) && active.matches("input, textarea")) {
-          active.scrollIntoView({ block: "nearest" })
-        }
+        const bounds = updateViewportMetrics(active instanceof HTMLElement ? active : undefined)
+        if (reveal && bounds && isTextEntry(active)) cancelReveal = scheduleReveal(active, { animate: false })
       })
     }
-
+    const focus = (event: FocusEvent) => {
+      inputState()
+      if (event.target instanceof HTMLElement) cancelReveal = scheduleReveal(event.target)
+    }
+    const resize = () => update(true)
+    const scroll = () => update()
+    document.addEventListener("focusin", focus)
+    document.addEventListener("focusout", scroll)
+    window.addEventListener("resize", resize)
+    viewport?.addEventListener("resize", resize)
+    // Update offsets when Safari pans the visual viewport, but do not pull the
+    // reader back to the input when they intentionally scroll through content.
+    viewport?.addEventListener("scroll", scroll)
     update()
-    viewport?.addEventListener("resize", update)
-    viewport?.addEventListener("scroll", update)
     return () => {
       cancelAnimationFrame(frame)
-      viewport?.removeEventListener("resize", update)
-      viewport?.removeEventListener("scroll", update)
-      document.documentElement.classList.remove("has-visible-viewport")
+      cancelReveal?.()
+      document.removeEventListener("focusin", focus)
+      document.removeEventListener("focusout", scroll)
+      window.removeEventListener("resize", resize)
+      viewport?.removeEventListener("resize", resize)
+      viewport?.removeEventListener("scroll", scroll)
+      root.removeAttribute("data-input-active")
+      root.style.removeProperty("--visible-height")
+      root.style.removeProperty("--visible-top")
+      root.style.removeProperty("scroll-padding-top")
+      root.style.removeProperty("scroll-padding-bottom")
     }
   }, [])
+  return null
+}
 
-  return (
-    <div ref={ref} className="visible-viewport">
-      {children}
-    </div>
-  )
+/** Keep the chat and its composer in the visible viewport, above the keyboard. */
+export function VisibleViewport({ children }: { children: ReactNode }) {
+  useEffect(() => {
+    document.documentElement.classList.add("has-visible-viewport")
+    return () => document.documentElement.classList.remove("has-visible-viewport")
+  }, [])
+  return <div className="visible-viewport">{children}</div>
 }

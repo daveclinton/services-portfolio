@@ -1,10 +1,12 @@
 "use client"
 
+import { useEffect, useRef } from "react"
 import { Briefcase, FolderGit2, Waypoints } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { PromptSuggestion } from "@/components/prompt-kit/prompt-suggestion"
 import { aiTaskGroups } from "@/lib/portfolio-data"
 import type { ChatWorkflow } from "@/lib/ai-client"
+import { focusElement } from "@/lib/scroll"
 
 const icons = [FolderGit2, Briefcase, Waypoints]
 
@@ -16,14 +18,24 @@ export function AiTaskSuggestions({ groupId, onGroupChange, onChoose }: {
   onGroupChange: (groupId: string | null) => void
   onChoose: (workflow: ChatWorkflow, prompt: string) => void
 }) {
+  const sectionRef = useRef<HTMLElement>(null)
+  const focusGroup = useRef(false)
   const group = aiTaskGroups.find((item) => item.id === groupId)
   const Icon = icons[group ? aiTaskGroups.indexOf(group) : 0]
+  useEffect(() => {
+    if (focusGroup.current) focusElement(sectionRef.current)
+    focusGroup.current = false
+  }, [groupId])
+  function changeGroup(next: string | null) {
+    focusGroup.current = true
+    onGroupChange(next)
+  }
   return (
-    <section aria-label={group ? `${group.label} suggestions` : "Choose what to do"}>
+    <section ref={sectionRef} tabIndex={-1} aria-label={group ? `${group.label} suggestions` : "Choose what to do"}>
       {group ? (
         <div className="mb-2 flex items-center justify-between gap-2 text-caption text-muted-foreground">
           <span>{group.label}</span>
-          <Button type="button" variant="ghost" size="sm" onClick={() => onGroupChange(null)}>Back to all tasks</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => changeGroup(null)}>Back to all tasks</Button>
         </div>
       ) : null}
       <ul key={group?.id ?? "categories"} className="flex min-w-0 flex-col gap-2 animate-in fade-in duration-150 motion-reduce:animate-none">
@@ -38,7 +50,7 @@ export function AiTaskSuggestions({ groupId, onGroupChange, onChoose }: {
           const CategoryIcon = icons[index]
           return (
             <li key={item.id}>
-              <PromptSuggestion onClick={() => onGroupChange(item.id)}>
+              <PromptSuggestion onClick={() => changeGroup(item.id)}>
                 <CategoryIcon aria-hidden="true" />
                 <span className="text-body">{item.label}</span>
               </PromptSuggestion>

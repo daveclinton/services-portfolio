@@ -167,7 +167,7 @@ test("newsletter begins with one invitation and a start button, without mounting
   const html = renderToStaticMarkup(React.createElement(NewsletterSignup))
   assert.equal((html.match(/<button/g) ?? []).length, 1)
   assert(html.includes("Subscribe"))
-  assert(html.includes("Occasional notes"))
+  assert(html.includes("Subscribe to my weekly newsletter for instant updates."))
   assert(!html.includes("<form"))
   assert(!html.includes("<input"))
   assert(!html.includes("Unsubscribe anytime"))
