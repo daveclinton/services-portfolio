@@ -5,6 +5,7 @@ package config
 import (
 	"errors"
 	"fmt"
+	"net/mail"
 	"net/url"
 	"os"
 	"strconv"
@@ -38,15 +39,21 @@ type Config struct {
 	EmbeddingQueryPrefix    string
 	EmbeddingDocumentPrefix string
 
-	BrevoAPIKey               string
-	BrevoAlertTo              string
-	BrevoSenderEmail          string
-	BrevoSenderName           string
-	ConversationAlerts        string
-	OperationalAlerts         bool
-	AIProviderCooldownSeconds int
-	SiteURL                   string
-	NewsletterEnabled         bool
+	BrevoAPIKey                  string
+	BrevoAlertTo                 string
+	BrevoSenderEmail             string
+	BrevoSenderName              string
+	ConversationAlerts           string
+	OperationalAlerts            bool
+	AIProviderCooldownSeconds    int
+	SiteURL                      string
+	NewsletterEnabled            bool
+	NewsletterAdminEnabled       bool
+	NewsletterGitHubClientID     string
+	NewsletterGitHubClientSecret string
+	NewsletterGitHubOwnerID      int64
+	NewsletterOAuthCallbackURL   string
+	NewsletterTestEmail          string
 
 	ConversationRetentionDays int
 }
@@ -81,24 +88,45 @@ func Load() (Config, error) {
 
 		EmbeddingsURL: env("EMBEDDINGS_URL", ""),
 
-		BrevoAPIKey:               env("BREVO_API_KEY", ""),
-		BrevoAlertTo:              env("BREVO_ALERT_TO_EMAIL", ""),
-		BrevoSenderEmail:          env("BREVO_SENDER_EMAIL", ""),
-		BrevoSenderName:           env("BREVO_SENDER_NAME", "David Clinton Portfolio"),
-		ConversationAlerts:        env("BREVO_CONVERSATION_ALERTS", "important"),
-		OperationalAlerts:         boolean(env("BREVO_OPERATIONAL_ALERTS", "true")),
-		AIProviderCooldownSeconds: positiveInt(env("AI_PROVIDER_COOLDOWN_SECONDS", ""), 300),
-		SiteURL:                   strings.TrimRight(env("SITE_URL", "https://www.daveclintonn.cc"), "/"),
-		NewsletterEnabled:         boolean(env("NEWSLETTER_ENABLED", "true")),
+		BrevoAPIKey:                  env("BREVO_API_KEY", ""),
+		BrevoAlertTo:                 env("BREVO_ALERT_TO_EMAIL", ""),
+		BrevoSenderEmail:             env("BREVO_SENDER_EMAIL", ""),
+		BrevoSenderName:              env("BREVO_SENDER_NAME", "David Clinton Portfolio"),
+		ConversationAlerts:           env("BREVO_CONVERSATION_ALERTS", "important"),
+		OperationalAlerts:            boolean(env("BREVO_OPERATIONAL_ALERTS", "true")),
+		AIProviderCooldownSeconds:    positiveInt(env("AI_PROVIDER_COOLDOWN_SECONDS", ""), 300),
+		SiteURL:                      strings.TrimRight(env("SITE_URL", "https://www.daveclintonn.cc"), "/"),
+		NewsletterEnabled:            boolean(env("NEWSLETTER_ENABLED", "true")),
+		NewsletterAdminEnabled:       boolean(env("NEWSLETTER_ADMIN_ENABLED", "false")),
+		NewsletterGitHubClientID:     env("NEWSLETTER_GITHUB_CLIENT_ID", ""),
+		NewsletterGitHubClientSecret: env("NEWSLETTER_GITHUB_CLIENT_SECRET", ""),
+		NewsletterOAuthCallbackURL:   env("NEWSLETTER_OAUTH_CALLBACK_URL", ""),
+		NewsletterTestEmail:          env("NEWSLETTER_TEST_EMAIL", env("BREVO_ALERT_TO_EMAIL", "")),
 
 		ConversationRetentionDays: positiveInt(env("CONVERSATION_RETENTION_DAYS", ""), 30),
 	}
 	c.applyEmbeddingDefaults()
+	c.NewsletterGitHubOwnerID, _ = strconv.ParseInt(env("NEWSLETTER_GITHUB_OWNER_ID", "0"), 10, 64)
 	if c.BrevoSenderEmail == "" {
 		c.BrevoSenderEmail = c.BrevoAlertTo
 	}
 
 	var problems []error
+	if c.NewsletterAdminEnabled {
+		callback, err := url.Parse(c.NewsletterOAuthCallbackURL)
+		if c.NewsletterGitHubClientID == "" || c.NewsletterGitHubClientSecret == "" || c.NewsletterGitHubOwnerID < 1 || len(c.RateLimitSecret) < 32 {
+			problems = append(problems, errors.New("newsletter dashboard requires GitHub client credentials, owner numeric ID and RATE_LIMIT_SECRET (32+ characters)"))
+		}
+		if err != nil || callback.Host == "" || callback.User != nil || callback.RawQuery != "" || callback.Fragment != "" || callback.Path != "/admin/newsletters/auth/callback" || (callback.Scheme != "https" && (c.Production() || callback.Scheme != "http")) {
+			problems = append(problems, errors.New("NEWSLETTER_OAUTH_CALLBACK_URL must be an API URL ending in /admin/newsletters/auth/callback (HTTPS in production)"))
+		}
+		if c.NewsletterTestEmail != "" {
+			address, err := mail.ParseAddress(c.NewsletterTestEmail)
+			if err != nil || address.Address != c.NewsletterTestEmail {
+				problems = append(problems, errors.New("NEWSLETTER_TEST_EMAIL must be an email address"))
+			}
+		}
+	}
 	publicURL, urlErr := url.Parse(c.SiteURL)
 	if urlErr != nil || publicURL == nil || publicURL.Host == "" || publicURL.User != nil || publicURL.RawQuery != "" || publicURL.Fragment != "" || publicURL.Path != "" || (publicURL.Scheme != "https" && (c.Production() || publicURL.Scheme != "http")) {
 		problems = append(problems, errors.New("SITE_URL must be an absolute site origin (HTTPS in production)"))

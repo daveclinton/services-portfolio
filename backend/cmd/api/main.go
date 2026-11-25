@@ -19,6 +19,7 @@ import (
 	"github.com/daveclinton/portfolio/backend/internal/config"
 	"github.com/daveclinton/portfolio/backend/internal/newsletter"
 	"github.com/daveclinton/portfolio/backend/internal/server"
+	"github.com/daveclinton/portfolio/backend/internal/studio"
 )
 
 func main() {
@@ -80,10 +81,14 @@ func run(log *slog.Logger) error {
 	go askAI.Run(ctx)
 	subscriptions := newsletter.New(cfg, log)
 	go subscriptions.Run(ctx)
+	newsletterStudio := studio.New(cfg, db, log, subscriptions.ListIDs)
+	if err := newsletterStudio.Init(ctx); err != nil {
+		return errors.Join(errors.New("prepare newsletter dashboard"), err)
+	}
 
 	srv := &http.Server{
 		Addr:              cfg.Addr,
-		Handler:           server.New(db, cfg.AllowedOrigins, log, askAI, subscriptions),
+		Handler:           server.New(db, cfg.AllowedOrigins, log, askAI, subscriptions, newsletterStudio),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		// No WriteTimeout: chat answers stream for up to a minute. Each

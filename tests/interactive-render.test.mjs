@@ -36,6 +36,8 @@ const { ProjectScopeForm } = require("../components/portfolio/project-scope-form
 const { NewsletterSignup, NewsletterConfirmation } = require("../components/portfolio/newsletter-signup.tsx")
 const { newsletterAvailable, subscribeToNewsletter } = require("../lib/newsletter.ts")
 const { TONE_COLORS } = require("../lib/tone.ts")
+const { NewsletterStudio } = require("../components/portfolio/newsletter-studio.tsx")
+const { studioSession, studioSave, studioAction, studioPreview, nairobiSchedule } = require("../lib/newsletter-studio.ts")
 
 test("discovery starts with only three categories and reveals one group at a time", () => {
   const props = { groupId: null, onGroupChange() {}, onChoose() {} }
@@ -222,4 +224,55 @@ test("newsletter failures and malformed success responses do not pretend to subs
   await assert.rejects(() => subscribeToNewsletter("reader@example.com"), /couldn’t confirm/)
   response = new Response("{}", { status: 429 })
   await assert.rejects(() => subscribeToNewsletter("reader@example.com"), /wait a little/)
+})
+
+const studioDraft = { id: "a5cd8282-68f1-4b4a-9c19-000000000001", subject: "A note", markdown: "Hello", revision: 1, state: "draft", campaign_id: 0, scheduled_at: null, tested_revision: 0, last_error: "", updated_at: "2026-11-25T09:00:00Z" }
+
+test("newsletter studio mounts no private data or send controls before owner verification", () => {
+  const html = renderToStaticMarkup(React.createElement(NewsletterStudio))
+  assert(html.includes("Loading your newsletters"))
+  assert(!html.includes("<textarea"))
+  assert(!html.includes("Confirm send"))
+  assert(!html.includes("A note"))
+})
+
+test("studio writes include credentials, CSRF and revision, and confirm actual saved content", async (t) => {
+  let seen
+  t.mock.method(globalThis, "fetch", async (url, options) => {
+    seen = { url, options }
+    return new Response(JSON.stringify({ ...studioDraft, subject: "Updated", markdown: "New body", revision: 2 }))
+  })
+  const result = await studioSave("csrf-token", studioDraft, "Updated", "New body")
+  assert.equal(result.revision, 2)
+  assert.equal(seen.options.credentials, "include")
+  assert.equal(seen.options.headers["X-CSRF-Token"], "csrf-token")
+  assert.deepEqual(JSON.parse(seen.options.body), { subject: "Updated", markdown: "New body", revision: 1 })
+})
+
+test("studio rejects stale save acknowledgements, stale previews and invalid sign-in responses", async (t) => {
+  let body = studioDraft
+  t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify(body)))
+  await assert.rejects(() => studioSave("csrf", studioDraft, "Updated", "New body"), /not confirmed as saved/)
+  body = { html: "<p>Old</p>", revision: 0 }
+  await assert.rejects(() => studioPreview("csrf", studioDraft), /latest saved/)
+  body = { authenticated: true, configured: true, csrf: "", login: "owner" }
+  await assert.rejects(() => studioSession(), /sign-in/)
+})
+
+test("studio never interprets submitted or unknown delivery states as sent", async (t) => {
+  let body = { ...studioDraft, state: "sending", campaign_id: 41 }
+  let seen
+  t.mock.method(globalThis, "fetch", async (url, options) => { seen = { url, options }; return new Response(JSON.stringify(body)) })
+  assert.equal((await studioAction("csrf", studioDraft, "send")).state, "sending")
+  assert(seen.url.endsWith("/send"))
+  assert.equal(JSON.parse(seen.options.body).revision, 1)
+  body = { ...body, state: "maybe-sent" }
+  await assert.rejects(() => studioAction("csrf", studioDraft, "refresh"), /saved newsletter/)
+})
+
+test("studio preserves conflict messages and requires an explicit valid Nairobi schedule", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => new Response(JSON.stringify({ detail: "Reload this changed draft." }), { status: 409 }))
+  await assert.rejects(() => studioSave("csrf", studioDraft, "Changed", "Body"), /Reload this changed draft/)
+  assert.equal(nairobiSchedule("2100-01-15T12:30"), "2100-01-15T09:30:00.000Z")
+  for (const invalid of ["", "2100-02-30T12:00", "2020-01-01T12:00", "2100-01-15T12:30Z"]) assert.throws(() => nairobiSchedule(invalid))
 })

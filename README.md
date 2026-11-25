@@ -152,11 +152,24 @@ Set `NEWSLETTER_ENABLED=false` to disable signup, or `SITE_URL` to change the pu
 site origin. The API key needs contacts/lists and templates permissions. If setup
 or delivery fails, signup reports unavailable rather than pretending to succeed.
 
-Write and send future notes through Brevo's Campaigns interface to the confirmed
-list, including its unsubscribe link. Signup currently accepts up to five attempts
+Write future notes at `/admin/newsletters` after enabling the private dashboard
+(see [owner setup](backend/README.md#newsletter-writing-dashboard)). It provides
+saved Markdown drafts, formatted and actual email previews, owner-only test sends,
+send now, Nairobi-time scheduling and cancellation. The flow follows
+[Ghost's write → preview/test → delivery → confirmation sequence](https://ghost.org/help/delivering-emails/),
+using the portfolio's existing components and email template. Brevo remains the
+delivery provider and manages unsubscribe preferences; its Campaigns interface
+is also available for inspecting delivery.
+
+Signup currently accepts up to five attempts
 per network per hour and 100 per API process per day, with a 15-minute cooldown
 per email. These controls reuse the existing in-memory limiter and assume one API
 instance; network and email rate-limit keys are hashed and temporary.
+
+The dashboard requires GitHub sign-in restricted to the configured numeric owner
+ID. It is disabled by default. Drafts and delivery operations persist in Postgres;
+uncertain provider responses require a status check instead of an automatic resend.
+An accepted broadcast displays **Submitted for delivery** until Brevo reports it sent.
 
 | Setting | Behavior |
 | --- | --- |

@@ -25,6 +25,9 @@ type Note struct {
 	Title, Intro, SiteURL, Footer string
 	Sections                      []NoteSection
 	Confirmation                  bool
+	Campaign                      bool
+	// Body is generated only by RenderNewsletter's Markdown renderer.
+	Body template.HTML
 }
 
 func RenderNote(note Note) (string, string, error) {

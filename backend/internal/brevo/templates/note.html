@@ -24,10 +24,12 @@
           <h2 style="margin:0 0 8px;font-size:16px;line-height:1.4">[[.Label]]</h2>
           <p style="margin:0 0 24px;font-size:16px;line-height:1.6;white-space:pre-wrap">[[.Text]]</p>
           [[end]]
+          [[if .Body]]<div style="font-size:16px;line-height:1.6">[[.Body]]</div>[[end]]
           [[if .Confirmation]]
           <p style="margin:0 0 24px;font-size:16px;line-height:1.6"><a href="{{ params.DOIurl }}" style="color:#ffffff;font-weight:bold;text-decoration:underline">Confirm my email &rarr;</a></p>
           <p style="margin:0 0 24px;font-size:14px;line-height:1.45">By confirming, you agree to occasional emails from David. Free to read. Unsubscribe anytime. <a href="[[.SiteURL]]/privacy" style="color:#ffffff">Privacy</a>.</p>
           [[end]]
+          [[if .Campaign]]<p style="margin:0 0 24px;font-size:14px;line-height:1.45"><a href="{{ unsubscribe }}" style="color:#ffffff">Unsubscribe</a> · <a href="[[.SiteURL]]/privacy" style="color:#ffffff">Privacy</a></p>[[end]]
           [[if .Footer]]<p style="margin:0;font-size:14px;line-height:1.45">[[.Footer]]</p>[[end]]
         </td></tr>
       </table>
