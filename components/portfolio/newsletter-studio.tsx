@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { focusElement } from "@/lib/scroll"
-import { Markdown } from "@/components/prompt-kit/markdown"
+import { NewsletterEditor } from "@/components/portfolio/newsletter-editor"
 import {
   studioSession, studioDrafts, studioCreate, studioSave, studioPreview, studioMeta, studioAction, studioLogout,
   studioLoginURL, nairobiSchedule, newsletterStateLabel, STUDIO_SUBJECT_LIMIT, STUDIO_BODY_LIMIT,
@@ -30,7 +30,6 @@ export function NewsletterStudio() {
   const [html, setHTML] = useState("")
   const [meta, setMeta] = useState<StudioMeta | null>(null)
   const [filter, setFilter] = useState("all")
-  const [pane, setPane] = useState<"write" | "formatted">("write")
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop")
   const [later, setLater] = useState(false)
   const [schedule, setSchedule] = useState("")
@@ -39,7 +38,6 @@ export function NewsletterStudio() {
   const saveQueue = useRef<Promise<unknown>>(Promise.resolve())
   const heading = useRef<HTMLHeadingElement>(null)
   const subjectInput = useRef<HTMLInputElement>(null)
-  const bodyInput = useRef<HTMLTextAreaElement>(null)
   const mounted = useRef(false)
   const actionPending = useRef(false)
 
@@ -65,9 +63,9 @@ export function NewsletterStudio() {
 
   useEffect(() => {
     if (stage === "subject") focusElement(subjectInput.current)
-    else if (stage === "write" && pane === "write") focusElement(bodyInput.current)
+    else if (stage === "write") focusElement(subjectInput.current)
     else if (stage !== "loading") focusElement(heading.current)
-  }, [stage, pane])
+  }, [stage])
 
   const save = useCallback((): Promise<NewsletterDraft> => {
     const queued = saveQueue.current.catch(() => undefined).then(async () => {
@@ -114,7 +112,7 @@ export function NewsletterStudio() {
   }
   function open(d: NewsletterDraft) {
     accept(d); text.current = { subject: d.subject, markdown: d.markdown }; setSubject(d.subject); setMarkdown(d.markdown)
-    setSaved("saved"); setError(""); setNotice(""); setPane("write"); setStage(["draft", "error"].includes(d.state) ? "write" : "outcome")
+    setSaved("saved"); setError(""); setNotice(""); setStage(["draft", "error"].includes(d.state) ? "write" : "outcome")
   }
   async function preview() {
     const d = await save()
@@ -135,10 +133,9 @@ export function NewsletterStudio() {
 
   return (
     <article className="flex min-h-0 flex-1 flex-col gap-6 pb-16" aria-busy={busy}>
-      <header className="page-header">
+      <header className={stage === "write" ? "sr-only" : "page-header"}>
         {step ? <p className="text-caption text-muted-foreground">{step}</p> : null}
         <h1 ref={heading} tabIndex={-1}>{title}</h1>
-        {stage === "write" ? <p role="status" className="text-caption text-muted-foreground">{saved === "saving" ? "Saving…" : saved === "error" ? "Changes not saved" : dirty ? "Unsaved changes" : "Saved"}</p> : null}
       </header>
       {error ? <p role="alert" className="text-body text-destructive">{error}</p> : null}
       {notice ? <p role="status" className="text-body">{notice}</p> : null}
@@ -159,16 +156,26 @@ export function NewsletterStudio() {
       {stage === "subject" ? <form className="flex flex-col gap-4" onSubmit={(event) => { event.preventDefault(); void work(async () => {
         if (currentRef.current) await save()
         else { const d = await studioCreate(session!.csrf, subject); accept(d); text.current.subject = d.subject; setSubject(d.subject) }
-        setPane("write"); setStage("write")
+        setStage("write")
       }) }}>
         <label htmlFor="newsletter-subject" className="sr-only">Subject</label>
         <div className={surfaceClass}><input ref={subjectInput} id="newsletter-subject" className={inputClass} value={subject} required maxLength={STUDIO_SUBJECT_LIMIT} disabled={busy} enterKeyHint="next" onChange={(e) => { text.current.subject = e.target.value; setSubject(e.target.value) }} /></div>
         <div className="flex flex-wrap gap-2"><Button disabled={busy || !subject.trim()} type="submit">Next</Button><Button variant="ghost" disabled={busy} type="button" onClick={() => void work(backToList)}>Back</Button></div>
       </form> : null}
       {stage === "write" ? <>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Editor view"><Button variant={pane === "write" ? "secondary" : "ghost"} aria-pressed={pane === "write"} onClick={() => setPane("write")}>Write</Button><Button variant={pane === "formatted" ? "secondary" : "ghost"} aria-pressed={pane === "formatted"} onClick={() => setPane("formatted")}>Formatted preview</Button></div>
-        {pane === "write" ? <div className={surfaceClass}><label htmlFor="newsletter-body" className="sr-only">Newsletter in Markdown</label><textarea ref={bodyInput} id="newsletter-body" rows={14} className={`${inputClass} resize-y`} value={markdown} maxLength={STUDIO_BODY_LIMIT} disabled={busy} placeholder="Write your note in Markdown…" onChange={(e) => { text.current.markdown = e.target.value; setMarkdown(e.target.value); setSaved("unsaved") }} /></div> : <div className="min-w-0"><Markdown>{markdown || "Your formatted note will appear here."}</Markdown></div>}
-        <div className="flex flex-wrap gap-2"><Button disabled={busy || !markdown.trim()} onClick={() => void work(preview)}>Preview email</Button><Button variant="ghost" disabled={busy} onClick={() => setStage("subject")}>Edit subject</Button><Button variant="ghost" disabled={busy} onClick={() => void work(backToList)}>Back to newsletters</Button></div>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-4">
+          <Button variant="ghost" disabled={busy} onClick={() => void work(backToList)}>Back to newsletters</Button>
+          <Button disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(preview)}>Preview email</Button>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-caption text-muted-foreground">
+          <p>2 of 5 · Write</p>
+          <div className="flex items-center gap-2"><p role="status">{saved === "saving" ? "Saving…" : saved === "error" ? "Changes not saved" : dirty ? "Unsaved changes" : "Saved"}</p>{saved === "error" ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void work(async () => { await save() })}>Retry save</Button> : null}</div>
+        </div>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="newsletter-subject" className="text-caption text-muted-foreground">Email subject</label>
+          <input ref={subjectInput} id="newsletter-subject" className="min-h-8 w-full min-w-0 rounded-lg border border-transparent bg-transparent px-0.5 text-name leading-tight font-semibold text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20" value={subject} required maxLength={STUDIO_SUBJECT_LIMIT} disabled={busy} placeholder="Your newsletter subject" onChange={(event) => { text.current.subject = event.target.value; setSubject(event.target.value); setSaved("unsaved") }} />
+        </div>
+        <NewsletterEditor key={current?.id} value={markdown} disabled={busy} onChange={(value) => { text.current.markdown = value; setMarkdown(value); setSaved("unsaved") }} />
       </> : null}
       {stage === "preview" && meta ? <>
         <p className="text-caption text-muted-foreground">From {meta.sender.name} · {meta.sender.email}</p>
