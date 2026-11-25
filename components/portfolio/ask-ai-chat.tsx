@@ -559,7 +559,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           <p role="alert" className="text-caption break-words [overflow-wrap:anywhere] text-destructive">{turn.error}</p>
         ) : null}
         {turn.status === "stopped" ? <p className="text-caption text-muted-foreground">Response stopped</p> : null}
-        {finished && turn.content && turn.sources?.length && (!turn.view || turn.view.kind === "text" || turn.status !== "done") ? (
+        {finished && turn.content && turn.sources?.length && (!turn.view || turn.status !== "done" || turn.view.kind === "text" && !turn.view.evidence.length) ? (
           <details className="w-full text-caption text-muted-foreground">
             <summary className="cursor-pointer py-2">Published evidence ({turn.sources.length})</summary>
             <ul className="space-y-2 pb-2 pl-4">
