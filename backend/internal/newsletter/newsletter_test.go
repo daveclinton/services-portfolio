@@ -11,40 +11,40 @@ import (
 	"testing"
 	"time"
 
-	"github.com/daveclinton/portfolio/backend/internal/brevo"
 	"github.com/daveclinton/portfolio/backend/internal/config"
+	"github.com/daveclinton/portfolio/backend/internal/sendy"
 )
 
 type fakeProvider struct {
 	emails  []string
 	fail    bool
-	status  brevo.SubscriptionStatus
+	status  sendy.SubscriptionStatus
 	lookups int
 }
 
-func (p *fakeProvider) EnsureNewsletter(context.Context, brevo.Address, string) (brevo.NewsletterIDs, error) {
-	return brevo.NewsletterIDs{ListID: 2, TemplateID: 3}, nil
+func (p *fakeProvider) EnsureNewsletter(context.Context, sendy.Address, string) (sendy.NewsletterIDs, error) {
+	return sendy.NewsletterIDs{ListID: 2}, nil
 }
-func (p *fakeProvider) RequestSubscription(_ context.Context, email string, ids brevo.NewsletterIDs, redirect string, allowConfirmation bool) (brevo.SubscriptionStatus, error) {
+func (p *fakeProvider) RequestSubscription(_ context.Context, email string, ids sendy.NewsletterIDs, redirect string, allowConfirmation bool) (sendy.SubscriptionStatus, error) {
 	p.lookups++
 	status := p.status
 	if status == "" {
-		status = brevo.SubscriptionPending
+		status = sendy.SubscriptionPending
 	}
-	if allowConfirmation && status == brevo.SubscriptionPending {
+	if allowConfirmation && status == sendy.SubscriptionPending {
 		p.emails = append(p.emails, email)
 	}
 	if p.fail {
 		return "", errors.New("delivery unavailable")
 	}
-	if ids.ListID != 2 || ids.TemplateID != 3 || redirect != "https://example.com/subscribe/confirmed" {
+	if ids.ListID != 2 || redirect != "https://example.com/subscribe/confirmed" {
 		return "", errors.New("bad provider request")
 	}
 	return status, nil
 }
 
 func TestActualSubscriptionStatusSurvivesRepeatSubmissionsAndConfirmation(t *testing.T) {
-	for _, status := range []brevo.SubscriptionStatus{brevo.SubscriptionPending, brevo.SubscriptionSubscribed, brevo.SubscriptionSuppressed} {
+	for _, status := range []sendy.SubscriptionStatus{sendy.SubscriptionPending, sendy.SubscriptionSubscribed, sendy.SubscriptionSuppressed} {
 		t.Run(string(status), func(t *testing.T) {
 			_, p, h := testService()
 			p.status = status
@@ -55,7 +55,7 @@ func TestActualSubscriptionStatusSurvivesRepeatSubmissionsAndConfirmation(t *tes
 				}
 			}
 			wantEmails := 0
-			if status == brevo.SubscriptionPending {
+			if status == sendy.SubscriptionPending {
 				wantEmails = 1
 			}
 			if len(p.emails) != wantEmails || p.lookups != 2 {
@@ -65,7 +65,7 @@ func TestActualSubscriptionStatusSurvivesRepeatSubmissionsAndConfirmation(t *tes
 	}
 	_, p, h := testService()
 	submit(h, `{"email":"reader@example.com","consent":true}`)
-	p.status = brevo.SubscriptionSubscribed
+	p.status = sendy.SubscriptionSubscribed
 	w := submit(h, `{"email":"reader@example.com","consent":true}`)
 	if !strings.Contains(w.Body.String(), `"subscribed"`) || len(p.emails) != 1 {
 		t.Fatal("cooldown hid newly confirmed membership", w.Body)
@@ -73,10 +73,10 @@ func TestActualSubscriptionStatusSurvivesRepeatSubmissionsAndConfirmation(t *tes
 }
 
 func testService() (*Service, *fakeProvider, http.Handler) {
-	s := New(config.Config{NewsletterEnabled: true, SiteURL: "https://example.com", AllowedOrigins: []string{"https://example.com"}, RateLimitSecret: strings.Repeat("x", 32)}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	s := New(config.Config{NewsletterEnabled: true, SiteURL: "https://example.com", AllowedOrigins: []string{"https://example.com"}, RateLimitSecret: strings.Repeat("x", 32)}, nil, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	p := &fakeProvider{}
 	s.mail = p
-	s.ready.Store(&brevo.NewsletterIDs{ListID: 2, TemplateID: 3})
+	s.ready.Store(&sendy.NewsletterIDs{ListID: 2})
 	mux := http.NewServeMux()
 	s.Routes(mux)
 	return s, p, mux
@@ -181,8 +181,8 @@ func TestDisabledConfigurationDoesNotProvisionAnything(t *testing.T) {
 func TestProvisioningMakesOnlyNewsletterStatusReadyAndStopsOnShutdown(t *testing.T) {
 	s, p, h := testService()
 	s.ready.Store(nil)
-	s.cfg.BrevoAPIKey = "test-key"
-	s.cfg.BrevoSenderEmail = "notes@example.com"
+	s.cfg.SendyAPIKey = "test-key"
+	s.cfg.SendySenderEmail = "notes@example.com"
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan struct{})
@@ -204,5 +204,28 @@ func TestProvisioningMakesOnlyNewsletterStatusReadyAndStopsOnShutdown(t *testing
 	case <-done:
 	case <-time.After(time.Second):
 		t.Fatal("newsletter worker did not stop")
+	}
+}
+
+func (p *fakeProvider) ProcessQueue(context.Context) error                        { return nil }
+func (p *fakeProvider) Confirm(context.Context, string, string) (bool, error)     { return true, nil }
+func (p *fakeProvider) Unsubscribe(context.Context, string, string) (bool, error) { return true, nil }
+
+func TestPreferenceLinksWorkWhenNewSignupIsDisabledAndNeverLeakTokens(t *testing.T) {
+	s, _, handler := testService()
+	s.ready.Store(nil)
+	s.cfg.NewsletterEnabled = false
+	for _, action := range []string{"confirm", "unsubscribe"} {
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, httptest.NewRequest("GET", "/newsletter/"+action+"?id=example&token=private-token", nil))
+		if w.Header().Get("Cache-Control") != "no-store" || w.Header().Get("Referrer-Policy") != "no-referrer" || strings.Contains(w.Body.String(), "private-token") {
+			t.Fatal("email preferences leaked tokens or were cacheable")
+		}
+		if action == "confirm" && (w.Code != 303 || w.Header().Get("Location") != "https://example.com/subscribe/confirmed") {
+			t.Fatal("confirmation redirect failed")
+		}
+		if action == "unsubscribe" && (w.Code != 200 || !strings.Contains(w.Body.String(), "You’re unsubscribed.")) {
+			t.Fatal("disabled signup blocked unsubscribe")
+		}
 	}
 }

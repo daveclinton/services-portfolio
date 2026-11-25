@@ -1,4 +1,4 @@
-package brevo
+package sendy
 
 import (
 	"strings"
@@ -10,7 +10,7 @@ func TestNewsletterRendererUsesExistingThemeAndEscapesTemplateExpressions(t *tes
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, part := range []string{"#1557c0", "Georgia", "A &amp; B", "<strong>reader</strong>", `href="https://example.com/blog"`, `href="{{ unsubscribe }}"`, "&#123;&#123; contact.SECRET"} {
+	for _, part := range []string{"#1557c0", "Georgia", "A &amp; B", "<strong>reader</strong>", `href="https://example.com/blog"`, `href="` + unsubscribePlaceholder + `"`, "&#123;&#123; contact.SECRET"} {
 		if !strings.Contains(html, part) {
 			t.Errorf("email missing %s", part)
 		}

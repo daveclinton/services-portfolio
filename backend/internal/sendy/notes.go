@@ -1,4 +1,4 @@
-package brevo
+package sendy
 
 import (
 	"bytes"
@@ -10,7 +10,7 @@ import (
 //go:embed templates/note.html
 var noteHTML string
 
-// Alternate delimiters preserve Brevo's literal {{ params.DOIurl }} token.
+// Alternate delimiters keep the existing shared email shell.
 var noteTemplate = template.Must(template.New("note").Delims("[[", "]]").Funcs(template.FuncMap{
 	// html/template strips ordinary comments. Only these fixed, trusted Outlook
 	// wrappers bypass escaping; visitor content remains escaped normally.
@@ -23,6 +23,8 @@ var noteTemplate = template.Must(template.New("note").Delims("[[", "]]").Funcs(t
 type NoteSection struct{ Label, Text string }
 type Note struct {
 	Title, Intro, SiteURL, Footer string
+	ConfirmationURL               string
+	UnsubscribeURL                string
 	Sections                      []NoteSection
 	Confirmation                  bool
 	Campaign                      bool
@@ -43,7 +45,7 @@ func RenderNote(note Note) (string, string, error) {
 		parts = append(parts, section.Label+"\n"+section.Text)
 	}
 	if note.Confirmation {
-		parts = append(parts, "Confirm my email: {{ params.DOIurl }}", "By confirming, you agree to occasional emails from David. Free to read. Unsubscribe anytime. Privacy: "+note.SiteURL+"/privacy")
+		parts = append(parts, "Confirm my email: "+note.ConfirmationURL, "By confirming, you agree to occasional emails from David. Free to read. Unsubscribe anytime. Privacy: "+note.SiteURL+"/privacy")
 	}
 	if note.Footer != "" {
 		parts = append(parts, note.Footer)

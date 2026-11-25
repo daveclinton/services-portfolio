@@ -10,30 +10,31 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/daveclinton/portfolio/backend/internal/brevo"
 	"github.com/daveclinton/portfolio/backend/internal/httpx"
+	"github.com/daveclinton/portfolio/backend/internal/sendy"
 	"github.com/jackc/pgx/v5"
 )
 
 type Draft struct {
-	ID             string     `json:"id"`
-	Subject        string     `json:"subject"`
-	Markdown       string     `json:"markdown"`
-	Revision       int64      `json:"revision"`
-	State          string     `json:"state"`
-	CampaignID     int64      `json:"campaign_id"`
-	Operation      string     `json:"-"`
-	ScheduledAt    *time.Time `json:"scheduled_at"`
-	TestedRevision int64      `json:"tested_revision"`
-	LastError      string     `json:"last_error"`
-	UpdatedAt      time.Time  `json:"updated_at"`
+	DeliveryProvider string     `json:"-"`
+	ID               string     `json:"id"`
+	Subject          string     `json:"subject"`
+	Markdown         string     `json:"markdown"`
+	Revision         int64      `json:"revision"`
+	State            string     `json:"state"`
+	CampaignID       int64      `json:"campaign_id"`
+	Operation        string     `json:"-"`
+	ScheduledAt      *time.Time `json:"scheduled_at"`
+	TestedRevision   int64      `json:"tested_revision"`
+	LastError        string     `json:"last_error"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
-const draftColumns = `id::text,subject,markdown,revision,state,campaign_id,operation,scheduled_at,tested_revision,last_error,updated_at`
+const draftColumns = `id::text,subject,markdown,revision,state,campaign_id,operation,scheduled_at,tested_revision,last_error,updated_at,delivery_provider`
 
 func scanDraft(row pgx.Row) (Draft, error) {
 	var d Draft
-	err := row.Scan(&d.ID, &d.Subject, &d.Markdown, &d.Revision, &d.State, &d.CampaignID, &d.Operation, &d.ScheduledAt, &d.TestedRevision, &d.LastError, &d.UpdatedAt)
+	err := row.Scan(&d.ID, &d.Subject, &d.Markdown, &d.Revision, &d.State, &d.CampaignID, &d.Operation, &d.ScheduledAt, &d.TestedRevision, &d.LastError, &d.UpdatedAt, &d.DeliveryProvider)
 	return d, err
 }
 func (s *Service) getDraft(ctx context.Context, id string) (Draft, error) {
@@ -97,7 +98,7 @@ func (s *Service) createDraft(w http.ResponseWriter, r *http.Request) {
 	}
 	subject, _ := body["subject"].(string)
 	subject = strings.TrimSpace(subject)
-	if subject == "" || utf8.RuneCountInString(subject) > brevo.NewsletterSubjectLimit || strings.ContainsAny(subject, "\r\n") || strings.Contains(subject, "{{") || strings.Contains(subject, "{%") {
+	if subject == "" || utf8.RuneCountInString(subject) > sendy.NewsletterSubjectLimit || len(subject) > sendy.SubjectByteLimit || strings.ContainsAny(subject, "\r\n") || strings.Contains(subject, "{{") || strings.Contains(subject, "{%") {
 		httpx.BadRequest(w, "Enter a subject of up to 180 characters.", nil)
 		return
 	}
@@ -116,7 +117,7 @@ func (s *Service) saveDraft(w http.ResponseWriter, r *http.Request) {
 	subject, _ := body["subject"].(string)
 	markdown, _ := body["markdown"].(string)
 	subject = strings.TrimSpace(subject)
-	if subject == "" || utf8.RuneCountInString(subject) > brevo.NewsletterSubjectLimit || len(markdown) > brevo.NewsletterBodyLimit || strings.ContainsAny(subject, "\r\n") || strings.Contains(subject, "{{") || strings.Contains(subject, "{%") {
+	if subject == "" || utf8.RuneCountInString(subject) > sendy.NewsletterSubjectLimit || len(subject) > sendy.SubjectByteLimit || len(markdown) > sendy.NewsletterBodyLimit || strings.ContainsAny(subject, "\r\n") || strings.Contains(subject, "{{") || strings.Contains(subject, "{%") {
 		httpx.BadRequest(w, "Check the subject and newsletter length.", nil)
 		return
 	}
@@ -152,7 +153,7 @@ func (s *Service) preview(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 409, httpx.Problem{Detail: "Save your latest changes before previewing."})
 		return
 	}
-	html, err := brevo.RenderNewsletter(draft.Subject, draft.Markdown, s.cfg.SiteURL)
+	html, err := sendy.RenderNewsletter(draft.Subject, draft.Markdown, s.cfg.SiteURL)
 	if err != nil {
 		httpx.BadRequest(w, err.Error(), nil)
 		return
@@ -161,7 +162,7 @@ func (s *Service) preview(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Service) metadata(w http.ResponseWriter, r *http.Request) {
 	ids, ready := s.listIDs()
-	if !ready || s.cfg.BrevoAPIKey == "" || s.cfg.BrevoSenderEmail == "" {
+	if !ready || s.cfg.SendyAPIKey == "" || s.cfg.SendySenderEmail == "" {
 		httpx.Unavailable(w, "Newsletter delivery is not ready yet.", 60)
 		return
 	}
@@ -170,5 +171,5 @@ func (s *Service) metadata(w http.ResponseWriter, r *http.Request) {
 		httpx.Unavailable(w, "Could not load your subscriber list.", 60)
 		return
 	}
-	httpx.WriteJSON(w, 200, map[string]any{"sender": brevo.Address{Name: s.cfg.BrevoSenderName, Email: s.cfg.BrevoSenderEmail}, "audience": "Follow along", "subscribers": count, "test_email": s.cfg.NewsletterTestEmail, "timezone": "Africa/Nairobi"})
+	httpx.WriteJSON(w, 200, map[string]any{"sender": sendy.Address{Name: s.cfg.SendySenderName, Email: s.cfg.SendySenderEmail}, "audience": "Follow along", "subscribers": count, "test_email": s.cfg.NewsletterTestEmail, "timezone": "Africa/Nairobi"})
 }

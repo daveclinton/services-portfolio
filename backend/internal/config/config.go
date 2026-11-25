@@ -39,15 +39,16 @@ type Config struct {
 	EmbeddingQueryPrefix    string
 	EmbeddingDocumentPrefix string
 
-	BrevoAPIKey                  string
-	BrevoAlertTo                 string
-	BrevoSenderEmail             string
-	BrevoSenderName              string
+	SendyAPIKey                  string
+	SendyAlertTo                 string
+	SendySenderEmail             string
+	SendySenderName              string
 	ConversationAlerts           string
 	OperationalAlerts            bool
 	AIProviderCooldownSeconds    int
 	SiteURL                      string
 	NewsletterEnabled            bool
+	NewsletterPublicAPIURL       string
 	NewsletterAdminEnabled       bool
 	NewsletterGitHubClientID     string
 	NewsletterGitHubClientSecret string
@@ -67,7 +68,7 @@ func (c Config) RateLimitsEnabled() bool {
 }
 
 func (c Config) AlertsEnabled() bool {
-	return c.BrevoAPIKey != "" && c.BrevoAlertTo != ""
+	return c.SendyAPIKey != "" && c.SendyAlertTo != "" && c.SendySenderEmail != ""
 }
 
 func Load() (Config, error) {
@@ -76,7 +77,7 @@ func Load() (Config, error) {
 		Addr:              env("ADDR", "127.0.0.1:8080"),
 		DatabaseURL:       env("DATABASE_URL", ""),
 		AllowedOrigins:    list(env("ALLOWED_ORIGINS", "http://localhost:3000")),
-		TrustProxyHeaders: boolean(env("TRUST_PROXY_HEADERS", "true")),
+		TrustProxyHeaders: true,
 
 		RateLimitSecret:        env("RATE_LIMIT_SECRET", ""),
 		AIGlobalDailyLimit:     positiveInt(env("AI_GLOBAL_DAILY_LIMIT", ""), 200),
@@ -88,27 +89,31 @@ func Load() (Config, error) {
 
 		EmbeddingsURL: env("EMBEDDINGS_URL", ""),
 
-		BrevoAPIKey:                  env("BREVO_API_KEY", ""),
-		BrevoAlertTo:                 env("BREVO_ALERT_TO_EMAIL", ""),
-		BrevoSenderEmail:             env("BREVO_SENDER_EMAIL", ""),
-		BrevoSenderName:              env("BREVO_SENDER_NAME", "David Clinton Portfolio"),
-		ConversationAlerts:           env("BREVO_CONVERSATION_ALERTS", "important"),
-		OperationalAlerts:            boolean(env("BREVO_OPERATIONAL_ALERTS", "true")),
+		SendyAPIKey:                  env("SENDY_API_KEY", ""),
+		SendyAlertTo:                 env("SENDY_ALERT_TO_EMAIL", ""),
+		SendySenderEmail:             env("SENDY_SENDER_EMAIL", ""),
+		SendySenderName:              env("SENDY_SENDER_NAME", "David Clinton Portfolio"),
+		ConversationAlerts:           env("SENDY_CONVERSATION_ALERTS", "important"),
+		OperationalAlerts:            true,
 		AIProviderCooldownSeconds:    positiveInt(env("AI_PROVIDER_COOLDOWN_SECONDS", ""), 300),
 		SiteURL:                      strings.TrimRight(env("SITE_URL", "https://www.daveclintonn.cc"), "/"),
-		NewsletterEnabled:            boolean(env("NEWSLETTER_ENABLED", "true")),
-		NewsletterAdminEnabled:       boolean(env("NEWSLETTER_ADMIN_ENABLED", "false")),
+		NewsletterEnabled:            true,
+		NewsletterPublicAPIURL:       strings.TrimRight(env("NEWSLETTER_PUBLIC_API_URL", "https://api.daveclintonn.cc"), "/"),
 		NewsletterGitHubClientID:     env("NEWSLETTER_GITHUB_CLIENT_ID", ""),
 		NewsletterGitHubClientSecret: env("NEWSLETTER_GITHUB_CLIENT_SECRET", ""),
 		NewsletterOAuthCallbackURL:   env("NEWSLETTER_OAUTH_CALLBACK_URL", ""),
-		NewsletterTestEmail:          env("NEWSLETTER_TEST_EMAIL", env("BREVO_ALERT_TO_EMAIL", "")),
+		NewsletterTestEmail:          env("NEWSLETTER_TEST_EMAIL", env("SENDY_ALERT_TO_EMAIL", "")),
 
 		ConversationRetentionDays: positiveInt(env("CONVERSATION_RETENTION_DAYS", ""), 30),
 	}
 	c.applyEmbeddingDefaults()
 	c.NewsletterGitHubOwnerID, _ = strconv.ParseInt(env("NEWSLETTER_GITHUB_OWNER_ID", "0"), 10, 64)
-	if c.BrevoSenderEmail == "" {
-		c.BrevoSenderEmail = c.BrevoAlertTo
+	// The dashboard activates from its credentials; there is no feature switch.
+	// Validate partial setup rather than quietly ignoring a missing credential.
+	c.NewsletterAdminEnabled = c.NewsletterGitHubClientID != "" || c.NewsletterGitHubClientSecret != "" || c.NewsletterGitHubOwnerID != 0 || c.NewsletterOAuthCallbackURL != ""
+
+	if c.SendySenderEmail == "" {
+		c.SendySenderEmail = c.SendyAlertTo
 	}
 
 	var problems []error
@@ -131,8 +136,29 @@ func Load() (Config, error) {
 	if urlErr != nil || publicURL == nil || publicURL.Host == "" || publicURL.User != nil || publicURL.RawQuery != "" || publicURL.Fragment != "" || publicURL.Path != "" || (publicURL.Scheme != "https" && (c.Production() || publicURL.Scheme != "http")) {
 		problems = append(problems, errors.New("SITE_URL must be an absolute site origin (HTTPS in production)"))
 	}
+
+	if c.SendyAPIKey != "" {
+		for _, address := range []struct{ name, value string }{{"SENDY_SENDER_EMAIL", c.SendySenderEmail}, {"SENDY_ALERT_TO_EMAIL", c.SendyAlertTo}} {
+			if address.value == "" && address.name == "SENDY_ALERT_TO_EMAIL" {
+				continue
+			}
+			parsed, err := mail.ParseAddress(address.value)
+			if err != nil || parsed.Address != address.value {
+				problems = append(problems, fmt.Errorf("%s must be an email address", address.name))
+			}
+		}
+		if c.NewsletterEnabled {
+			api, err := url.Parse(c.NewsletterPublicAPIURL)
+			if err != nil || api.Host == "" || api.User != nil || api.Path != "" || api.RawQuery != "" || api.Fragment != "" || (api.Scheme != "https" && (c.Production() || api.Scheme != "http")) {
+				problems = append(problems, errors.New("NEWSLETTER_PUBLIC_API_URL must be the public API origin (HTTPS in production)"))
+			}
+			if len(c.RateLimitSecret) < 32 {
+				problems = append(problems, errors.New("newsletter email links require RATE_LIMIT_SECRET (32+ characters)"))
+			}
+		}
+	}
 	if c.ConversationAlerts != "important" && c.ConversationAlerts != "all" && c.ConversationAlerts != "off" {
-		problems = append(problems, errors.New("BREVO_CONVERSATION_ALERTS must be important, all or off"))
+		problems = append(problems, errors.New("SENDY_CONVERSATION_ALERTS must be important, all or off"))
 	}
 	if c.Env != "development" && c.Env != "production" {
 		problems = append(problems, fmt.Errorf("APP_ENV must be development or production, got %q", c.Env))
@@ -198,11 +224,6 @@ func list(value string) []string {
 		}
 	}
 	return out
-}
-
-func boolean(value string) bool {
-	parsed, err := strconv.ParseBool(value)
-	return err == nil && parsed
 }
 
 func positiveInt(value string, fallback int) int {

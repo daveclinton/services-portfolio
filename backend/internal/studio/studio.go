@@ -9,9 +9,9 @@ import (
 	"time"
 	_ "time/tzdata"
 
-	"github.com/daveclinton/portfolio/backend/internal/brevo"
 	"github.com/daveclinton/portfolio/backend/internal/config"
 	"github.com/daveclinton/portfolio/backend/internal/ratelimit"
+	"github.com/daveclinton/portfolio/backend/internal/sendy"
 	"github.com/daveclinton/portfolio/backend/internal/visitor"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/oauth2"
@@ -21,10 +21,10 @@ import (
 var schema string
 
 type campaignProvider interface {
-	CreateCampaign(context.Context, string, string, string, brevo.Address, int64) (int64, error)
+	CreateCampaign(context.Context, string, string, string, sendy.Address, int64) (int64, error)
 	UpdateCampaign(context.Context, int64, map[string]any) error
-	GetCampaign(context.Context, int64) (brevo.Campaign, error)
-	FindCampaign(context.Context, string) (brevo.Campaign, error)
+	GetCampaign(context.Context, int64) (sendy.Campaign, error)
+	FindCampaign(context.Context, string) (sendy.Campaign, error)
 	SendTestCampaign(context.Context, int64, string) error
 	SendCampaign(context.Context, int64) error
 	SetCampaignStatus(context.Context, int64, string) error
@@ -36,7 +36,7 @@ type Service struct {
 	db          *pgxpool.Pool
 	log         *slog.Logger
 	mail        campaignProvider
-	listIDs     func() (brevo.NewsletterIDs, bool)
+	listIDs     func() (sendy.NewsletterIDs, bool)
 	privacy     visitor.Signer
 	oauth       oauth2.Config
 	identityURL string
@@ -44,8 +44,8 @@ type Service struct {
 	loginLimit  *ratelimit.Window
 }
 
-func New(cfg config.Config, db *pgxpool.Pool, log *slog.Logger, listIDs func() (brevo.NewsletterIDs, bool)) *Service {
-	return &Service{cfg: cfg, db: db, log: log.With("product", "newsletter-studio"), mail: brevo.New(cfg.BrevoAPIKey), listIDs: listIDs,
+func New(cfg config.Config, db *pgxpool.Pool, log *slog.Logger, listIDs func() (sendy.NewsletterIDs, bool)) *Service {
+	return &Service{cfg: cfg, db: db, log: log.With("product", "newsletter-studio"), mail: sendy.NewNewsletter(cfg.SendyAPIKey, db, sendy.Address{Name: cfg.SendySenderName, Email: cfg.SendySenderEmail}, cfg.SiteURL, cfg.NewsletterPublicAPIURL, cfg.RateLimitSecret), listIDs: listIDs,
 		privacy: visitor.NewSigner(cfg.RateLimitSecret), http: &http.Client{Timeout: 12 * time.Second}, identityURL: "https://api.github.com/user",
 		loginLimit: ratelimit.NewWindow(10, time.Hour),
 		oauth: oauth2.Config{ClientID: cfg.NewsletterGitHubClientID, ClientSecret: cfg.NewsletterGitHubClientSecret, RedirectURL: cfg.NewsletterOAuthCallbackURL,

@@ -16,7 +16,7 @@ import (
 
 func TestConversationAlertIsAShortEscapedNoteWithoutTechnicalMetadata(t *testing.T) {
 	mail := &recordingMailer{}
-	s := &Service{mail: mail, cfg: config.Config{SiteURL: "https://example.com", BrevoSenderEmail: "notes@example.com", BrevoAlertTo: "owner@example.com"}}
+	s := &Service{mail: mail, cfg: config.Config{SiteURL: "https://example.com", SendySenderEmail: "notes@example.com", SendyAlertTo: "owner@example.com"}}
 	e := turnLog{Question: `<script>alert("bad")</script> Can we work together?`, Answer: "David can discuss the requirements.\n\nPRIVATE_FULL_BRIEF_AND_VIEW_TRANSCRIPT", ConversationID: "conversation-id", AlertReason: "hiring",
 		requestContext: requestContext{DeviceType: "PRIVATE_DEVICE", BrowserFamily: "PRIVATE_BROWSER", OSFamily: "PRIVATE_OS"}, IntentSource: "PRIVATE_CLASSIFIER", LatencyMs: 987654}
 	if err := s.sendAlert(context.Background(), e); err != nil {

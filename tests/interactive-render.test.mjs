@@ -173,7 +173,7 @@ test("newsletter begins with one invitation and a start button, without mounting
   const confirmation = renderToStaticMarkup(React.createElement(NewsletterConfirmation))
   assert(confirmation.includes("You’re in."))
   assert(confirmation.includes("Back to reading"))
-  const email = readFileSync(new URL("../backend/internal/brevo/templates/note.html", import.meta.url), "utf8")
+  const email = readFileSync(new URL("../backend/internal/sendy/templates/note.html", import.meta.url), "utf8")
   assert(email.includes(TONE_COLORS[0]))
   assert(email.includes("Georgia,'Times New Roman',serif"))
 })

@@ -8,7 +8,7 @@ nginx handles TLS and proxies to the API on loopback.
 
 ```
 browser ──https──▶ nginx (api.daveclintonn.cc) ──▶ portfolio-api (127.0.0.1:API_PORT) ──▶ portfolio-db (pgvector)
-                                                                     └──▶ OpenAI (answers, embeddings), Brevo
+                                                                     └──▶ OpenAI (answers, embeddings), Sendy
 ```
 
 ## Layout
@@ -22,7 +22,7 @@ internal/ratelimit/   in-memory sliding-window limits and per-visitor locks
 internal/visitor/     signed anonymous visitor cookie and HMAC hashing
 internal/openai/      chat streaming and structured output (answers and intent planning)
 internal/embeddings/  client for the self-hosted Text Embeddings Inference server
-internal/brevo/       transactional email, campaign adapter and shared email rendering
+internal/sendy/       Sendy delivery, local subscriber/campaign storage and shared email rendering
 internal/newsletter/  independent double-opt-in newsletter signup and limits
 internal/studio/      owner authentication, durable newsletter drafts and delivery
 internal/askai/       product: Ask AI (retrieval, intent, generation, conversation logs)
@@ -48,27 +48,25 @@ method and pass it to `server.New` in `cmd/api/main.go`.
 | `GET /newsletter/status` | Whether newsletter provisioning has completed |
 | `POST /newsletter/subscribe` | Request an email confirmation; does not enroll directly |
 
-Newsletter signup is independent of chat storage and needs no database migration.
-It accepts bounded JSON with an email address and `consent: true`, requests Brevo
-double opt-in, and returns HTTP 202 with `status: pending`, `subscribed`, or
-`suppressed`. Confirmation redirects to
-`SITE_URL/subscribe/confirmed`; the browser does not add a contact directly.
-The provider first checks contact details: confirmed newsletter members and
-suppressed addresses receive their respective status without another email.
-An existing contact outside this newsletter still needs double opt-in. A failed
-or incomplete contact lookup fails the request without sending or changing preferences.
-The confirmation cooldown only prevents resending; rate-limited contact lookups
-still run so a repeat submission can report newly confirmed membership accurately.
-Use the private newsletter dashboard or Brevo Campaigns for future notes;
-both preserve Brevo's unsubscribe controls.
+Newsletter consent and campaigns live in this application's PostgreSQL database.
+Sendy is the delivery transport, using its [JSON:API](https://usesendy.com/docs/api/send-email)
+and [job-status API](https://usesendy.com/docs/api/email-status). No provider contacts,
+lists, templates or campaigns are created.
 
-When `BREVO_API_KEY` and the existing sender are configured, the newsletter worker
-provisions its own named folder, list and confirmation template in the background.
-It reuses resources by name, updates only the app's template, and retries setup
-failures without blocking the rest of the API. It sends no emails during setup.
-`GET /newsletter/status` stays disabled until setup succeeds. Set
-`NEWSLETTER_ENABLED=false` to turn it off. See the root README for resource names,
-rate limits and the adapted, MIT-licensed Postmark email design.
+`POST /newsletter/subscribe` accepts bounded JSON with an email and `consent: true`.
+It returns HTTP 202 with `pending`, `subscribed`, or `suppressed`. Pending readers
+receive a signed 48-hour confirmation link at `NEWSLETTER_PUBLIC_API_URL`.
+`GET /newsletter/confirm` validates the link, records confirmation locally, and
+redirects to `SITE_URL/subscribe/confirmed`. `GET /newsletter/unsubscribe` records a
+permanent opt-out locally and shows the result. Old confirmation links never restore
+an opt-out. Preference links work even while new signup and delivery are disabled.
+
+The worker initializes local storage without sending email, then delivers due
+campaigns to confirmed subscribers through Sendy, one recipient per request.
+The same email is retried with the same idempotency key after an uncertain result.
+In addition to per-process abuse limits, confirmation cooldown is enforced in the
+database across API instances. `GET /newsletter/status` enables signup only when
+local setup succeeds and Sendy credentials/sender are configured.
 
 Chat accepts an optional `workflow`: `chat` (default), `role_fit` (a pasted job
 description comparison), `interview` (an evidence-grounded interview brief), or
@@ -155,7 +153,7 @@ Markdown note, previews the actual email, chooses delivery, and reviews a final
 confirmation. Drafts autosave with revision checks. The formatted writing view
 reuses the existing Markdown component; the actual email preview, tests and
 campaigns share the backend renderer and existing Postmark email shell. Core
-Markdown is supported; raw HTML and Brevo template expressions are restricted.
+Markdown is supported; raw HTML and template expressions are restricted.
 
 The UX reference is [Ghost's newsletter flow](https://ghost.org/help/delivering-emails/)
 and its [publishing/scheduling controls](https://ghost.org/help/publishing-content/).
@@ -177,7 +175,6 @@ There is no new frontend editor dependency. Goldmark (MIT) and Go's OAuth2 clien
 2. Set these values in the VPS `backend/.env` (keep the secret server-side):
 
    ```dotenv
-   NEWSLETTER_ADMIN_ENABLED=true
    NEWSLETTER_GITHUB_CLIENT_ID=your_oauth_client_id
    NEWSLETTER_GITHUB_CLIENT_SECRET=your_oauth_client_secret
    NEWSLETTER_GITHUB_OWNER_ID=83610935
@@ -189,12 +186,14 @@ There is no new frontend editor dependency. Goldmark (MIT) and Go's OAuth2 clien
    their own ID. `SITE_URL` must exactly match the frontend origin
    (`https://www.daveclintonn.cc` in production). Keep the existing
    `RATE_LIMIT_SECRET` at least 32 characters long. Rotating it invalidates sessions.
-3. Keep the existing Brevo sender, API key and newsletter signup enabled. The key
-   must support Campaigns and contact-list reads. Add the test address to your
-   Brevo contacts and test list, following
-   [Brevo's test-list setup](https://help.brevo.com/hc/en-us/articles/209499565-Create-a-test-list).
-   Only this configured address receives dashboard tests; no empty-recipient test
-   request is sent. Sending limits, sender approval and credits remain Brevo controls.
+3. Configure `SENDY_API_KEY`, `SENDY_SENDER_EMAIL`, and `SENDY_SENDER_NAME`.
+   Verify the sender domain following [Sendy's setup](https://usesendy.com/docs),
+   and ensure the account has credits. Set `NEWSLETTER_PUBLIC_API_URL` to the public
+   API origin (`https://api.daveclintonn.cc` here).
+   Signup, scheduling and operational alerts are enabled automatically;
+   no boolean environment switches are needed.
+   Only `NEWSLETTER_TEST_EMAIL` receives dashboard tests; it need not be a subscriber.
+   Keep `RATE_LIMIT_SECRET` stable: it also signs confirmation and unsubscribe links.
 4. After deploying the code, recreate the API with the updated environment:
 
    ```bash
@@ -204,8 +203,8 @@ There is no new frontend editor dependency. Goldmark (MIT) and Go's OAuth2 clien
    ```
 
    Open `https://www.daveclintonn.cc/admin/newsletters` and sign in as the owner.
-   API startup initializes the three `newsletter_studio_*` tables idempotently;
-   include them in normal database backups. No campaign is sent during setup.
+   API startup initializes `newsletter_studio_*`, `newsletter_subscribers`,
+   `newsletter_campaigns`, and `newsletter_deliveries` idempotently; include all in backups. No campaign is sent during setup.
    For local development, use a separate OAuth app with a localhost API callback,
    local `SITE_URL` and `NEXT_PUBLIC_API_URL`; do not reuse a production callback.
 
@@ -219,28 +218,69 @@ the API, rather than the frontend route, enforces access to private data.
 
 Draft content uses optimistic revisions; editing and delivery share a database
 lock. Campaign IDs and pending operations are committed before external actions.
-Each Brevo campaign has the stable name `portfolio-newsletter/<draft UUID>` and
-targets only the existing confirmed newsletter list. Brevo handles blocked and
-unsubscribed recipients. The displayed list size is not a delivery guarantee.
+Each local campaign has the stable name `portfolio-newsletter/<draft UUID>` and
+snapshots confirmed subscribers when delivery starts. Pending and suppressed
+addresses are excluded; each unsent recipient is checked again for opt-out.
+Personalized email content and per-recipient keys are durable, so a process restart
+or lost response cannot create a new send identity. Sendy enforces its own bounce
+and complaint suppression; job polling also records those opt-outs locally.
 
-**Submitted for delivery** means Brevo accepted the request; only a provider
-status read can mark it **Sent**. Use **Check status** after an uncertain result.
-Lost creation responses recover the existing campaign by its stable name. A lost
-send/schedule response stays locked for review if Brevo still reports a draft;
-the dashboard never automatically retries that broadcast. If status remains
-uncertain, inspect the named campaign in Brevo before taking further action.
-Cancellation is available only while scheduled and must be verified by Brevo
-before the draft becomes editable. Provider sending may already have started.
+**Submitted for delivery** means the local queue is processing. **Sent** requires
+provider acceptance for all attempted recipients; it is not proof of inbox delivery.
+Use **Check status** to refresh the dashboard. Credits exhaustion and temporary
+service failures retry the unchanged request later; permanent job failures stop
+the campaign from being marked sent. Review Sendy's Emails and credits views for
+provider details. Scheduling/cancellation are local database operations; cancellation
+is available only before the scheduled time and before delivery starts.
+
+#### Subscriber migration
+
+Before switching production, export confirmed members with their original consent
+records, plus unsubscribed and blocked addresses. Normalize the export to UTF-8 CSV:
+
+```csv
+email,status,confirmed_at
+confirmed@example.com,subscribed,2026-09-01T12:00:00Z
+optout@example.com,suppressed,
+pending@example.com,pending,
+```
+
+Only mark a row `subscribed` when you have its confirmation evidence; its RFC3339
+consent timestamp is required. Use `suppressed` for any unsubscribe or blocked
+address. Suppression takes precedence regardless of import order or existing data;
+importing active rows never restores an opt-out. Pending rows remain unconfirmed.
+The importer runs atomically and sends no emails. Repeated imports merge by email.
+
+Run with the target `DATABASE_URL` available in the environment:
+
+```bash
+cd backend
+go run ./cmd/newsletter-import -file /secure/path/subscribers.csv
+```
+
+Back up the database first. Stop old campaigns and cancel old scheduled sends before
+cutover, then import the final export (including late opt-outs), configure Sendy,
+and recreate the API with the new environment. Existing external campaign IDs are
+quarantined as historical data; they are never reused as local IDs. Old drafts that
+have no provider campaign or outstanding operation remain editable. Review any old
+scheduled campaign directly with the previous provider. After validating Sendy and
+the imported counts, revoke the old provider credential in its account and remove
+old `BREVO_*` settings from deployment secret stores. Historical blog/experience
+references are retained as factual records.
+
+No production list or credentials are migrated automatically by this code change.
+The previous provider's pending confirmation links cannot confirm local membership;
+those readers should request a new confirmation through the portfolio signup.
 
 #### Validation without a browser or live sends
 
 `make test` covers the provider adapter, renderer, configuration and existing
 products. The frontend suite includes server rendering and API contract checks.
-The database suite uses randomly named, temporary schemas and fake GitHub/Brevo
+The database suite uses randomly named, temporary schemas and fake GitHub/Sendy
 servers; run it against a local test database, never production:
 
 ```bash
-NEWSLETTER_STUDIO_TEST_DATABASE_URL='postgresql://local-test-database' go test -race ./internal/studio -count=1 -v
+NEWSLETTER_STUDIO_TEST_DATABASE_URL='postgresql://local-test-database' go test -race ./internal/studio ./internal/sendy -count=1 -v
 ```
 
 It covers owner/CSRF checks, OAuth PKCE and single-use state, persistent drafts,
@@ -317,9 +357,9 @@ In `nano`, set:
 APP_ENV=production
 ALLOWED_ORIGINS=https://www.daveclintonn.cc,https://daveclintonn.cc
 OPENAI_API_KEY=...
-BREVO_API_KEY=...
-BREVO_ALERT_TO_EMAIL=...
-BREVO_SENDER_EMAIL=...
+SENDY_API_KEY=...
+SENDY_ALERT_TO_EMAIL=...
+SENDY_SENDER_EMAIL=...
 ```
 
 Leave `DATABASE_URL`, `API_PORT` and `DB_PORT` alone: Docker sets the API's

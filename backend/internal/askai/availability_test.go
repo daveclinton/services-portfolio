@@ -11,11 +11,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/daveclinton/portfolio/backend/internal/brevo"
 	"github.com/daveclinton/portfolio/backend/internal/config"
 	"github.com/daveclinton/portfolio/backend/internal/httpx"
 	"github.com/daveclinton/portfolio/backend/internal/openai"
 	"github.com/daveclinton/portfolio/backend/internal/ratelimit"
+	"github.com/daveclinton/portfolio/backend/internal/sendy"
 )
 
 func TestProviderCooldownAdmitsOneRecoveryProbe(t *testing.T) {
@@ -82,11 +82,11 @@ func TestProviderFailureDistinguishesBillingFromRateLimits(t *testing.T) {
 
 type recordingMailer struct {
 	mu       sync.Mutex
-	messages []brevo.Email
+	messages []sendy.Email
 	fail     bool
 }
 
-func (m *recordingMailer) Send(_ context.Context, email brevo.Email) error {
+func (m *recordingMailer) Send(_ context.Context, email sendy.Email) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.messages = append(m.messages, email)

@@ -14,7 +14,7 @@ machine-readable results. Read the answers too: automated checks do not prove
 that all claims are grounded or that all prompt attacks are prevented.
 
 Only loopback URLs are accepted: every question is stored as a conversation.
-Disable `BREVO_API_KEY` in the local API environment before running the suite.
+Disable `SENDY_API_KEY` in the local API environment before running the suite.
 
 ```bash
 python3 evals/ask.py http://127.0.0.1:8080 evals/guardrails.json --json
