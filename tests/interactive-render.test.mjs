@@ -111,6 +111,30 @@ test("opened results disclose one selected item and retain evidence and saved ed
   }
 })
 
+test("plain answers offer source inspection without a result card or eagerly mounted excerpts", () => {
+  const view = { ...answerViewFixture("text"), items: [], connections: [] }
+  const html = renderToStaticMarkup(React.createElement(AiAnswerView, { view, onChange() {} }))
+  assert(html.includes('aria-label="Answer sources"'))
+  assert(html.includes("Inspect sources (1)"))
+  assert(html.includes("<dialog"))
+  assert(!html.includes('data-slot="card"'))
+  assert(!html.includes('aria-label="Result preview"'))
+  assert(!html.includes(view.evidence[0].excerpt))
+
+  const sources = renderToStaticMarkup(React.createElement(EvidenceDetails, { ids: [1], view, open: true }))
+  assert(sources.includes("Retrieved passages (1)"))
+  assert(sources.includes("They do not verify every statement in the answer."))
+  assert(sources.includes(view.evidence[0].excerpt))
+  assert(sources.includes('href="https://example.com/project"'))
+  assert(sources.includes("Evidence reviewed 2026-11-24"))
+  assert(!sources.includes("Referenced by:"))
+})
+
+test("plain answers without retrieved material do not advertise an empty inspector", () => {
+  const view = { ...answerViewFixture("text"), items: [], connections: [], evidence: [] }
+  assert.equal(renderToStaticMarkup(React.createElement(AiAnswerView, { view, onChange() {} })), "")
+})
+
 test("discovery seeds are editable and no unreviewed answer is sent by rendering", () => {
   let submitted = false
   const html = renderToStaticMarkup(React.createElement(ProjectScopeForm, { initialProblem: "Connect our order systems", onGenerate() { submitted = true }, onCancel() {}, consent: null }))

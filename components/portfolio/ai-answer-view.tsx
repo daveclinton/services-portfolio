@@ -16,19 +16,22 @@ export function EvidenceDetails({ ids, view, open = false }: { ids: number[]; vi
   const sources = view.evidence.filter((source) => ids.includes(source.id))
   if (!sources.length) return <p className="text-caption text-muted-foreground">No supporting excerpt attached. Confirm this point with David.</p>
   return (
+    <>
+    {view.kind === "text" ? <p className="mb-2 text-caption text-muted-foreground">These passages were retrieved for this question. They do not verify every statement in the answer.</p> : null}
     <details open={open} className="text-caption text-muted-foreground">
-      <summary className="cursor-pointer py-2">Supporting material ({sources.length})</summary>
+      <summary className="cursor-pointer py-2">{view.kind === "text" ? "Retrieved passages" : "Supporting material"} ({sources.length})</summary>
       <ul className="flex flex-col gap-4">
         {sources.map((source) => (
           <li key={source.id} className="min-w-0">
             <p className="font-medium text-foreground">{source.title}</p>
-            {open ? <p className="mt-2">Referenced by: {[...view.items.filter((item) => item.source_ids.includes(source.id)).map((item) => item.title), ...view.connections.filter((edge) => edge.source_ids.includes(source.id)).map((edge) => edge.label)].join("; ")}</p> : null}
+            {open && view.kind !== "text" ? <p className="mt-2">Referenced by: {[...view.items.filter((item) => item.source_ids.includes(source.id)).map((item) => item.title), ...view.connections.filter((edge) => edge.source_ids.includes(source.id)).map((edge) => edge.label)].join("; ")}</p> : null}
             <blockquote className="mt-2 border-l border-border pl-4 whitespace-pre-wrap break-words">{source.excerpt}</blockquote>
             {source.links.map((link) => <p key={link.url} className="mt-2"><a href={link.url} target="_blank" rel="noreferrer" className="underline underline-offset-4">{link.title}</a>{link.verified_at ? <span className="block">Evidence reviewed {link.verified_at}</span> : null}</p>)}
           </li>
         ))}
       </ul>
     </details>
+    </>
   )
 }
 
@@ -196,7 +199,7 @@ export function AiAnswerView({ view, state = {}, onChange, disabled = false }: {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const returnFocusRef = useRef<HTMLButtonElement | null>(null)
   const label = resultLabels[view.kind]
-  const sourceIds = [...new Set([...view.items, ...view.connections].flatMap((item) => item.source_ids))]
+  const sourceIds = view.kind === "text" ? view.evidence.map((source) => source.id) : [...new Set([...view.items, ...view.connections].flatMap((item) => item.source_ids))]
   const sourceCount = view.evidence.filter((source) => sourceIds.includes(source.id)).length
 
   useEffect(() => {
@@ -205,11 +208,13 @@ export function AiAnswerView({ view, state = {}, onChange, disabled = false }: {
     else if (!expanded && dialog?.open) dialog.close()
   }, [expanded])
 
-  if (view.kind === "text") return null
+  if (view.kind === "text" && !sourceCount) return null
 
   return (
-    <section aria-label={view.title || "Explore this answer"} className="w-full min-w-0 py-4">
-      <Card size="sm">
+    <section aria-label={view.kind === "text" ? "Answer sources" : view.title || "Explore this answer"} className="w-full min-w-0 py-4">
+      {view.kind === "text" ? (
+        <Button type="button" variant="ghost" onClick={(event) => { returnFocusRef.current = event.currentTarget; setExpanded("sources") }}>Inspect sources ({sourceCount})</Button>
+      ) : <Card size="sm">
         <CardHeader>
           <CardTitle className="break-words">{view.title || label.action}</CardTitle>
           <CardDescription>{view.items.length} {view.items.length === 1 ? label.singular : label.plural}{view.kind === "scope" && Object.keys(state.edits ?? {}).length ? ` · ${Object.keys(state.edits ?? {}).length} edited` : ""}</CardDescription>
@@ -226,11 +231,11 @@ export function AiAnswerView({ view, state = {}, onChange, disabled = false }: {
             {sourceCount ? <Button type="button" variant="ghost" onClick={(event) => { returnFocusRef.current = event.currentTarget; setExpanded("sources") }}>Sources ({sourceCount})</Button> : null}
           </div>
         </CardContent>
-      </Card>
+      </Card>}
       <dialog ref={dialogRef} aria-labelledby={`${id}-title`} className="fixed inset-0 m-auto max-h-full w-full max-w-(--measure) overflow-y-auto rounded-lg border border-border bg-background p-4 text-foreground backdrop:bg-background/85 sm:p-6" onCancel={(event) => { if (editing) event.preventDefault() }} onClose={() => { setExpanded(null); setEditing(false); returnFocusRef.current?.focus() }}>
         {expanded ? (
           <>
-            <div className="mb-4 flex items-start justify-between gap-2"><h2 id={`${id}-title`} className="text-title">{expanded === "sources" ? `Sources for ${view.title}` : view.title}</h2><Button type="button" variant="ghost" disabled={editing} onClick={() => dialogRef.current?.close()}>Close</Button></div>
+            <div className="mb-4 flex items-start justify-between gap-2"><h2 id={`${id}-title`} className="text-title">{expanded === "sources" ? view.kind === "text" ? "Retrieved material" : `Sources for ${view.title}` : view.title}</h2><Button type="button" variant="ghost" disabled={editing} onClick={() => dialogRef.current?.close()}>Close</Button></div>
             {expanded === "sources" ? <EvidenceDetails ids={sourceIds} view={view} open /> : <AiAnswerContent view={view} state={state} onChange={onChange} disabled={disabled} onEditingChange={setEditing} />}
           </>
         ) : null}
