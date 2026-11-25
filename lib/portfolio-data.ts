@@ -1,4 +1,4 @@
-import type { IntentName as AskAiIntent } from "@/lib/ai-client"
+import type { ChatWorkflow, IntentName as AskAiIntent } from "@/lib/ai-client"
 
 export type BrandIconName = "github" | "x" | "linkedin"
 
@@ -177,22 +177,45 @@ export const email = {
 
 export const askAi = {
   label: "Ask AI about me",
-  description: "Ask an AI about my background, work, and experience",
+  description: "Explore my work, compare a role, or scope a project with an evidence-grounded AI assistant",
   href: "/ask-ai",
   title: `What do you want to know`,
   placeholder: "Ask about my work…",
   inputLabel: "Ask about my work",
-  // Starter questions shown on the empty chat screen.
-  suggestions: [
-    "What AI systems has he built?",
-    "Is he available for contract work?",
-  ],
   workflows: {
     project_scope: { label: "Scope a project", title: "What would you like to build?", placeholder: "Ask a follow-up or refine the proposed project…" },
     role_fit: { label: "Compare a job description", title: "How does this role match?", placeholder: "Paste the role and its requirements…" },
     interview: { label: "Prepare an interview brief", title: "What should the interview cover?", placeholder: "Paste a job description or describe the role…" },
   },
 } as const
+
+export const aiTaskGroups = [
+  {
+    id: "explore", label: "Explore my work", description: "Follow a project from the problem to the result.",
+    tasks: [
+      { label: "AI systems", description: "Explore the assistants and automation I have built.", prompt: "Show the AI systems David has built, his contribution, and the problems they solve.", workflow: "chat" },
+      { label: "Business outcomes", description: "See what changed for the people using the systems.", prompt: "Show three projects where David's work improved how a business operates, with supporting evidence.", workflow: "chat" },
+      { label: "Architecture", description: "Explore documented connections and technical decisions.", prompt: "Show the documented architecture of David's portfolio assistant as an interactive system diagram. Explain its connections and trade-offs.", workflow: "chat" },
+      { label: "Career timeline", description: "Explore roles, dates, and related contributions.", prompt: "Show a timeline of David's documented roles and contributions, using only dates supported by the evidence.", workflow: "chat" },
+    ],
+  },
+  {
+    id: "hiring", label: "Hiring", description: "Compare the role with demonstrated work and identify what to discuss.",
+    tasks: [
+      { label: "Compare a role", description: "Review evidence, related experience, and unverified requirements.", prompt: "", workflow: "role_fit" },
+      { label: "Prepare an interview", description: "Build questions around verified projects and the role's needs.", prompt: "", workflow: "interview" },
+      { label: "Relevant experience", description: "Start with capabilities supported by published work.", prompt: "Which of David's projects demonstrate backend, integration, and AI engineering experience? Show supporting evidence and what an interviewer should validate.", workflow: "chat" },
+    ],
+  },
+  {
+    id: "planning", label: "Plan a project", description: "Turn an idea into a proposed first release to discuss with David.",
+    tasks: [
+      { label: "Scope an idea", description: "Answer six questions and review a proposed first release.", prompt: "", workflow: "project_scope" },
+      { label: "Improve a process", description: "Describe the manual work and what a useful change would achieve.", prompt: "We want to improve an existing manual process: ", workflow: "project_scope" },
+      { label: "Connect systems", description: "Identify integration needs, access boundaries, and open questions.", prompt: "We want to connect our existing systems: ", workflow: "project_scope" },
+    ],
+  },
+] as const satisfies readonly { id: string; label: string; description: string; tasks: readonly { label: string; description: string; prompt: string; workflow: ChatWorkflow }[] }[]
 
 export const askAiStatus: Record<AskAiIntent, string> = {
   general: "Thinking…",

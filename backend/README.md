@@ -55,6 +55,29 @@ grounded in verified work. Budgets and dates supplied by visitors are preference
 not commitments. Successful scoping qualifies as contact interest for the existing
 optional notifications; failed or evidence-only replies do not.
 
+Clients can opt in with `interactive: true`. The same answer-generation call uses
+strict structured output with `answer` first and a bounded `view` second. The API
+decodes complete JSON string units into ordinary `delta` events while streaming,
+then emits `view` before `done` only after successful generation and validation.
+Allowed views are text, projects, comparison, architecture, timeline and scope;
+scope requires the project-scoping workflow. Views reference evidence by index;
+the server hydrates excerpts, confirmed public links and available review dates
+from its own records. Missing references, undated timeline entries and dangling
+diagram connections are removed. Unsupported diagrams fall back to prose.
+
+`interactionContext` accepts at most 4,000 Unicode characters for a selected item
+or reviewed brief. It is lower-trust visitor data in retrieval/generation and is
+stored with the consented question, not promoted to evidence or policy. The UI
+keeps at most 400 characters per edited section. Existing request/context byte
+limits still apply. Plain clients remain compatible; interactive answers require
+a chat model supporting strict JSON-schema output and have a 2,600-token output
+ceiling. No second model call is added to generate views or follow-up suggestions.
+
+The `status` events planning, retrieving, writing and formatting bracket actual
+work. Retrieval errors after streaming begins use `error` followed by `done`;
+provider outages retain labelled evidence-only responses. Deploy the API before
+the frontend, then validate a generated view and a saved-edit follow-up.
+
 `done.finish_reason=evidence_only` means generation is unavailable and the
 response consists of labelled knowledge excerpts, not a model-generated answer.
 Billing/credential failures pause provider traffic for a cooldown and permit

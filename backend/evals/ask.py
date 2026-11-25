@@ -11,11 +11,14 @@ import urllib.request
 def evaluate(base, case):
     payload = {"messages": case["messages"], "improvementLogging": True,
                "workflow": case.get("workflow", "chat"),
+               "interactive": case.get("interactive", False),
+               "interactionContext": case.get("interaction_context", ""),
                "conversationId": str(uuid.uuid4()), "turnId": str(uuid.uuid4())}
     request = urllib.request.Request(base.rstrip("/") + "/ask-ai/chat", data=json.dumps(payload).encode(),
                                      headers={"Content-Type": "application/json"})
     started = time.monotonic()
     answer, errors, finish, first_token = "", [], None, None
+    view = None
     try:
         with urllib.request.urlopen(request, timeout=90) as response:
             event = ""
@@ -31,6 +34,8 @@ def evaluate(base, case):
                         answer += data.get("text", "")
                     elif event == "error":
                         errors.append(data.get("detail", "stream error"))
+                    elif event == "view":
+                        view = data
                     elif event == "done":
                         finish = data.get("finish_reason")
                         break
@@ -51,7 +56,17 @@ def evaluate(base, case):
     alternatives = case.get("must_include_any", [])
     if alternatives and not any(value.casefold() in answer.casefold() for value in alternatives):
         errors.append("missing expected evidence: one of " + ", ".join(alternatives))
+    if case.get("expected_view") and (not isinstance(view, dict) or view.get("kind") != case["expected_view"]):
+        errors.append("missing expected interactive view: " + case["expected_view"])
+    if case.get("min_view_items") and (not isinstance(view, dict) or len(view.get("items", [])) < case["min_view_items"]):
+        errors.append("interactive view has too few items")
+    if isinstance(view, dict):
+        evidence_ids = {source.get("id") for source in view.get("evidence", [])}
+        for item in view.get("items", []) + view.get("connections", []):
+            if any(source_id not in evidence_ids for source_id in item.get("source_ids", [])):
+                errors.append("interactive view references unknown evidence")
     return {"name": case["name"], "passed": not errors, "answer": answer, "errors": errors,
+            "view": view,
             "finish_reason": finish, "first_token_ms": first_token,
             "duration_ms": round((time.monotonic() - started) * 1000)}
 

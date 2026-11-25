@@ -40,6 +40,14 @@ class AnswerHarnessTests(unittest.TestCase):
             result = evaluate("http://127.0.0.1:8080", {"name": "test", "messages": []})
         self.assertFalse(result["passed"])
 
+    def test_interactive_view_contract_and_evidence_references(self):
+        stream = 'event: delta\ndata: {"text":"Published work"}\n\nevent: view\ndata: {"kind":"projects","items":[{"source_ids":[1]}],"evidence":[{"id":1}]}\n\nevent: done\ndata: {"finish_reason":"stop"}\n\n'
+        result = self.run_case(stream, expected_view="projects", min_view_items=1)
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["view"]["kind"], "projects")
+        self.assertFalse(self.run_case(stream, expected_view="scope")["passed"])
+        self.assertFalse(self.run_case(stream.replace('"source_ids":[1]', '"source_ids":[999]'), expected_view="projects")["passed"])
+
 
 if __name__ == "__main__":
     unittest.main()

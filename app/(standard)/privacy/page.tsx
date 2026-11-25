@@ -26,6 +26,13 @@ export default function PrivacyPage() {
             answer quality and improve the feature. You can choose not to use Ask AI if you do not
             want the conversation stored.
           </p>
+          <p>
+            Interactive answer views, selected projects, and saved brief edits are kept in this
+            browser tab. When you send a follow-up, the selected context or reviewed brief is
+            included with your question, processed by the assistant, and stored under the same
+            30-day policy. Unsaved edits are not included. Clear context stops including that
+            selection in future questions; it does not delete questions already stored.
+          </p>
         </section>
 
         <section>

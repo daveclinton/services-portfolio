@@ -1,5 +1,26 @@
 # Ask AI roadmap
 
+## Implemented: interactive task and answer experience
+
+- [x] Grouped starters for exploring work, hiring and project planning, with
+      keyboard navigation, outcome descriptions and a responsive mark illustration.
+- [x] Fixed React views for project cards, comparisons, documented architecture,
+      dated career history and editable proposed briefs, plus an expanded reading view.
+- [x] Canonical supporting passages, public evidence links and available review dates.
+- [x] Two contextual follow-ups from the same structured generation call.
+- [x] Saved brief edits and selected items travel with follow-ups as visitor context
+      and survive same-tab reloads; copied briefs include edits and their proposal status.
+- [x] Real server-phase events, graceful text/evidence-only states and cancellation.
+- [x] Existing Motion, SVG geometry, Lucide icons and theme tokens; reduced motion
+      and native keyboard controls, without another animation runtime.
+- [x] Offline rendering/contract regressions and live interactive evaluation cases.
+
+References: [ChatGPT interactive UI](https://developers.openai.com/plugins/concepts/ui-guidelines),
+[Claude Artifacts](https://claude.com/features/artifacts),
+[NN/g suggestions](https://www.nngroup.com/articles/designing-use-case-prompt-suggestions/),
+[Motion layout](https://motion.dev/docs/react-layout-animations) and
+[accessibility](https://motion.dev/docs/react-accessibility).
+
 ## Shipped: project-scoping assistant
 
 - [x] Six-question discovery covering problem, users, systems, data/access,
@@ -50,7 +71,7 @@ and this site's tokens. The adapted components live in `components/prompt-kit/`.
 - The send button turns into a stop button while answering; Escape also stops.
 - Pinned to the newest message while streaming (`use-stick-to-bottom`), with a
   scroll-to-latest button when the reader scrolls up.
-- Starter questions on the empty screen (`askAi.suggestions` in
+- Grouped starter tasks on the empty screen (`aiTaskGroups` in
   `lib/portfolio-data.ts`).
 - "New chat", and the conversation survives a reload in the same tab.
 - Consent is a persistent checkbox under the composer until accepted, then a
@@ -187,13 +208,12 @@ embeddings on the current 4 GB VPS.
 - [ ] **Structured answers from tables.** "List every project with dates" is
       better answered from `knowledge_project` / `knowledge_employment` than
       from text chunks: give the model a tool that queries them.
-- [ ] **Source chips** under answers. The server already sends a `citations`
-      event that the UI ignores; map knowledge paths to this site's pages
-      (`/experience`, blog posts) so chips link somewhere useful, not to raw
-      file paths.
-- [ ] **Follow-up suggestions** after each answer (prompt-kit `PromptSuggestion`
-      is already in place).
+- [x] **Source inspection** under answers and interactive items, with canonical
+      excerpts, confirmed public links and recorded review dates where available.
+- [x] **Follow-up suggestions** after completed answers, generated in the same
+      structured response and inserted into the composer for editing.
 - [ ] **Contact card** when the intent is `rates` or a hiring question:
       "Email David" / "Book a call".
-- [ ] **Rich cards** for projects and roles inside answers.
+- [x] **Rich cards** for projects, role requirements, timelines, architecture
+      and proposed briefs, with selected context included in follow-up questions.
 - [ ] **Shareable conversation links.**

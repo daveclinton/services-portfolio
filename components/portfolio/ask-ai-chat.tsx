@@ -1,12 +1,11 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { ArrowUp, Briefcase, Check, Copy, FolderGit2, RotateCcw, Square, SquarePen } from "lucide-react"
+import { ArrowUp, Check, Copy, RotateCcw, Square, SquarePen } from "lucide-react"
 import Link from "next/link"
-import { motion, useInView, useReducedMotion } from "motion/react"
+import { useInView } from "motion/react"
 import { Button } from "@/components/ui/button"
 import { Message, MessageAction, MessageActions, MessageContent } from "@/components/prompt-kit/message"
-import { PromptSuggestion } from "@/components/prompt-kit/prompt-suggestion"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import {
   MessageScroller,
@@ -18,15 +17,25 @@ import {
 } from "@/components/ui/message-scroller"
 import { SiteNav } from "@/components/portfolio/site-nav"
 import { ProjectScopeForm } from "@/components/portfolio/project-scope-form"
+import { AiTaskSuggestions } from "@/components/portfolio/ai-task-suggestions"
+import { AiAnswerView } from "@/components/portfolio/ai-answer-view"
 import {
   AiApiError,
   CHAT_LIMITS,
   streamChat,
   stripCitationMarkers,
+  parseAnswerView,
+  parseViewState,
+  viewInteractionContext,
+  viewTranscript,
+  answerConversationText,
+  type AnswerView,
+  type ChatPhase,
   type ChatIntent,
   type ChatTurn,
   type ChatWorkflow,
   type EvidenceSource,
+  type ViewState,
 } from "@/lib/ai-client"
 import { askAi, askAiStatus } from "@/lib/portfolio-data"
 import { cn } from "@/lib/utils"
@@ -51,6 +60,11 @@ type Turn = {
   sources?: EvidenceSource[]
   error?: string
   intent?: ChatIntent
+  phase?: ChatPhase
+  view?: AnswerView
+  viewState?: ViewState
+  contextActive?: boolean
+  interactionContext?: string
 }
 
 const CONSENT_VERSION = "2026-09-22"
@@ -62,7 +76,10 @@ function newId(role: Turn["role"]) {
   return `${role}-${crypto.randomUUID()}`
 }
 
-const SUGGESTION_ICONS = [FolderGit2, Briefcase]
+const phaseLabels: Record<ChatPhase, string> = {
+  planning: "Understanding your question…", retrieving: "Finding supporting material…",
+  writing: "Writing the answer…", formatting: "Preparing the interactive view…",
+}
 
 function replaceTurn(turns: Turn[], id: string, update: (turn: Turn) => Turn): Turn[] {
   return turns.map((turn) => (turn.id === id ? update(turn) : turn))
@@ -99,17 +116,28 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   const [questionsRemaining, setQuestionsRemaining] = useState<number | null>(null)
   const [consented, setConsented] = useState(false)
   const [showConsentError, setShowConsentError] = useState(false)
+  const [showTasks, setShowTasks] = useState(false)
+  const [showScope, setShowScope] = useState(false)
+  const [scopeSeed, setScopeSeed] = useState("")
   const abortRef = useRef<AbortController | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const consentRef = useRef<HTMLInputElement | null>(null)
   const conversationIdRef = useRef<string | null>(null)
-  const reducedMotion = useReducedMotion()
+  const focusComposerRef = useRef(false)
   const embeddedRef = useRef<HTMLDivElement>(null)
   const inView = useInView(embeddedRef, { once: true, amount: 0.3 })
   const hasSuggested = useRef(false)
   const restored = useRef(false)
 
   const hasConversation = turns.length > 0
+  const activeContext = turns.findLast((turn) => turn.contextActive && turn.status === "done" && turn.view && (turn.view.kind === "scope" || turn.viewState?.selectedId))
+
+  useEffect(() => {
+    if (focusComposerRef.current && inputRef.current) {
+      inputRef.current.focus()
+      focusComposerRef.current = false
+    }
+  }, [draft, workflow, showTasks, showScope])
 
   // Blog-post version: offer a suggested question once the reader reaches it.
   useEffect(() => {
@@ -149,9 +177,13 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         // can only be restored after hydration; doing it during render would
         // make the server and client HTML differ.
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setTurns(saved.map((turn) => (turn.status === "streaming" ? { ...turn, status: "stopped" } : turn)))
-        if (saved.findLast((turn) => turn.role === "user")?.workflow === "project_scope") {
-          setWorkflow("project_scope")
+        setTurns(saved.map((turn) => {
+          const view = parseAnswerView(turn.view)
+          return { ...turn, view: view ?? undefined, viewState: parseViewState(view, turn.viewState), ...(turn.status === "streaming" ? { status: "stopped" as const } : {}) }
+        }))
+        const savedWorkflow = saved.findLast((turn) => turn.role === "user")?.workflow
+        if (savedWorkflow && ["project_scope", "role_fit", "interview"].includes(savedWorkflow)) {
+          setWorkflow(savedWorkflow)
         }
       }
     } catch {}
@@ -193,14 +225,23 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
       for await (const event of streamChat({
         messages: history
           .filter((turn) => turn.role === "user" || turn.status === "done")
-          .map((turn): ChatTurn => ({ role: turn.role, content: turn.content })),
+          .map((turn): ChatTurn => ({ role: turn.role, content: turn.role === "assistant" ? answerConversationText(turn.content, turn.view) : turn.content })),
         signal: controller.signal,
         improvementLogging: true,
         conversationId: conversationIdRef.current ?? undefined,
         turnId: crypto.randomUUID(),
         workflow: selectedWorkflow,
+        interactive: true,
+        interactionContext: history.at(-1)?.interactionContext ?? "",
       })) {
-        if (event.type === "delta") {
+        if (abortRef.current !== controller || controller.signal.aborted) break
+        if (event.type === "status") {
+          update((turn) => ({ ...turn, phase: event.phase }))
+        } else if (event.type === "view") {
+          setTurns((previous) => previous.map((turn) => turn.id === assistantTurn.id
+            ? { ...turn, view: event.view, contextActive: event.view.kind === "scope" }
+            : event.view.kind === "scope" ? { ...turn, contextActive: false } : turn))
+        } else if (event.type === "delta") {
           update((turn) => ({ ...turn, content: stripCitationMarkers(turn.content + event.text) }))
         } else if (event.type === "retrieval") {
           update((turn) => ({ ...turn, intent: event.intent }))
@@ -223,9 +264,11 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         update((turn) => ({ ...turn, status: "error", error: detail }))
       }
     } finally {
-      setIsStreaming(false)
       update((turn) => (turn.status === "streaming" ? { ...turn, status: "error", error: "The response was interrupted. Please try again." } : turn))
-      if (abortRef.current === controller) abortRef.current = null
+      if (abortRef.current === controller) {
+        setIsStreaming(false)
+        abortRef.current = null
+      }
     }
   }
 
@@ -240,14 +283,20 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     }
     setShowConsentError(false)
     setDraft("")
-    const userTurn: Turn = { id: newId("user"), role: "user", content: question, status: "done", workflow }
+    setShowScope(false)
+    setShowTasks(false)
+    const userTurn: Turn = { id: newId("user"), role: "user", content: question, status: "done", workflow, interactionContext: viewInteractionContext(activeContext?.view, activeContext?.viewState) }
     void streamAnswer([...turns, userTurn], workflow)
-    if (workflow !== "project_scope") setWorkflow("chat")
   }
 
   // Ask the last question again, replacing the last answer.
   function retry() {
     if (isStreaming) return
+    if (!consented) {
+      setShowConsentError(true)
+      consentRef.current?.focus()
+      return
+    }
     const lastUser = turns.findLastIndex((turn) => turn.role === "user")
     if (lastUser === -1) return
     void streamAnswer(turns.slice(0, lastUser + 1), turns[lastUser].workflow)
@@ -259,6 +308,8 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
 
   function newChat() {
     abortRef.current?.abort()
+    abortRef.current = null
+    setIsStreaming(false)
     const conversationId = crypto.randomUUID()
     sessionStorage.setItem(CONVERSATION_SESSION_KEY, conversationId)
     sessionStorage.removeItem(TURNS_STORAGE_KEY)
@@ -266,8 +317,31 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     setTurns([])
     setDraft("")
     setWorkflow("chat")
+    setShowScope(false)
+    setShowTasks(false)
     setShowConsentError(false)
     inputRef.current?.focus()
+  }
+
+  function chooseTask(selectedWorkflow: ChatWorkflow, prompt: string) {
+    setTurns((previous) => previous.map((turn) => ({ ...turn, contextActive: false })))
+    setWorkflow(selectedWorkflow)
+    setShowTasks(false)
+    setShowConsentError(false)
+    if (selectedWorkflow === "project_scope") {
+      setScopeSeed(prompt)
+      setShowScope(true)
+    } else {
+      setDraft(prompt)
+      focusComposerRef.current = true
+    }
+  }
+
+  function prepareFollowUp(prompt: string, turn: Turn) {
+    setDraft(prompt)
+    setWorkflow(turn.workflow ?? "chat")
+    if (viewInteractionContext(turn.view, turn.viewState)) setTurns((previous) => previous.map((item) => ({ ...item, contextActive: item.id === turn.id })))
+    focusComposerRef.current = true
   }
 
   const consentNotice = (
@@ -316,7 +390,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
       {workflow !== "chat" ? (
         <div className="mb-2 flex items-center justify-between gap-2 text-caption text-muted-foreground">
           <span>{askAi.workflows[workflow].label}</span>
-          <Button type="button" variant="ghost" size="sm" onClick={() => setWorkflow("chat")}>{workflow === "project_scope" ? "Finish scoping" : "Cancel"}</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setWorkflow("chat")}>General chat</Button>
         </div>
       ) : null}
       <form
@@ -385,6 +459,13 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         </div>
       </form>
 
+      {activeContext ? (
+        <div className="mt-2 flex items-center justify-between gap-2 text-caption text-muted-foreground">
+          <span>{activeContext.view?.kind === "scope" ? "Your reviewed brief is included with the next question." : "Your selected answer context is included with the next question."}</span>
+          <Button type="button" variant="ghost" size="sm" disabled={isStreaming} onClick={() => setTurns((previous) => previous.map((turn) => ({ ...turn, contextActive: false })))}>Clear context</Button>
+        </div>
+      ) : null}
+
       {consentNotice}
     </div>
   )
@@ -397,19 +478,20 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           <MessageContent className="min-w-0 max-w-full rounded-2xl bg-muted px-4 py-2.5 text-body whitespace-pre-wrap sm:max-w-[80%]">
             {turn.content}
           </MessageContent>
+          {turn.interactionContext ? <p className="text-caption text-muted-foreground">Included your selected context or reviewed brief.</p> : null}
           <MessageActions className="-mr-1 opacity-100 transition-opacity duration-150 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
             <CopyAction text={turn.content} label="Copy question" />
           </MessageActions>
         </Message>
       )
     }
-    const thinking = turn.status === "streaming" && !turn.content && !turn.error
+    const thinking = turn.status === "streaming" && !turn.error
     const finished = turn.status !== "streaming"
     return (
       <Message key={turn.id} className="group flex-col items-start gap-1">
         {thinking ? (
           <p role="status" className="py-1 text-body">
-            <TextShimmer>{askAiStatus[turn.intent ?? "general"]}</TextShimmer>
+            <TextShimmer>{turn.phase ? phaseLabels[turn.phase] : turn.intent ? askAiStatus[turn.intent] : "Connecting to the assistant…"}</TextShimmer>
           </p>
         ) : null}
         {turn.content ? (
@@ -419,6 +501,9 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         ) : null}
         {turn.workflow === "project_scope" && turn.status === "done" ? (
           <p className="text-caption text-muted-foreground">Proposed scope for discussion. David must confirm scope, pricing, availability, and delivery dates.</p>
+        ) : null}
+        {turn.view && turn.status === "done" ? (
+          <AiAnswerView view={turn.view} state={turn.viewState} disabled={isStreaming} onChange={(viewState) => setTurns((previous) => previous.map((item) => item.id === turn.id ? { ...item, viewState, contextActive: true } : { ...item, contextActive: false }))} />
         ) : null}
         {turn.error ? (
           <p role="alert" className="text-caption break-words [overflow-wrap:anywhere] text-destructive">{turn.error}</p>
@@ -441,7 +526,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
               isLast ? "opacity-100" : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100"
             )}
           >
-            {turn.content ? <CopyAction text={turn.content} label="Copy answer" /> : null}
+            {turn.content ? <CopyAction text={turn.view?.kind === "scope" ? viewTranscript(turn.view, turn.viewState) : turn.content} label="Copy answer" /> : null}
             {isLast ? (
               <MessageAction tooltip="Ask again">
                 <Button
@@ -456,6 +541,14 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
               </MessageAction>
             ) : null}
           </MessageActions>
+        ) : null}
+        {isLast && turn.status === "done" && !isStreaming ? (
+          <div className="flex w-full flex-wrap gap-2" aria-label="Suggested next steps">
+            {(turn.view?.follow_ups.length ? turn.view.follow_ups : [
+              { label: "Explore related projects", prompt: "Which of David's verified projects relate to this answer?" },
+              { label: "Review the evidence", prompt: "What published evidence supports this answer, and what remains unverified?" },
+            ]).map((suggestion) => <Button key={suggestion.prompt} type="button" variant="outline" className="h-auto whitespace-normal text-left" onClick={() => prepareFollowUp(suggestion.prompt, turn)}>{suggestion.label}</Button>)}
+          </div>
         ) : null}
       </Message>
     )
@@ -479,7 +572,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     )
   }
 
-  if (!hasConversation && workflow === "project_scope") {
+  if (showScope) {
     return (
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         <SiteNav />
@@ -487,9 +580,23 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         <div className="chat-column min-h-0 flex-1 overflow-y-auto py-6">
           <ProjectScopeForm
             onGenerate={ask}
-            onCancel={() => { setWorkflow("chat"); setDraft(""); setShowConsentError(false) }}
+            onCancel={() => { setShowScope(false); setWorkflow("chat"); setDraft(""); setShowConsentError(false); focusComposerRef.current = true }}
             consent={consentNotice}
+            initialProblem={scopeSeed}
           />
+        </div>
+      </div>
+    )
+  }
+
+  if (showTasks && hasConversation) {
+    return (
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        <SiteNav />
+        <div className="chat-column min-h-0 flex-1 overflow-y-auto py-6">
+          <h1 className="text-title">What would you like to do next?</h1>
+          <Button type="button" variant="ghost" className="my-4" onClick={() => { setShowTasks(false); focusComposerRef.current = true }}>Back to conversation</Button>
+          <AiTaskSuggestions onChoose={chooseTask} />
         </div>
       </div>
     )
@@ -503,6 +610,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
       <h1 className="sr-only">{askAi.label}</h1>
       {hasConversation ? (
         <div className="chat-column flex shrink-0 justify-end pb-2">
+          <Button type="button" variant="ghost" disabled={isStreaming} onClick={() => setShowTasks(true)}>Tasks</Button>
           <Button
             variant="ghost"
             onClick={newChat}
@@ -540,47 +648,11 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
           <h2 className="text-name text-balance break-words text-center font-normal text-foreground">
             {workflow === "chat" ? `${askAi.title}?` : askAi.workflows[workflow].title}
           </h2>
+          {workflow === "chat" ? <div className="mt-6"><AiTaskSuggestions onChoose={chooseTask} /></div> : <p className="mt-4 text-center text-body text-muted-foreground">{askAi.workflows[workflow].placeholder}</p>}
         </div>
         <div className="chat-column relative shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] before:pointer-events-none before:absolute before:inset-x-0 before:-top-6 before:h-6 before:bg-gradient-to-t before:from-background before:to-transparent">
           {composer}
         </div>
-        <motion.ul
-          initial={reducedMotion ? false : { opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          aria-label="Suggested questions"
-          className={cn("chat-suggestions chat-column grid min-h-0 shrink overflow-y-auto pb-4 sm:grid-cols-2", hasConversation && "hidden")}
-        >
-          {Object.entries(askAi.workflows).map(([key, option]) => (
-            <li key={key} className="min-w-0">
-              <PromptSuggestion onClick={() => {
-                setWorkflow(key as ChatWorkflow)
-                inputRef.current?.focus()
-              }}>
-                <Briefcase aria-hidden="true" />
-                {option.label}
-              </PromptSuggestion>
-            </li>
-          ))}
-          {askAi.suggestions.map((suggestion, index) => {
-            const Icon = SUGGESTION_ICONS[index % SUGGESTION_ICONS.length]
-            return (
-              <li key={suggestion} className="min-w-0">
-                <PromptSuggestion
-                  className="h-full"
-                  onClick={() => {
-                    setWorkflow("chat")
-                    setDraft(suggestion)
-                    inputRef.current?.focus()
-                  }}
-                >
-                  <Icon aria-hidden="true" />
-                  {suggestion}
-                </PromptSuggestion>
-              </li>
-            )
-          })}
-        </motion.ul>
       </div>
     </div>
   )

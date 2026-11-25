@@ -20,6 +20,7 @@ Disable `BREVO_API_KEY` in the local API environment before running the suite.
 python3 evals/ask.py http://127.0.0.1:8080 evals/guardrails.json --json
 python3 evals/ask.py http://127.0.0.1:8080 evals/hiring.json --json
 python3 evals/ask.py http://127.0.0.1:8080 evals/project-scoping.json --json
+python3 evals/ask.py http://127.0.0.1:8080 evals/interactive.json --json
 make test # offline prompt-boundary, request-validation and provider-stream tests
 # Optional real Postgres check, in an isolated schema of a test database:
 ASKAI_TEST_DATABASE_URL='postgresql://...test-db...' go test ./internal/askai -run TestConversationRetentionWithForeignKeys -v
@@ -47,6 +48,18 @@ clarification, budget/deadline requests that must not become commitments, and
 follow-up refinements. They require a configured local generation service; offline
 tests separately cover workflow acceptance, prompt boundaries, notification policy,
 and discovery request limits. Review generated briefs as well as case assertions.
+
+Interactive cases opt in with `interactive: true` and can assert `expected_view`
+and `min_view_items`; the harness also rejects unknown evidence references. Cases
+cover project cards, architecture, role comparisons, dated timelines, editable
+briefs and visitor edits that must not become commercial commitments. A diagram
+is permitted only with supporting connections; the architecture case allows a
+plain answer when its retrieved material cannot support a diagram.
+
+Offline frontend tests exercise the SSE contract, context budgets, saved edits,
+malformed views and URL handling. Real React components are rendered in Node for
+all five interactive views and grouped starters, using the existing TypeScript
+dependency to load TSX. No DOM, browser engine or screenshot tool is used.
 
 Baseline (Nov 2026): the original prompt with top-8 retrieval refused 5 of
 the first 15 questions. Whole-knowledge-base context, the new answer policy

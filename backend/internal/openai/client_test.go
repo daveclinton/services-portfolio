@@ -2,6 +2,7 @@ package openai
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -50,6 +51,29 @@ func TestStreamChatRequiresSuccessfulTerminalState(t *testing.T) {
 				t.Fatal("lost terminal usage")
 			}
 		})
+	}
+}
+
+func TestStructuredChatStreamingUsesTheSameGenerationRequest(t *testing.T) {
+	client := New("test-key")
+	calls := 0
+	client.http.Transport = roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		calls++
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		format := payload["response_format"].(map[string]any)
+		schema := format["json_schema"].(map[string]any)
+		if payload["stream"] != true || format["type"] != "json_schema" || schema["strict"] != true || schema["name"] != "portfolio_answer" {
+			t.Fatalf("wrong generation contract: %+v", payload)
+		}
+		return &http.Response{StatusCode: 200, Header: http.Header{}, Body: io.NopCloser(strings.NewReader("data: {\"choices\":[{\"delta\":{\"content\":\"{\\\"answer\\\":\\\"Hello\\\"}\"}}]}\n\ndata: {\"choices\":[{\"delta\":{},\"finish_reason\":\"stop\"}]}\n\ndata: [DONE]\n\n"))}, nil
+	})
+	var raw strings.Builder
+	_, err := client.StreamChat(context.Background(), ChatRequest{Schema: map[string]any{"type": "object"}}, func(delta string) error { raw.WriteString(delta); return nil })
+	if err != nil || calls != 1 || raw.String() != `{"answer":"Hello"}` {
+		t.Fatalf("calls=%d raw=%q err=%v", calls, raw.String(), err)
 	}
 }
 

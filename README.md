@@ -12,6 +12,9 @@ The repository includes David Clinton's portfolio content as a working example. 
 - **Role comparison:** paste a job description for a requirement/evidence/gap comparison. Demonstrated experience, transferable skills and unverified requirements are kept distinct; the assistant does not score or make hiring decisions.
 - **Interview briefs:** create role-specific questions tied to verified projects and identify what an interviewer should validate.
 - **Project discovery:** scope a potential project through six questions, review or edit the answers, then generate a proposed first release, data/integration needs, relevant verified work and open questions. Continue refining the brief in chat; scope, pricing, availability and delivery dates require David's review.
+- **Grouped task discovery:** Explore my work, Hiring, and Plan a project introduce concrete tasks with editable starters, keyboard navigation and an illustration based on the existing portfolio mark. Tasks remain available during a conversation.
+- **Interactive answers:** project cards, requirement/evidence comparisons, documented architecture diagrams, dated career timelines and editable proposed briefs use a fixed set of React views. Supporting passages and public links are inspectable; recorded evidence-review dates appear when available. Any view can expand for deeper reading.
+- **Context-aware follow-ups:** two suggested next questions accompany completed answers. Selected items and saved brief edits are included with the next question as visitor context; selections and views survive a same-tab reload. Copying a brief includes saved edits and its proposal disclaimer.
 - **Reading-aware streaming:** follow a new answer, pause to read or select earlier text, and jump back to the latest response. The mobile composer follows the visible viewport above the keyboard.
 - **Evidence-only fallback:** when generation is unconfigured or the provider reports billing, credential or availability problems, show clearly labelled excerpts instead of pretending to generate an assessment.
 - **Useful owner notifications:** optional email for successful hiring/pricing/contact interest, critical provider incidents and a warning near the application request budget. Greetings and ordinary browsing do not email by default.
@@ -20,6 +23,8 @@ The repository includes David Clinton's portfolio content as a working example. 
 - **Glass navigation and reading tools:** frosted controls use the existing light/dark palette, with a spring navigation highlight, one-time section entrances and a reading-progress dock with a back-to-top link. Higher contrast and reduced-transparency preferences restore solid controls; reduced motion removes movement and progress smoothing.
 
 ## Interface references
+
+Task discovery follows [NN/g's prompt-suggestion guidance](https://www.nngroup.com/articles/designing-use-case-prompt-suggestions/) and [assistant-ui's distinction between starters and contextual follow-ups](https://www.assistant-ui.com/docs/guides/suggestions). Interactive answers follow [ChatGPT's focused inline-card and expanded-view guidance](https://developers.openai.com/plugins/concepts/ui-guidelines), while editable output alongside conversation draws from [Claude Artifacts](https://claude.com/features/artifacts). The implementation uses this app's components, icons, tokens and existing Motion dependency; no paid example source or new illustration runtime is included.
 
 The glass controls follow [Glassy UI's dock-and-surface approach](https://github.com/alexburlis/glassyui), adapted to this app's components and tokens without adding a package. [Apple's material guidance](https://developer.apple.com/design/human-interface-guidelines/materials) informs the separation between glass controls and readable, solid content. Browser-specific SVG refraction is intentionally omitted; browsers without backdrop-filter support keep solid surfaces.
 
@@ -40,6 +45,8 @@ Offline Python/Django pipeline → Markdown ingestion, audits and retrieval eval
 ```
 
 All HTTP APIs run in `backend/`. `knowledge-backend/` is an offline data pipeline, not a second web server. The whole knowledge base forms a stable reference prefix; hybrid retrieval selects relevant evidence. Reference data and visitor text remain separate from application policy. See [backend architecture and deployment](backend/README.md).
+
+Interactive clients opt in to a structured answer envelope in the same streamed generation call. The API streams its readable `answer` field as text, then emits a validated `view` with canonical evidence; it never sends executable model-generated UI. Planning, retrieval, writing and formatting status events reflect actual server work. Plain clients retain text streaming, and failed or evidence-only responses do not expose interactive answer controls. Fixed published career and assistant-implementation facts also receive inspectable source IDs for timelines and architecture.
 
 ## Requirements
 
@@ -153,6 +160,7 @@ make test
 python3 evals/ask.py http://127.0.0.1:8080 evals/questions.txt
 python3 evals/ask.py http://127.0.0.1:8080 evals/hiring.json --json
 python3 evals/ask.py http://127.0.0.1:8080 evals/project-scoping.json --json
+python3 evals/ask.py http://127.0.0.1:8080 evals/interactive.json --json
 python3 evals/ask.py http://127.0.0.1:8080 evals/guardrails.json --json
 ```
 
