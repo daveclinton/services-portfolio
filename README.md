@@ -17,7 +17,7 @@ The repository includes David Clinton's portfolio content as a working example. 
 - **Context-aware follow-ups:** two suggested next questions accompany completed answers. Selected items and saved brief edits are included with the next question as visitor context; selections and views survive a same-tab reload. Copying a brief includes saved edits and its proposal disclaimer.
 - **Question refinement:** sent text and discovery categories clear from the composer, which becomes a labelled follow-up input while actual workflows remain visible. Edit any question without changing the visible conversation until sending; cancel restores the previous draft. Sending a revision replaces later turns in the tab's conversation. Regenerate explicitly requests another answer to the last question.
 - **Sources for plain answers:** even without a project card or diagram, completed text answers can open retrieved excerpts, public links and available review dates. The inspector labels this as retrieved material rather than claim-by-claim verification; older and interrupted responses retain their link fallback.
-- **Follow along by email:** a short invitation opens a guided email-and-review flow on Writing, article footers and `/subscribe`. A confirmation email completes signup; existing subscribers see their own result without another email. Subscriber lists and unsubscribe handling live in Brevo, separately from chat consent. RSS remains available.
+- **Follow along by email:** a short invitation opens a guided email-and-review flow on Writing, article footers and `/subscribe`. A confirmation email completes signup; existing subscribers see their own result without another email. Subscriber lists, confirmation records and unsubscribe handling live in our PostgreSQL database, separately from chat consent. RSS remains available.
 - **Reading-aware streaming:** follow a new answer, pause to read or select earlier text, and jump back to the latest response. The mobile composer follows the visible viewport above the keyboard.
 - **Evidence-only fallback:** when generation is unconfigured or the provider reports billing, credential or availability problems, show clearly labelled excerpts instead of pretending to generate an assessment.
 - **Useful owner notifications:** optional email for successful hiring/pricing/contact interest, critical provider incidents and a warning near the application request budget. Greetings and ordinary browsing do not email by default.
@@ -44,7 +44,7 @@ Next.js frontend (React, Tailwind, shadcn/Base UI, Prompt Kit)
 Go API ── PostgreSQL + pgvector
     ├── OpenAI: retrieval planning, streamed answers, optional embeddings
     ├── optional self-hosted embeddings
-    └── optional Brevo: qualified visitor and operational notifications
+    └── optional Sendy: qualified visitor and operational notifications
 
 Offline Python/Django pipeline → Markdown ingestion, audits and retrieval evals
 ```
@@ -60,7 +60,7 @@ Interactive clients opt in to a structured answer envelope in the same streamed 
 - Go 1.27.3+ to run or test the API outside Docker.
 - Python 3.12+ for knowledge ingestion; Python 3 is also used by the backend eval harness.
 - An OpenAI API key for generated answers. Without one, ingested knowledge can still be explored in evidence-only mode.
-- Brevo credentials only if you want email notifications.
+- Sendy credentials only if you want email notifications.
 
 ## Quick start
 
@@ -117,7 +117,7 @@ Replace the included personal content and fixed site facts before publishing you
 
 ## Notifications
 
-Email is optional. Configure `BREVO_API_KEY`, `BREVO_ALERT_TO_EMAIL` and `BREVO_SENDER_EMAIL` in the backend environment.
+Email is optional. Configure `SENDY_API_KEY`, `SENDY_ALERT_TO_EMAIL` and `SENDY_SENDER_EMAIL` in the backend environment.
 
 Visitor notifications are short notes containing the question and an answer preview,
 without device details, confidence scores, IDs or the full generated result.
@@ -134,32 +134,39 @@ and [one-question sequence](https://help.typeform.com/hc/en-us/articles/36005366
 one invitation and Subscribe button, then an email question, a short review with
 consent, and an outcome-specific ending. Progress and Back appear only after starting.
 
-With a Brevo API key and sender configured, newsletter setup runs in the background:
-it reuses or creates the `daveclintonn.cc portfolio` folder, `daveclintonn.cc — Follow
-along` list and `daveclintonn.cc — Confirm email` template. This does not enroll
-anyone or send email. It only updates the application-owned template. Contacts
-join through [Brevo's double opt-in API](https://developers.brevo.com/reference/create-doi-contact).
-Before requesting confirmation, signup checks the contact's newsletter membership
-and email preferences. Existing members receive no repeat confirmation; contacts
-outside this list still confirm before joining. Blocked contacts and newsletter
-opt-outs are preserved, with a contact link in the form for help rejoining.
-The public signup response distinguishes pending confirmation, existing newsletter
-membership and suppressed addresses so the form can show a concise, relevant
-ending. Pending requests include a short Spam/Junk hint; existing members are
-told they are already subscribed. Rate limits still apply to every lookup, and
-the email cooldown suppresses repeat sends without hiding current membership.
-Set `NEWSLETTER_ENABLED=false` to disable signup, or `SITE_URL` to change the public
-site origin. The API key needs contacts/lists and templates permissions. If setup
-or delivery fails, signup reports unavailable rather than pretending to succeed.
+Newsletter subscriptions belong to this application, stored in PostgreSQL alongside
+confirmation and opt-out records. [Sendy](https://usesendy.com/docs/api/send-email)
+provides transactional email delivery; it does not manage our list. The API creates
+its local newsletter tables at startup without enrolling anyone or sending mail.
+Signup checks local membership, sends a signed confirmation link valid for 48 hours,
+and enrolls only after confirmation. Existing members receive no repeat email;
+opt-outs are preserved and cannot be reversed by signup or an old confirmation link.
+Each broadcast includes a signed unsubscribe link back to this API.
 
-Write future notes at `/admin/newsletters` after enabling the private dashboard
-(see [owner setup](backend/README.md#newsletter-writing-dashboard)). It provides
-saved Markdown drafts, formatted and actual email previews, owner-only test sends,
-send now, Nairobi-time scheduling and cancellation. The flow follows
+Set `SENDY_API_KEY`, `SENDY_SENDER_EMAIL`, `SENDY_SENDER_NAME`, and
+`NEWSLETTER_PUBLIC_API_URL` (the publicly reachable API origin). Keep
+`RATE_LIMIT_SECRET` stable and at least 32 characters; it signs email links.
+Verify the sending domain in Sendy and provide sending credits before enabling mail.
+`SENDY_ALERT_TO_EMAIL` is the owner notification destination and default test recipient.
+Signup, scheduled delivery and operational alerts are enabled automatically when
+email credentials are configured; there are no boolean environment switches.
+Existing preference links remain usable without delivery credentials. `SITE_URL`
+is the frontend origin.
+
+Write future notes at `/admin/newsletters` after configuring the private dashboard
+(see [owner setup](backend/README.md#newsletter-writing-dashboard)). It retains saved
+Markdown drafts, email previews, owner-only tests, send now, Nairobi-time scheduling
+and cancellation. The flow follows
 [Ghost's write → preview/test → delivery → confirmation sequence](https://ghost.org/help/delivering-emails/),
-using the portfolio's existing components and email template. Brevo remains the
-delivery provider and manages unsubscribe preferences; its Campaigns interface
-is also available for inspecting delivery.
+using existing portfolio components and the shared email template. Scheduling and
+recipient delivery jobs are durable local records. Only confirmed subscribers are
+eligible; opt-outs are checked again before submission to Sendy.
+
+For the cutover, export confirmed subscribers with consent timestamps and all
+unsubscribed/blocked addresses from the previous provider. Use the
+[local subscriber importer](backend/README.md#subscriber-migration) before switching
+production traffic. Existing provider campaigns remain historical and cannot be
+resent through the new adapter. Cancel outstanding schedules in the old provider.
 
 Signup currently accepts up to five attempts
 per network per hour and 100 per API process per day, with a 15-minute cooldown
@@ -167,16 +174,20 @@ per email. These controls reuse the existing in-memory limiter and assume one AP
 instance; network and email rate-limit keys are hashed and temporary.
 
 The dashboard requires GitHub sign-in restricted to the configured numeric owner
-ID. It is disabled by default. Drafts and delivery operations persist in Postgres;
+ID. It activates automatically when its GitHub credentials are configured.
+Drafts and delivery operations persist in Postgres;
 uncertain provider responses require a status check instead of an automatic resend.
-An accepted broadcast displays **Submitted for delivery** until Brevo reports it sent.
+A queued broadcast displays **Submitted for delivery** until every eligible recipient's
+Sendy job reports provider acceptance. **Sent** does not guarantee inbox delivery.
+Timed-out per-recipient requests retry with the unchanged payload and idempotency key.
+Insufficient credits leave delivery pending; terminal failures show **Delivery stopped**.
 
 | Setting | Behavior |
 | --- | --- |
-| `BREVO_CONVERSATION_ALERTS=important` (default) | One email per conversation after a successful hiring, pricing or contact-interest turn; the first greeting does not consume that alert. |
-| `BREVO_CONVERSATION_ALERTS=all` | One email after a successful conversation turn, including ordinary browsing. |
-| `BREVO_CONVERSATION_ALERTS=off` | No visitor-conversation emails. |
-| `BREVO_OPERATIONAL_ALERTS=true` (default) | Credential/billing incident alerts and an application daily request-budget warning at about 80% usage. |
+| `SENDY_CONVERSATION_ALERTS=important` (default) | One email per conversation after a successful hiring, pricing or contact-interest turn; the first greeting does not consume that alert. |
+| `SENDY_CONVERSATION_ALERTS=all` | One email after a successful conversation turn, including ordinary browsing. |
+| `SENDY_CONVERSATION_ALERTS=off` | No visitor-conversation emails. |
+| Operational alerts (automatic) | Credential/billing incident alerts and an application daily request-budget warning at about 80% usage. |
 
 Failed, stopped, policy-blocked, bot and evidence-only responses do not qualify for visitor-interest alerts. Operational emails contain status and recovery guidance, not visitor conversation text. Each operational event kind is deduplicated for an hour per API process; failed sends release the claim for a later retry. Restarting the API resets those in-memory operational claims. Visitor notification claims are stored in PostgreSQL.
 

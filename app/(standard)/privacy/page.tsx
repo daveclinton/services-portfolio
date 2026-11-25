@@ -20,8 +20,8 @@ export default function PrivacyPage() {
       <div className="blog-prose">
         <section>
           <h2>Email notes</h2>
-          <p>When you choose Keep me posted, your email address is sent to Brevo to check your subscription status and, when needed, request a confirmation email. Existing newsletter members do not receive another confirmation, and signup preserves opt-out and blocked-email preferences. You join the newsletter list after confirming. This consent is separate from Ask AI conversation storage.</p>
-          <p>Brevo manages the subscriber list, confirmation records, and unsubscribe status. Your address is used for occasional notes from David. Each newsletter includes an unsubscribe link. Unsubscribing stops future newsletters; an opt-out record may remain with the provider to respect that choice.</p>
+          <p>When you choose Keep me posted, the portfolio checks your subscription status in its own database and, when needed, sends a confirmation email through Sendy. Existing newsletter members do not receive another confirmation, and signup preserves opt-out and blocked-email preferences. You join the newsletter list after confirming. This consent is separate from Ask AI conversation storage.</p>
+          <p>The portfolio stores the subscriber list, confirmation records, and unsubscribe status in its own PostgreSQL database. Sendy receives your address and email content to deliver messages and manage delivery-related suppression. Your address is used for occasional notes from David. Each newsletter includes an unsubscribe link. Unsubscribing stops future newsletters; an opt-out record remains in the portfolio database to respect that choice.</p>
           <p>The signup endpoint uses temporary, hashed network and email identifiers to limit repeated requests. Email addresses are not added to conversation records or application request logs. For an access or deletion request, use the contact link on the homepage.</p>
         </section>
         <section>
@@ -55,7 +55,7 @@ export default function PrivacyPage() {
           <h2>Service providers</h2>
           <p>
             Conversation text is processed by OpenAI to generate the assistant&apos;s response. A short question and answer preview
-            may be sent through Brevo in a private notification when a successful conversation
+            may be sent through Sendy in a private notification when a successful conversation
             indicates hiring, pricing, or contact interest. Greetings, ordinary browsing, and
             unsuccessful responses do not trigger these notifications under the default policy. These
             services process the conversation only as part of operating and improving Ask AI.

@@ -14,50 +14,61 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/daveclinton/portfolio/backend/internal/brevo"
 	"github.com/daveclinton/portfolio/backend/internal/config"
 	"github.com/daveclinton/portfolio/backend/internal/httpx"
 	"github.com/daveclinton/portfolio/backend/internal/ratelimit"
+	"github.com/daveclinton/portfolio/backend/internal/sendy"
 	"github.com/daveclinton/portfolio/backend/internal/visitor"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type provider interface {
-	EnsureNewsletter(context.Context, brevo.Address, string) (brevo.NewsletterIDs, error)
-	RequestSubscription(context.Context, string, brevo.NewsletterIDs, string, bool) (brevo.SubscriptionStatus, error)
+	EnsureNewsletter(context.Context, sendy.Address, string) (sendy.NewsletterIDs, error)
+	RequestSubscription(context.Context, string, sendy.NewsletterIDs, string, bool) (sendy.SubscriptionStatus, error)
+	Confirm(context.Context, string, string) (bool, error)
+	Unsubscribe(context.Context, string, string) (bool, error)
+	ProcessQueue(context.Context) error
 }
 
 type Service struct {
 	cfg          config.Config
 	mail         provider
 	log          *slog.Logger
-	ready        atomic.Pointer[brevo.NewsletterIDs]
+	ready        atomic.Pointer[sendy.NewsletterIDs]
 	privacy      visitor.Signer
 	byIP, global *ratelimit.Window
 	cooldown     *ratelimit.Locks
 }
 
-func New(cfg config.Config, log *slog.Logger) *Service {
+func New(cfg config.Config, db *pgxpool.Pool, log *slog.Logger) *Service {
 	secret := cfg.RateLimitSecret
 	if secret == "" {
 		secret = "newsletter-local-development-secret"
 	}
-	return &Service{cfg: cfg, mail: brevo.New(cfg.BrevoAPIKey), log: log.With("product", "newsletter"),
+	return &Service{cfg: cfg, mail: sendy.NewNewsletter(cfg.SendyAPIKey, db, sendy.Address{Name: cfg.SendySenderName, Email: cfg.SendySenderEmail}, cfg.SiteURL, cfg.NewsletterPublicAPIURL, cfg.RateLimitSecret), log: log.With("product", "newsletter"),
 		privacy: visitor.NewSigner(secret), byIP: ratelimit.NewWindow(5, time.Hour),
-		global: ratelimit.NewWindow(100, 24*time.Hour), cooldown: ratelimit.NewLocks(15 * time.Minute)}
+		global: ratelimit.NewWindow(100, 24*time.Hour), cooldown: ratelimit.NewLocks(sendy.ConfirmationCooldown)}
 }
 
-// Provision named resources once per process, retrying failures without blocking
-// the existing API. This never sends a subscription email or enrolls a contact.
+// Init prepares local consent storage even when new signups or delivery are
+// disabled, so existing confirmation and unsubscribe links remain usable.
+func (s *Service) Init(ctx context.Context) error {
+	_, err := s.mail.EnsureNewsletter(ctx, sendy.Address{Name: s.cfg.SendySenderName, Email: s.cfg.SendySenderEmail}, s.cfg.SiteURL)
+	return err
+}
+
+// Prepare application-owned tables and advance scheduled email delivery.
+// No contact is enrolled and no confirmation is sent during setup.
 func (s *Service) Run(ctx context.Context) {
-	if !s.cfg.NewsletterEnabled || s.cfg.BrevoAPIKey == "" || s.cfg.BrevoSenderEmail == "" {
+	if !s.cfg.NewsletterEnabled || s.cfg.SendyAPIKey == "" || s.cfg.SendySenderEmail == "" {
 		return
 	}
-	ticker := time.NewTicker(time.Minute)
+	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 	for {
 		if s.ready.Load() == nil {
 			setupCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-			ids, err := s.mail.EnsureNewsletter(setupCtx, brevo.Address{Name: s.cfg.BrevoSenderName, Email: s.cfg.BrevoSenderEmail}, s.cfg.SiteURL)
+			ids, err := s.mail.EnsureNewsletter(setupCtx, sendy.Address{Name: s.cfg.SendySenderName, Email: s.cfg.SendySenderEmail}, s.cfg.SiteURL)
 			cancel()
 			if err != nil {
 				s.log.Error("prepare email signup", "err", err)
@@ -65,6 +76,13 @@ func (s *Service) Run(ctx context.Context) {
 				s.ready.Store(&ids)
 				s.log.Info("email signup ready")
 			}
+		}
+		if s.ready.Load() != nil {
+			queueCtx, queueCancel := context.WithTimeout(ctx, 45*time.Second)
+			if err := s.mail.ProcessQueue(queueCtx); err != nil && ctx.Err() == nil {
+				s.log.Error("process newsletter delivery", "err", err)
+			}
+			queueCancel()
 		}
 		s.byIP.Sweep()
 		s.global.Sweep()
@@ -83,13 +101,15 @@ func (s *Service) Routes(mux *http.ServeMux) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]bool{"enabled": s.ready.Load() != nil})
 	})
 	mux.HandleFunc("POST /newsletter/subscribe", s.subscribe)
+	mux.HandleFunc("GET /newsletter/confirm", s.confirm)
+	mux.HandleFunc("GET /newsletter/unsubscribe", s.unsubscribe)
 }
 
-// ListIDs shares the already-provisioned newsletter resources with owner tools.
-func (s *Service) ListIDs() (brevo.NewsletterIDs, bool) {
+// ListIDs shares readiness of the application-owned list with owner tools.
+func (s *Service) ListIDs() (sendy.NewsletterIDs, bool) {
 	ids := s.ready.Load()
 	if ids == nil {
-		return brevo.NewsletterIDs{}, false
+		return sendy.NewsletterIDs{}, false
 	}
 	return *ids, true
 }
@@ -124,7 +144,7 @@ func (s *Service) subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if trap, _ := input["website"].(string); trap != "" {
-		writeStatus(w, brevo.SubscriptionPending)
+		writeStatus(w, sendy.SubscriptionPending)
 		return
 	}
 	ids := s.ready.Load()
@@ -158,6 +178,45 @@ func (s *Service) subscribe(w http.ResponseWriter, r *http.Request) {
 	writeStatus(w, status)
 }
 
-func writeStatus(w http.ResponseWriter, status brevo.SubscriptionStatus) {
-	httpx.WriteJSON(w, http.StatusAccepted, map[string]brevo.SubscriptionStatus{"status": status})
+func writeStatus(w http.ResponseWriter, status sendy.SubscriptionStatus) {
+	httpx.WriteJSON(w, http.StatusAccepted, map[string]sendy.SubscriptionStatus{"status": status})
+}
+
+func (s *Service) confirm(w http.ResponseWriter, r *http.Request) {
+	s.subscriptionLink(w, r, true)
+}
+func (s *Service) unsubscribe(w http.ResponseWriter, r *http.Request) {
+	s.subscriptionLink(w, r, false)
+}
+func (s *Service) subscriptionLink(w http.ResponseWriter, r *http.Request, confirm bool) {
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Referrer-Policy", "no-referrer")
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
+	var ok bool
+	var err error
+	if confirm {
+		ok, err = s.mail.Confirm(ctx, r.URL.Query().Get("id"), r.URL.Query().Get("token"))
+	} else {
+		ok, err = s.mail.Unsubscribe(ctx, r.URL.Query().Get("id"), r.URL.Query().Get("token"))
+	}
+	if err != nil {
+		httpx.Unavailable(w, "Could not update your email preferences. Please try again.", 60)
+		return
+	}
+	if !ok {
+		http.Error(w, "This email link is invalid or expired. Please return to the signup page or contact David.", http.StatusBadRequest)
+		return
+	}
+	if confirm {
+		http.Redirect(w, r, s.cfg.SiteURL+"/subscribe/confirmed", http.StatusSeeOther)
+		return
+	}
+	html, _, err := sendy.RenderNote(sendy.Note{Title: "You’re unsubscribed.", Intro: "You won’t receive future newsletters from David.", SiteURL: s.cfg.SiteURL})
+	if err != nil {
+		http.Error(w, "You’re unsubscribed.", http.StatusOK)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(html))
 }

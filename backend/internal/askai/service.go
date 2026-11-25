@@ -13,11 +13,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/daveclinton/portfolio/backend/internal/brevo"
 	"github.com/daveclinton/portfolio/backend/internal/config"
 	"github.com/daveclinton/portfolio/backend/internal/embeddings"
 	"github.com/daveclinton/portfolio/backend/internal/openai"
 	"github.com/daveclinton/portfolio/backend/internal/ratelimit"
+	"github.com/daveclinton/portfolio/backend/internal/sendy"
 	"github.com/daveclinton/portfolio/backend/internal/visitor"
 )
 
@@ -31,7 +31,7 @@ type Service struct {
 	ai       *openai.Client
 	embedder embedder
 	mail     interface {
-		Send(context.Context, brevo.Email) error
+		Send(context.Context, sendy.Email) error
 	} // nil when alerts aren't configured
 	log            *slog.Logger
 	signer         visitor.Signer
@@ -73,7 +73,7 @@ func New(cfg config.Config, db *pgxpool.Pool, log *slog.Logger) *Service {
 		s.embedder = disabledEmbedder{}
 	}
 	if cfg.AlertsEnabled() {
-		s.mail = brevo.New(cfg.BrevoAPIKey)
+		s.mail = sendy.New(cfg.SendyAPIKey)
 	}
 	return s
 }

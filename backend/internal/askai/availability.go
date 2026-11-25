@@ -9,9 +9,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/daveclinton/portfolio/backend/internal/brevo"
 	"github.com/daveclinton/portfolio/backend/internal/httpx"
 	"github.com/daveclinton/portfolio/backend/internal/openai"
+	"github.com/daveclinton/portfolio/backend/internal/sendy"
 )
 
 // This process runs one API instance, as do the existing rate limits. Admit a
@@ -130,7 +130,7 @@ func (s *Service) notifyOperator(kind, detail string) {
 		return
 	}
 	s.goBackground(func(ctx context.Context) {
-		note := brevo.Note{Title: "Ask AI needs attention", Intro: detail, SiteURL: s.cfg.SiteURL}
+		note := sendy.Note{Title: "Ask AI needs attention", Intro: detail, SiteURL: s.cfg.SiteURL}
 		if err := s.sendMail(ctx, "Ask AI: "+strings.ReplaceAll(kind, "_", " "), note, httpx.NewUUID()); err != nil {
 			s.operatorAlerts.Release(kind, token)
 			s.log.Error("send operational alert", "kind", kind, "err", err)

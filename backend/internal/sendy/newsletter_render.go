@@ -1,4 +1,4 @@
-package brevo
+package sendy
 
 import (
 	"bytes"
@@ -15,12 +15,15 @@ import (
 
 const NewsletterSubjectLimit = 180
 const NewsletterBodyLimit = 40000
-const NewsletterHTMLLimit = 90000
+
+// Leave room for the signed per-recipient unsubscribe URL within Sendy's limit.
+const NewsletterHTMLLimit = ContentLimit - 512
+const unsubscribePlaceholder = "https://newsletter.invalid/unsubscribe"
 
 // Preview, test and delivery share this renderer and the existing Postmark shell.
-// No raw HTML or Brevo template expressions from the draft enter the email.
+// No raw HTML or template expressions from the draft enter the email.
 func RenderNewsletter(subject, markdown, siteURL string) (string, error) {
-	if strings.TrimSpace(subject) == "" || utf8.RuneCountInString(subject) > NewsletterSubjectLimit || strings.ContainsAny(subject, "\r\n") || strings.Contains(subject, "{{") || strings.Contains(subject, "{%") {
+	if strings.TrimSpace(subject) == "" || utf8.RuneCountInString(subject) > NewsletterSubjectLimit || len(subject) > SubjectByteLimit || strings.ContainsAny(subject, "\r\n") || strings.Contains(subject, "{{") || strings.Contains(subject, "{%") {
 		return "", errors.New("Enter a subject of up to 180 characters, without template expressions")
 	}
 	if strings.TrimSpace(markdown) == "" || len(markdown) > NewsletterBodyLimit {
@@ -78,7 +81,7 @@ func RenderNewsletter(subject, markdown, siteURL string) (string, error) {
 	}
 	body = strings.ReplaceAll(body, "<a ", `<a style="color:#ffffff;text-decoration:underline" `)
 	body = strings.ReplaceAll(body, "<img ", `<img style="max-width:100%;height:auto" `)
-	html, _, err := RenderNote(Note{Title: subject, SiteURL: siteURL, Campaign: true, Body: template.HTML(body)})
+	html, _, err := RenderNote(Note{Title: subject, SiteURL: siteURL, Campaign: true, UnsubscribeURL: unsubscribePlaceholder, Body: template.HTML(body)})
 	if err == nil && len(html) > NewsletterHTMLLimit {
 		return "", errors.New("This email is too large; shorten it before sending")
 	}

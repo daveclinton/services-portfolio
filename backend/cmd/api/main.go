@@ -79,7 +79,10 @@ func run(log *slog.Logger) error {
 		return errors.Join(errors.New("prepare ask-ai schema"), err)
 	}
 	go askAI.Run(ctx)
-	subscriptions := newsletter.New(cfg, log)
+	subscriptions := newsletter.New(cfg, db, log)
+	if err := subscriptions.Init(ctx); err != nil {
+		return errors.Join(errors.New("prepare subscriber storage"), err)
+	}
 	go subscriptions.Run(ctx)
 	newsletterStudio := studio.New(cfg, db, log, subscriptions.ListIDs)
 	if err := newsletterStudio.Init(ctx); err != nil {

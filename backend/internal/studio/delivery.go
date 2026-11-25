@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/daveclinton/portfolio/backend/internal/brevo"
 	"github.com/daveclinton/portfolio/backend/internal/httpx"
+	"github.com/daveclinton/portfolio/backend/internal/sendy"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -51,6 +51,11 @@ func (s *Service) lockDraft(w http.ResponseWriter, r *http.Request) (*pgxpool.Co
 		draftFailure(w, err)
 		return nil, Draft{}, nil, false
 	}
+	if draft.DeliveryProvider != "sendy" {
+		release()
+		httpx.WriteJSON(w, 409, httpx.Problem{Detail: "This newsletter belongs to the previous email provider. Review its status there and cancel any outstanding schedule before creating a new newsletter."})
+		return nil, Draft{}, nil, false
+	}
 	return conn, draft, release, true
 }
 
@@ -64,7 +69,7 @@ func record(conn *pgxpool.Conn, d *Draft, state, operation, message string) erro
 	return err
 }
 
-func campaignState(c brevo.Campaign) string {
+func campaignState(c sendy.Campaign) string {
 	switch c.Status {
 	case "draft":
 		return "draft"
@@ -95,12 +100,12 @@ func (s *Service) refresh(w http.ResponseWriter, r *http.Request) {
 	defer release()
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
-	var campaign brevo.Campaign
+	var campaign sendy.Campaign
 	var err error
 	if d.CampaignID == 0 && d.Operation != "" {
 		campaign, err = s.mail.FindCampaign(ctx, campaignName(d.ID))
 		if err == nil && campaign.ID == 0 {
-			httpx.WriteJSON(w, 409, httpx.Problem{Detail: "Campaign creation is unconfirmed. Review it in Brevo before trying another send."})
+			httpx.WriteJSON(w, 409, httpx.Problem{Detail: "Campaign creation is unconfirmed. Review it in the newsletter dashboard before trying another send."})
 			return
 		}
 		d.CampaignID = campaign.ID
@@ -116,13 +121,13 @@ func (s *Service) refresh(w http.ResponseWriter, r *http.Request) {
 	}
 	state := campaignState(campaign)
 	operation := ""
-	message := ""
+	message := campaign.LastError
 	if state == "checking" {
 		operation = d.Operation
-		message = "Delivery status needs review in Brevo."
+		message = "Delivery status needs review."
 	}
 	if state == "draft" && (d.Operation == "send" || d.Operation == "schedule") {
-		message = "Brevo has not confirmed this send. Review its campaign before trying again."
+		message = "The send is unconfirmed. Check delivery status before trying again."
 		state = "checking"
 		operation = d.Operation
 	}
@@ -181,13 +186,13 @@ func (s *Service) campaignAction(w http.ResponseWriter, r *http.Request) {
 		}
 		scheduled = &when
 	}
-	html, err := brevo.RenderNewsletter(d.Subject, d.Markdown, s.cfg.SiteURL)
+	html, err := sendy.RenderNewsletter(d.Subject, d.Markdown, s.cfg.SiteURL)
 	if err != nil {
 		httpx.BadRequest(w, err.Error(), nil)
 		return
 	}
 	ids, ready := s.listIDs()
-	if !ready || s.cfg.BrevoSenderEmail == "" {
+	if !ready || s.cfg.SendySenderEmail == "" {
 		httpx.Unavailable(w, "Newsletter delivery is not ready yet.", 60)
 		return
 	}
@@ -200,12 +205,12 @@ func (s *Service) campaignAction(w http.ResponseWriter, r *http.Request) {
 	fail := func(err error, operation string) {
 		// An HTTP 4xx is a definitive refusal; transport/5xx outcomes need
 		// reconciliation, never a blind automatic retry of a broadcast.
-		var apiError *brevo.APIError
+		var apiError *sendy.APIError
 		state, op, message := "checking", operation, "The result is unconfirmed. Check delivery status before continuing."
 		if errors.As(err, &apiError) && apiError.Status >= 400 && apiError.Status < 500 {
-			state, op, message = "error", "", "Brevo declined this request. Check the campaign, sender and account limits, then try again."
+			state, op, message = "error", "", "Sendy declined this request. Check the campaign, sender and account limits, then try again."
 			if apiError.Status == 402 {
-				message = "Brevo reports insufficient sending credits. Check your account before retrying."
+				message = "Sendy reports insufficient sending credits. Check your account before retrying."
 			}
 		}
 		if e := record(conn, &d, state, op, message); e != nil {
@@ -215,7 +220,7 @@ func (s *Service) campaignAction(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, 200, d)
 	}
 	if d.CampaignID == 0 {
-		id, e := s.mail.CreateCampaign(ctx, campaignName(d.ID), d.Subject, html, brevo.Address{Name: s.cfg.BrevoSenderName, Email: s.cfg.BrevoSenderEmail}, ids.ListID)
+		id, e := s.mail.CreateCampaign(ctx, campaignName(d.ID), d.Subject, html, sendy.Address{Name: s.cfg.SendySenderName, Email: s.cfg.SendySenderEmail}, ids.ListID)
 		if e != nil {
 			fail(e, "prepare")
 			return
@@ -236,14 +241,14 @@ func (s *Service) campaignAction(w http.ResponseWriter, r *http.Request) {
 			if current.Name != campaignName(d.ID) {
 				state = "checking"
 			}
-			if err = record(conn, &d, state, "review", "Delivery status changed. Check the campaign in Brevo."); err != nil {
+			if err = record(conn, &d, state, "review", "Delivery status changed. Review the newsletter delivery status."); err != nil {
 				draftFailure(w, err)
 				return
 			}
 			httpx.WriteJSON(w, 200, d)
 			return
 		}
-		payload := map[string]any{"subject": d.Subject, "htmlContent": html, "sender": brevo.Address{Name: s.cfg.BrevoSenderName, Email: s.cfg.BrevoSenderEmail}, "replyTo": s.cfg.BrevoSenderEmail, "recipients": map[string]any{"listIds": []int64{ids.ListID}}}
+		payload := map[string]any{"subject": d.Subject, "htmlContent": html, "sender": sendy.Address{Name: s.cfg.SendySenderName, Email: s.cfg.SendySenderEmail}, "replyTo": s.cfg.SendySenderEmail, "recipients": map[string]any{"listIds": []int64{ids.ListID}}}
 		if e = s.mail.UpdateCampaign(ctx, d.CampaignID, payload); e != nil {
 			fail(e, "prepare")
 			return

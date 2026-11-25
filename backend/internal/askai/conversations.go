@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/daveclinton/portfolio/backend/internal/brevo"
 	"github.com/daveclinton/portfolio/backend/internal/httpx"
+	"github.com/daveclinton/portfolio/backend/internal/sendy"
 )
 
 const consentVersion = "2026-09-22"
@@ -197,23 +197,23 @@ func (s *Service) sendAlert(ctx context.Context, e turnLog) error {
 	// The full, consented conversation remains in its existing record. Only a
 	// short preview belongs in the notification, not the generated view transcript.
 	summary, _, _ := strings.Cut(e.Answer, "\n\n")
-	return s.sendMail(ctx, "Ask AI · "+title, brevo.Note{
+	return s.sendMail(ctx, "Ask AI · "+title, sendy.Note{
 		Title: title, SiteURL: s.cfg.SiteURL,
-		Sections: []brevo.NoteSection{
+		Sections: []sendy.NoteSection{
 			{Label: "They asked", Text: excerpt(e.Question, 320)},
 			{Label: "The short answer", Text: excerpt(summary, 400)},
 		},
 	}, e.ConversationID)
 }
 
-func (s *Service) sendMail(ctx context.Context, subject string, note brevo.Note, key string) error {
-	html, text, err := brevo.RenderNote(note)
+func (s *Service) sendMail(ctx context.Context, subject string, note sendy.Note, key string) error {
+	html, text, err := sendy.RenderNote(note)
 	if err != nil {
 		return err
 	}
-	return s.mail.Send(ctx, brevo.Email{
-		Sender:  brevo.Address{Name: s.cfg.BrevoSenderName, Email: s.cfg.BrevoSenderEmail},
-		To:      []brevo.Address{{Name: "David Clinton", Email: s.cfg.BrevoAlertTo}},
+	return s.mail.Send(ctx, sendy.Email{
+		Sender:  sendy.Address{Name: s.cfg.SendySenderName, Email: s.cfg.SendySenderEmail},
+		To:      []sendy.Address{{Name: "David Clinton", Email: s.cfg.SendyAlertTo}},
 		Subject: subject, HTML: html, Text: text, IdempotencyKey: key,
 	})
 }

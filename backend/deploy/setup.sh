@@ -32,7 +32,7 @@ if [[ ! -f .env ]]; then
 	sed -i -E "s/^APP_ENV=.*/APP_ENV=production/" .env
 	chmod 600 .env
 	echo "No .env found, so created one with a generated POSTGRES_PASSWORD. Fill in OPENAI_API_KEY,"
-	echo "RATE_LIMIT_SECRET, ALLOWED_ORIGINS and BREVO_*, then re-run this script."
+	echo "RATE_LIMIT_SECRET, ALLOWED_ORIGINS and SENDY_*, then re-run this script."
 	exit 1
 fi
 if grep -qE '^POSTGRES_PASSWORD=(change-me-locally)?$' .env; then

@@ -14,23 +14,23 @@ import (
 	"testing"
 	"time"
 
-	"github.com/daveclinton/portfolio/backend/internal/brevo"
 	"github.com/daveclinton/portfolio/backend/internal/config"
 	"github.com/daveclinton/portfolio/backend/internal/httpx"
+	"github.com/daveclinton/portfolio/backend/internal/sendy"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/oauth2"
 )
 
 type fakeCampaigns struct {
-	campaign                       brevo.Campaign
+	campaign                       sendy.Campaign
 	creates, tests, sends, updates int
 	body, testEmail                string
 	createTimeout, sendTimeout     bool
 	sendError                      error
 }
 
-func (p *fakeCampaigns) CreateCampaign(_ context.Context, name, subject, body string, sender brevo.Address, list int64) (int64, error) {
+func (p *fakeCampaigns) CreateCampaign(_ context.Context, name, subject, body string, sender sendy.Address, list int64) (int64, error) {
 	p.creates++
 	p.campaign.ID = 41
 	p.campaign.Name = name
@@ -54,10 +54,10 @@ func (p *fakeCampaigns) UpdateCampaign(_ context.Context, id int64, payload map[
 	}
 	return nil
 }
-func (p *fakeCampaigns) GetCampaign(context.Context, int64) (brevo.Campaign, error) {
+func (p *fakeCampaigns) GetCampaign(context.Context, int64) (sendy.Campaign, error) {
 	return p.campaign, nil
 }
-func (p *fakeCampaigns) FindCampaign(context.Context, string) (brevo.Campaign, error) {
+func (p *fakeCampaigns) FindCampaign(context.Context, string) (sendy.Campaign, error) {
 	return p.campaign, nil
 }
 func (p *fakeCampaigns) SendTestCampaign(_ context.Context, _ int64, email string) error {
@@ -125,7 +125,7 @@ func newFixture(t *testing.T) *fixture {
 		}
 		admin.Close()
 	})
-	s := New(config.Config{NewsletterAdminEnabled: true, NewsletterGitHubOwnerID: 42, SiteURL: "https://portfolio.test", RateLimitSecret: strings.Repeat("x", 40), BrevoAPIKey: "fake", BrevoSenderName: "David", BrevoSenderEmail: "david@example.com", NewsletterTestEmail: "owner@example.com"}, pool, slog.New(slog.NewTextHandler(io.Discard, nil)), func() (brevo.NewsletterIDs, bool) { return brevo.NewsletterIDs{ListID: 2, TemplateID: 3}, true })
+	s := New(config.Config{NewsletterAdminEnabled: true, NewsletterGitHubOwnerID: 42, SiteURL: "https://portfolio.test", RateLimitSecret: strings.Repeat("x", 40), SendyAPIKey: "fake", SendySenderName: "David", SendySenderEmail: "david@example.com", NewsletterTestEmail: "owner@example.com"}, pool, slog.New(slog.NewTextHandler(io.Discard, nil)), func() (sendy.NewsletterIDs, bool) { return sendy.NewsletterIDs{ListID: 2}, true })
 	if err = s.Init(ctx); err != nil {
 		t.Fatal(err)
 	}
@@ -323,7 +323,7 @@ func TestDraftPersistenceRevisionConflictAndCanonicalPreview(t *testing.T) {
 		HTML string `json:"html"`
 	}
 	_ = json.Unmarshal(w.Body.Bytes(), &preview)
-	expected, err := brevo.RenderNewsletter(d.Subject, d.Markdown, f.s.cfg.SiteURL)
+	expected, err := sendy.RenderNewsletter(d.Subject, d.Markdown, f.s.cfg.SiteURL)
 	if err != nil || w.Code != 200 || preview.HTML != expected {
 		t.Fatal("preview differs from canonical email")
 	}
@@ -448,10 +448,28 @@ func TestLostCreationResponseRecoversExistingProviderDraft(t *testing.T) {
 
 func TestProviderRefusalDoesNotClaimSuccessfulDelivery(t *testing.T) {
 	f := newFixture(t)
-	f.mail.sendError = &brevo.APIError{Status: 402, Code: "not_enough_credits"}
+	f.mail.sendError = &sendy.APIError{Status: 402, Code: "not_enough_credits"}
 	d := f.draft(t)
 	d = decodeDraft(t, f.action(t, d, "send", nil))
 	if d.State != "error" || !strings.Contains(d.LastError, "credits") {
 		t.Fatal("provider refusal hidden", d)
+	}
+}
+
+func TestLegacyProviderCampaignIDCannotOperateOnLocalCampaign(t *testing.T) {
+	f := newFixture(t)
+	d := f.draft(t)
+	_, err := f.s.db.Exec(context.Background(), `UPDATE newsletter_studio_drafts SET campaign_id=41,delivery_provider='legacy' WHERE id=$1::text::uuid`, d.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, action := range []string{"send", "test", "refresh", "schedule", "cancel", "save"} {
+		w := f.action(t, d, action, map[string]any{"subject": d.Subject, "markdown": d.Markdown})
+		if w.Code != 409 || !strings.Contains(w.Body.String(), "previous email provider") {
+			t.Fatal("legacy campaign reached local delivery", action, w.Code, w.Body)
+		}
+	}
+	if f.mail.creates+f.mail.tests+f.mail.sends+f.mail.updates != 0 {
+		t.Fatal("legacy campaign touched provider")
 	}
 }
