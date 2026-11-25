@@ -41,13 +41,15 @@ const { NewsletterSignup, NewsletterConfirmation } = require("../components/port
 const { newsletterAvailable, subscribeToNewsletter } = require("../lib/newsletter.ts")
 const { TONE_COLORS, toneScript } = require("../lib/tone.ts")
 const { NewsletterStudio } = require("../components/portfolio/newsletter-studio.tsx")
-const { studioSession, studioSave, studioAction, studioPreview, nairobiSchedule } = require("../lib/newsletter-studio.ts")
+const { studioSession, studioSave, studioAction, studioPreview, nairobiSchedule, newsletterFromPost } = require("../lib/newsletter-studio.ts")
 const { Signals } = require("../components/portfolio/signals.tsx")
 const { ArticleSections } = require("../components/portfolio/article-sections.tsx")
-const { default: LegacyStudioPage } = require("../app/(standard)/admin/newsletters/page.tsx")
+const { default: LegacyStudioPage } = require("../app/(desk)/admin/writing/page.tsx")
+const { AdminShell } = require("../components/portfolio/admin-shell.tsx")
+const { SelectField } = require("../components/ui/select.tsx")
 
-test("the old desk link redirects to Writing while preserving a failed login", async () => {
-  for (const [query, target] of [[{}, "/admin/writing"], [{ login: "failed" }, "/admin/writing?login=failed"]]) {
+test("the writing shortcut redirects to Posts while preserving a failed login", async () => {
+  for (const [query, target] of [[{}, "/admin/posts"], [{ login: "failed" }, "/admin/posts?login=failed"]]) {
     await assert.rejects(() => LegacyStudioPage({ searchParams: Promise.resolve(query) }), (error) => error.digest?.includes(target))
   }
 })
@@ -69,21 +71,37 @@ test("admin boot uses the neutral theme while public pages retain the saved sign
 })
 
 test("leaving the writing desk restores the public palette without overwriting its preference", () => {
-  const source = ts.transpileModule(readFileSync(new URL("../components/portfolio/site-nav.tsx", import.meta.url), "utf8"), { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS } }).outputText
-  const attributes = new Map([["data-tone", "2"]]), effects = [], exports = {}
-  const modules = {
-    react: { useLayoutEffect: (effect) => effects.push(effect) },
-    "react/jsx-runtime": { jsx: () => null, jsxs: () => null },
-    "next/link": { default: "a" }, "next/navigation": { usePathname: () => "/admin/writing" },
-    "@/lib/portfolio-data": { askAi: { href: "/ask-ai" }, site: { name: "David" } },
-    "@/lib/tone": { TONE_STORAGE_KEY: "site-tone", toneOf: (index) => String(index % TONE_COLORS.length) },
-  }
-  vm.runInNewContext(source, { exports, require: (name) => modules[name], document: { documentElement: { getAttribute: (key) => attributes.get(key), removeAttribute: (key) => attributes.delete(key), setAttribute: (key, value) => attributes.set(key, value) } }, localStorage: { getItem: () => "4" } })
-  exports.SiteNav()
-  const cleanup = effects[0]()
+  const source = ts.transpileModule(readFileSync(new URL("../lib/tone.ts", import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText
+  const attributes = new Map([["data-tone", "2"]]), exports = {}
+  vm.runInNewContext(source, { exports, require: () => require("../lib/mark.ts"), document: { documentElement: { getAttribute: (key) => attributes.get(key), removeAttribute: (key) => attributes.delete(key), setAttribute: (key, value) => attributes.set(key, value) } }, localStorage: { getItem: () => "4" } })
+  const cleanup = exports.enterAdminTheme()
   assert(!attributes.has("data-tone"))
   cleanup()
   assert.equal(attributes.get("data-tone"), "4")
+})
+
+test("the admin shell has content navigation and a closed profile menu without public navigation", () => {
+  const html = renderToStaticMarkup(React.createElement(AdminShell, { section: "posts", session: { authenticated: true, login: "daveclinton" }, loading: false, busy: false, onNavigate: async () => {}, onLogout() {} }, "Post content"))
+  assert(html.includes('href="/admin/posts"'))
+  assert(html.includes('href="/admin/newsletters"'))
+  assert(html.includes('aria-label="Open profile menu"'))
+  assert(html.includes('class="admin-sidebar-footer"'))
+  assert(!html.includes("Sign out"), "account actions stay inside the closed profile menu")
+  assert(!html.includes("Experience"))
+  assert(!html.includes("Ask AI"))
+  assert(!html.includes("Blog publishing comes next"))
+})
+
+test("shared select fields use an accessible custom trigger rather than a native select", () => {
+  const html = renderToStaticMarkup(React.createElement(SelectField, { ariaLabel: "Text style", value: "paragraph", options: [{ value: "paragraph", label: "Paragraph" }], onValueChange() {} }))
+  assert(html.includes('role="combobox"'))
+  assert(html.includes("Paragraph"))
+  assert(!html.includes("<select"))
+})
+
+test("published-post newsletter content uses the real post title, summary, and canonical link", () => {
+  const seed = newsletterFromPost({ slug: "published-article", title: "A published article", description: "The existing summary.", date: "2026-11-25" }, "https://example.com")
+  assert.deepEqual(seed, { subject: "A published article", markdown: "The existing summary.\n\n[Read the post](<https://example.com/blog/published-article>)" })
 })
 
 
@@ -278,7 +296,8 @@ const studioDraft = { id: "a5cd8282-68f1-4b4a-9c19-000000000001", subject: "A no
 
 test("newsletter studio mounts no private data or send controls before owner verification", () => {
   const html = renderToStaticMarkup(React.createElement(NewsletterStudio))
-  assert(html.includes("Loading your posts"))
+  assert(html.includes('aria-label="Loading posts"'))
+  assert(html.includes('data-slot="skeleton"'))
   assert(!html.includes("<textarea"))
   assert(!html.includes("Confirm send"))
   assert(!html.includes("A note"))

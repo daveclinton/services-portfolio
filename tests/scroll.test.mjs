@@ -68,6 +68,15 @@ test("scrolling accounts for the keyboard, sticky navigation, and fixed reader f
   assert.deepEqual(field.calls, [{ block: "nearest", inline: "nearest", behavior: "smooth" }])
 })
 
+test("admin fields stay clear of the private workspace header", (t) => {
+  const p = platform(t)
+  const header = new p.Element(0, 64)
+  header.position = "sticky"; header.top = "0px"
+  p.headers.set(".admin-header", header)
+  revealElement(new p.Element(40, 80))
+  assert.equal(p.root.style.scrollPaddingTop, "64px")
+})
+
 test("visible fields stay still, while clipped fields reveal in their native scroller", (t) => {
   const p = platform(t)
   const field = new p.Element(200, 240)

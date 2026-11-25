@@ -5,8 +5,10 @@ import { EditorContent, useEditor, useEditorState } from "@tiptap/react"
 import { BubbleMenu } from "@tiptap/react/menus"
 import DragHandle from "@tiptap/extension-drag-handle-react"
 import { Popover } from "@base-ui/react/popover"
-import { Bold, Italic, Code, Link, ImagePlus, Plus, GripVertical, Undo2, Redo2, Unlink, Trash2 } from "lucide-react"
+import { Bold, Italic, Code, Link, ImagePlus, Plus, GripVertical, Undo2, Redo2, Unlink, Trash2, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { SelectField } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Markdown } from "@/components/prompt-kit/markdown"
 import { applyWritingBlock, writingBlocks, newsletterEditorExtensions, newsletterRichTextIssue } from "@/lib/newsletter-editor"
@@ -162,13 +164,10 @@ function RichTextEditor({ value, disabled, onChange }: Props) {
     <TooltipProvider delay={300}>
       <div className="flex flex-wrap items-center gap-1 border-y border-border py-2.5" role="group" aria-label="Text formatting">
         <label htmlFor={`${id}-style`} className="sr-only">Text style</label>
-        <select id={`${id}-style`} className="h-8 max-w-full rounded-lg bg-background px-2.5 text-caption text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/20" disabled={!editor || disabled} value={state?.heading ?? "paragraph"} onChange={(event) => {
-          if (event.target.value === "paragraph") editor?.chain().focus().setParagraph().run()
-          else editor?.chain().focus().setHeading({ level: Number(event.target.value) as 1 | 2 | 3 | 4 | 5 | 6 }).run()
-        }}>
-          <option value="paragraph">Paragraph</option>
-          {[1, 2, 3, 4, 5, 6].map((level) => <option key={level} value={level}>Heading {level}</option>)}
-        </select>
+        <SelectField id={`${id}-style`} ariaLabel="Text style" variant="ghost" disabled={!editor || disabled} value={state?.heading ?? "paragraph"} onValueChange={(value) => {
+          if (value === "paragraph") editor?.chain().focus().setParagraph().run()
+          else if (value) editor?.chain().focus().setHeading({ level: Number(value) as 1 | 2 | 3 | 4 | 5 | 6 }).run()
+        }} options={[{ value: "paragraph", label: "Paragraph" }, ...[1, 2, 3, 4, 5, 6].map((level) => ({ value: String(level), label: `Heading ${level}` }))]} />
         {formatButtons()}
         <Button variant={state?.link ? "secondary" : "ghost"} disabled={!editor || disabled} onClick={(event) => openInsert("link", event.currentTarget)}><Link />Link</Button>
         <Button ref={imageTrigger} variant={state?.image ? "secondary" : "ghost"} disabled={!editor || disabled} onClick={(event) => openInsert("image", event.currentTarget)}><ImagePlus />Image</Button>
@@ -184,6 +183,7 @@ function RichTextEditor({ value, disabled, onChange }: Props) {
           </Popover.Popup></Popover.Positioner></Popover.Portal>
         </Popover.Root>
         {state?.link ? <Button variant="ghost" aria-label="Remove link" disabled={disabled} onClick={() => editor?.chain().focus().extendMarkRange("link").unsetLink().run()}><Unlink />Remove link</Button> : null}
+        <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" className="ml-auto" aria-label="Editor help" />}><Info /></TooltipTrigger><TooltipContent>Type / to insert blocks. Select text to format it. Drag the handle to reorder.</TooltipContent></Tooltip>
       </div>
       {editor ? <>
         <BubbleMenu editor={editor} pluginKey="writing-format-menu" className="writing-floating-toolbar" options={{ placement: "top" }} shouldShow={({ editor, state, view }) => editor.isEditable && (view.hasFocus() || !!document.activeElement?.closest(".writing-floating-toolbar")) && !state.selection.empty && !editor.isActive("image")}>
@@ -196,8 +196,7 @@ function RichTextEditor({ value, disabled, onChange }: Props) {
         </BubbleMenu>
       </> : null}
     </TooltipProvider>
-    <p className="py-3 text-caption text-muted-foreground">Type / to add a block. Select text to format it. Drag the handle to reorder.</p>
-    {!editor ? <p role="status" className="p-4 text-caption text-muted-foreground">Loading editor…</p> : null}
+    {!editor ? <div role="status" aria-label="Loading editor" className="flex min-h-96 flex-col gap-4 py-6"><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-1/2" /></div> : null}
     <EditorContent editor={editor} />
     {editor && !disabled ? <DragHandle editor={editor} className="writing-drag-handle" onNodeChange={({ pos }) => setBlockPosition(pos)}>
       <button type="button" className="flex size-8 cursor-grab items-center justify-center rounded-lg text-muted-foreground hover:bg-muted active:cursor-grabbing" aria-label="Drag to move this block, or select it to cut and paste" onClick={() => { if (blockPosition >= 0) editor.commands.setNodeSelection(blockPosition) }}><GripVertical className="size-4" /></button>
@@ -215,11 +214,11 @@ function RichTextEditor({ value, disabled, onChange }: Props) {
         {step === "url" ? <>
           <label htmlFor={`${id}-url`} className="text-body">{insert === "image" ? "HTTPS image address" : "Link address"}</label>
           <input id={`${id}-url`} type="text" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} className="chat-input min-h-8 w-full min-w-0 rounded-lg border border-input bg-background p-2.5 text-body outline-none focus-visible:ring-3 focus-visible:ring-ring/20" required value={url} onChange={(event) => { setURL(event.target.value); setError("") }} aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined} />
-          {insert === "image" ? <p className="text-caption text-muted-foreground">Use an image already hosted online. Uploading from your device is not available yet.</p> : null}
+          {insert === "image" ? <Tooltip><TooltipTrigger render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Supported image sources" />}><Info /></TooltipTrigger><TooltipContent>Use a hosted HTTPS image. Device uploads need a media storage connection.</TooltipContent></Tooltip> : null}
         </> : step === "alt" ? <>
           <label htmlFor={`${id}-alt`} className="text-body">What does the image show?</label>
           <textarea id={`${id}-alt`} rows={3} className="chat-input w-full rounded-lg border border-input bg-background p-2.5 text-body outline-none focus-visible:ring-3 focus-visible:ring-ring/20" value={alt} onChange={(event) => setAlt(event.target.value)} />
-          <p className="text-caption text-muted-foreground">This description helps readers who cannot see the image. Leave it empty if the image is decorative.</p>
+          <Tooltip><TooltipTrigger render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Image description help" />}><Info /></TooltipTrigger><TooltipContent>Describe the image for readers who cannot see it. Leave this empty for a decorative image.</TooltipContent></Tooltip>
         </> : <>
           {/* Remote editor media has no known dimensions; render it as the email does. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}

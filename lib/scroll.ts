@@ -26,7 +26,7 @@ export function updateViewportMetrics(element?: HTMLElement) {
   let end = top + height
   const modal = element?.closest("dialog[open]")
   if (!modal) {
-    const header = document.querySelector<HTMLElement>(".site-nav")
+    const header = document.querySelector<HTMLElement>(".site-nav") ?? document.querySelector<HTMLElement>(".admin-header")
     if (header) {
       const rect = header.getBoundingClientRect()
       const style = getComputedStyle(header)
