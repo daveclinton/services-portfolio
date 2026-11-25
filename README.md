@@ -173,15 +173,14 @@ See [answer evaluation guidance](backend/evals/README.md). Live cases are target
 
 Deploy Next.js to Vercel or a compatible Node host, setting `NEXT_PUBLIC_API_URL` to your API origin. Deploy the Go API and PostgreSQL with Docker Compose behind nginx/TLS. Do not point your fork's frontend at the example deployment's API.
 
-The [VPS setup guide](backend/README.md#deploy-docker--nginx) covers initial DNS, credentials, ports and TLS. After merging an update:
+The [VPS setup guide](backend/README.md#deploy-docker--nginx) covers initial DNS, credentials, ports and TLS. Set up [automatic GitHub deployment](backend/README.md#automatic-deploys-from-github) once to deploy the API after every push to `main` passes its checks. The workflow uses a restricted SSH key, waits for container health, checks public HTTPS health and records recent API logs.
+
+For a manual update:
 
 ```bash
 cd /opt/services-portfolio
 git pull --ff-only origin main
-cd backend
-docker compose up -d --build --no-deps api
-curl -fsS https://your-api.example/healthz
-docker compose logs --since 5m -f api
+bash backend/deploy/update.sh
 ```
 
 Then validate a real assistant request. A healthy database does not establish that credits or API credentials are valid.
