@@ -828,6 +828,28 @@ html:has(.numbered) body {
   padding-top: 1.5rem;
 }
 
+/* Reuse article typography for the writing canvas and documented Tiptap states:
+ * https://tiptap.dev/docs/editor/extensions/functionality/placeholder. */
+.newsletter-editor h1 {
+  @apply text-name font-semibold;
+}
+
+.newsletter-editor :is(h4, h5, h6) {
+  @apply text-title font-semibold;
+}
+
+.newsletter-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--muted-foreground);
+}
+
+.newsletter-editor .ProseMirror-selectednode {
+  @apply rounded-lg outline-2 outline-ring;
+}
+
 .blog-prose > * + * {
   margin-top: 1.25rem;
 }
