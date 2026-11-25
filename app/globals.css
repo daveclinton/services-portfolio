@@ -315,12 +315,31 @@ dialog[open] {
   @apply flex cursor-default items-center gap-2 rounded-md px-2.5 py-2 text-caption outline-none data-highlighted:bg-muted data-disabled:opacity-50;
 }
 
+.admin-table-frame {
+  @apply flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border;
+}
+
+.admin-table-scroll {
+  @apply min-h-0 flex-1 overflow-auto overscroll-contain;
+}
+
+.admin-table-footer {
+  @apply flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2 text-caption text-muted-foreground;
+}
+
+.admin-dialog {
+  @apply fixed top-1/2 left-1/2 z-50 flex w-full -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-lg border border-border bg-popover p-6 text-popover-foreground outline-none;
+  font-family: var(--font-display), system-ui, sans-serif;
+  max-width: min(28rem, calc(100vw - 2rem));
+}
+
+/* Separate borders keep the sticky header's rule attached while rows scroll. */
 .admin-table {
-  @apply w-full border-collapse text-left text-caption;
+  @apply w-full border-separate border-spacing-0 text-left text-caption;
 }
 
 .admin-table th {
-  @apply border-b border-border px-4 py-3 font-medium text-muted-foreground;
+  @apply sticky top-0 z-10 bg-background border-b border-border px-4 py-3 font-medium text-muted-foreground;
 }
 
 .admin-table td {

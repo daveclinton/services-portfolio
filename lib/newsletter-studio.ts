@@ -48,8 +48,36 @@ function session(result: Record<string, unknown>): StudioSession {
   if (typeof result.configured !== "boolean" || typeof result.authenticated !== "boolean" || (result.authenticated && (typeof result.csrf !== "string" || !/^[0-9a-f]{64}$/.test(result.csrf) || typeof result.login !== "string"))) throw new Error("Couldn’t verify your sign-in. Reload the dashboard.")
   return result as StudioSession
 }
-export async function studioBootstrap(section: "posts" | "newsletters") {
-  const result = await request(`bootstrap?section=${section}`)
+export type AdminDesk = { session: StudioSession; drafts: NewsletterDraft[]; posts: PublishedStudioPost[] }
+type DeskSection = "posts" | "newsletters"
+declare global { interface Window { __deskBoot?: { section: DeskSection; response: Promise<Response | null> } } }
+
+// Lists live in memory only: never in storage, and cleared on sign-out.
+const desks = new Map<DeskSection, AdminDesk>()
+const deskRequests = new Map<DeskSection, Promise<AdminDesk>>()
+const warmed = new Map<string, { version: string; at: number; value: Promise<NewsletterDraft> }>()
+let generation = 0
+
+export const studioCachedDesk = (section: DeskSection) => desks.get(section)
+export function studioUpdateDesk(section: DeskSection, drafts: NewsletterDraft[]) {
+  const desk = desks.get(section)
+  generation++
+  deskRequests.clear()
+  desks.clear()
+  if (desk) desks.set(section, { ...desk, drafts })
+}
+export function studioForget() { generation++; desks.clear(); deskRequests.clear(); warmed.clear() }
+
+async function earlyBootstrap(section: DeskSection) {
+  if (typeof window === "undefined" || window.__deskBoot?.section !== section) return null
+  const early = window.__deskBoot
+  delete window.__deskBoot
+  const response = await early.response
+  return response?.ok ? response.json().catch(() => null) as Promise<Record<string, unknown> | null> : null
+}
+async function loadDesk(section: DeskSection): Promise<AdminDesk> {
+  const started = generation
+  const result = await earlyBootstrap(section) ?? await request(`bootstrap?section=${section}`)
   if (!result.session || typeof result.session !== "object" || !Array.isArray(result.drafts) || !Array.isArray(result.posts)) throw new Error("Couldn’t load the writing desk.")
   const posts = result.posts.map((value): PublishedStudioPost => {
     if (!value || typeof value !== "object") throw new Error("Couldn’t read published posts.")
@@ -57,10 +85,46 @@ export async function studioBootstrap(section: "posts" | "newsletters") {
     if (typeof p.slug !== "string" || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(p.slug) || typeof p.title !== "string" || typeof p.description !== "string" || typeof p.date !== "string") throw new Error("Couldn’t read published posts.")
     return p as PublishedStudioPost
   })
-  return { session: session(result.session as Record<string, unknown>), drafts: result.drafts.map(draft), posts }
+  const desk = { session: session(result.session as Record<string, unknown>), drafts: result.drafts.map(draft), posts }
+  // A response that began before a change or sign-out must not refill the cache.
+  if (started === generation) { if (desk.session.authenticated) desks.set(section, desk); else desks.delete(section) }
+  return desk
+}
+export function studioBootstrap(section: DeskSection): Promise<AdminDesk> {
+  const active = deskRequests.get(section)
+  if (active) return active
+  const pending = loadDesk(section).finally(() => { if (deskRequests.get(section) === pending) deskRequests.delete(section) })
+  deskRequests.set(section, pending)
+  return pending
+}
+
+const version = (d: NewsletterDraft) => `${d.revision}/${d.updated_at}/${d.state}`
+export function studioWarm(d: NewsletterDraft) {
+  const entry = warmed.get(d.id)
+  if (entry && entry.version === version(d) && Date.now() - entry.at < 30_000) return
+  const value = studioDraft(d.id)
+  value.catch(() => warmed.delete(d.id))
+  warmed.set(d.id, { version: version(d), at: Date.now(), value })
+}
+export async function studioOpen(d: NewsletterDraft): Promise<NewsletterDraft> {
+  const entry = warmed.get(d.id)
+  warmed.delete(d.id)
+  if (entry && entry.version === version(d) && Date.now() - entry.at < 30_000) return entry.value.catch(() => studioDraft(d.id))
+  return studioDraft(d.id)
+}
+export type StudioRemoval = "unpublish" | "discard" | "delete"
+export async function studioRemove(csrf: string, current: NewsletterDraft, action: StudioRemoval): Promise<NewsletterDraft | null> {
+  const result = await request(`drafts/${current.id}/${action}`, csrf, { revision: current.revision })
+  warmed.delete(current.id)
+  if (action === "delete") {
+    if (result.deleted !== current.id) throw new Error("Deletion was not confirmed. Reload to check this document.")
+    return null
+  }
+  const updated = draft(result)
+  if (updated.id !== current.id || (action === "unpublish" ? updated.published_revision !== 0 : updated.published_revision !== updated.revision)) throw new Error("The change was not confirmed. Reload to check this post.")
+  return updated
 }
 export async function studioDraft(id: string): Promise<NewsletterDraft> { return draft(await request(`drafts/${id}`)) }
-export async function studioEditPost(slug: string): Promise<NewsletterDraft> { return draft(await request(`posts/${encodeURIComponent(slug)}/draft`)) }
 export async function studioFromPost(csrf: string, slug: string): Promise<NewsletterDraft> { return draft(await request("from-post", csrf, { slug })) }
 export async function studioPublish(csrf: string, current: NewsletterDraft, slug: string, description: string): Promise<NewsletterDraft> {
   const result=draft(await request(`drafts/${current.id}/publish`,csrf,{revision:current.revision,slug,description}))
@@ -106,7 +170,7 @@ export async function studioMeta(): Promise<StudioMeta> {
 export async function studioAction(csrf: string, current: NewsletterDraft, action: "test" | "send" | "schedule" | "cancel" | "refresh", scheduledAt?: string): Promise<NewsletterDraft> {
   return draft(await request(`drafts/${current.id}/${action}`, csrf, { revision: current.revision, ...(scheduledAt ? { scheduled_at: scheduledAt } : {}) }))
 }
-export async function studioLogout(csrf: string): Promise<void> { await request("logout", csrf, {}) }
+export async function studioLogout(csrf: string): Promise<void> { await request("logout", csrf, {}); studioForget() }
 export function nairobiSchedule(value: string): string {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) throw new Error("Choose a date and time in Nairobi time.")
   const date = new Date(`${value}:00+03:00`)

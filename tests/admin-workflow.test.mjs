@@ -10,7 +10,7 @@ const published = { slug: "a-published-post", title: "An existing article", desc
 const baseDraft = { id: "a5cd8282-68f1-4b4a-9c19-000000000001", subject: published.title, markdown: "", revision: 1, state: "draft", campaign_id: 0, scheduled_at: null, tested_revision: 0, last_error: "", updated_at: "2026-11-25T09:00:00Z" }
 const settle = () => new Promise((resolve) => setImmediate(resolve))
 
-function desk({ failSave = false, section = "newsletters" } = {}) {
+function desk({ failSave = false, section = "newsletters", drafts = [], cached, failRemove = false } = {}) {
   const slots = [], effects = [], calls = [], host = new Map()
   let cursor = 0, pending = [], tree, nodes = []
   const same = (a, b) => a && b && a.length === b.length && a.every((item, index) => item === b[index])
@@ -22,7 +22,9 @@ function desk({ failSave = false, section = "newsletters" } = {}) {
   }
   const api = {
     STUDIO_SUBJECT_LIMIT: 180, STUDIO_BODY_LIMIT: 40_000,
-    studioBootstrap: async () => ({session:{ authenticated: true, configured: true, csrf: "owner-csrf", login: "owner" },drafts:[],posts:[published]}),
+    studioBootstrap: async () => ({session:{ authenticated: true, configured: true, csrf: "owner-csrf", login: "owner" },drafts,posts:[published]}),
+    studioCachedDesk: () => cached, studioUpdateDesk: (_section, list) => { cached = undefined; calls.push(["list", list.map((item) => item.id)]) }, studioWarm() {}, studioOpen: async (row) => row,
+    studioRemove: async (_csrf, row, action) => { calls.push([action, row.id, row.revision]); if (failRemove) throw new Error("Removal failed"); if (action === "delete") { drafts = drafts.filter((item) => item.id !== row.id); return null } return { ...row, published_revision: action === "unpublish" ? 0 : row.revision } },
     studioFromPost: async (_csrf, slug) => {calls.push(["from-post",slug]);return {...baseDraft,markdown:`${published.description}\n\n[Read the post](<https://example.com/blog/${slug}>)`}},
     studioCreate: async (_csrf, subject, kind) => { calls.push(["create", subject, kind]); return { ...baseDraft, subject,kind } },
     studioSave: async (_csrf, draft, subject, markdown) => { calls.push(["save", subject, markdown]); if (failSave) throw new Error("Save failed"); return { ...draft, subject, markdown, revision: draft.revision + 1 } },
@@ -41,7 +43,7 @@ function desk({ failSave = false, section = "newsletters" } = {}) {
     "@/components/ui/button": { Button: "button" }, "@/components/ui/badge": { Badge: "badge" },
     "@/components/ui/skeleton": { Skeleton: "skeleton" }, "@/components/ui/select": { SelectField: "select-field" },
     "@/components/ui/tooltip": { Tooltip: "tooltip", TooltipContent: "tooltip-content", TooltipTrigger: "tooltip-trigger" },
-    "@/components/portfolio/admin-shell": { AdminShell: "shell" }, "@/components/portfolio/newsletter-editor": { NewsletterEditor: "editor" },
+    "@/components/portfolio/document-actions": { DocumentActions: "document-actions" }, "@/components/portfolio/admin-shell": { AdminShell: "shell" }, "@/components/portfolio/newsletter-editor": { NewsletterEditor: "editor" },
     "@/components/prompt-kit/markdown": { Markdown: "markdown" }, "@/lib/portfolio-data": { site: { url: "https://example.com" } },
     "@/lib/newsletter-studio": api, "@/lib/scroll": { focusElement() {} },
   }
@@ -76,6 +78,9 @@ function desk({ failSave = false, section = "newsletters" } = {}) {
     editor: () => nodes.find((node) => node.type === "editor"),
     input(id,value) { nodes.find((node)=>node.props.id===id).props.onChange({target:{value}});render() },
     node:(label)=>nodes.find((node)=>node.props["aria-label"]===label),
+    rows:()=>nodes.filter((node)=>node.type==="document-actions").map((node)=>node.props),
+    has:(label)=>nodes.some((node)=>node.type==="button"&&text(node.props.children)===label),
+    button,
     header:()=>tree.props.actions,
     navigate: (href) => tree.props.onNavigate(href),
     setFailSave(value) { failSave = value },
@@ -115,6 +120,44 @@ test("post preview lives in the top bar, the document has its own scroll region,
  ui.input("post-summary","A useful summary.");ui.submit();await ui.flush()
  assert(!ui.calls.some((call)=>call[0]==="publish"),"review must precede publication")
  ui.click("Publish post");await ui.flush()
- assert.deepEqual(ui.calls.at(-1),["publish",2,"an-article","A useful summary."])
+ assert.deepEqual(ui.calls.filter((call)=>call[0]==="publish").at(-1),["publish",2,"an-article","A useful summary."])
  assert(!ui.calls.some((call)=>call[0]==="send"))
+})
+
+const row = (index, extra = {}) => ({ ...baseDraft, id: `a5cd8282-68f1-4b4a-9c19-${String(index).padStart(12, "0")}`, subject: `Post ${index}`, kind: "post", slug: "", published_revision: 0, ...extra })
+
+test("posts lists drafts and published articles together, a page at a time", async () => {
+  const ui = desk({ section: "posts", drafts: Array.from({ length: 45 }, (_, index) => row(index + 1, index % 2 ? { published_revision: 1, slug: `post-${index}` } : {})) })
+  await ui.flush()
+  assert.equal(ui.rows().length, 20)
+  assert(ui.rows().some((item) => item.document.published_revision) && ui.rows().some((item) => !item.document.published_revision))
+  assert.equal(ui.node("Previous page").props.disabled, true)
+  for (let turn = 0; turn < 2; turn++) { ui.node("Next page").props.onClick(); await ui.flush() }
+  assert.equal(ui.rows().length, 5)
+  assert.equal(ui.node("Next page").props.disabled, true)
+})
+
+test("deleting acts on the chosen revision, updates the list and keeps it on failure", async () => {
+  const drafts = [row(1, { revision: 3 }), row(2)]
+  const ui = desk({ section: "posts", drafts }); await ui.flush()
+  assert.equal(await ui.rows().find((item) => item.document.revision === 3).onRemove("delete"), true); await ui.flush()
+  assert.deepEqual(ui.calls.find((call) => call[0] === "delete"), ["delete", drafts[0].id, 3])
+  assert.deepEqual(ui.rows().map((item) => item.document.id), [drafts[1].id])
+  const failing = desk({ section: "posts", drafts, failRemove: true }); await failing.flush()
+  assert.equal(await failing.rows()[0].onRemove("delete"), false); await failing.flush()
+  assert.equal(failing.rows().length, 2)
+})
+
+test("deleting from the editor returns to the list without saving the removed document", async () => {
+  const ui = desk({ section: "posts" }); await ui.flush()
+  ui.click("New post"); await ui.flush(); ui.edit("Abandoned")
+  await ui.rows()[0].onRemove("delete"); await ui.flush()
+  assert(!ui.calls.some((call) => call[0] === "save"))
+  assert(ui.has("New post"))
+})
+
+test("a remembered list is shown immediately on returning to a section", async () => {
+  const cached = { session: { authenticated: true, configured: true, csrf: "owner-csrf", login: "owner" }, drafts: [row(1)], posts: [] }
+  const ui = desk({ section: "posts", cached, drafts: [row(1), row(2)] }); await ui.flush()
+  assert.equal(ui.rows().length, 2, "the fresh response replaces the remembered list")
 })

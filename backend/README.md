@@ -217,6 +217,17 @@ can still allow an older in-flight render to finish; the short ISR interval is
 the recovery path. Failed API reads
 retain the last good ISR page instead of silently removing database articles.
 
+Posts can be unpublished (draft, URL and original date are kept), have unpublished
+edits discarded, or be deleted. Deleting records the URL in `studio_deleted_posts`
+so a restart never imports a versioned article again. `/blog/posts` lists both
+kinds in `removed`, and the site hides its bundled MDX copy. Newsletters can be
+deleted only before delivery. All three actions use the document lock, CSRF and
+the saved revision.
+
+The desk remembers lists in browser memory, preloads the other section and
+documents under the pointer, and requests its data before JavaScript loads.
+Preflights are cached for two hours, the longest Chromium allows.
+
 **Existing VPS nginx configuration needs a one-time update for uploads.**
 `deploy/update.sh` updates the API container, not nginx. Regenerate the managed
 site config using the updated setup workflow, or add an exact

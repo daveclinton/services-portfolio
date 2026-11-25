@@ -28,6 +28,13 @@ func (s *Service) importPosts(ctx context.Context) error {
 	defer tx.Rollback(ctx)
 	for _, p := range posts {
 		var id string
+		var deleted bool
+		if err = tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM studio_deleted_posts WHERE slug=$1)`, p.Slug).Scan(&deleted); err != nil {
+			return err
+		}
+		if deleted {
+			continue
+		}
 		err = tx.QueryRow(ctx, `INSERT INTO newsletter_studio_drafts(id,subject,markdown,kind,slug,description,published_revision,legacy) VALUES($1::text::uuid,$2,$3,'post',$4,$5,1,true) ON CONFLICT(slug) WHERE kind='post' AND slug<>'' DO NOTHING RETURNING id::text`, httpx.NewUUID(), p.Title, p.Markdown, p.Slug, p.Description).Scan(&id)
 		if err != nil {
 			// Only an already-imported URL is a no-op, not a failed database write.
