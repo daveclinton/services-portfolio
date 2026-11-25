@@ -17,6 +17,14 @@ const confirmationSubject = "Confirm your email · David Clinton"
 
 type NewsletterIDs struct{ ListID, TemplateID int64 }
 
+type SubscriptionStatus string
+
+const (
+	SubscriptionPending    SubscriptionStatus = "pending"
+	SubscriptionSubscribed SubscriptionStatus = "subscribed"
+	SubscriptionSuppressed SubscriptionStatus = "suppressed"
+)
+
 // Only resources with these application-owned names are created or updated.
 // No contacts are imported and no email is sent during provisioning.
 func (c *Client) EnsureNewsletter(ctx context.Context, sender Address, siteURL string) (NewsletterIDs, error) {
@@ -131,7 +139,8 @@ func (c *Client) findNamed(ctx context.Context, path, field, name string) (int64
 	return 0, errors.New("newsletter resource lookup exceeded pagination limit")
 }
 
-func (c *Client) RequestSubscription(ctx context.Context, email string, ids NewsletterIDs, redirectURL string) error {
+// Always check current membership, even when confirmation sending is on cooldown.
+func (c *Client) RequestSubscription(ctx context.Context, email string, ids NewsletterIDs, redirectURL string, allowConfirmation bool) (SubscriptionStatus, error) {
 	var contact struct {
 		ID               int64   `json:"id"`
 		EmailBlacklisted *bool   `json:"emailBlacklisted"`
@@ -142,28 +151,37 @@ func (c *Client) RequestSubscription(ctx context.Context, email string, ids News
 	var providerError *APIError
 	if err == nil {
 		if contact.ID < 1 || contact.EmailBlacklisted == nil {
-			return errors.New("brevo newsletter contact lookup returned incomplete status")
+			return "", errors.New("brevo newsletter contact lookup returned incomplete status")
 		}
 		// This application-owned list contains confirmed subscribers. Preserve
 		// opt-outs and blocklists too; signup must never reset those preferences.
-		if *contact.EmailBlacklisted || slices.Contains(contact.ListUnsubscribed, ids.ListID) || slices.Contains(contact.ListIDs, ids.ListID) {
-			return nil
+		if *contact.EmailBlacklisted || slices.Contains(contact.ListUnsubscribed, ids.ListID) {
+			return SubscriptionSuppressed, nil
+		}
+		if slices.Contains(contact.ListIDs, ids.ListID) {
+			return SubscriptionSubscribed, nil
 		}
 	} else if errors.As(err, &providerError) {
 		if providerError.Status != http.StatusNotFound {
-			return fmt.Errorf("brevo newsletter contact lookup: %w", providerError)
+			return "", fmt.Errorf("brevo newsletter contact lookup: %w", providerError)
 		}
 	} else {
 		// Transport errors can include the request URL (and thus the address).
 		// Never pass that URL to application logs or the public response.
-		return errors.New("brevo newsletter contact lookup failed")
+		return "", errors.New("brevo newsletter contact lookup failed")
+	}
+	if !allowConfirmation {
+		return SubscriptionPending, nil
 	}
 	err = c.request(ctx, http.MethodPost, "/contacts/doubleOptinConfirmation", map[string]any{
 		"email": email, "includeListIds": []int64{ids.ListID}, "templateId": ids.TemplateID,
 		"redirectionUrl": redirectURL, "contactPixelTrackingConsent": false,
 	}, nil)
 	if errors.As(err, &providerError) && providerError.Status == http.StatusBadRequest && (providerError.Code == "duplicate_parameter" || providerError.Code == "duplicate_request") {
-		return nil
+		return SubscriptionPending, nil
 	}
-	return err
+	if err != nil {
+		return "", err
+	}
+	return SubscriptionPending, nil
 }

@@ -16,22 +16,60 @@ import (
 )
 
 type fakeProvider struct {
-	emails []string
-	fail   bool
+	emails  []string
+	fail    bool
+	status  brevo.SubscriptionStatus
+	lookups int
 }
 
 func (p *fakeProvider) EnsureNewsletter(context.Context, brevo.Address, string) (brevo.NewsletterIDs, error) {
 	return brevo.NewsletterIDs{ListID: 2, TemplateID: 3}, nil
 }
-func (p *fakeProvider) RequestSubscription(_ context.Context, email string, ids brevo.NewsletterIDs, redirect string) error {
-	p.emails = append(p.emails, email)
+func (p *fakeProvider) RequestSubscription(_ context.Context, email string, ids brevo.NewsletterIDs, redirect string, allowConfirmation bool) (brevo.SubscriptionStatus, error) {
+	p.lookups++
+	status := p.status
+	if status == "" {
+		status = brevo.SubscriptionPending
+	}
+	if allowConfirmation && status == brevo.SubscriptionPending {
+		p.emails = append(p.emails, email)
+	}
 	if p.fail {
-		return errors.New("delivery unavailable")
+		return "", errors.New("delivery unavailable")
 	}
 	if ids.ListID != 2 || ids.TemplateID != 3 || redirect != "https://example.com/subscribe/confirmed" {
-		return errors.New("bad provider request")
+		return "", errors.New("bad provider request")
 	}
-	return nil
+	return status, nil
+}
+
+func TestActualSubscriptionStatusSurvivesRepeatSubmissionsAndConfirmation(t *testing.T) {
+	for _, status := range []brevo.SubscriptionStatus{brevo.SubscriptionPending, brevo.SubscriptionSubscribed, brevo.SubscriptionSuppressed} {
+		t.Run(string(status), func(t *testing.T) {
+			_, p, h := testService()
+			p.status = status
+			for range 2 {
+				w := submit(h, `{"email":"reader@example.com","consent":true}`)
+				if w.Code != 202 || !strings.Contains(w.Body.String(), `"status":"`+string(status)+`"`) {
+					t.Fatalf("status lost: %d %s", w.Code, w.Body)
+				}
+			}
+			wantEmails := 0
+			if status == brevo.SubscriptionPending {
+				wantEmails = 1
+			}
+			if len(p.emails) != wantEmails || p.lookups != 2 {
+				t.Fatalf("lookups=%d sends=%d", p.lookups, len(p.emails))
+			}
+		})
+	}
+	_, p, h := testService()
+	submit(h, `{"email":"reader@example.com","consent":true}`)
+	p.status = brevo.SubscriptionSubscribed
+	w := submit(h, `{"email":"reader@example.com","consent":true}`)
+	if !strings.Contains(w.Body.String(), `"subscribed"`) || len(p.emails) != 1 {
+		t.Fatal("cooldown hid newly confirmed membership", w.Body)
+	}
 }
 
 func testService() (*Service, *fakeProvider, http.Handler) {

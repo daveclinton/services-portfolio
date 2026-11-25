@@ -29,7 +29,10 @@ export async function newsletterAvailable(): Promise<boolean> {
   return (await newsletterRequest("status")).enabled === true
 }
 
-export async function subscribeToNewsletter(email: string, website = ""): Promise<void> {
+export type NewsletterStatus = "pending" | "subscribed" | "suppressed"
+
+export async function subscribeToNewsletter(email: string, website = ""): Promise<NewsletterStatus> {
   const result = await newsletterRequest("subscribe", { email: email.trim(), consent: true, website })
-  if (result.status !== "pending") throw new Error("We couldn’t confirm that request. Please try again.")
+  if (result.status !== "pending" && result.status !== "subscribed" && result.status !== "suppressed") throw new Error("We couldn’t confirm that request. Please try again.")
+  return result.status
 }
