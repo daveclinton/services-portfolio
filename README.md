@@ -136,6 +136,12 @@ it reuses or creates the `daveclintonn.cc portfolio` folder, `daveclintonn.cc â€
 along` list and `daveclintonn.cc â€” Confirm email` template. This does not enroll
 anyone or send email. It only updates the application-owned template. Contacts
 join through [Brevo's double opt-in API](https://developers.brevo.com/reference/create-doi-contact).
+Before requesting confirmation, signup checks the contact's newsletter membership
+and email preferences. Existing members receive no repeat confirmation; contacts
+outside this list still confirm before joining. Blocked contacts and newsletter
+opt-outs are preserved, with a contact link in the form for help rejoining.
+All accepted requests use the same public response and conditional inbox guidance,
+including visible Spam/Junk advice; the API does not disclose list membership.
 Set `NEWSLETTER_ENABLED=false` to disable signup, or `SITE_URL` to change the public
 site origin. The API key needs contacts/lists and templates permissions. If setup
 or delivery fails, signup reports unavailable rather than pretending to succeed.

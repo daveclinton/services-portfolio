@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"slices"
 )
 
 const newsletterFolder = "daveclintonn.cc portfolio"
@@ -130,11 +132,36 @@ func (c *Client) findNamed(ctx context.Context, path, field, name string) (int64
 }
 
 func (c *Client) RequestSubscription(ctx context.Context, email string, ids NewsletterIDs, redirectURL string) error {
-	err := c.request(ctx, http.MethodPost, "/contacts/doubleOptinConfirmation", map[string]any{
+	var contact struct {
+		ID               int64   `json:"id"`
+		EmailBlacklisted *bool   `json:"emailBlacklisted"`
+		ListIDs          []int64 `json:"listIds"`
+		ListUnsubscribed []int64 `json:"listUnsubscribed"`
+	}
+	err := c.request(ctx, http.MethodGet, "/contacts/"+url.PathEscape(email)+"?identifierType=email_id", nil, &contact)
+	var providerError *APIError
+	if err == nil {
+		if contact.ID < 1 || contact.EmailBlacklisted == nil {
+			return errors.New("brevo newsletter contact lookup returned incomplete status")
+		}
+		// This application-owned list contains confirmed subscribers. Preserve
+		// opt-outs and blocklists too; signup must never reset those preferences.
+		if *contact.EmailBlacklisted || slices.Contains(contact.ListUnsubscribed, ids.ListID) || slices.Contains(contact.ListIDs, ids.ListID) {
+			return nil
+		}
+	} else if errors.As(err, &providerError) {
+		if providerError.Status != http.StatusNotFound {
+			return fmt.Errorf("brevo newsletter contact lookup: %w", providerError)
+		}
+	} else {
+		// Transport errors can include the request URL (and thus the address).
+		// Never pass that URL to application logs or the public response.
+		return errors.New("brevo newsletter contact lookup failed")
+	}
+	err = c.request(ctx, http.MethodPost, "/contacts/doubleOptinConfirmation", map[string]any{
 		"email": email, "includeListIds": []int64{ids.ListID}, "templateId": ids.TemplateID,
 		"redirectionUrl": redirectURL, "contactPixelTrackingConsent": false,
 	}, nil)
-	var providerError *APIError
 	if errors.As(err, &providerError) && providerError.Status == http.StatusBadRequest && (providerError.Code == "duplicate_parameter" || providerError.Code == "duplicate_request") {
 		return nil
 	}

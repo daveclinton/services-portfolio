@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react"
 import Link from "next/link"
 import { Check, Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { newsletter } from "@/lib/portfolio-data"
+import { email as contactEmail, newsletter } from "@/lib/portfolio-data"
 import { newsletterAvailable, subscribeToNewsletter } from "@/lib/newsletter"
 
 // Cassidy Williams' personal newsletter invitation, adapted to the portfolio:
@@ -46,9 +46,11 @@ export function NewsletterSignup({ showHeading = true }: { showHeading?: boolean
   if (state === "pending") return (
     <section aria-live="polite" className="flex min-w-0 flex-col gap-4 animate-in fade-in duration-150 motion-reduce:animate-none">
       <Mail aria-hidden="true" className="size-6 text-primary" />
-      <h2 ref={pendingRef} tabIndex={-1} className="text-title">One last click.</h2>
-      <p className="text-body">Check your inbox to confirm your email. You’ll join the list after confirming.</p>
-      <details className="text-caption text-muted-foreground"><summary className="cursor-pointer py-2">No email yet?</summary><p>Already confirmed? You’re all set. Otherwise, check spam or try again later.</p></details>
+      <h2 ref={pendingRef} tabIndex={-1} className="text-title">Check your inbox.</h2>
+      <p className="text-body">If you haven’t confirmed this newsletter yet, look for an email from David Clinton. You’ll join after confirming.</p>
+      <p className="text-body">Already subscribed? You’re all set. No need to confirm again.</p>
+      <p className="text-caption text-muted-foreground">No email? Check Spam/Junk or Promotions. If it landed in Junk, mark it “Not Junk”.</p>
+      <details className="text-caption text-muted-foreground"><summary className="cursor-pointer py-2">Still no email?</summary><p>Please wait a few minutes before trying again. If you previously unsubscribed or need help, <a href={contactEmail.href}>contact me</a>.</p></details>
       <Button type="button" variant="ghost" className="self-start" onClick={() => { focusEmail.current = true; setState("ready"); setError("") }}>Use a different email</Button>
     </section>
   )
@@ -83,7 +85,7 @@ export function NewsletterSignup({ showHeading = true }: { showHeading?: boolean
             </div>
           </div>
         </div>
-        {state === "review" || state === "sending" ? <div className="flex min-w-0 flex-col gap-2"><h2 ref={reviewRef} tabIndex={-1} className="text-title">Look right?</h2><p className="text-body break-words">We’ll send a confirmation to {email.trim()}.</p></div> : null}
+        {state === "review" || state === "sending" ? <div className="flex min-w-0 flex-col gap-2"><h2 ref={reviewRef} tabIndex={-1} className="text-title">Look right?</h2><p className="text-body break-words">New here? We’ll email a confirmation to {email.trim()}.</p></div> : null}
         <div hidden aria-hidden="true"><label>Leave this empty<input name="website" type="text" autoComplete="off" tabIndex={-1} /></label></div>
         <p id={`${id}-consent`} className="text-caption text-muted-foreground">{newsletter.consent} <Link href="/privacy">Privacy</Link>.</p>
         {error ? <p id={`${id}-error`} role="alert" className="text-caption text-destructive">{error}</p> : null}

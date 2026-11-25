@@ -51,6 +51,10 @@ Newsletter signup is independent of chat storage and needs no database migration
 It accepts bounded JSON with an email address and `consent: true`, requests Brevo
 double opt-in, and returns `202 {"status":"pending"}`. Confirmation redirects to
 `SITE_URL/subscribe/confirmed`; the browser does not add a contact directly.
+The provider first checks contact details: confirmed newsletter members and
+suppressed addresses receive the same accepted response without another email.
+An existing contact outside this newsletter still needs double opt-in. A failed
+or incomplete contact lookup fails the request without sending or changing preferences.
 Use Brevo Campaigns and its unsubscribe controls for future notes.
 
 When `BREVO_API_KEY` and the existing sender are configured, the newsletter worker
