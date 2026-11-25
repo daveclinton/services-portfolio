@@ -85,6 +85,15 @@ func (s *Service) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /newsletter/subscribe", s.subscribe)
 }
 
+// ListIDs shares the already-provisioned newsletter resources with owner tools.
+func (s *Service) ListIDs() (brevo.NewsletterIDs, bool) {
+	ids := s.ready.Load()
+	if ids == nil {
+		return brevo.NewsletterIDs{}, false
+	}
+	return *ids, true
+}
+
 func (s *Service) subscribe(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	if origin := r.Header.Get("Origin"); origin != "" && !slices.Contains(s.cfg.AllowedOrigins, origin) {

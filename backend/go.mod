@@ -2,7 +2,11 @@ module github.com/daveclinton/portfolio/backend
 
 go 1.27.3
 
-require github.com/jackc/pgx/v5 v5.12.0
+require (
+	github.com/jackc/pgx/v5 v5.12.0
+	github.com/yuin/goldmark v1.8.7
+	golang.org/x/oauth2 v0.38.0
+)
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect

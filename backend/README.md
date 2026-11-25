@@ -22,8 +22,9 @@ internal/ratelimit/   in-memory sliding-window limits and per-visitor locks
 internal/visitor/     signed anonymous visitor cookie and HMAC hashing
 internal/openai/      chat streaming and structured output (answers and intent planning)
 internal/embeddings/  client for the self-hosted Text Embeddings Inference server
-internal/brevo/       transactional email
+internal/brevo/       transactional email, campaign adapter and shared email rendering
 internal/newsletter/  independent double-opt-in newsletter signup and limits
+internal/studio/      owner authentication, durable newsletter drafts and delivery
 internal/askai/       product: Ask AI (retrieval, intent, generation, conversation logs)
 db/init/              schema (from knowledge-backend migrations), applied on first start
 deploy/setup.sh       VPS setup: free ports, docker compose, nginx site, TLS
@@ -58,7 +59,8 @@ An existing contact outside this newsletter still needs double opt-in. A failed
 or incomplete contact lookup fails the request without sending or changing preferences.
 The confirmation cooldown only prevents resending; rate-limited contact lookups
 still run so a repeat submission can report newly confirmed membership accurately.
-Use Brevo Campaigns and its unsubscribe controls for future notes.
+Use the private newsletter dashboard or Brevo Campaigns for future notes;
+both preserve Brevo's unsubscribe controls.
 
 When `BREVO_API_KEY` and the existing sender are configured, the newsletter worker
 provisions its own named folder, list and confirmation template in the background.
@@ -145,6 +147,108 @@ improves which documents are ranked as relevant. `knowledge-backend`'s
 `embed_knowledge` command and the OpenAI vector store are no longer used.
 
 ## Develop
+
+### Newsletter writing dashboard
+
+The frontend route is `/admin/newsletters`. The owner writes a subject, then a
+Markdown note, previews the actual email, chooses delivery, and reviews a final
+confirmation. Drafts autosave with revision checks. The formatted writing view
+reuses the existing Markdown component; the actual email preview, tests and
+campaigns share the backend renderer and existing Postmark email shell. Core
+Markdown is supported; raw HTML and Brevo template expressions are restricted.
+
+The UX reference is [Ghost's newsletter flow](https://ghost.org/help/delivering-emails/)
+and its [publishing/scheduling controls](https://ghost.org/help/publishing-content/).
+Source reviewed: Ghost's MIT-licensed
+[publish flow](https://github.com/TryGhost/Ghost/blob/main/apps/admin/src/editor/publish/publish-flow-modal.tsx)
+and [email preview](https://github.com/TryGhost/Ghost/blob/main/apps/admin/src/editor/preview/email-preview.tsx).
+[listmonk](https://github.com/knadh/listmonk) was compared for campaign lifecycle
+handling, without copying its AGPL code. The selected editor is Markdown rather
+than the researched [Maily rich-text editor](https://github.com/arikchakma/maily.to).
+There is no new frontend editor dependency. Goldmark (MIT) and Go's OAuth2 client
+(BSD-3-Clause) are included with their license notices in the API image.
+
+#### One-time owner setup
+
+1. Create an OAuth app under [GitHub developer settings](https://github.com/settings/developers).
+   Set its homepage to `https://www.daveclintonn.cc` and authorization callback to
+   `https://api.daveclintonn.cc/admin/newsletters/auth/callback`.
+   The login uses PKCE and public identity; it requests no repository scopes.
+2. Set these values in the VPS `backend/.env` (keep the secret server-side):
+
+   ```dotenv
+   NEWSLETTER_ADMIN_ENABLED=true
+   NEWSLETTER_GITHUB_CLIENT_ID=your_oauth_client_id
+   NEWSLETTER_GITHUB_CLIENT_SECRET=your_oauth_client_secret
+   NEWSLETTER_GITHUB_OWNER_ID=83610935
+   NEWSLETTER_OAUTH_CALLBACK_URL=https://api.daveclintonn.cc/admin/newsletters/auth/callback
+   NEWSLETTER_TEST_EMAIL=your_test_email_address
+   ```
+
+   `83610935` is the numeric ID of `daveclinton`; a different owner must supply
+   their own ID. `SITE_URL` must exactly match the frontend origin
+   (`https://www.daveclintonn.cc` in production). Keep the existing
+   `RATE_LIMIT_SECRET` at least 32 characters long. Rotating it invalidates sessions.
+3. Keep the existing Brevo sender, API key and newsletter signup enabled. The key
+   must support Campaigns and contact-list reads. Add the test address to your
+   Brevo contacts and test list, following
+   [Brevo's test-list setup](https://help.brevo.com/hc/en-us/articles/209499565-Create-a-test-list).
+   Only this configured address receives dashboard tests; no empty-recipient test
+   request is sent. Sending limits, sender approval and credits remain Brevo controls.
+4. After deploying the code, recreate the API with the updated environment:
+
+   ```bash
+   cd /opt/services-portfolio/backend
+   docker compose up -d --build --no-deps --force-recreate --wait api
+   curl -fsS https://api.daveclintonn.cc/healthz
+   ```
+
+   Open `https://www.daveclintonn.cc/admin/newsletters` and sign in as the owner.
+   API startup initializes the three `newsletter_studio_*` tables idempotently;
+   include them in normal database backups. No campaign is sent during setup.
+   For local development, use a separate OAuth app with a localhost API callback,
+   local `SITE_URL` and `NEXT_PUBLIC_API_URL`; do not reuse a production callback.
+
+#### Access and delivery behavior
+
+All `/admin/newsletters/*` API routes except session/login/callback require an
+eight-hour, HttpOnly owner cookie. Authorization checks the numeric GitHub ID on
+every request. Writes require the exact frontend Origin and a session CSRF token.
+GitHub access tokens are not stored. The frontend route is excluded from indexing;
+the API, rather than the frontend route, enforces access to private data.
+
+Draft content uses optimistic revisions; editing and delivery share a database
+lock. Campaign IDs and pending operations are committed before external actions.
+Each Brevo campaign has the stable name `portfolio-newsletter/<draft UUID>` and
+targets only the existing confirmed newsletter list. Brevo handles blocked and
+unsubscribed recipients. The displayed list size is not a delivery guarantee.
+
+**Submitted for delivery** means Brevo accepted the request; only a provider
+status read can mark it **Sent**. Use **Check status** after an uncertain result.
+Lost creation responses recover the existing campaign by its stable name. A lost
+send/schedule response stays locked for review if Brevo still reports a draft;
+the dashboard never automatically retries that broadcast. If status remains
+uncertain, inspect the named campaign in Brevo before taking further action.
+Cancellation is available only while scheduled and must be verified by Brevo
+before the draft becomes editable. Provider sending may already have started.
+
+#### Validation without a browser or live sends
+
+`make test` covers the provider adapter, renderer, configuration and existing
+products. The frontend suite includes server rendering and API contract checks.
+The database suite uses randomly named, temporary schemas and fake GitHub/Brevo
+servers; run it against a local test database, never production:
+
+```bash
+NEWSLETTER_STUDIO_TEST_DATABASE_URL='postgresql://local-test-database' go test -race ./internal/studio -count=1 -v
+```
+
+It covers owner/CSRF checks, OAuth PKCE and single-use state, persistent drafts,
+revision conflicts, shared action locks, tests, scheduling/cancellation, provider
+refusals and restart recovery without duplicate broadcasts. Live account delivery
+and inbox rendering still require an owner test after configuration.
+
+### Local development
 
 ```bash
 cp .env.example .env    # add OPENAI_API_KEY for chat; on Apple Silicon set EMBEDDINGS_IMAGE (see the file)
