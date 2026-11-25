@@ -194,7 +194,7 @@ export const askAi = {
 export const newsletter = {
   href: "/subscribe",
   title: "Follow along",
-  description: "Occasional notes on what I’m building, learning, and writing.",
+  description: "Subscribe to my weekly newsletter for instant updates.",
   consent: "By subscribing, you agree to occasional emails from David. Free to read. Unsubscribe anytime.",
 } as const
 

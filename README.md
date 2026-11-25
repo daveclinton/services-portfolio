@@ -24,6 +24,7 @@ The repository includes David Clinton's portfolio content as a working example. 
 - **Operational controls:** per-visitor/IP/site limits, bounded conversation context, cancellation, recovery cooldowns, structured logs and local regression evaluations.
 - **Portfolio publishing:** MDX articles, RSS, metadata, light/dark themes and shared design tokens.
 - **Numbered reading:** Home, Experience and Writing start with every item closed, including on return visits. A direct item link opens its selection. Articles reuse the same numbered, one-section-at-a-time reader with shareable section anchors and a next-section control. Ask AI keeps its chat flow and mobile composer while sharing the homepage's typeface, responsive text size and reading measure.
+- **Mobile focus and scrolling:** a shared visual-viewport coordinator keeps focused fields clear of the keyboard and fixed navigation across signup, chat, project discovery, newsletter editing and result dialogs. Numbered selections wait for disclosure layout before a native smooth scroll to the heading; a new scroll or keyboard action cancels pending repositioning. Reduced motion uses instant scrolling. Newsletter signup mounts and focuses the email field during the tap, checks availability while readers type, and preserves the address through review and Back.
 
 ## Interface references
 
@@ -36,6 +37,12 @@ The follow-up revision uses [Google's concise conversation language](https://dev
 The glass controls follow [Glassy UI's dock-and-surface approach](https://github.com/alexburlis/glassyui), adapted to this app's components and tokens without adding a package. [Apple's material guidance](https://developer.apple.com/design/human-interface-guidelines/materials) informs the separation between glass controls and readable, solid content. Browser-specific SVG refraction is intentionally omitted; browsers without backdrop-filter support keep solid surfaces.
 
 The numbered reader uses native `details` disclosures and respects reduced motion. Its content is rendered on the server; section-anchor opening, saved color preferences and the next-section control enhance it after hydration. Saved preferences never reopen a list item on a clean visit.
+
+Focus and keyboard handling follow [React Aria's mobile visual-viewport approach](https://react-aria.adobe.com/blog/building-a-combobox), [Chrome's viewport-resize guidance](https://developer.chrome.com/blog/viewport-resize-behavior), and [W3C Focus Not Obscured guidance](https://www.w3.org/WAI/WCAG22/Techniques/failures/F110.html). The existing viewport component coordinates every page; native scrolling remains in charge of document, nested and dialog scrollers. It corrects keyboard resize without repeatedly pulling a reader back while they scroll. Fixed reader controls are hidden during text entry, and overlay-keyboard space is added only to ordinary scrolling pages.
+
+Browsing chat task categories focuses the chosen suggestions without opening the keyboard. Choosing a task, editing a question, preparing a follow-up, or returning to the conversation explicitly restores the appropriate input. Native Tab navigation, Enter/Shift+Enter, IME composition, and existing Escape/stop behavior are preserved.
+
+The email field is rendered synchronously on Subscribe before any availability request, following [WebKit's user-gesture requirement for programmatic keyboard focus](https://bugs.webkit.org/show_bug.cgi?id=195884). Later availability updates keep that same field mounted; Next remains unavailable until the check succeeds. Focus uses [`preventScroll`](https://developer.mozilla.org/en-US/docs/Web/API/HTMLElement/focus), then one coordinated reveal. Disclosure positioning waits for [layout transition completion](https://developer.mozilla.org/en-US/docs/Web/API/Animation/finished), rather than a fixed timeout. No scroll library, decorative reveal effects, or replacement keyboard behavior is added.
 
 ## Architecture
 

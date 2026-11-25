@@ -218,6 +218,32 @@
   @apply scroll-mt-24;
 }
 
+/* Existing form spacing also protects focus rings and labels during scrolling. */
+:where(input, textarea, select, button, summary, [tabindex]),
+[data-focus-region] {
+  scroll-margin-block: 1rem;
+}
+
+/* A keyboard must not compete with the numbered reader's fixed bottom controls. */
+html[data-input-active] .signals-bar {
+  visibility: hidden;
+}
+
+/* Safari overlays its keyboard. Give ordinary pages enough scrollable space to
+ * reveal their last input; the pinned chat already fits the visible viewport. */
+html[data-input-active]:not(.has-visible-viewport) body::after {
+  content: "";
+  display: block;
+  height: max(0px, calc(100dvh - var(--visible-height, 100dvh) - var(--visible-top, 0px)));
+}
+
+dialog[open] {
+  top: var(--visible-top, 0px);
+  bottom: max(0px, calc(100dvh - var(--visible-height, 100dvh) - var(--visible-top, 0px)));
+  max-height: var(--visible-height, 100dvh);
+  scroll-padding-block: 1rem;
+}
+
 /* The Ask AI page needs the composer pinned to the bottom of the screen. */
 .page-app {
   display: flex;

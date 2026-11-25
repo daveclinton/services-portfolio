@@ -1,7 +1,9 @@
 "use client"
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
+import { flushSync } from "react-dom"
 import { Button } from "@/components/ui/button"
+import { focusElement } from "@/lib/scroll"
 import { buildProjectScopeRequest, PROJECT_SCOPE_ANSWER_LIMIT, projectScopeQuestions } from "@/lib/project-scope"
 
 // Typeform's one-question flow, keyboard advance, progress, and review pattern,
@@ -22,14 +24,19 @@ export function ProjectScopeForm({ onGenerate, onCancel, consent, initialProblem
   const question = projectScopeQuestions[step]
 
   useEffect(() => {
-    if (reviewing) reviewRef.current?.focus()
-    else inputRef.current?.focus()
+    if (reviewing) focusElement(reviewRef.current)
+    else focusElement(inputRef.current)
   }, [step, reviewing])
+
+  function goTo(next: number) {
+    flushSync(() => setStep(next))
+    focusElement(next === projectScopeQuestions.length ? reviewRef.current : inputRef.current)
+  }
 
   function advance() {
     if (!reviewing) {
       if (question.required && !answers[step].trim()) return
-      setStep(step + 1)
+      goTo(step + 1)
       return
     }
     try {
@@ -58,7 +65,7 @@ export function ProjectScopeForm({ onGenerate, onCancel, consent, initialProblem
               <div key={item.label} className="min-w-0">
                 <dt className="flex items-start justify-between gap-2 text-body font-medium">
                   {item.label}
-                  <Button type="button" variant="ghost" size="sm" aria-label={`Edit: ${item.label}`} onClick={() => setStep(index)}>Edit</Button>
+                  <Button type="button" variant="ghost" size="sm" aria-label={`Edit: ${item.label}`} onClick={() => goTo(index)}>Edit</Button>
                 </dt>
                 <dd className="text-body whitespace-pre-wrap break-words text-muted-foreground">{answers[index].trim() || "Not provided"}</dd>
               </div>
@@ -67,7 +74,7 @@ export function ProjectScopeForm({ onGenerate, onCancel, consent, initialProblem
           {consent}
         </>
       ) : (
-        <>
+        <div className="flex min-w-0 flex-col gap-6" data-focus-region>
           <label htmlFor="project-scope-answer" className="text-body font-medium">{question.label}</label>
           <p id="project-scope-hint" className="text-caption text-muted-foreground">{question.hint} {!question.required ? "You can leave this blank for now." : null}</p>
           <div className="glass-surface rounded-2xl border border-input p-2.5 focus-within:border-ring focus-within:bg-background focus-within:ring-3 focus-within:ring-ring/20">
@@ -91,11 +98,11 @@ export function ProjectScopeForm({ onGenerate, onCancel, consent, initialProblem
             />
           </div>
           <p id="project-scope-keyboard" className="text-caption text-muted-foreground">Enter to continue. Shift + Enter for a new line. Your answers are sent only when you generate the brief.</p>
-        </>
+        </div>
       )}
       {error ? <p role="alert" className="text-caption text-destructive">{error}</p> : null}
       <div className="flex items-center justify-between gap-2">
-        <Button type="button" variant="ghost" disabled={step === 0} onClick={() => setStep(step - 1)}>Back</Button>
+        <Button type="button" variant="ghost" disabled={step === 0} onClick={() => goTo(step - 1)}>Back</Button>
         <Button type="submit" disabled={!reviewing && question.required && !answers[step].trim()}>
           {reviewing ? "Generate project brief" : step === projectScopeQuestions.length - 1 ? "Review answers" : "Next"}
         </Button>

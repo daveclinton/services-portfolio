@@ -1,5 +1,4 @@
 import type { Metadata } from "next"
-import Link from "next/link"
 import { redirect } from "next/navigation"
 import { formatPostDate, getPostContent, getPosts } from "@/lib/blog"
 import { SiteNav } from "@/components/portfolio/site-nav"
@@ -77,11 +76,7 @@ export default async function BlogPostPage({ params }: PageProps<"/blog/[slug]">
           <Content />
 
           <footer className="blog-post-footer">
-            <p>
-              Written by <Link href="/">{site.name}</Link>. If this was useful, you can{" "}
-              <Link href="/blog">read more of my writing</Link>.
-            </p>
-            <div className="mt-6"><NewsletterSignup /></div>
+            <NewsletterSignup />
           </footer>
         </article>
       </main>

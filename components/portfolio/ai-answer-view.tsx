@@ -1,9 +1,11 @@
 "use client"
 
 import { useEffect, useId, useRef, useState } from "react"
+import { flushSync } from "react-dom"
 import { ChevronDown } from "lucide-react"
 import { motion, useInView, useReducedMotion } from "motion/react"
 import { Button } from "@/components/ui/button"
+import { focusElement, revealAfterLayout, scheduleReveal } from "@/lib/scroll"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { VIEW_EDIT_LIMIT, type AnswerView, type ViewItem, type ViewState } from "@/lib/ai-client"
 
@@ -79,12 +81,24 @@ export function AiAnswerContent({ view, state = {}, onChange, disabled = false, 
   const [editDraft, setEditDraft] = useState("")
   const editRef = useRef<HTMLTextAreaElement>(null)
   const returnEditId = useRef<string | null>(null)
+  const selectedRef = useRef<HTMLDivElement>(null)
   const selected = view.items.find((item) => item.id === state.selectedId)
 
   useEffect(() => {
-    if (editingId) editRef.current?.focus()
-    else if (returnEditId.current) document.getElementById(`${id}-edit-${returnEditId.current}`)?.focus()
+    if (editingId) focusElement(editRef.current)
+    else if (returnEditId.current) focusElement(document.getElementById(`${id}-edit-${returnEditId.current}`))
   }, [editingId, id])
+
+  useEffect(() => {
+    if (!openItemId) return
+    const heading = document.getElementById(`${id}-heading-${openItemId}`)
+    const list = heading?.closest("ol")
+    if (heading && list) return revealAfterLayout(heading, list, () => heading.getAttribute("aria-expanded") === "true")
+  }, [openItemId, id])
+
+  useEffect(() => {
+    if (view.kind === "architecture" && state.selectedId) return scheduleReveal(selectedRef.current)
+  }, [view.kind, state.selectedId])
 
   function select(itemId: string) {
     onChange({ ...state, selectedId: state.selectedId === itemId ? undefined : itemId })
@@ -102,7 +116,7 @@ export function AiAnswerContent({ view, state = {}, onChange, disabled = false, 
       <p className="text-caption text-muted-foreground">Choose a system to inspect its role and supporting material.</p>
       <ArchitectureDiagram view={view} selectedId={state.selectedId} onSelect={select} disabled={disabled} />
       <div className="flex flex-wrap gap-2" aria-label="Inspect system nodes">{view.items.map((item) => <Button key={item.id} type="button" variant={state.selectedId === item.id ? "secondary" : "outline"} aria-label={`Inspect ${item.title}`} aria-pressed={state.selectedId === item.id} disabled={disabled} onClick={() => select(item.id)}>{item.title}</Button>)}</div>
-      {selected ? <div className="border-l border-border pl-4"><h3 className="text-body font-medium">{selected.title}</h3><p className="mt-2 text-body break-words">{selected.summary}</p><p className="mt-2 text-caption break-words text-muted-foreground">{selected.detail}</p><EvidenceDetails ids={selected.source_ids} view={view} /></div> : null}
+      {selected ? <div ref={selectedRef} className="border-l border-border pl-4"><h3 className="text-body font-medium">{selected.title}</h3><p className="mt-2 text-body break-words">{selected.summary}</p><p className="mt-2 text-caption break-words text-muted-foreground">{selected.detail}</p><EvidenceDetails ids={selected.source_ids} view={view} /></div> : null}
       <details className="text-caption text-muted-foreground">
         <summary className="cursor-pointer py-2">Documented connections ({view.connections.length})</summary>
         <ul className="flex flex-col gap-2">{view.connections.map((edge, index) => (
@@ -158,8 +172,8 @@ export function AiAnswerContent({ view, state = {}, onChange, disabled = false, 
                         <Button id={`${id}-edit-${item.id}`} type="button" variant="ghost" className="self-start" disabled={disabled} onClick={() => {
                           returnEditId.current = item.id
                           setEditDraft(state.edits?.[item.id] ?? item.summary)
-                          setEditingId(item.id)
-                          onEditingChange?.(true)
+                          flushSync(() => { setEditingId(item.id); onEditingChange?.(true) })
+                          focusElement(editRef.current)
                         }}>Edit section</Button>
                       ) : <Button type="button" variant={state.selectedId === item.id ? "secondary" : "ghost"} aria-pressed={state.selectedId === item.id} disabled={disabled} className="self-start" onClick={() => select(item.id)}>{state.selectedId === item.id ? "Selected for follow-up" : "Use in follow-up"}</Button>}
                     </>
@@ -232,7 +246,7 @@ export function AiAnswerView({ view, state = {}, onChange, disabled = false }: {
           </div>
         </CardContent>
       </Card>}
-      <dialog ref={dialogRef} aria-labelledby={`${id}-title`} className="fixed inset-0 m-auto max-h-full w-full max-w-(--measure) overflow-y-auto rounded-lg border border-border bg-background p-4 text-foreground backdrop:bg-background/85 sm:p-6" onCancel={(event) => { if (editing) event.preventDefault() }} onClose={() => { setExpanded(null); setEditing(false); returnFocusRef.current?.focus() }}>
+      <dialog ref={dialogRef} aria-labelledby={`${id}-title`} className="fixed inset-0 m-auto max-h-full w-full max-w-(--measure) overflow-y-auto rounded-lg border border-border bg-background p-4 text-foreground backdrop:bg-background/85 sm:p-6" onCancel={(event) => { if (editing) event.preventDefault() }} onClose={() => { setExpanded(null); setEditing(false); focusElement(returnFocusRef.current) }}>
         {expanded ? (
           <>
             <div className="mb-4 flex items-start justify-between gap-2"><h2 id={`${id}-title`} className="text-title">{expanded === "sources" ? view.kind === "text" ? "Retrieved material" : `Sources for ${view.title}` : view.title}</h2><Button type="button" variant="ghost" disabled={editing} onClick={() => dialogRef.current?.close()}>Close</Button></div>

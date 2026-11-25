@@ -1,10 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { flushSync } from "react-dom"
 import { ArrowUp, Check, Copy, RotateCcw, Square, SquarePen, X } from "lucide-react"
 import Link from "next/link"
 import { useInView } from "motion/react"
 import { Button } from "@/components/ui/button"
+import { focusElement } from "@/lib/scroll"
 import { Message, MessageAction, MessageActions, MessageContent } from "@/components/prompt-kit/message"
 import { TextShimmer } from "@/components/prompt-kit/text-shimmer"
 import {
@@ -126,7 +128,6 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const consentRef = useRef<HTMLInputElement | null>(null)
   const conversationIdRef = useRef<string | null>(null)
-  const focusComposerRef = useRef(false)
   const embeddedRef = useRef<HTMLDivElement>(null)
   const inView = useInView(embeddedRef, { once: true, amount: 0.3 })
   const hasSuggested = useRef(false)
@@ -136,13 +137,6 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
   const taskGroup = aiTaskGroups.find((group) => group.id === suggestionGroup)
   const modeLabel = workflow !== "chat" ? askAi.workflows[workflow].label : !hasConversation ? taskGroup?.label : null
   const activeContext = turns.findLast((turn) => turn.contextActive && turn.status === "done" && turn.view && (turn.view.kind === "scope" || turn.viewState?.selectedId))
-
-  useEffect(() => {
-    if (focusComposerRef.current && inputRef.current) {
-      inputRef.current.focus()
-      focusComposerRef.current = false
-    }
-  }, [draft, workflow, showTasks, showScope, suggestionGroup, editingQuestion])
 
   // Blog-post version: offer a suggested question once the reader reaches it.
   useEffect(() => {
@@ -199,20 +193,6 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     if (embedded || !restored.current || isStreaming) return
     sessionStorage.setItem(TURNS_STORAGE_KEY, JSON.stringify(turns))
   }, [turns, isStreaming, embedded])
-
-  // In the blog-post version the page scrolls; keep the composer in view when
-  // the on-screen keyboard opens.
-  useEffect(() => {
-    const viewport = window.visualViewport
-    if (!embedded || !viewport) return
-    const onResize = () => {
-      if (document.activeElement === inputRef.current) {
-        inputRef.current?.scrollIntoView({ block: "nearest" })
-      }
-    }
-    viewport.addEventListener("resize", onResize)
-    return () => viewport.removeEventListener("resize", onResize)
-  }, [embedded])
 
   async function streamAnswer(history: Turn[], selectedWorkflow: ChatWorkflow = "chat") {
     const assistantTurn: Turn = { id: newId("assistant"), role: "assistant", content: "", status: "streaming", workflow: selectedWorkflow }
@@ -285,7 +265,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     if (!consented) {
       setDraft(question)
       setShowConsentError(true)
-      consentRef.current?.focus()
+      focusElement(consentRef.current)
       return
     }
     setShowConsentError(false)
@@ -307,7 +287,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     if (isStreaming) return
     if (!consented) {
       setShowConsentError(true)
-      consentRef.current?.focus()
+      focusElement(consentRef.current)
       return
     }
     const lastUser = turns.findLast((turn) => turn.role === "user")
@@ -328,7 +308,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     setShowScope(false)
     setShowTasks(false)
     setShowConsentError(false)
-    focusComposerRef.current = true
+    focusElement(inputRef.current)
   }
 
   function cancelQuestionEdit() {
@@ -336,7 +316,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     setDraft(editingQuestion.previousDraft)
     setWorkflow(editingQuestion.previousWorkflow)
     setEditingQuestion(null)
-    focusComposerRef.current = true
+    focusElement(inputRef.current)
   }
 
   function newChat() {
@@ -355,7 +335,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     setShowScope(false)
     setShowTasks(false)
     setShowConsentError(false)
-    inputRef.current?.focus()
+    focusElement(inputRef.current)
   }
 
   function chooseTask(selectedWorkflow: ChatWorkflow, prompt: string) {
@@ -365,18 +345,19 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     setShowTasks(false)
     setShowConsentError(false)
     if (selectedWorkflow === "project_scope") {
-      setScopeSeed(prompt)
-      setShowScope(true)
+      flushSync(() => { setScopeSeed(prompt); setShowScope(true) })
+      focusElement(document.getElementById("project-scope-answer"))
     } else {
-      setDraft(prompt)
-      focusComposerRef.current = true
+      if (showTasks) flushSync(() => { setDraft(prompt); setShowTasks(false) })
+      else setDraft(prompt)
+      focusElement(inputRef.current)
     }
   }
 
-  function changeSuggestionGroup(groupId: string | null) {
+  function changeSuggestionGroup(groupId: string | null, returnToComposer = false) {
     setSuggestionGroup(groupId)
     setWorkflow("chat")
-    focusComposerRef.current = true
+    if (returnToComposer) focusElement(inputRef.current)
   }
 
   function prepareFollowUp(prompt: string, turn: Turn) {
@@ -385,7 +366,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
     setDraft(prompt)
     setWorkflow(turn.workflow ?? "chat")
     if (viewInteractionContext(turn.view, turn.viewState)) setTurns((previous) => previous.map((item) => ({ ...item, contextActive: item.id === turn.id })))
-    focusComposerRef.current = true
+    focusElement(inputRef.current)
   }
 
   const consentNotice = (
@@ -451,7 +432,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         }}
       >
         {modeLabel ? (
-          <Button type="button" variant="ghost" size="sm" className="h-auto max-w-full shrink-0 self-center whitespace-normal text-left text-primary max-sm:basis-full max-sm:justify-start" disabled={isStreaming} aria-label={`Clear ${modeLabel} mode`} onClick={() => changeSuggestionGroup(null)}>
+          <Button type="button" variant="ghost" size="sm" className="h-auto max-w-full shrink-0 self-center whitespace-normal text-left text-primary max-sm:basis-full max-sm:justify-start" disabled={isStreaming} aria-label={`Clear ${modeLabel} mode`} onClick={() => changeSuggestionGroup(null, true)}>
             {modeLabel}<X aria-hidden="true" />
           </Button>
         ) : null}
@@ -633,7 +614,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         <div className="chat-column min-h-0 flex-1 overflow-y-auto py-6">
           <ProjectScopeForm
             onGenerate={ask}
-            onCancel={() => { setShowScope(false); setWorkflow("chat"); setDraft(""); setShowConsentError(false); focusComposerRef.current = true }}
+            onCancel={() => { flushSync(() => { setShowScope(false); setWorkflow("chat"); setDraft(""); setShowConsentError(false) }); focusElement(inputRef.current) }}
             consent={consentNotice}
             initialProblem={scopeSeed}
           />
@@ -648,7 +629,7 @@ export function AskAiChat({ embedded = false, suggestedQuestion }: { embedded?: 
         <SiteNav />
         <div className="chat-column min-h-0 flex-1 overflow-y-auto py-6">
           <h1 className="text-title">What would you like to do next?</h1>
-          <Button type="button" variant="ghost" className="my-4" onClick={() => { setShowTasks(false); focusComposerRef.current = true }}>Back to conversation</Button>
+          <Button type="button" variant="ghost" className="my-4" onClick={() => { flushSync(() => setShowTasks(false)); focusElement(inputRef.current) }}>Back to conversation</Button>
           <AiTaskSuggestions groupId={suggestionGroup} onGroupChange={changeSuggestionGroup} onChoose={chooseTask} />
         </div>
       </div>

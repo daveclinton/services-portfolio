@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
+import { focusElement } from "@/lib/scroll"
 import { Markdown } from "@/components/prompt-kit/markdown"
 import {
   studioSession, studioDrafts, studioCreate, studioSave, studioPreview, studioMeta, studioAction, studioLogout,
@@ -63,9 +64,9 @@ export function NewsletterStudio() {
   }, [fail])
 
   useEffect(() => {
-    if (stage === "subject") subjectInput.current?.focus()
-    else if (stage === "write" && pane === "write") bodyInput.current?.focus()
-    else if (stage !== "loading") heading.current?.focus()
+    if (stage === "subject") focusElement(subjectInput.current)
+    else if (stage === "write" && pane === "write") focusElement(bodyInput.current)
+    else if (stage !== "loading") focusElement(heading.current)
   }, [stage, pane])
 
   const save = useCallback((): Promise<NewsletterDraft> => {

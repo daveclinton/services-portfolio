@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { useEffect, useRef, useState } from "react"
 import type { ReactNode } from "react"
 import { TONE_STORAGE_KEY, toneOf } from "@/lib/tone"
+import { revealAfterLayout } from "@/lib/scroll"
 import portrait from "@/public/david.webp"
 
 export type SignalItem = {
@@ -42,6 +43,9 @@ export function Signals({ id, items, listPath, basePath, initial, addressMode = 
   const list = useRef<HTMLOListElement>(null)
   // URL-driven selection does not rewrite the address as an interaction would.
   const chosen = useRef(false)
+  const cancelReveal = useRef<(() => void) | null>(null)
+
+  useEffect(() => () => cancelReveal.current?.(), [])
 
   // Next can retain this component when navigation returns to a list URL.
   // Closing on that transition also covers state kept in the router cache.
@@ -58,7 +62,6 @@ export function Signals({ id, items, listPath, basePath, initial, addressMode = 
     if (choose) chosen.current = true
     entries?.forEach((entry) => { if (entry !== details) entry.open = false })
     details.open = true
-    requestAnimationFrame(() => details.scrollIntoView({ block: "start" }))
   }
 
   function remember(index: number) {
@@ -129,13 +132,12 @@ export function Signals({ id, items, listPath, basePath, initial, addressMode = 
                   return
                 }
                 setOpen(index)
+                const summary = details.querySelector("summary")
+                cancelReveal.current?.()
+                if (summary && list.current) cancelReveal.current = revealAfterLayout(summary, list.current, () => details.open)
                 if (!chosen.current) return
                 remember(index)
                 address(index)
-                // Once it has finished opening, keep it clear of the bottom bar.
-                setTimeout(() => {
-                  if (details.open) details.querySelector("summary")?.scrollIntoView({ block: "nearest" })
-                }, 280)
               }}
             >
               <summary onClick={() => { chosen.current = true }}>
