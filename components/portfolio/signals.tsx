@@ -25,7 +25,7 @@ const number = (index: number) => String(index).padStart(2, "0")
 //
 // Every item has its own address (37signals.com/05 does the same), because the
 // part of a URL after "#" never reaches the sites that draw link previews.
-export function Signals({ id, items, listPath, basePath, initial, addressMode = "path", footer }: {
+export function Signals({ id, items, listPath, basePath, initial, addressMode = "path", changeTone = true, footer }: {
   id: string
   items: SignalItem[]
   /** The list's own page. */
@@ -36,6 +36,8 @@ export function Signals({ id, items, listPath, basePath, initial, addressMode = 
   initial?: number
   /** Articles keep their canonical page and link to individual sections by hash. */
   addressMode?: "path" | "hash"
+  /** Articles keep the same page color as readers move between sections. */
+  changeTone?: boolean
   footer: ReactNode
 }) {
   const [open, setOpen] = useState(initial ?? -1)
@@ -65,6 +67,7 @@ export function Signals({ id, items, listPath, basePath, initial, addressMode = 
   }
 
   function remember(index: number) {
+    if (!changeTone) return
     document.documentElement.setAttribute("data-tone", toneOf(index))
     try {
       localStorage.setItem(TONE_STORAGE_KEY, String(index))

@@ -29,7 +29,11 @@ export function updateViewportMetrics(element?: HTMLElement) {
     const header = document.querySelector<HTMLElement>(".site-nav")
     if (header) {
       const rect = header.getBoundingClientRect()
-      if (rect.bottom > start && rect.top <= start + rect.height) start = Math.max(start, rect.bottom)
+      const style = getComputedStyle(header)
+      // A sticky header can be partly outside its containing block before we
+      // scroll. Reserve its full pinned height, not just today's visible slice.
+      const pinned = style.position === "sticky" ? top + Math.max(0, Number.parseFloat(style.top) || 0) + rect.height : rect.bottom
+      if (rect.top <= start + rect.height && (rect.bottom > start || style.position === "sticky")) start = Math.max(start, rect.bottom, pinned)
     }
     const footer = document.querySelector<HTMLElement>(".signals-bar")
     if (footer && getComputedStyle(footer).visibility !== "hidden") {
@@ -65,7 +69,9 @@ export function revealElement(element: HTMLElement | null, { block = "nearest", 
   const after = Number.parseFloat(style.scrollMarginBottom) || 0
   if (block === "nearest" && rect.top - before >= bounds.top && rect.bottom + after <= bounds.bottom) return
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  target.scrollIntoView({ block, inline: "nearest", behavior: animate && !reduced ? "smooth" : "instant" })
+  // For a title taller than the available space, its beginning has priority.
+  const alignment = rect.height + before + after > bounds.bottom - bounds.top ? "start" : block
+  target.scrollIntoView({ block: alignment, inline: "nearest", behavior: animate && !reduced ? "smooth" : "instant" })
 }
 
 let pendingFrame = 0
@@ -103,13 +109,22 @@ export function revealAfterLayout(element: HTMLElement, scope: HTMLElement, vali
     cancelAnimationFrame(frame)
     cancelScroll?.()
     events.forEach((event) => document.removeEventListener(event, cancel, true))
+    document.removeEventListener("scrollend", settled, true)
+  }
+  const settled = (event: Event) => {
+    // Nested scrollend events only apply when that scroller contains the title.
+    if (event.target !== document && !(event.target instanceof HTMLElement && event.target.contains(element))) return
+    cancel()
+    // Check the final geometry after native smooth scrolling and sticky layout
+    // have settled. Correct clipping without starting another animation.
+    if (element.isConnected && valid()) revealElement(element, { animate: false })
   }
   events.forEach((event) => document.addEventListener(event, cancel, { capture: true, passive: true }))
   frame = requestAnimationFrame(() => {
     const transitions = (scope.getAnimations?.({ subtree: true }) ?? []).filter((animation) => "transitionProperty" in animation && ["height", "block-size"].includes(String(animation.transitionProperty)))
     void Promise.allSettled(transitions.map((animation) => animation.finished)).then(() => {
       if (cancelled || !element.isConnected || !valid()) { cancel(); return }
-      events.forEach((event) => document.removeEventListener(event, cancel, true))
+      document.addEventListener("scrollend", settled, true)
       focusElement(element)
       cancelScroll = scheduleReveal(element, { block: "start" })
     })

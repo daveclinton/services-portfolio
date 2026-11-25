@@ -48,7 +48,7 @@ function platform(t, { height = 400, offsetTop = 0, reduced = false } = {}) {
     target.removeEventListener = (name, callback) => doc.removeEventListener(`${prefix}:${name}`,callback)
   }
   install("window", win); install("document", doc); install("HTMLElement", Element)
-  install("getComputedStyle", (element) => ({ overflowY: element.overflowY, visibility: element.visibility, scrollMarginTop: element.marginTop, scrollMarginBottom: element.marginBottom }))
+  install("getComputedStyle", (element) => ({ position: element.position, top: element.top, overflowY: element.overflowY, visibility: element.visibility, scrollMarginTop: element.marginTop, scrollMarginBottom: element.marginBottom }))
   install("requestAnimationFrame", (callback) => { const id = ++sequence; frames.set(id, callback); return id })
   install("cancelAnimationFrame", (id) => frames.delete(id))
   const flush = () => { const current = [...frames.values()]; frames.clear(); current.forEach((callback) => callback()) }
@@ -149,6 +149,7 @@ test("disclosure scrolling waits for layout transitions without waiting on decor
   p.flush()
   assert.equal(target.focusCalls.length, 1)
   assert.equal(target.calls[0].block, "start")
+  p.dispatch("scrollend", { target: p.doc })
   assert.equal(p.listeners.get("wheel").size, 0)
 })
 
@@ -192,9 +193,14 @@ test("the app-wide coordinator corrects keyboard resize but does not chase a rea
   p.flush(); p.flush()
   assert.equal(input.calls.length, 1, "reading with the keyboard open must not trigger another scroll")
   p.dispatch("viewport:resize")
+  // Safari may pan the viewport in the same frame as the keyboard resize.
+  p.dispatch("viewport:scroll")
   p.flush(); p.flush()
   assert.equal(input.calls.length, 2)
   assert.equal(input.calls.at(-1).behavior, "instant")
+  p.dispatch("click", { target: input })
+  p.flush()
+  assert.equal(input.calls.length, 3, "tapping an already-focused email field must reveal it again")
   p.doc.activeElement = p.doc.body
   p.dispatch("focusout")
   p.flush()
@@ -210,4 +216,51 @@ test("a field's focus margin must also clear sticky controls", (t) => {
   field.marginBottom = "16px"
   revealElement(field)
   assert.equal(field.calls.length,1)
+})
+
+test("a partially clipped sticky nav reserves its full height before scrolling a title", (t) => {
+  const p = platform(t)
+  const nav = new p.Element(-24, 40)
+  nav.position = "sticky"
+  nav.top = "0px"
+  p.headers.set(".site-nav", nav)
+  revealElement(new p.Element(), { block: "start" })
+  assert.equal(p.root.style.scrollPaddingTop, "64px")
+})
+
+test("long titles prioritize their beginning when they cannot fit below navigation", (t) => {
+  const p = platform(t, { height: 200 })
+  p.headers.set(".site-nav", new p.Element(0, 64))
+  const title = new p.Element(20, 220)
+  revealElement(title)
+  assert.equal(title.calls[0].block, "start")
+})
+
+test("disclosure scroll completion rechecks a title obscured by the final sticky layout", async (t) => {
+  const p = platform(t)
+  p.headers.set(".site-nav", new p.Element(0, 64))
+  const title = new p.Element()
+  revealAfterLayout(title, { getAnimations: () => [] }, () => true)
+  p.flush()
+  await new Promise((resolve) => setImmediate(resolve))
+  p.flush()
+  assert.equal(title.calls[0].behavior, "smooth")
+  title.rect = { top: 40, bottom: 90, height: 50 }
+  p.dispatch("scrollend", { target: p.doc })
+  assert.equal(title.calls.at(-1).behavior, "instant")
+  assert.equal(title.calls.length, 2)
+  assert.equal(p.listeners.get("scrollend").size, 0)
+})
+
+test("a reader taking over during smooth disclosure scrolling cancels final correction", async (t) => {
+  const p = platform(t)
+  const title = new p.Element()
+  revealAfterLayout(title, { getAnimations: () => [] }, () => true)
+  p.flush()
+  await new Promise((resolve) => setImmediate(resolve))
+  p.flush()
+  p.dispatch("wheel")
+  p.dispatch("scrollend", { target: p.doc })
+  assert.equal(title.calls.length, 1)
+  assert.equal(p.listeners.get("scrollend").size, 0)
 })
