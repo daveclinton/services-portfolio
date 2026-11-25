@@ -5,7 +5,7 @@
 #   make db-import SOURCE_URL=...   copy data from another Postgres (e.g. Neon)
 #   make run            run the API with `go run` against the Docker database
 #   make test
-# VPS: see README.md (clone the repo, create .env, run ./deploy/setup.sh)
+# VPS: see deploy/README.md (clone the repo, create .env, run ./deploy/setup.sh)
 KNOWLEDGE_BACKEND ?= ../knowledge-backend
 
 .PHONY: up down logs psql db-ingest db-import run test

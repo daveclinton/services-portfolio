@@ -160,7 +160,7 @@ in the knowledge base (`professional-knowledge/`).
       covered (aqua-prana and the Mika warranty app already are).
 
 After ingesting: `make db-ingest` locally, and on the VPS run the pipeline over
-an SSH tunnel (see `backend/README.md`).
+an SSH tunnel (see `backend/deploy/README.md`).
 
 ## 3. Evaluation set and feedback
 
