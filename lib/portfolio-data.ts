@@ -182,6 +182,8 @@ export const askAi = {
   title: `What do you want to know`,
   placeholder: "Ask about my work…",
   inputLabel: "Ask about my work",
+  followUpLabel: "Ask a follow-up",
+  followUpPlaceholder: "Ask a follow-up…",
   workflows: {
     project_scope: { label: "Scope a project", title: "What would you like to build?", placeholder: "Ask a follow-up or refine the proposed project…" },
     role_fit: { label: "Compare a job description", title: "How does this role match?", placeholder: "Paste the role and its requirements…" },

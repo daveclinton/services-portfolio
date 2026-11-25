@@ -1,6 +1,7 @@
 """Local-only answer regression harness; provider/model checks are opt-in."""
 import argparse
 import json
+import re
 import sys
 import time
 import uuid
@@ -45,6 +46,8 @@ def evaluate(base, case):
         errors.append("response did not finish successfully")
     if not answer.strip():
         errors.append("empty answer")
+    if case.get("max_answer_words") and len(answer.split()) > case["max_answer_words"]:
+        errors.append("chat summary exceeds word budget")
     if finish == "guardrail" and case.get("allow_guardrail") is False:
         errors.append("an ordinary visitor question was incorrectly rejected")
     for forbidden in case.get("must_not_include", []):
@@ -65,6 +68,33 @@ def evaluate(base, case):
         for item in view.get("items", []) + view.get("connections", []):
             if any(source_id not in evidence_ids for source_id in item.get("source_ids", [])):
                 errors.append("interactive view references unknown evidence")
+        for required in case.get("view_must_include", []):
+            item_text = " ".join(" ".join(str(item.get(key, "")) for key in ("title", "summary", "detail")) for item in view.get("items", []))
+            if required.casefold() not in item_text.casefold():
+                errors.append("missing expected result content: " + required)
+        if case.get("require_item_evidence") and any(not item.get("source_ids") for item in view.get("items", [])):
+            errors.append("result item lacks supporting evidence")
+        for term in case.get("required_gap_terms", []):
+            if not any(term.casefold() in item.get("title", "").casefold() and item.get("status") == "not_established" for item in view.get("items", [])):
+                errors.append("missing explicit comparison gap: " + term)
+        if view.get("kind") == "projects" and case.get("max_project_preview_words"):
+            if any(len(item.get("summary", "").split()) > case["max_project_preview_words"] for item in view.get("items", [])):
+                errors.append("project preview exceeds word budget")
+        if case.get("check_follow_up_quality"):
+            follow_ups = view.get("follow_ups", [])
+            labels = [follow.get("label", "").strip().casefold() for follow in follow_ups]
+            prompts = [follow.get("prompt", "").strip().casefold() for follow in follow_ups]
+            if len(follow_ups) != 2 or any(not label or len(label) > 32 for label in labels) or any(not prompt for prompt in prompts):
+                errors.append("follow-ups must have two short labels and editable prompts")
+            if len(set(labels)) != len(labels) or len(set(prompts)) != len(prompts):
+                errors.append("follow-ups repeat the same question")
+            if any(re.match(r"^(?:please\s+)?(?:provide|share|paste|describe|tell me)\s+(?:your|the role|the job|specific requirements|more about existing)", prompt) for prompt in prompts):
+                errors.append("follow-up asks the visitor for data instead of addressing the assistant")
+            titles = {re.sub(r"[^\w]+", " ", item.get("title", "").casefold()).strip() for item in view.get("items", [])}
+            for label in labels:
+                subject = re.sub(r"^(?:tell me more about|learn more about|describe|explore|explain|review|show)\s+", "", label)
+                if re.sub(r"[^\w]+", " ", subject).strip() in titles:
+                    errors.append("follow-up repeats a result choice")
     return {"name": case["name"], "passed": not errors, "answer": answer, "errors": errors,
             "view": view,
             "finish_reason": finish, "first_token_ms": first_token,

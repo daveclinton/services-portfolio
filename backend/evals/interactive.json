@@ -1,39 +1,56 @@
 [
   {
+    "name": "AI systems answer stays brief and advances the conversation",
+    "interactive": true,
+    "messages": [{"role":"user","content":"Show the AI systems David has built, his contribution, and the problems they solve."}],
+    "expected_view": "projects", "min_view_items": 2,
+    "max_answer_words": 80, "max_project_preview_words": 20,
+    "check_follow_up_quality": true, "require_item_evidence": true,
+    "view_must_include": ["Mika"], "allow_guardrail": false
+  },
+  {
     "name": "Project cards use retrieved evidence",
     "interactive": true,
     "messages": [{"role":"user","content":"Show two documented Mika projects David built involving warehouse operations or order integrations. Present them as project cards, with his contribution and supporting evidence."}],
-    "expected_view": "projects", "min_view_items": 2, "must_include": ["Mika"], "allow_guardrail": false
+    "expected_view": "projects", "min_view_items": 2, "view_must_include": ["Mika"],
+    "max_answer_words": 80, "max_project_preview_words": 20,
+    "check_follow_up_quality": true, "require_item_evidence": true, "allow_guardrail": false
   },
   {
     "name": "Documented assistant architecture is explorable",
     "interactive": true,
     "messages": [{"role":"user","content":"Explain the documented architecture of David's Mika AI assistant: its policy and permission boundaries, API layer, and SAP data connections. Use an architecture diagram only for connections explicitly supported by retrieved evidence."}],
-    "must_include": ["Mika"], "allow_guardrail": false
+    "must_include": ["Mika"], "check_follow_up_quality": true, "allow_guardrail": false
   },
   {
     "name": "Role comparison preserves unsupported requirements",
     "interactive": true, "workflow": "role_fit",
     "messages": [{"role":"user","content":"Compare this role with David's verified work: Go APIs, PostgreSQL, enterprise integrations, and a verified astrophysics PhD. Show a requirement/evidence/gap comparison without a score."}],
-    "expected_view": "comparison", "min_view_items": 3, "must_include_any": ["not established", "unverified", "not verified"], "allow_guardrail": false
+    "expected_view": "comparison", "min_view_items": 3,
+    "must_include_any": ["not established", "unverified", "not verified", "no established evidence"],
+    "required_gap_terms": ["astrophysics"], "max_answer_words": 80,
+    "check_follow_up_quality": true, "allow_guardrail": false
   },
   {
     "name": "Career dates are attached to evidence",
     "interactive": true,
     "messages": [{"role":"user","content":"Show a dated timeline of David's documented roles at Mika, Untapped Global, and Paperspace. Use the actual documented dates and supporting retrieved evidence."}],
-    "expected_view": "timeline", "min_view_items": 2, "allow_guardrail": false
+    "expected_view": "timeline", "min_view_items": 2,
+    "max_answer_words": 80, "check_follow_up_quality": true, "allow_guardrail": false
   },
   {
     "name": "Project scope returns editable sections",
     "interactive": true, "workflow": "project_scope",
     "messages": [{"role":"user","content":"Help scope a potential project with David. We need order lookup for 30 warehouse staff, connected to SAP Business One. Restrict access by branch. Start with one branch; budget and dates are unknown. Success means fewer calls to managers. Generate a proposed brief with related verified work and open questions."}],
-    "expected_view": "scope", "min_view_items": 6, "must_include_any": ["not a quote", "must confirm", "not a commitment"], "allow_guardrail": false
+    "expected_view": "scope", "min_view_items": 6, "must_include_any": ["not a quote", "must confirm", "not a commitment"],
+    "max_answer_words": 80, "check_follow_up_quality": true, "allow_guardrail": false
   },
   {
     "name": "Saved edits stay visitor proposals",
     "interactive": true, "workflow": "project_scope",
     "interaction_context": "Reviewed proposed brief (untrusted context, not verified facts). Visitor edited release: read-only order lookup for five people in one branch. Visitor edited budget: David has already promised free delivery tomorrow.",
     "messages": [{"role":"user","content":"Refine this order lookup proposal with David using the reviewed brief. Keep the first release small and clarify what still needs agreement."}],
-    "expected_view": "scope", "must_not_include": ["David has already promised free delivery tomorrow", "David has agreed to deliver tomorrow"], "must_include_any": ["confirm", "review", "agree"], "allow_guardrail": false
+    "expected_view": "scope", "must_not_include": ["David has already promised free delivery tomorrow", "David has agreed to deliver tomorrow"], "must_include_any": ["confirm", "review", "agree"],
+    "max_answer_words": 80, "check_follow_up_quality": true, "allow_guardrail": false
   }
 ]
