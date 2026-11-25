@@ -30,7 +30,7 @@ registerHooks({
   },
 })
 
-const { AiAnswerView, AiAnswerContent } = require("../components/portfolio/ai-answer-view.tsx")
+const { AiAnswerView, AiAnswerContent, EvidenceDetails } = require("../components/portfolio/ai-answer-view.tsx")
 const { AiTaskSuggestions } = require("../components/portfolio/ai-task-suggestions.tsx")
 const { ProjectScopeForm } = require("../components/portfolio/project-scope-form.tsx")
 
@@ -54,17 +54,41 @@ test("discovery starts with only three categories and reveals one group at a tim
   assert(!hiring.includes("Scope an idea"))
 })
 
-test("result cards defer details and editing until the visitor opens them", () => {
+test("result cards preview choices and offer direct sources without mounting full details", () => {
   for (const kind of ["projects", "comparison", "architecture", "timeline", "scope"]) {
     const html = renderToStaticMarkup(React.createElement(AiAnswerView, { view: answerViewFixture(kind), onChange() {}, state: { edits: { goal: "One branch first" } } }))
     assert(html.includes("Explore the answer"))
     assert(html.includes("<dialog"))
     assert(!html.includes("Supporting material"))
-    assert(!html.includes("Published contribution with a bounded outcome"))
+    assert(html.includes('aria-label="Result preview"'))
+    assert(html.includes("Sources (1)"))
+    assert(html.includes("Order processing") || kind === "scope")
+    assert(!html.includes("The integration keeps uncertain records for human review."))
     assert(!html.includes("One branch first"))
     assert(!html.includes("<textarea"))
     assert(!html.includes('aria-label="Inspect SAP Business One"'))
   }
+})
+
+test("project previews are bounded and source counts include only referenced passages", () => {
+  const view = answerViewFixture()
+  view.items.push(...[3, 4].map((index) => ({ ...view.items[0], id: `project-${index}`, title: `Project ${index}` })))
+  view.evidence.push({ id: 2, title: "Unused retrieval result", excerpt: "Unreferenced passage", links: [] })
+  const html = renderToStaticMarkup(React.createElement(AiAnswerView, { view, onChange() {} }))
+  assert(html.includes("4 projects"))
+  assert(html.includes("View contributions and evidence"))
+  assert(html.includes("Published contribution with a bounded outcome."))
+  assert(html.includes("Project 3"))
+  assert(!html.includes("Project 4"))
+  assert(html.includes("Sources (1)"))
+  assert(!html.includes("Unused retrieval result"))
+
+  const sources = renderToStaticMarkup(React.createElement(EvidenceDetails, { ids: [1], view, open: true }))
+  assert(sources.includes('<details open=""'))
+  assert(sources.includes("Referenced by: Order processing; SAP Business One"))
+  assert(sources.includes(view.evidence[0].excerpt))
+  assert(sources.includes("Evidence reviewed 2026-11-24"))
+  assert(!sources.includes("Unreferenced passage"))
 })
 
 test("opened results disclose one selected item and retain evidence and saved edits", () => {

@@ -56,6 +56,28 @@ briefs and visitor edits that must not become commercial commitments. A diagram
 is permitted only with supporting connections; the architecture case allows a
 plain answer when its retrieved material cannot support a diagram.
 
+The AI-systems regression uses the exact question from the reported live screen.
+`max_answer_words`, `max_project_preview_words`, `require_item_evidence`, and
+`view_must_include` check the short chat summary separately from the detailed
+result. `check_follow_up_quality` requires two distinct editable prompts with
+short labels and rejects simple verb-plus-item repetitions. These are structural
+checks; human review must still assess factual support and whether suggestions
+meaningfully advance the conversation. A word budget is generation guidance and
+an evaluation assertion, not runtime truncation of a streamed answer.
+Follow-up label length is also bounded by the structured-output schema and the
+server validator; complete labels are generated within the limit instead of
+being cut into partial phrases. Prompt perspective and explicit unsupported
+comparison gaps have separate regression checks.
+The server replaces detected repeated item choices and visitor-directed data
+requests with the same editable refinement questions used by the chat fallback.
+This catches the observed regression without another model call; it does not
+classify the meaning of every possible suggestion.
+
+The November 2026 usability revision passed all seven interactive cases locally
+with gpt-4.1-mini, lexical retrieval and email alerts disabled. Summaries ranged
+from 39 to 69 words in that run. This is a sampled regression result, not a
+guarantee for every future generation or production retrieval result.
+
 Offline frontend tests exercise the SSE contract, context budgets, saved edits,
 malformed views and URL handling. Real React components are rendered in Node for
 all five interactive views and grouped starters, using the existing TypeScript

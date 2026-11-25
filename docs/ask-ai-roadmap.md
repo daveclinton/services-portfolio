@@ -1,5 +1,28 @@
 # Ask AI roadmap
 
+## Revised: follow-up clarity and result discovery
+
+- [x] Clear discovery categories after sending; keep actual workflow labels and
+      a visible follow-up input label independent of placeholder text.
+- [x] Preview up to three result titles, with short project contributions, and
+      expose referenced sources directly with their result-item associations.
+- [x] Edit an earlier question as a draft; cancel restores the previous draft and
+      sending replaces subsequent turns in the local conversation. Original
+      consented server records keep their existing retention behavior.
+- [x] Name the regenerate action and explain that suggestions prepare editable
+      questions. Request distinct refinements rather than repeated result choices.
+- [x] Request two short summary sentences within 80 words, keep essential caveats,
+      and evaluate summary, project-preview and follow-up budgets separately.
+
+References: [Google conversation language](https://developers.google.com/assistant/conversation-design/language),
+[suggestions](https://developers.google.com/assistant/conversation-design/chips),
+[GOV.UK input labels](https://design-system.service.gov.uk/components/text-input/),
+and [Microsoft HAX correction](https://www.microsoft.com/en-us/haxtoolkit/guideline/support-efficient-correction/).
+
+Deployment check: rebuild the API as well as the frontend, start a fresh chat,
+and run the local interactive evaluations with alerts disabled. The summary
+budget is model guidance checked by evaluations, not a guaranteed runtime cap.
+
 ## Revised: staged discovery and summary-first results
 
 The supplied Grok desktop screenshots are the visual reference for this revision.
@@ -87,7 +110,7 @@ and this site's tokens. The adapted components live in `components/prompt-kit/`.
 
 - The user's message sits in a soft bubble on the right; the answer is unboxed
   markdown in the reading column.
-- Copy and "Ask again" under answers. The last answer always shows them; older
+- Copy and "Regenerate" under answers. The last answer always shows them; older
   ones show them on hover on desktop.
 - The send button turns into a stop button while answering; Escape also stops.
 - Pinned to the newest message while streaming (`use-stick-to-bottom`), with a

@@ -55,6 +55,13 @@ export class AiApiError extends Error {}
 // reader can see: older turns remain in the UI and this tab's saved history.
 export const CHAT_LIMITS = { messages: 12, messageChars: 8_000, conversationChars: 24_000, requestBytes: 32_000 } as const
 
+// Revision and regeneration must exclude answers and selections after the
+// target question while retaining that question's original attached context.
+export function historyThroughQuestion<T extends ChatTurn & { id: string }>(turns: T[], questionId: string): T[] {
+  const index = turns.findIndex((turn) => turn.id === questionId && turn.role === "user")
+  return index < 0 ? [] : turns.slice(0, index + 1)
+}
+
 export function prepareChatMessages(messages: ChatTurn[]): ChatTurn[] {
   const latest = messages.at(-1)
   if (!latest || latest.role !== "user" || !latest.content.trim()) throw new AiApiError("Please enter a question.")

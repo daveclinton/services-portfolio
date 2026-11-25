@@ -12,16 +12,17 @@ const statusLabels: Record<ViewItem["status"], string> = {
   proposed: "Proposed", context: "Published context",
 }
 
-function EvidenceDetails({ ids, view }: { ids: number[]; view: AnswerView }) {
+export function EvidenceDetails({ ids, view, open = false }: { ids: number[]; view: AnswerView; open?: boolean }) {
   const sources = view.evidence.filter((source) => ids.includes(source.id))
   if (!sources.length) return <p className="text-caption text-muted-foreground">No supporting excerpt attached. Confirm this point with David.</p>
   return (
-    <details className="text-caption text-muted-foreground">
+    <details open={open} className="text-caption text-muted-foreground">
       <summary className="cursor-pointer py-2">Supporting material ({sources.length})</summary>
       <ul className="flex flex-col gap-4">
         {sources.map((source) => (
           <li key={source.id} className="min-w-0">
             <p className="font-medium text-foreground">{source.title}</p>
+            {open ? <p className="mt-2">Referenced by: {[...view.items.filter((item) => item.source_ids.includes(source.id)).map((item) => item.title), ...view.connections.filter((edge) => edge.source_ids.includes(source.id)).map((edge) => edge.label)].join("; ")}</p> : null}
             <blockquote className="mt-2 border-l border-border pl-4 whitespace-pre-wrap break-words">{source.excerpt}</blockquote>
             {source.links.map((link) => <p key={link.url} className="mt-2"><a href={link.url} target="_blank" rel="noreferrer" className="underline underline-offset-4">{link.title}</a>{link.verified_at ? <span className="block">Evidence reviewed {link.verified_at}</span> : null}</p>)}
           </li>
@@ -179,7 +180,7 @@ export function AiAnswerContent({ view, state = {}, onChange, disabled = false, 
 
 const resultLabels = {
   text: { action: "Read answer", singular: "answer", plural: "answers" },
-  projects: { action: "Explore projects", singular: "project", plural: "projects" },
+  projects: { action: "View contributions and evidence", singular: "project", plural: "projects" },
   comparison: { action: "Review comparison", singular: "requirement", plural: "requirements" },
   architecture: { action: "Explore diagram", singular: "system", plural: "systems" },
   timeline: { action: "Explore timeline", singular: "role", plural: "roles" },
@@ -190,11 +191,13 @@ export function AiAnswerView({ view, state = {}, onChange, disabled = false }: {
   view: AnswerView; state?: ViewState; onChange: (state: ViewState) => void; disabled?: boolean
 }) {
   const id = useId()
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState<"result" | "sources" | null>(null)
   const [editing, setEditing] = useState(false)
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const openRef = useRef<HTMLButtonElement>(null)
+  const returnFocusRef = useRef<HTMLButtonElement | null>(null)
   const label = resultLabels[view.kind]
+  const sourceIds = [...new Set([...view.items, ...view.connections].flatMap((item) => item.source_ids))]
+  const sourceCount = view.evidence.filter((source) => sourceIds.includes(source.id)).length
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -211,13 +214,24 @@ export function AiAnswerView({ view, state = {}, onChange, disabled = false }: {
           <CardTitle className="break-words">{view.title || label.action}</CardTitle>
           <CardDescription>{view.items.length} {view.items.length === 1 ? label.singular : label.plural}{view.kind === "scope" && Object.keys(state.edits ?? {}).length ? ` · ${Object.keys(state.edits ?? {}).length} edited` : ""}</CardDescription>
         </CardHeader>
-        <CardContent><Button ref={openRef} type="button" variant="outline" onClick={() => setExpanded(true)}>{label.action}</Button></CardContent>
+        <CardContent className="flex min-w-0 flex-col gap-4">
+          <ul className="flex min-w-0 flex-col gap-2" aria-label="Result preview">
+            {view.items.slice(0, 3).map((item) => <li key={item.id} className="min-w-0">
+              <p className="text-body font-medium break-words">{item.title}</p>
+              {view.kind === "projects" ? <p className="line-clamp-2 text-caption text-muted-foreground">{item.summary}</p> : null}
+            </li>)}
+          </ul>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" variant="outline" className="h-auto whitespace-normal text-left" onClick={(event) => { returnFocusRef.current = event.currentTarget; setExpanded("result") }}>{label.action}</Button>
+            {sourceCount ? <Button type="button" variant="ghost" onClick={(event) => { returnFocusRef.current = event.currentTarget; setExpanded("sources") }}>Sources ({sourceCount})</Button> : null}
+          </div>
+        </CardContent>
       </Card>
-      <dialog ref={dialogRef} aria-labelledby={`${id}-title`} className="fixed inset-0 m-auto max-h-full w-full max-w-(--measure) overflow-y-auto rounded-lg border border-border bg-background p-4 text-foreground backdrop:bg-background/85 sm:p-6" onCancel={(event) => { if (editing) event.preventDefault() }} onClose={() => { setExpanded(false); setEditing(false); openRef.current?.focus() }}>
+      <dialog ref={dialogRef} aria-labelledby={`${id}-title`} className="fixed inset-0 m-auto max-h-full w-full max-w-(--measure) overflow-y-auto rounded-lg border border-border bg-background p-4 text-foreground backdrop:bg-background/85 sm:p-6" onCancel={(event) => { if (editing) event.preventDefault() }} onClose={() => { setExpanded(null); setEditing(false); returnFocusRef.current?.focus() }}>
         {expanded ? (
           <>
-            <div className="mb-4 flex items-start justify-between gap-2"><h2 id={`${id}-title`} className="text-title">{view.title}</h2><Button type="button" variant="ghost" disabled={editing} onClick={() => dialogRef.current?.close()}>Close</Button></div>
-            <AiAnswerContent view={view} state={state} onChange={onChange} disabled={disabled} onEditingChange={setEditing} />
+            <div className="mb-4 flex items-start justify-between gap-2"><h2 id={`${id}-title`} className="text-title">{expanded === "sources" ? `Sources for ${view.title}` : view.title}</h2><Button type="button" variant="ghost" disabled={editing} onClick={() => dialogRef.current?.close()}>Close</Button></div>
+            {expanded === "sources" ? <EvidenceDetails ids={sourceIds} view={view} open /> : <AiAnswerContent view={view} state={state} onChange={onChange} disabled={disabled} onEditingChange={setEditing} />}
           </>
         ) : null}
       </dialog>

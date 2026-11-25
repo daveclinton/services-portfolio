@@ -93,6 +93,27 @@ func TestAnswerViewsKeepScopeAndMissingEvidenceBoundaries(t *testing.T) {
 	}
 }
 
+func TestFollowUpsRejectLongLabelsWithoutCuttingTheirMeaning(t *testing.T) {
+	got := boundedFollowUps([]followUp{
+		{Label: strings.Repeat("x", maxFollowUpLabelChars+1), Prompt: "This label must not be cut into an unclear instruction."},
+		{Label: "Compare safeguards", Prompt: "Compare the documented safeguards across these projects."},
+		{Label: "Clarify open questions", Prompt: "What should I clarify with David?"},
+	}, nil)
+	if len(got) != 2 || got[0].Label != "Compare safeguards" || got[1].Prompt != "What should I clarify with David?" {
+		t.Fatalf("follow-ups lost complete labels or prompts: %+v", got)
+	}
+}
+
+func TestFollowUpsReplaceRepeatedChoicesAndReversedPromptsWithRefinements(t *testing.T) {
+	got := boundedFollowUps([]followUp{
+		{Label: "Explore Mika AI Assistant", Prompt: "Tell me more about the Mika AI Assistant project and its features."},
+		{Label: "Provide requirements", Prompt: "Please provide your requirements."},
+	}, []viewItem{{Title: "Mika AI Assistant"}})
+	if len(got) != 2 || got[0].Label != "Explain the trade-offs" || got[1].Label != "Identify open questions" {
+		t.Fatalf("unhelpful choices were not replaced with editable refinements: %+v", got)
+	}
+}
+
 func TestInteractiveRequestAndContextRemainBoundedUntrustedData(t *testing.T) {
 	base := map[string]any{
 		"messages": []any{map[string]any{"role": "user", "content": "Refine this proposal"}}, "improvementLogging": true,
