@@ -191,7 +191,7 @@ export const askAi = {
 
 export const aiTaskGroups = [
   {
-    id: "explore", label: "Explore my work", description: "Follow a project from the problem to the result.",
+    id: "explore", label: "Explore my work", description: "Follow a project from the problem to the result.", placeholder: "Ask about a project, outcome, or architecture…",
     tasks: [
       { label: "AI systems", description: "Explore the assistants and automation I have built.", prompt: "Show the AI systems David has built, his contribution, and the problems they solve.", workflow: "chat" },
       { label: "Business outcomes", description: "See what changed for the people using the systems.", prompt: "Show three projects where David's work improved how a business operates, with supporting evidence.", workflow: "chat" },
@@ -200,7 +200,7 @@ export const aiTaskGroups = [
     ],
   },
   {
-    id: "hiring", label: "Hiring", description: "Compare the role with demonstrated work and identify what to discuss.",
+    id: "hiring", label: "Hiring", description: "Compare the role with demonstrated work and identify what to discuss.", placeholder: "Ask about experience or choose a hiring task…",
     tasks: [
       { label: "Compare a role", description: "Review evidence, related experience, and unverified requirements.", prompt: "", workflow: "role_fit" },
       { label: "Prepare an interview", description: "Build questions around verified projects and the role's needs.", prompt: "", workflow: "interview" },
@@ -208,14 +208,14 @@ export const aiTaskGroups = [
     ],
   },
   {
-    id: "planning", label: "Plan a project", description: "Turn an idea into a proposed first release to discuss with David.",
+    id: "planning", label: "Plan a project", description: "Turn an idea into a proposed first release to discuss with David.", placeholder: "Describe an idea or choose a planning task…",
     tasks: [
       { label: "Scope an idea", description: "Answer six questions and review a proposed first release.", prompt: "", workflow: "project_scope" },
       { label: "Improve a process", description: "Describe the manual work and what a useful change would achieve.", prompt: "We want to improve an existing manual process: ", workflow: "project_scope" },
       { label: "Connect systems", description: "Identify integration needs, access boundaries, and open questions.", prompt: "We want to connect our existing systems: ", workflow: "project_scope" },
     ],
   },
-] as const satisfies readonly { id: string; label: string; description: string; tasks: readonly { label: string; description: string; prompt: string; workflow: ChatWorkflow }[] }[]
+] as const satisfies readonly { id: string; label: string; description: string; placeholder: string; tasks: readonly { label: string; description: string; prompt: string; workflow: ChatWorkflow }[] }[]
 
 export const askAiStatus: Record<AskAiIntent, string> = {
   general: "Thinking…",

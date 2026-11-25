@@ -336,6 +336,7 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 
 	var answer strings.Builder
 	var rawAnswer strings.Builder
+	var generatedView answerView
 	var firstTokenMs int64
 	entry.Model = s.cfg.OpenAIChatModel
 	modelRequest := openai.ChatRequest{
@@ -383,7 +384,8 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 				answer.WriteString(remainder)
 			}
 			if err == nil {
-				err = stream.Send("view", prepareAnswerView(result.View, sources, req.workflow))
+				generatedView = prepareAnswerView(result.View, sources, req.workflow)
+				err = stream.Send("view", generatedView)
 			}
 		}
 	}
@@ -405,6 +407,9 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 			fail(generationFailedDetail)
 		}
 		return
+	}
+	if details := generatedView.transcript(); details != "" {
+		entry.Answer += "\n\n" + details
 	}
 	entry.Status = "completed"
 	s.availability.recovered(probe)

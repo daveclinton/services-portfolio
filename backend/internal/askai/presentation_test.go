@@ -157,3 +157,24 @@ func TestPublishedFactsCanSupportTheDefaultArchitectureAndTimelineTasks(t *testi
 		t.Fatal("published facts are not inspectable")
 	}
 }
+
+func TestAnswerTranscriptRetainsTheResultBehindItsShortChatSummary(t *testing.T) {
+	view := answerView{Kind: "scope", Title: "Order lookup pilot", Items: []viewItem{
+		{ID: "release", Title: "First release", Summary: "Read-only lookup for five staff.", Detail: "Validate branch permissions first."},
+		{ID: "questions", Title: "Open questions", Summary: "Confirm the integration access and budget."},
+	}}
+	text := view.transcript()
+	for _, required := range []string{"Order lookup pilot", "David must confirm", "Read-only lookup for five staff.", "Validate branch permissions first.", "Confirm the integration access and budget."} {
+		if !strings.Contains(text, required) {
+			t.Fatalf("result detail lost from storage: %q", required)
+		}
+	}
+	view.Kind = "comparison"
+	view.Items = []viewItem{{ID: "phd", Title: "PhD", Status: "not_established", Summary: "No supporting evidence found."}}
+	if !strings.Contains(view.transcript(), "not established") {
+		t.Fatal("comparison gap lost its status")
+	}
+	if (answerView{Kind: "text"}).transcript() != "" {
+		t.Fatal("plain answers gained extra details")
+	}
+}

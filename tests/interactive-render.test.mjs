@@ -30,25 +30,53 @@ registerHooks({
   },
 })
 
-const { AiAnswerView } = require("../components/portfolio/ai-answer-view.tsx")
+const { AiAnswerView, AiAnswerContent } = require("../components/portfolio/ai-answer-view.tsx")
 const { AiTaskSuggestions } = require("../components/portfolio/ai-task-suggestions.tsx")
 const { ProjectScopeForm } = require("../components/portfolio/project-scope-form.tsx")
 
-test("grouped discovery renders accessible navigation and editable task starters", () => {
-  const html = renderToStaticMarkup(React.createElement(AiTaskSuggestions, { onChoose() {} }))
-  assert.equal((html.match(/role="tab"/g) ?? []).length, 3)
-  assert(html.includes('role="tabpanel"'))
-  for (const label of ["Explore my work", "Hiring", "Plan a project", "AI systems", "Career timeline"]) assert(html.includes(label))
+test("discovery starts with only three categories and reveals one group at a time", () => {
+  const props = { groupId: null, onGroupChange() {}, onChoose() {} }
+  const html = renderToStaticMarkup(React.createElement(AiTaskSuggestions, props))
+  assert.equal((html.match(/<button/g) ?? []).length, 3)
+  for (const label of ["Explore my work", "Hiring", "Plan a project"]) assert(html.includes(label))
+  for (const label of ["AI systems", "Career timeline", "Business outcomes", "Compare a role", "Follow a project from the problem"]) assert(!html.includes(label))
+  assert(!html.includes('viewBox="0 0 640 220"'))
+
+  const explore = renderToStaticMarkup(React.createElement(AiTaskSuggestions, { ...props, groupId: "explore" }))
+  assert(explore.includes("Back to all tasks"))
+  for (const label of ["AI systems", "Career timeline", "Business outcomes", "Architecture"]) assert(explore.includes(label))
+  assert(!explore.includes("Prepare an interview"))
+  assert(!explore.includes("Explore the assistants and automation"))
+
+  const hiring = renderToStaticMarkup(React.createElement(AiTaskSuggestions, { ...props, groupId: "hiring" }))
+  assert(hiring.includes("Compare a role"))
+  assert(!hiring.includes("AI systems"))
+  assert(!hiring.includes("Scope an idea"))
 })
 
-test("all approved interactive views render semantic controls and supporting evidence", () => {
+test("result cards defer details and editing until the visitor opens them", () => {
   for (const kind of ["projects", "comparison", "architecture", "timeline", "scope"]) {
     const html = renderToStaticMarkup(React.createElement(AiAnswerView, { view: answerViewFixture(kind), onChange() {}, state: { edits: { goal: "One branch first" } } }))
-    assert(html.includes("Explore the answer"), kind)
+    assert(html.includes("Explore the answer"))
+    assert(html.includes("<dialog"))
+    assert(!html.includes("Supporting material"))
+    assert(!html.includes("Published contribution with a bounded outcome"))
+    assert(!html.includes("One branch first"))
+    assert(!html.includes("<textarea"))
+    assert(!html.includes('aria-label="Inspect SAP Business One"'))
+  }
+})
+
+test("opened results disclose one selected item and retain evidence and saved edits", () => {
+  for (const kind of ["projects", "comparison", "architecture", "timeline", "scope"]) {
+    const view = answerViewFixture(kind)
+    view.items[1].summary = "Unopened item details stay hidden"
+    const html = renderToStaticMarkup(React.createElement(AiAnswerContent, { view, onChange() {}, state: { selectedId: kind === "scope" ? "goal" : "orders", edits: { goal: "One branch first" } } }))
     assert(html.includes("Supporting material"), kind)
     assert(html.includes("Evidence reviewed 2026-11-24"), kind)
-    assert(html.includes("Expand"), kind)
-    if (kind === "comparison") assert(html.includes("<table"))
+    assert(!html.includes("Unopened item details stay hidden"), kind)
+    if (kind !== "architecture") assert.equal((html.match(/aria-expanded="true"/g) ?? []).length, 1)
+    if (kind === "comparison") assert(html.includes("Related experience"))
     if (kind === "architecture") assert(html.includes('aria-label="Inspect SAP Business One"'))
     if (kind === "scope") {
       assert(html.includes("One branch first"))
@@ -71,7 +99,7 @@ test("discovery seeds are editable and no unreviewed answer is sent by rendering
 test("generated text remains escaped React content", () => {
   const view = answerViewFixture()
   view.items[0].title = "<script>alert('unsafe')</script>"
-  const html = renderToStaticMarkup(React.createElement(AiAnswerView, { view, onChange() {} }))
+  const html = renderToStaticMarkup(React.createElement(AiAnswerContent, { view, onChange() {}, state: { selectedId: "orders" } }))
   assert(!html.includes("<script>alert("))
   assert(html.includes("&lt;script&gt;"))
 })

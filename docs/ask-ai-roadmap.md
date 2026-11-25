@@ -1,9 +1,30 @@
 # Ask AI roadmap
 
+## Revised: staged discovery and summary-first results
+
+The supplied Grok desktop screenshots are the visual reference for this revision.
+Research precedes Ask AI interface changes; inspect the current implementation,
+review the supplied references, and use published UX guidance before editing.
+
+- [x] Composer first, with three category rows underneath and no preselected group.
+- [x] Only the chosen category's tasks appear, with Back and a clearable composer
+      mode; task selection or typing hides suggestions.
+- [x] Keep the composer position stable while the suggestions change.
+- [x] Short answer plus a compact result card; full views open only on request.
+- [x] Item-level disclosure for projects, requirements, roles and brief sections,
+      retaining selection, evidence inspection, edits and copy behavior.
+- [x] Preserve complete generated results in conversation records even though
+      the public chat presents a concise summary.
+
+Sources: [NN/g progressive disclosure](https://www.nngroup.com/articles/progressive-disclosure/),
+[Grok results](https://docs.x.ai/grok-bot/files-and-results),
+[GOV.UK accordion](https://design-system.service.gov.uk/components/accordion/)
+and [details](https://design-system.service.gov.uk/components/details/).
+
 ## Implemented: interactive task and answer experience
 
-- [x] Grouped starters for exploring work, hiring and project planning, with
-      keyboard navigation, outcome descriptions and a responsive mark illustration.
+- [x] Starters for exploring work, hiring and project planning, now disclosed in
+      stages after the composer using native keyboard controls.
 - [x] Fixed React views for project cards, comparisons, documented architecture,
       dated career history and editable proposed briefs, plus an expanded reading view.
 - [x] Canonical supporting passages, public evidence links and available review dates.
