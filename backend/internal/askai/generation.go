@@ -47,7 +47,7 @@ type source struct {
 	Citations   []EvidenceCitation `json:"citations"`
 }
 
-func buildSources(results []*SearchResult) []source {
+func buildSources(results []*SearchResult, includePublishedFacts bool) []source {
 	sources := make([]source, len(results))
 	for i, r := range results {
 		limit := 900
@@ -62,6 +62,23 @@ func buildSources(results []*SearchResult) []source {
 			Index: i + 1, ChunkID: r.ChunkID, SourceType: r.SourceType, SourcePath: r.SourcePath,
 			ProjectSlug: r.ProjectSlug, CompanySlug: r.CompanySlug, SkillSlug: r.SkillSlug,
 			Excerpt: excerpt(content, limit), Citations: r.Citations,
+		}
+	}
+	if includePublishedFacts {
+		// These fixed facts already ground every answer. Give their published
+		// sections source IDs too, so the site's own architecture and career
+		// dates can be inspected rather than becoming uncitable UI claims.
+		for _, section := range []struct{ heading, title, link string }{
+			{"Roles listed on the site", "Published career history", "https://www.daveclintonn.cc/experience"},
+			{"The system behind this assistant (built by David)", "Portfolio assistant implementation", "https://github.com/daveclinton/services-portfolio"},
+		} {
+			_, body, found := strings.Cut(siteFacts, "## "+section.heading+"\n")
+			if !found {
+				continue
+			}
+			body, _, _ = strings.Cut(body, "\n## ")
+			sources = append(sources, source{Index: len(sources) + 1, SourceType: section.title,
+				Excerpt: strings.TrimSpace(body), Citations: []EvidenceCitation{{Title: section.title, SourceURL: section.link, Confidence: "confirmed"}}})
 		}
 	}
 	return sources
@@ -82,12 +99,13 @@ func buildMessages(question, knowledge string, sources []source, history []chatT
 	}
 	reference, _ := json.Marshal(map[string]string{"reference_data": knowledge})
 	plan, _ := json.Marshal(map[string]any{
-		"question_type":             decision.Intent.Name,
-		"response_mode":             firstNonEmpty(decision.Plan.ResponseMode, "answer"),
-		"visitor_requirements":      decision.Plan.Requirements,
-		"missing_information":       decision.Plan.MissingInformation,
-		"likely_relevant_documents": relevant,
-		"retrieved_evidence":        sources,
+		"question_type":               decision.Intent.Name,
+		"response_mode":               firstNonEmpty(decision.Plan.ResponseMode, "answer"),
+		"visitor_requirements":        decision.Plan.Requirements,
+		"missing_information":         decision.Plan.MissingInformation,
+		"likely_relevant_documents":   relevant,
+		"retrieved_evidence":          sources,
+		"visitor_interaction_context": decision.Plan.InteractionContext,
 	})
 
 	messages := []openai.Message{

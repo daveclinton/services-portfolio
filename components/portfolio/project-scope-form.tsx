@@ -7,12 +7,13 @@ import { buildProjectScopeRequest, PROJECT_SCOPE_ANSWER_LIMIT, projectScopeQuest
 // Typeform's one-question flow, keyboard advance, progress, and review pattern,
 // adapted to the existing chat controls and theme. No answers leave this form
 // until the visitor reviews them and generates the brief.
-export function ProjectScopeForm({ onGenerate, onCancel, consent }: {
+export function ProjectScopeForm({ onGenerate, onCancel, consent, initialProblem = "" }: {
   onGenerate: (request: string) => void
   onCancel: () => void
   consent: ReactNode
+  initialProblem?: string
 }) {
-  const [answers, setAnswers] = useState<string[]>(() => projectScopeQuestions.map(() => ""))
+  const [answers, setAnswers] = useState<string[]>(() => projectScopeQuestions.map((_, index) => index === 0 ? initialProblem : ""))
   const [step, setStep] = useState(0)
   const [error, setError] = useState("")
   const inputRef = useRef<HTMLTextAreaElement>(null)

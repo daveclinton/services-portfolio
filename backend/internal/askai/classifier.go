@@ -12,6 +12,7 @@ import (
 )
 
 type responsePlan struct {
+	InteractionContext string
 	Workflow           string
 	Subject            string
 	Goal               string

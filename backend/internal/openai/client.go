@@ -98,6 +98,7 @@ type ChatRequest struct {
 	Messages    []Message
 	Temperature float64
 	MaxTokens   int
+	Schema      map[string]any
 }
 
 // Usage reports token counts; CachedTokens is the part of the prompt served
@@ -114,14 +115,21 @@ type Usage struct {
 // The returned usage comes from the final stream chunk.
 func (c *Client) StreamChat(ctx context.Context, req ChatRequest, onDelta func(string) error) (Usage, error) {
 	var usage Usage
-	resp, err := c.post(ctx, "/chat/completions", map[string]any{
+	body := map[string]any{
 		"model":                 req.Model,
 		"messages":              req.Messages,
 		"temperature":           req.Temperature,
 		"max_completion_tokens": req.MaxTokens,
 		"stream":                true,
 		"stream_options":        map[string]bool{"include_usage": true},
-	})
+	}
+	if req.Schema != nil {
+		body["response_format"] = map[string]any{
+			"type":        "json_schema",
+			"json_schema": map[string]any{"name": "portfolio_answer", "strict": true, "schema": req.Schema},
+		}
+	}
+	resp, err := c.post(ctx, "/chat/completions", body)
 	if err != nil {
 		return usage, err
 	}

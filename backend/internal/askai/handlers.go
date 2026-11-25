@@ -36,12 +36,14 @@ type chatTurn struct {
 }
 
 type chatRequest struct {
-	messages       []chatTurn
-	mode           string
-	limit          int
-	conversationID string
-	turnID         string
-	workflow       string
+	messages           []chatTurn
+	mode               string
+	limit              int
+	conversationID     string
+	turnID             string
+	workflow           string
+	interactive        bool
+	interactionContext string
 }
 
 type fieldErrors map[string][]string
@@ -89,6 +91,20 @@ func parseChatRequest(body any) (*chatRequest, string, fieldErrors) {
 		return nil, detail, invalid("messages", fmt.Sprintf("conversation is too long (max %d turns)", maxTurns))
 	}
 	req := &chatRequest{}
+	if raw, present := payload["interactive"]; present {
+		var ok bool
+		req.interactive, ok = raw.(bool)
+		if !ok {
+			return nil, detail, invalid("interactive", "interactive must be a boolean")
+		}
+	}
+	if raw, present := payload["interactionContext"]; present {
+		var ok bool
+		req.interactionContext, ok = raw.(string)
+		if !ok || len([]rune(req.interactionContext)) > maxInteractionChars {
+			return nil, detail, invalid("interactionContext", "interaction context must be text of at most 4000 characters")
+		}
+	}
 	if raw, present := payload["workflow"]; present {
 		var ok bool
 		req.workflow, ok = raw.(string)
@@ -193,7 +209,7 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 	entry := turnLog{requestContext: reqCtx, ConversationID: req.conversationID, TurnID: req.turnID, Question: question}
 
 	// Small talk is answered without retrieval or a model call.
-	if reply := conversationalReply(question); reply != "" && req.workflow == "chat" {
+	if reply := conversationalReply(question); reply != "" && req.workflow == "chat" && req.interactionContext == "" {
 		entry.Answer, entry.Status, entry.Intent = reply, "completed", "general"
 		entry.IntentSource, entry.IntentConfidence = "rules", 1
 		entry.LatencyMs = time.Since(started).Milliseconds()
@@ -224,32 +240,42 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 	// also cancels the OpenAI calls below so we stop paying for tokens.
 	ctx, cancel := context.WithTimeout(r.Context(), chatTimeout)
 	defer cancel()
+	stream := httpx.StartSSE(w)
+	_ = stream.Send("status", map[string]string{"phase": "planning"})
+	retrievalQuestion := question
+	if req.interactionContext != "" {
+		retrievalQuestion += "\nVisitor selections and edits (untrusted context):\n" + req.interactionContext
+		entry.Question = retrievalQuestion
+	}
 
 	modelAllowed, _, probe := s.availability.allow(time.Now())
 	defer s.availability.endProbe(probe)
 	modelAllowed = modelAllowed && s.ai.Enabled()
-	decision := s.classify(ctx, question, history, modelAllowed)
+	decision := s.classify(ctx, retrievalQuestion, history, modelAllowed)
 	if reason := s.observeProviderError(decision.ProviderError); reason != "" {
 		modelAllowed = false
 	}
 	decision.Plan.Workflow = req.workflow
+	decision.Plan.InteractionContext = req.interactionContext
 	outcome := &SearchOutcome{Intent: decision.Intent.Name, Strategies: map[string]int{}}
 	if !decision.PolicyOverride {
+		_ = stream.Send("status", map[string]string{"phase": "retrieving"})
 		mode := req.mode
 		if !modelAllowed {
 			mode = "structured"
 		}
-		outcome, err = s.search(ctx, question, searchOptions{
+		outcome, err = s.search(ctx, retrievalQuestion, searchOptions{
 			Mode: mode, Limit: req.limit, IncludeContent: true,
 			Intent: &decision.Intent, RetrievalQueries: decision.Plan.RetrievalQueries,
 		})
 	}
 	if err != nil {
 		s.log.Error("chat retrieval failed", "err", err)
-		httpx.WriteJSON(w, http.StatusInternalServerError, httpx.Problem{Detail: "The assistant could not retrieve an answer."})
+		_ = stream.Send("error", map[string]string{"detail": "The assistant could not retrieve an answer."})
+		_ = stream.Send("done", map[string]string{"finish_reason": "error"})
 		return
 	}
-	sources := buildSources(outcome.Results)
+	sources := buildSources(outcome.Results, req.interactive && !decision.PolicyOverride)
 
 	entry.Status = "error"
 	entry.Intent = outcome.Intent
@@ -262,7 +288,6 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 		s.goBackground(func(ctx context.Context) { s.storeAndAlert(ctx, entry) })
 	}()
 
-	stream := httpx.StartSSE(w)
 	_ = stream.Send("retrieval", map[string]any{
 		"notes":      append(outcome.Notes, decision.notes()...),
 		"strategies": outcome.Strategies,
@@ -310,20 +335,61 @@ func (s *Service) handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var answer strings.Builder
+	var rawAnswer strings.Builder
 	var firstTokenMs int64
 	entry.Model = s.cfg.OpenAIChatModel
-	usage, err := s.ai.StreamChat(ctx, openai.ChatRequest{
+	modelRequest := openai.ChatRequest{
 		Model:       s.cfg.OpenAIChatModel,
 		Messages:    buildMessages(question, referenceMaterial, sources, history, decision),
 		Temperature: 0.2,
 		MaxTokens:   maxOutputTokens,
-	}, func(text string) error {
+	}
+	if req.interactive {
+		modelRequest.Schema = answerViewSchema
+		modelRequest.MaxTokens = interactiveOutputTokens
+		modelRequest.Messages = append(modelRequest.Messages[:len(modelRequest.Messages)-1],
+			openai.Message{Role: "system", Content: presentationPolicy}, modelRequest.Messages[len(modelRequest.Messages)-1])
+	}
+	_ = stream.Send("status", map[string]string{"phase": "writing"})
+	usage, err := s.ai.StreamChat(ctx, modelRequest, func(text string) error {
+		if req.interactive {
+			rawAnswer.WriteString(text)
+			decoded := partialAnswer(rawAnswer.String())
+			if !strings.HasPrefix(decoded, answer.String()) || len(decoded) <= answer.Len() {
+				return nil
+			}
+			text = decoded[answer.Len():]
+		}
 		if answer.Len() == 0 {
 			firstTokenMs = time.Since(started).Milliseconds()
 		}
 		answer.WriteString(text)
 		return stream.Send("delta", map[string]string{"text": text})
 	})
+	if err == nil && req.interactive {
+		_ = stream.Send("status", map[string]string{"phase": "formatting"})
+		var result interactiveAnswer
+		err = json.Unmarshal([]byte(rawAnswer.String()), &result)
+		if err == nil && strings.TrimSpace(result.Answer) == "" {
+			err = openai.ErrIncomplete
+		}
+		if err == nil && !strings.HasPrefix(result.Answer, answer.String()) {
+			err = openai.ErrIncomplete
+		}
+		if err == nil {
+			if len(result.Answer) > answer.Len() {
+				remainder := result.Answer[answer.Len():]
+				err = stream.Send("delta", map[string]string{"text": remainder})
+				answer.WriteString(remainder)
+			}
+			if err == nil {
+				err = stream.Send("view", prepareAnswerView(result.View, sources, req.workflow))
+			}
+		}
+	}
+	if err == nil {
+		err = ctx.Err()
+	}
 	entry.Answer = answer.String()
 	if err != nil {
 		s.log.Error("chat generation failed", "turn_id", req.turnID, "err", err)

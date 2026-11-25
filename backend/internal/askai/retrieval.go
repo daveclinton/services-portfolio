@@ -260,6 +260,7 @@ func (s *Service) searchByVector(ctx context.Context, vector []float32, filters 
 }
 
 type EvidenceCitation struct {
+	VerifiedAt   string `json:"verified_at,omitempty"`
 	Slug         string `json:"slug"`
 	Title        string `json:"title"`
 	Claim        string `json:"claim"`
@@ -295,7 +296,8 @@ func (s *Service) citationsForChunks(ctx context.Context, chunks []chunk) (map[i
 	rows, err := s.db.Query(ctx, `
 		SELECT e.slug, COALESCE(e.claim, ''), COALESCE(e.confidence, ''), COALESCE(e.evidence_type, ''),
 		       COALESCE(e.title, ''), COALESCE(e.source_url, ''), COALESCE(e.source_path, ''),
-		       COALESCE(p.slug, ''), COALESCE(c.slug, '')
+		       COALESCE(p.slug, ''), COALESCE(c.slug, ''),
+		       COALESCE(to_char(e.verified_at AT TIME ZONE 'UTC', 'YYYY-MM-DD'), '')
 		  FROM knowledge_evidence e
 		  LEFT JOIN knowledge_project p ON p.id = e.project_id
 		  LEFT JOIN knowledge_employment em ON em.id = e.employment_id
@@ -313,7 +315,7 @@ func (s *Service) citationsForChunks(ctx context.Context, chunks []chunk) (map[i
 	for rows.Next() {
 		var e EvidenceCitation
 		if err := rows.Scan(&e.Slug, &e.Claim, &e.Confidence, &e.EvidenceType, &e.Title,
-			&e.SourceURL, &e.SourcePath, &e.ProjectSlug, &e.CompanySlug); err != nil {
+			&e.SourceURL, &e.SourcePath, &e.ProjectSlug, &e.CompanySlug, &e.VerifiedAt); err != nil {
 			return nil, err
 		}
 		if e.Title == "" {
