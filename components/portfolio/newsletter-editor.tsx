@@ -1,38 +1,39 @@
 "use client"
 
-import { useEffect, useId, useRef, useState, type ComponentType } from "react"
+import { useEffect, useId, useMemo, useRef, useState, type ComponentType } from "react"
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react"
-import { Bold, Italic, Code, CodeXml, List, ListOrdered, Quote, Link, ImagePlus, Minus, Undo2, Redo2, Unlink, Trash2 } from "lucide-react"
+import { BubbleMenu } from "@tiptap/react/menus"
+import DragHandle from "@tiptap/extension-drag-handle-react"
+import { Popover } from "@base-ui/react/popover"
+import { Bold, Italic, Code, Link, ImagePlus, Plus, GripVertical, Undo2, Redo2, Unlink, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Markdown } from "@/components/prompt-kit/markdown"
-import { newsletterEditorExtensions, newsletterRichTextIssue } from "@/lib/newsletter-editor"
+import { applyWritingBlock, writingBlocks, newsletterEditorExtensions, newsletterRichTextIssue } from "@/lib/newsletter-editor"
+import { createWritingSlash, WritingBlockLabel } from "@/components/portfolio/newsletter-command-menu"
 import { STUDIO_BODY_LIMIT } from "@/lib/newsletter-studio"
 import { focusElement } from "@/lib/scroll"
 
 type Props = { value: string; disabled: boolean; onChange: (value: string) => void }
 
-// Ghost's canvas and contextual insertion, using the portfolio's own controls.
-// https://ghost.org/help/using-the-editor/
+// Novel's document canvas, slash commands, contextual formatting, and handles.
+// https://github.com/steven-tey/novel/tree/main/apps/web/components/tailwind
 export function NewsletterEditor({ value, disabled, onChange }: Props) {
   const [mode, setMode] = useState<"rich" | "markdown">(() => newsletterRichTextIssue(value) ? "markdown" : "rich")
   const issue = newsletterRichTextIssue(value)
   const bytes = new TextEncoder().encode(value).length
 
-  return <section className="flex min-w-0 flex-col gap-4" aria-label="Newsletter content">
-    <div className="flex flex-wrap items-center justify-between gap-2">
-      <div className="flex gap-1" role="group" aria-label="Writing mode">
-        <Button size="sm" variant={mode === "rich" ? "secondary" : "ghost"} aria-pressed={mode === "rich"} disabled={disabled || !!issue} onClick={() => setMode("rich")}>Rich text</Button>
-        <Button size="sm" variant={mode === "markdown" ? "secondary" : "ghost"} aria-pressed={mode === "markdown"} disabled={disabled} onClick={() => setMode("markdown")}>Markdown</Button>
-      </div>
-      <p className="text-caption text-muted-foreground">{value.trim() ? value.trim().split(/\s+/).length : 0} words</p>
-    </div>
+  return <section className="flex min-w-0 flex-col gap-4" aria-label="Post content">
     {issue ? <p className="text-caption text-muted-foreground">{issue}</p> : null}
     {mode === "rich" ? <RichTextEditor value={value} disabled={disabled} onChange={onChange} /> : <>
-      <label htmlFor="newsletter-markdown" className="sr-only">Newsletter Markdown</label>
+      <label htmlFor="newsletter-markdown" className="sr-only">Post Markdown</label>
       <textarea id="newsletter-markdown" rows={14} className="min-h-96 w-full resize-y rounded-2xl border border-input bg-background p-4 font-mono text-body outline-none focus-visible:ring-3 focus-visible:ring-ring/20" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
-      <details className="rounded-lg border border-border p-4"><summary className="cursor-pointer text-caption">Formatted preview</summary><Markdown className="mt-4">{value || "Your newsletter will appear here."}</Markdown></details>
+      <details className="rounded-lg border border-border p-4"><summary className="cursor-pointer text-caption">Formatted preview</summary><Markdown className="mt-4">{value || "Your post will appear here."}</Markdown></details>
     </>}
+    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
+      <p className="text-caption text-muted-foreground">{value.trim() ? value.trim().split(/\s+/).length : 0} words</p>
+      <Button size="sm" variant="ghost" disabled={disabled || (mode === "markdown" && !!issue)} onClick={() => setMode(mode === "rich" ? "markdown" : "rich")}>{mode === "rich" ? "Edit Markdown" : "Back to editor"}</Button>
+    </div>
     {bytes > STUDIO_BODY_LIMIT ? <p role="alert" className="text-caption text-destructive">This draft is too long to save. Remove {bytes - STUDIO_BODY_LIMIT} bytes to continue.</p> : null}
   </section>
 }
@@ -43,6 +44,12 @@ function RichTextEditor({ value, disabled, onChange }: Props) {
   const emitted = useRef(value)
   const dialog = useRef<HTMLDialogElement>(null)
   const returnFocus = useRef<HTMLButtonElement | null>(null)
+  const imageTrigger = useRef<HTMLButtonElement>(null)
+  const imageAction = useRef<(() => void) | null>(null)
+  const linkAction = useRef<(() => void) | null>(null)
+  const extensions = useMemo(() => [...newsletterEditorExtensions, createWritingSlash(() => imageAction.current?.())], [])
+  const [blockPicker, setBlockPicker] = useState(false)
+  const [blockPosition, setBlockPosition] = useState(-1)
   const [insert, setInsert] = useState<"link" | "image" | null>(null)
   const [url, setURL] = useState("")
   const [alt, setAlt] = useState("")
@@ -51,14 +58,18 @@ function RichTextEditor({ value, disabled, onChange }: Props) {
   const [mediaNotice, setMediaNotice] = useState("")
   // https://tiptap.dev/docs/editor/getting-started/install/nextjs
   const editor = useEditor({
-    extensions: newsletterEditorExtensions,
+    extensions,
     content: initial,
     contentType: "markdown",
     immediatelyRender: false,
     shouldRerenderOnTransaction: false,
     editable: !disabled,
     editorProps: {
-      attributes: { class: "newsletter-editor blog-prose min-h-96 px-4 pb-6 text-body outline-none", role: "textbox", "aria-label": "Newsletter body", "aria-multiline": "true" },
+      attributes: { class: "newsletter-editor blog-prose min-h-96 pb-6 outline-none", role: "textbox", "aria-label": "Post body", "aria-multiline": "true" },
+      handleKeyDown: (_view, event) => {
+        if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); linkAction.current?.(); return true }
+        return false
+      },
       handlePaste: (_view, event) => {
         if (!Array.from(event.clipboardData?.items ?? []).some((item) => item.kind === "file")) return false
         setMediaNotice("To add this image, choose Image and paste its hosted HTTPS address. Device uploads are not available yet.")
@@ -91,7 +102,10 @@ function RichTextEditor({ value, disabled, onChange }: Props) {
     editor.commands.setContent(value, { contentType: "markdown", emitUpdate: false })
     emitted.current = value
   }, [editor, value])
-  useEffect(() => { if (editor) focusElement(editor.view.dom) }, [editor])
+  useEffect(() => {
+    imageAction.current = () => openInsert("image", imageTrigger.current)
+    linkAction.current = () => openInsert("link", null)
+  })
   useEffect(() => {
     if (insert && !dialog.current?.open) dialog.current?.showModal()
   }, [insert])
@@ -100,7 +114,7 @@ function RichTextEditor({ value, disabled, onChange }: Props) {
     focusElement(dialog.current?.querySelector<HTMLElement>(step === "review" ? "h2" : "input, textarea") ?? null)
   }, [step, insert])
 
-  function openInsert(kind: "link" | "image", trigger: HTMLButtonElement) {
+  function openInsert(kind: "link" | "image", trigger: HTMLButtonElement | null) {
     if (!editor) return
     returnFocus.current = trigger
     setURL(String(editor.getAttributes(kind).href ?? editor.getAttributes(kind).src ?? ""))
@@ -133,18 +147,20 @@ function RichTextEditor({ value, disabled, onChange }: Props) {
     { label: "Bold", icon: Bold, active: state?.bold, run: () => { editor?.chain().focus().toggleBold().run() } },
     { label: "Italic", icon: Italic, active: state?.italic, run: () => { editor?.chain().focus().toggleItalic().run() } },
     { label: "Inline code", icon: Code, active: state?.code, run: () => { editor?.chain().focus().toggleCode().run() } },
-    { label: "Bullet list", icon: List, active: state?.bulletList, run: () => { editor?.chain().focus().toggleBulletList().run() } },
-    { label: "Numbered list", icon: ListOrdered, active: state?.orderedList, run: () => { editor?.chain().focus().toggleOrderedList().run() } },
-    { label: "Quote", icon: Quote, active: state?.blockquote, run: () => { editor?.chain().focus().toggleBlockquote().run() } },
-    { label: "Code block", icon: CodeXml, active: state?.codeBlock, run: () => { editor?.chain().focus().toggleCodeBlock().run() } },
-    { label: "Divider", icon: Minus, run: () => { editor?.chain().focus().setHorizontalRule().run() } },
     { label: "Undo", icon: Undo2, enabled: state?.undo, run: () => { editor?.chain().focus().undo().run() } },
     { label: "Redo", icon: Redo2, enabled: state?.redo, run: () => { editor?.chain().focus().redo().run() } },
   ]
 
-  return <div className="min-w-0 rounded-2xl border border-input bg-background focus-within:border-ring">
+  function formatButtons(bubble = false) {
+    return controls.filter((control) => !bubble || !["Undo", "Redo"].includes(control.label)).map(({ label, icon: Icon, active, enabled, run }) => <Tooltip key={label}>
+      <TooltipTrigger render={<Button size="icon" variant={active ? "secondary" : "ghost"} aria-label={label} aria-pressed={active} disabled={!editor || disabled || enabled === false} onMouseDown={(event) => event.preventDefault()} onClick={run} />}><Icon /></TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>)
+  }
+
+  return <div className="relative min-w-0">
     <TooltipProvider delay={300}>
-      <div className="flex flex-wrap items-center gap-1 border-b border-border p-2.5" role="group" aria-label="Text formatting">
+      <div className="flex flex-wrap items-center gap-1 border-y border-border py-2.5" role="group" aria-label="Text formatting">
         <label htmlFor={`${id}-style`} className="sr-only">Text style</label>
         <select id={`${id}-style`} className="h-8 max-w-full rounded-lg bg-background px-2.5 text-caption text-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/20" disabled={!editor || disabled} value={state?.heading ?? "paragraph"} onChange={(event) => {
           if (event.target.value === "paragraph") editor?.chain().focus().setParagraph().run()
@@ -153,18 +169,39 @@ function RichTextEditor({ value, disabled, onChange }: Props) {
           <option value="paragraph">Paragraph</option>
           {[1, 2, 3, 4, 5, 6].map((level) => <option key={level} value={level}>Heading {level}</option>)}
         </select>
-        {controls.map(({ label, icon: Icon, active, enabled, run }) => <Tooltip key={label}>
-          <TooltipTrigger render={<Button size="icon" variant={active ? "secondary" : "ghost"} aria-label={label} aria-pressed={active} disabled={!editor || disabled || enabled === false} onClick={run} />}><Icon /></TooltipTrigger>
-          <TooltipContent>{label}</TooltipContent>
-        </Tooltip>)}
+        {formatButtons()}
         <Button variant={state?.link ? "secondary" : "ghost"} disabled={!editor || disabled} onClick={(event) => openInsert("link", event.currentTarget)}><Link />Link</Button>
-        <Button variant={state?.image ? "secondary" : "ghost"} disabled={!editor || disabled} onClick={(event) => openInsert("image", event.currentTarget)}><ImagePlus />{state?.image ? "Edit image" : "Image"}</Button>
+        <Button ref={imageTrigger} variant={state?.image ? "secondary" : "ghost"} disabled={!editor || disabled} onClick={(event) => openInsert("image", event.currentTarget)}><ImagePlus />Image</Button>
+        <Popover.Root open={blockPicker} onOpenChange={setBlockPicker}>
+          <Popover.Trigger render={<Button variant="ghost" disabled={!editor || disabled} />}><Plus />Insert block</Popover.Trigger>
+          <Popover.Portal><Popover.Positioner side="bottom" align="start" sideOffset={4} className="z-50"><Popover.Popup className="writing-block-menu" finalFocus={false}>
+            <Popover.Title className="px-2.5 py-2 text-caption text-muted-foreground">Add a block</Popover.Title>
+            {writingBlocks.map((item) => <button key={item.id} type="button" className="flex w-full items-center gap-3 rounded-lg p-2.5 text-left hover:bg-muted focus-visible:bg-muted" onClick={() => {
+              setBlockPicker(false)
+              if (item.id === "image") openInsert("image", imageTrigger.current)
+              else if (editor) { editor.commands.focus(); applyWritingBlock(editor, item.id) }
+            }}><WritingBlockLabel item={item} /></button>)}
+          </Popover.Popup></Popover.Positioner></Popover.Portal>
+        </Popover.Root>
         {state?.link ? <Button variant="ghost" aria-label="Remove link" disabled={disabled} onClick={() => editor?.chain().focus().extendMarkRange("link").unsetLink().run()}><Unlink />Remove link</Button> : null}
-        {state?.image ? <Button variant="ghost" disabled={disabled} onClick={() => editor?.chain().focus().deleteSelection().run()}><Trash2 />Remove image</Button> : null}
       </div>
+      {editor ? <>
+        <BubbleMenu editor={editor} pluginKey="writing-format-menu" className="writing-floating-toolbar" options={{ placement: "top" }} shouldShow={({ editor, state, view }) => editor.isEditable && (view.hasFocus() || !!document.activeElement?.closest(".writing-floating-toolbar")) && !state.selection.empty && !editor.isActive("image")}>
+          {formatButtons(true)}
+          <Button size="sm" variant="ghost" disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={(event) => openInsert("link", event.currentTarget)}><Link />Link</Button>
+        </BubbleMenu>
+        <BubbleMenu editor={editor} pluginKey="writing-image-menu" className="writing-floating-toolbar" shouldShow={({ editor, view }) => editor.isEditable && (view.hasFocus() || !!document.activeElement?.closest(".writing-floating-toolbar")) && editor.isActive("image")}>
+          <Button size="sm" variant="ghost" onClick={() => openInsert("image", imageTrigger.current)}>Edit image</Button>
+          <Button size="sm" variant="ghost" onClick={() => editor.chain().focus().deleteSelection().run()}><Trash2 />Remove</Button>
+        </BubbleMenu>
+      </> : null}
     </TooltipProvider>
+    <p className="py-3 text-caption text-muted-foreground">Type / to add a block. Select text to format it. Drag the handle to reorder.</p>
     {!editor ? <p role="status" className="p-4 text-caption text-muted-foreground">Loading editor…</p> : null}
     <EditorContent editor={editor} />
+    {editor && !disabled ? <DragHandle editor={editor} className="writing-drag-handle" onNodeChange={({ pos }) => setBlockPosition(pos)}>
+      <button type="button" className="flex size-8 cursor-grab items-center justify-center rounded-lg text-muted-foreground hover:bg-muted active:cursor-grabbing" aria-label="Drag to move this block, or select it to cut and paste" onClick={() => { if (blockPosition >= 0) editor.commands.setNodeSelection(blockPosition) }}><GripVertical className="size-4" /></button>
+    </DragHandle> : null}
     {mediaNotice ? <p role="status" className="px-4 pb-4 text-caption text-muted-foreground">{mediaNotice}</p> : null}
     <dialog ref={dialog} aria-labelledby={`${id}-insert-title`} className="fixed inset-0 m-auto max-h-full w-full max-w-(--measure) overflow-y-auto rounded-lg border border-border bg-background p-4 text-foreground backdrop:bg-background/85 sm:p-6" onClose={() => { setInsert(null); focusElement(returnFocus.current) }}>
       {insert ? <form className="flex flex-col gap-4" onSubmit={(event) => {

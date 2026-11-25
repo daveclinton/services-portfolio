@@ -39,11 +39,52 @@ const { AiTaskSuggestions } = require("../components/portfolio/ai-task-suggestio
 const { ProjectScopeForm } = require("../components/portfolio/project-scope-form.tsx")
 const { NewsletterSignup, NewsletterConfirmation } = require("../components/portfolio/newsletter-signup.tsx")
 const { newsletterAvailable, subscribeToNewsletter } = require("../lib/newsletter.ts")
-const { TONE_COLORS } = require("../lib/tone.ts")
+const { TONE_COLORS, toneScript } = require("../lib/tone.ts")
 const { NewsletterStudio } = require("../components/portfolio/newsletter-studio.tsx")
 const { studioSession, studioSave, studioAction, studioPreview, nairobiSchedule } = require("../lib/newsletter-studio.ts")
 const { Signals } = require("../components/portfolio/signals.tsx")
 const { ArticleSections } = require("../components/portfolio/article-sections.tsx")
+const { default: LegacyStudioPage } = require("../app/(standard)/admin/newsletters/page.tsx")
+
+test("the old desk link redirects to Writing while preserving a failed login", async () => {
+  for (const [query, target] of [[{}, "/admin/writing"], [{ login: "failed" }, "/admin/writing?login=failed"]]) {
+    await assert.rejects(() => LegacyStudioPage({ searchParams: Promise.resolve(query) }), (error) => error.digest?.includes(target))
+  }
+})
+
+test("admin boot uses the neutral theme while public pages retain the saved signal color", () => {
+  for (const path of ["/admin/writing", "/admin/newsletters", "/blog"]) {
+    const attributes = new Map([["data-tone", "0"]])
+    const icons = [], meta = { content: "#1557c0", setAttribute(name, value) { this.content = value } }
+    const document = {
+      documentElement: { setAttribute: (key, value) => attributes.set(key, value), removeAttribute: (key) => attributes.delete(key), getAttribute: (key) => attributes.get(key), hasAttribute: (key) => attributes.has(key) },
+      head: { appendChild: (element) => icons.push(element) }, body: {}, readyState: "complete",
+      createElement: () => ({ setAttribute() {} }),
+      querySelectorAll: (selector) => selector.startsWith("meta") ? [meta] : icons,
+    }
+    vm.runInNewContext(toneScript, { document, location: { pathname: path, hash: "" }, localStorage: { getItem: () => "3" }, getComputedStyle: () => ({ backgroundColor: "rgb(251, 250, 248)" }), MutationObserver: class { observe() {} } }, { timeout: 1000 })
+    assert.equal(attributes.get("data-tone"), path.startsWith("/admin/") ? undefined : "3")
+    assert.equal(meta.content, path.startsWith("/admin/") ? "rgb(251, 250, 248)" : TONE_COLORS[3])
+  }
+})
+
+test("leaving the writing desk restores the public palette without overwriting its preference", () => {
+  const source = ts.transpileModule(readFileSync(new URL("../components/portfolio/site-nav.tsx", import.meta.url), "utf8"), { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS } }).outputText
+  const attributes = new Map([["data-tone", "2"]]), effects = [], exports = {}
+  const modules = {
+    react: { useLayoutEffect: (effect) => effects.push(effect) },
+    "react/jsx-runtime": { jsx: () => null, jsxs: () => null },
+    "next/link": { default: "a" }, "next/navigation": { usePathname: () => "/admin/writing" },
+    "@/lib/portfolio-data": { askAi: { href: "/ask-ai" }, site: { name: "David" } },
+    "@/lib/tone": { TONE_STORAGE_KEY: "site-tone", toneOf: (index) => String(index % TONE_COLORS.length) },
+  }
+  vm.runInNewContext(source, { exports, require: (name) => modules[name], document: { documentElement: { getAttribute: (key) => attributes.get(key), removeAttribute: (key) => attributes.delete(key), setAttribute: (key, value) => attributes.set(key, value) } }, localStorage: { getItem: () => "4" } })
+  exports.SiteNav()
+  const cleanup = effects[0]()
+  assert(!attributes.has("data-tone"))
+  cleanup()
+  assert.equal(attributes.get("data-tone"), "4")
+})
 
 
 test("discovery starts with only three categories and reveals one group at a time", () => {
@@ -237,7 +278,7 @@ const studioDraft = { id: "a5cd8282-68f1-4b4a-9c19-000000000001", subject: "A no
 
 test("newsletter studio mounts no private data or send controls before owner verification", () => {
   const html = renderToStaticMarkup(React.createElement(NewsletterStudio))
-  assert(html.includes("Loading your newsletters"))
+  assert(html.includes("Loading your posts"))
   assert(!html.includes("<textarea"))
   assert(!html.includes("Confirm send"))
   assert(!html.includes("A note"))
