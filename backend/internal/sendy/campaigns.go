@@ -99,6 +99,16 @@ func (c *Client) SetCampaignStatus(ctx context.Context, id int64, status string)
 	}
 	return err
 }
+
+// SetCampaignRecipients narrows a draft campaign to these emails; nil means all.
+// It cannot change a campaign that has been submitted.
+func (c *Client) SetCampaignRecipients(ctx context.Context, id int64, emails []string) error {
+	result, err := c.db.Exec(ctx, `UPDATE newsletter_campaigns SET recipients=$1 WHERE id=$2 AND status='draft'`, emails, id)
+	if err == nil && result.RowsAffected() != 1 {
+		return errors.New("campaign is no longer editable")
+	}
+	return err
+}
 func (c *Client) CampaignAudience(ctx context.Context, _ int64) (int, error) {
 	var count int
 	err := c.db.QueryRow(ctx, `SELECT COUNT(*) FROM newsletter_subscribers WHERE status='subscribed'`).Scan(&count)
@@ -133,10 +143,12 @@ func (c *Client) ProcessQueue(ctx context.Context) error {
 	}
 	for _, id := range ids {
 		var body string
-		if err = tx.QueryRow(ctx, `SELECT html FROM newsletter_campaigns WHERE id=$1`, id).Scan(&body); err != nil {
+		var recipients []string
+		if err = tx.QueryRow(ctx, `SELECT html,recipients FROM newsletter_campaigns WHERE id=$1`, id).Scan(&body, &recipients); err != nil {
 			return err
 		}
-		members, err := tx.Query(ctx, `SELECT id::text FROM newsletter_subscribers WHERE status='subscribed'`)
+		// Selected contacts still have to be confirmed subscribers at send time.
+		members, err := tx.Query(ctx, `SELECT id::text FROM newsletter_subscribers WHERE status='subscribed' AND ($1::text[] IS NULL OR email=ANY($1))`, recipients)
 		if err != nil {
 			return err
 		}

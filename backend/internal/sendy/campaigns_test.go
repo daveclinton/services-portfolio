@@ -190,3 +190,47 @@ func TestCreditsRefusalRetriesWithoutChangingKeyAndTerminalFailuresStop(t *testi
 		t.Fatal("terminal failure claimed sent", string(data), strconv.Itoa(response))
 	}
 }
+
+func TestSelectedRecipientsLimitTheSnapshotToConfirmedContacts(t *testing.T) {
+	c := testClient(t)
+	importAudience(t, c)
+	stamp := time.Now().Add(-time.Hour).UTC().Format(time.RFC3339)
+	if _, err := c.ImportSubscribers(context.Background(), strings.NewReader("email,status,confirmed_at\nother@example.com,subscribed,"+stamp+"\n")); err != nil {
+		t.Fatal(err)
+	}
+	messages := recordEmails(c)
+	ctx := context.Background()
+	id := createCampaign(t, c, "portfolio-newsletter/selected")
+	// A suppressed address in the list must still be skipped.
+	if err := c.SetCampaignRecipients(ctx, id, []string{"other@example.com", "optout@example.com"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.SendCampaign(ctx, id); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.SetCampaignRecipients(ctx, id, nil); err == nil {
+		t.Fatal("recipients changed after submission")
+	}
+	if err := c.ProcessQueue(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var to []string
+	for _, m := range *messages {
+		for _, a := range m.To {
+			to = append(to, a.Email)
+		}
+	}
+	if strings.Join(to, ",") != "other@example.com" {
+		t.Fatalf("sent to %v", to)
+	}
+	all := createCampaign(t, c, "portfolio-newsletter/all")
+	if err := c.SendCampaign(ctx, all); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.ProcessQueue(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(*messages) != 3 {
+		t.Fatalf("an unrestricted campaign did not reach both subscribers: %d emails", len(*messages))
+	}
+}

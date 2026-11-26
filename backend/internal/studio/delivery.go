@@ -258,6 +258,12 @@ func (s *Service) campaignAction(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	// The campaign always carries the draft's current choice, so a send can
+	// never reach a wider audience than the one confirmed on screen.
+	if e := s.mail.SetCampaignRecipients(ctx, d.CampaignID, d.Recipients); e != nil {
+		fail(e, "prepare")
+		return
+	}
 	if err = record(conn, &d, "checking", action, ""); err != nil {
 		draftFailure(w, err)
 		return

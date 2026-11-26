@@ -346,6 +346,14 @@ dialog[open] {
   @apply border-b border-border px-4 py-4;
 }
 
+.admin-sort-button {
+  @apply -mx-1 inline-flex items-center gap-1 rounded-md px-1 py-0.5 font-medium text-muted-foreground hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none;
+}
+
+.admin-sort-button:where([aria-sort] *) {
+  @apply text-foreground;
+}
+
 .admin-text-link {
   @apply text-primary underline underline-offset-4;
 }

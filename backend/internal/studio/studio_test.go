@@ -28,6 +28,8 @@ type fakeCampaigns struct {
 	body, testEmail                string
 	createTimeout, sendTimeout     bool
 	sendError                      error
+	recipients                     []string
+	recipientCalls                 int
 }
 
 func (p *fakeCampaigns) CreateCampaign(_ context.Context, name, subject, body string, sender sendy.Address, list int64) (int64, error) {
@@ -79,6 +81,11 @@ func (p *fakeCampaigns) SendCampaign(context.Context, int64) error {
 func (p *fakeCampaigns) SetCampaignStatus(_ context.Context, _ int64, status string) error {
 	p.campaign.Status = status
 	p.campaign.ScheduledAt = nil
+	return nil
+}
+func (p *fakeCampaigns) SetCampaignRecipients(_ context.Context, _ int64, emails []string) error {
+	p.recipients = append([]string(nil), emails...)
+	p.recipientCalls++
 	return nil
 }
 func (p *fakeCampaigns) CampaignAudience(context.Context, int64) (int, error) { return 3, nil }

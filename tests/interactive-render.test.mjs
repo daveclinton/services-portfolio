@@ -459,3 +459,59 @@ test("article section links and selections preserve the page color while other l
     }
   }
 })
+
+test("the desk pager reports the visible range and stops at both ends", () => {
+  const { TablePager } = require("../components/portfolio/table-pager.tsx")
+  const html = renderToStaticMarkup(React.createElement(TablePager, { first: 20, shown: 5, total: 25, page: 1, pages: 2, onPage() {} }))
+  assert(html.includes("21–25 of 25"))
+  assert(html.includes("Page 2 of 2"))
+  const button = (label) => html.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))[0]
+  assert.match(button("Next page"), / disabled=""/)
+  assert.doesNotMatch(button("Previous page"), / disabled=""/)
+})
+
+test("contacts are read only from a validated owner response", async (t) => {
+  const { studioContacts } = require("../lib/newsletter-studio.ts")
+  let body = { contacts: [{ email: "reader@example.com", status: "subscribed", joined_at: "2026-11-20T10:00:00Z", confirmed_at: "2026-11-20T10:05:00Z" }], limit: 5000 }, seen
+  t.mock.method(globalThis, "fetch", async (url, options) => { seen = { url, options }; return Response.json(body) })
+  assert.equal((await studioContacts()).contacts[0].email, "reader@example.com")
+  assert(seen.url.endsWith("/admin/newsletters/contacts"))
+  assert.equal(seen.options.credentials, "include")
+  body = { contacts: [{ email: "x@example.com", status: "everyone", joined_at: "", confirmed_at: null }], limit: 5000 }
+  await assert.rejects(() => studioContacts(), /contacts/)
+})
+
+test("the admin shell links to contacts", () => {
+  const html = renderToStaticMarkup(React.createElement(AdminShell, { section: "contacts", session: { authenticated: true, login: "owner" }, loading: false, busy: false, onNavigate: async () => {}, onLogout() {} }, "List"))
+  assert.match(html, /href="\/admin\/contacts" aria-current="page"/)
+})
+
+test("recipient choices must come back exactly as chosen", async (t) => {
+  const { studioRecipients } = require("../lib/newsletter-studio.ts")
+  let body = { ...studioDraft, recipients: ["a@example.com"] }, sent
+  t.mock.method(globalThis, "fetch", async (_url, options) => { sent = JSON.parse(options.body); return Response.json(body) })
+  assert.deepEqual((await studioRecipients("csrf", studioDraft, ["A@example.com"])).recipients, ["a@example.com"])
+  assert.deepEqual(sent, { revision: 1, recipients: ["A@example.com"] })
+  body = { ...studioDraft, recipients: null }
+  await assert.rejects(() => studioRecipients("csrf", studioDraft, ["a@example.com"]), /not confirmed/)
+})
+
+test("table sort settings read safely from the address and keep defaults out of it", () => {
+  const { readSort, readPage, nextSort } = require("../lib/desk-url.ts")
+  const keys = ["email", "status", "date"], dir = (key) => key === "date" ? "desc" : "asc"
+  assert.deepEqual(readSort(new URLSearchParams("sort=email&dir=desc"), keys, "date", dir), { key: "email", dir: "desc" })
+  assert.deepEqual(readSort(new URLSearchParams("sort=password&dir=sideways"), keys, "date", dir), { key: "date", dir: "desc" })
+  assert.equal(readPage(new URLSearchParams("page=-4")), 0)
+  assert.equal(readPage(new URLSearchParams("page=3")), 2)
+  assert.deepEqual(nextSort({ key: "date", dir: "desc" }, "email", "date", dir), { sort: "email", dir: null, page: null })
+  assert.deepEqual(nextSort({ key: "date", dir: "desc" }, "date", "date", dir), { sort: "date", dir: "asc", page: null })
+  assert.deepEqual(nextSort({ key: "date", dir: "asc" }, "date", "date", dir), { sort: null, dir: null, page: null })
+})
+
+test("sortable headers announce only the sorted column", () => {
+  const { SortHeader } = require("../components/portfolio/sort-header.tsx")
+  const on = renderToStaticMarkup(React.createElement("tr", null, React.createElement(SortHeader, { label: "Email", active: true, dir: "asc", onSort() {} })))
+  const off = renderToStaticMarkup(React.createElement("tr", null, React.createElement(SortHeader, { label: "Date", active: false, dir: "asc", onSort() {} })))
+  assert.match(on, /<th scope="col" aria-sort="ascending"><button type="button"/)
+  assert(!off.includes("aria-sort"))
+})

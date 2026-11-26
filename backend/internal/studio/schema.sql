@@ -28,6 +28,8 @@ ALTER TABLE newsletter_studio_drafts ADD COLUMN IF NOT EXISTS first_published_at
 CREATE TABLE IF NOT EXISTS studio_deleted_posts (
  slug text PRIMARY KEY, deleted_at timestamptz NOT NULL DEFAULT NOW()
 );
+-- NULL sends to all confirmed subscribers.
+ALTER TABLE newsletter_studio_drafts ADD COLUMN IF NOT EXISTS recipients text[];
 CREATE INDEX IF NOT EXISTS studio_drafts_kind_updated ON newsletter_studio_drafts(kind,updated_at DESC,id DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS studio_post_draft_slug ON newsletter_studio_drafts(slug) WHERE kind='post' AND slug<>'';
 CREATE TABLE IF NOT EXISTS studio_posts (

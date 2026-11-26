@@ -25,3 +25,6 @@ CREATE TABLE IF NOT EXISTS newsletter_deliveries (
 
 CREATE INDEX IF NOT EXISTS newsletter_delivery_queue_idx ON newsletter_deliveries(next_attempt_at)
  WHERE status IN ('pending','queued','processing','accepted');
+
+-- NULL sends to every confirmed subscriber; a list narrows the snapshot.
+ALTER TABLE newsletter_campaigns ADD COLUMN IF NOT EXISTS recipients text[];
