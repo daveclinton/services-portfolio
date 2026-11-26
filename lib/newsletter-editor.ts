@@ -7,6 +7,31 @@ import { Markdown } from "@tiptap/markdown"
 import { Placeholder } from "@tiptap/extensions"
 import { marked } from "marked"
 import type { Editor } from "@tiptap/react"
+import type { NewsletterDraft } from "./newsletter-studio"
+
+export type NewsletterDocument = Pick<NewsletterDraft, "subject" | "description" | "markdown">
+
+// A single Markdown document: its leading H1 is the title, followed by the
+// post's description paragraph and the unchanged article source. Newsletters
+// have no description. Empty descriptions retain their paragraph boundary.
+// https://hackmd.io/features
+export function newsletterDocumentMarkdown({ subject, description, markdown }: NewsletterDocument): string {
+  return `# ${subject}\n\n${description === undefined ? "" : `${description}\n\n`}${markdown}`
+}
+
+export function parseNewsletterDocument(source: string, withDescription: boolean): NewsletterDocument {
+  const title = /^#(?:[ \t]+([^\r\n]*))?(?:\r?\n|$)/.exec(source)
+  // Removing the heading keeps all the source in the article; the existing
+  // required-title validation prevents saving an accidentally untitled draft.
+  if (!title) return { subject: "", markdown: source, ...(withDescription ? { description: "" } : {}) }
+  let content = source.slice(title[0].length).replace(/^\r?\n/, "")
+  const subject = title[1] ?? ""
+  if (!withDescription) return { subject, markdown: content }
+  const boundary = /\r?\n\r?\n/.exec(content)
+  const description = (boundary ? content.slice(0, boundary.index) : content).replace(/\r?\n/g, " ")
+  content = boundary ? content.slice(boundary.index + boundary[0].length) : ""
+  return { subject, description, markdown: content }
+}
 
 export const writingBlocks = [
   { id: "paragraph", label: "Text", description: "A plain paragraph", search: "paragraph normal body" },

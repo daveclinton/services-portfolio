@@ -1,10 +1,12 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 import { readFileSync } from "node:fs"
+import vm from "node:vm"
+import ts from "typescript"
 import { marked } from "marked"
 import { MarkdownManager } from "@tiptap/markdown"
 import { Editor, getSchema } from "@tiptap/react"
-import { applyWritingBlock, writingBlocks, newsletterEditorExtensions, newsletterRichTextIssue, formatMarkdown, newsletterImageMarkdown } from "../lib/newsletter-editor.ts"
+import { applyWritingBlock, writingBlocks, newsletterEditorExtensions, newsletterRichTextIssue, formatMarkdown, newsletterImageMarkdown, newsletterDocumentMarkdown, parseNewsletterDocument } from "../lib/newsletter-editor.ts"
 
 // Exercise the real parser, serializer, and ProseMirror schema without a DOM or
 // browser. These are the boundaries between the new UI and existing saved mail.
@@ -139,6 +141,76 @@ function formatted(source, start, end, kind) {
   assert(edit.selectionStart >= 0 && edit.selectionEnd <= value.length, "selection stays inside the edited draft")
   return { value, selected: value.slice(edit.selectionStart, edit.selectionEnd), ...edit }
 }
+
+test("whole-document Markdown round trips title, optional description and the exact article source", () => {
+  const bodies = ["", "\n\nOpening **paragraph**.\n\n## Section\n\nBody\n", "---\n\n# A body heading\n\n> A quotation", "```js\nconst source = '# Not a title'\n```\n\n- [ ] Task", "\r\nA paragraph\r\n\r\nAnother\r\n"]
+  for (const markdown of bodies) for (const description of [undefined, "", "A description with **formatting**, : and Unicode — habari 👋"]) {
+    const document = { subject: "A title with #, quotes and Unicode 👋", markdown, ...(description === undefined ? {} : { description }) }
+    assert.deepEqual(parseNewsletterDocument(newsletterDocumentMarkdown(document), description !== undefined), document)
+  }
+  const posts = JSON.parse(readFileSync(new URL("../backend/internal/studio/posts.json", import.meta.url), "utf8"))
+  for (const post of posts) {
+    const document = { subject: post.title, description: post.description, markdown: post.markdown }
+    assert.deepEqual(parseNewsletterDocument(newsletterDocumentMarkdown(document), true), document, post.slug)
+  }
+})
+
+test("editing full Markdown changes title, description and body together without consuming newsletter body paragraphs", () => {
+  assert.deepEqual(parseNewsletterDocument("# Changed title\n\nChanged description\n\nFirst body paragraph\n\n## Section\n\nLast", true), {
+    subject: "Changed title", description: "Changed description", markdown: "First body paragraph\n\n## Section\n\nLast",
+  })
+  assert.deepEqual(parseNewsletterDocument("# Newsletter title\n\nFirst body paragraph\n\nLast", false), { subject: "Newsletter title", markdown: "First body paragraph\n\nLast" })
+  assert.deepEqual(parseNewsletterDocument("# Changed\n\n\n\nBody", true), { subject: "Changed", description: "", markdown: "Body" })
+  assert.deepEqual(parseNewsletterDocument("# Changed\r\n\r\nSummary\r\n\r\nBody\r\n", true), { subject: "Changed", description: "Summary", markdown: "Body\r\n" })
+  const source = "A missing title marker\n\n## Section\n\nBody"
+  assert.deepEqual(parseNewsletterDocument(source, true), { subject: "", description: "", markdown: source }, "removing a title marker never drops the source")
+})
+
+test("switching to whole-document source and back retains metadata edits and never duplicates the article", () => {
+  const slots = [], exports = {}
+  let cursor = 0
+  const jsx = (type, props) => ({ type, props: props ?? {} })
+  const hooks = { useState(initial) { const index = cursor++; if (!(index in slots)) slots[index] = typeof initial === "function" ? initial() : initial; return [slots[index], (value) => { slots[index] = value }] } }
+  const source = ts.transpileModule(readFileSync(new URL("../components/portfolio/newsletter-editor.tsx", import.meta.url), "utf8"), { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS } }).outputText
+  vm.runInNewContext(source, { exports, TextEncoder, require(name) {
+    if (name === "react") return hooks
+    if (name === "react/jsx-runtime") return { jsx, jsxs: jsx }
+    if (name === "@/lib/newsletter-editor") return { newsletterDocumentMarkdown, parseNewsletterDocument, newsletterRichTextIssue }
+    if (name === "@/lib/newsletter-studio") return { STUDIO_BODY_LIMIT: 40_000 }
+    return new Proxy({}, { get: (_object, key) => key })
+  } })
+  const props = { subject: "Original title", description: "Original description", value: "Opening.\n\n## Section\n\nBody.", disabled: false, children: "Visual title and description fields", onChange(value) { props.value = value }, onDocumentChange(document) { props.subject = document.subject; props.description = document.description; props.value = document.markdown } }
+  function render() { cursor = 0; return exports.NewsletterEditor(props).props.children[0] }
+  function modeButton(node) {
+    if (Array.isArray(node)) return node.map(modeButton).find(Boolean)
+    if (!node?.props) return null
+    if (node.props["aria-label"] === "Edit Markdown" || node.props["aria-label"] === "Back to editor") return node
+    return modeButton(node.props.render) ?? modeButton(node.props.children)
+  }
+  let editor = render()
+  assert.equal(editor.type.name, "RichTextEditor")
+  modeButton(editor.props.modeSwitch).props.onClick()
+  editor = render()
+  assert.equal(editor.type.name, "MarkdownEditor")
+  assert.equal(editor.props.children, undefined, "source mode has no separate metadata fields")
+  assert.equal(editor.props.value, "# Original title\n\nOriginal description\n\nOpening.\n\n## Section\n\nBody.")
+  const changed = "# New title\n\nNew description\n\n\nAn edited **body**.\n\n## Section\n\nKeep me.\n"
+  editor.props.onChange(changed)
+  editor = render()
+  assert.equal(editor.props.value, changed, "parent draft updates do not rewrite the source or its whitespace while typing")
+  modeButton(editor.props.modeSwitch).props.onClick()
+  editor = render()
+  assert.equal(editor.type.name, "RichTextEditor")
+  assert.equal(props.subject, "New title")
+  assert.equal(props.description, "New description")
+  assert.equal(editor.props.value, "\nAn edited **body**.\n\n## Section\n\nKeep me.\n")
+  for (let index = 0; index < 3; index++) {
+    modeButton(editor.props.modeSwitch).props.onClick(); editor = render()
+    assert.equal(editor.props.value, changed)
+    modeButton(editor.props.modeSwitch).props.onClick(); editor = render()
+    assert.equal(editor.props.value, props.value)
+  }
+})
 
 test("Markdown formatting preserves surrounding prose, selects the content, and toggles off", () => {
   for (const kind of ["bold", "italic", "strikethrough", "code"]) {

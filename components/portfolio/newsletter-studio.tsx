@@ -454,7 +454,10 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
         </div>
         <div ref={writeArea} className="admin-write-layout"><div className="admin-write-grid">
         <div className="admin-editor-scroll" role="region" aria-label="Article editor" tabIndex={0}>
-        <NewsletterEditor key={current?.id} value={markdown} disabled={busy} onUpload={(file) => studioUpload(session!.csrf,file)} onChange={(value) => { text.current.markdown = value; setMarkdown(value); setSaved("unsaved") }}>
+        <NewsletterEditor key={current?.id} value={markdown} subject={subject} description={section === "posts" ? summary : undefined} disabled={busy} onUpload={(file) => studioUpload(session!.csrf,file)} onChange={(value) => { text.current.markdown = value; setMarkdown(value); setSaved("unsaved") }} onDocumentChange={(document) => {
+          text.current = { subject: document.subject, summary: document.description ?? "", markdown: document.markdown }
+          setSubject(document.subject); setSummary(document.description ?? ""); setMarkdown(document.markdown); setSaved("unsaved")
+        }}>
         <div className="flex flex-col gap-2">
           <label htmlFor="post-title" className="sr-only">Post title</label>
           <textarea ref={attachSubjectInput} id="post-title" rows={2} className="studio-title w-full resize-none bg-transparent pl-8 font-bold text-foreground outline-none" value={subject} required maxLength={STUDIO_SUBJECT_LIMIT} disabled={busy} placeholder="Untitled post" onChange={(event) => { const value = event.target.value.replace(/[\r\n]+/g, " "); text.current.subject = value; setSubject(value); setSaved("unsaved") }} />
