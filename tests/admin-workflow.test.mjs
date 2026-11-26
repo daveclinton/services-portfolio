@@ -11,7 +11,7 @@ const baseDraft = { id: "a5cd8282-68f1-4b4a-9c19-000000000001", subject: publish
 const settle = () => new Promise((resolve) => setImmediate(resolve))
 
 function desk({ failSave = false, section = "newsletters", drafts = [], cached, failRemove = false, allowSend = false, search = "", openDraft, width, blockPopups = false } = {}) {
-  const slots = [], effects = [], calls = [], host = new Map(), announced = []
+  const slots = [], effects = [], calls = [], host = new Map(), announced = [], summaries = []
   let cursor = 0, pending = [], tree, nodes = []
   const same = (a, b) => a && b && a.length === b.length && a.every((item, index) => item === b[index])
   const hooks = {
@@ -32,7 +32,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     studioRecipients: async (_csrf, draft, recipients) => { calls.push(["recipients", recipients]); return { ...draft, recipients: recipients ? [...recipients].sort() : null } },
     studioFromPost: async (_csrf, slug) => {calls.push(["from-post",slug]);return {...baseDraft,markdown:`${published.description}\n\n[Read the post](<https://example.com/blog/${slug}>)`}},
     studioCreate: async (_csrf, subject, kind) => { calls.push(["create", subject, kind]); return { ...baseDraft, subject,kind } },
-    studioSave: async (_csrf, draft, subject, markdown) => { calls.push(["save", subject, markdown]); if (failSave) throw new Error("Save failed"); return { ...draft, subject, markdown, revision: draft.revision + 1 } },
+    studioSave: async (_csrf, draft, subject, markdown, description) => { calls.push(["save", subject, markdown]); summaries.push(description); if (failSave) throw new Error("Save failed"); return { ...draft, subject, markdown, revision: draft.revision + 1, ...(description === undefined ? {} : { description }) } },
     studioPreview: async () => { calls.push(["preview"]); return { html: "<p>Rendered email</p>", preheader: "Rendered email" } },
     studioMeta: async () => ({ sender: { name: "Owner", email: "owner@example.com" }, test_email: "owner@example.com", subscribers: 1, audience: "Readers" }),
     studioAction: async (_csrf, draft, kind, when) => { calls.push([kind, when]); if (!allowSend) throw new Error("No email action expected"); return { ...draft, state: kind === "test" ? "draft" : kind === "schedule" ? "scheduled" : "sending", tested_revision: kind === "test" ? draft.revision : draft.tested_revision } },
@@ -105,7 +105,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     checkboxes:()=>nodes.filter((node)=>node.type==="input"&&node.props.type==="checkbox").length,
     nodeOfType:(type)=>nodes.find((node)=>node.type===type),
     pressed:()=>nodes.filter((node)=>node.type==="button"&&node.props["aria-pressed"]).map((node)=>text(node.props.children)),
-    tabs:()=>tabs, announced:()=>announced,
+    tabs:()=>tabs, announced:()=>announced, summaries:()=>summaries, inputValue:(id)=>nodes.find((node)=>node.props.id===id)?.props.value,
     url:()=>entries[at], history:()=>[...entries], back(){ history.back(); render() },
     sortBy:(label)=>nodes.find((node)=>node.type==="sort-header"&&node.props.label===label).props.onSort(),
     sortState:()=>nodes.filter((node)=>node.type==="sort-header").map((node)=>`${node.props.label}:${node.props.active?node.props.dir:"-"}`).join(" "),
@@ -324,3 +324,22 @@ test("scrolling the editor carries the live view to the same place", async () =>
   ui.node("Article editor").props.onScroll({ currentTarget: { scrollTop: 500, scrollHeight: 2000, clientHeight: 1000 } })
   assert.equal(live.scrollTop, 1000, "half way down the editor is half way down the article")
 })
+
+test("posts have a summary under the title that saves with the draft and shows in the live view", async () => {
+  const ui = desk({ section: "posts", width: 1200 }); await ui.flush()
+  ui.click("New post"); await ui.flush()
+  ui.input("post-title", "Bubbles"); ui.input("post-summary-line", "What a bubble is,\nand what a burst would change."); await ui.flush()
+  assert.equal(ui.nodeOfType("live-article").props.description, "What a bubble is, and what a burst would change.", "line breaks become spaces, and the live view follows")
+  assert(ui.text().includes("Unsaved changes"), "a summary change is an unsaved change")
+  ui.headerButton("Publish").props.onClick(); await ui.flush(); await ui.flush()
+  assert.deepEqual([...ui.summaries()], ["What a bubble is, and what a burst would change."], "the summary is saved with the post")
+  ui.submit(); await ui.flush()
+  assert.equal(host_value(ui, "post-summary"), "What a bubble is, and what a burst would change.", "publishing starts from the saved summary")
+
+  const letters = desk({ section: "newsletters" }); await letters.flush()
+  letters.click("New newsletter"); await letters.flush(); letters.select("a-published-post"); letters.submit(); await letters.flush()
+  assert(!letters.has("post-summary-line") && !letters.text().includes("Add a summary"), "newsletters have no summary field")
+  letters.edit("A newsletter body"); letters.click("Preview"); await letters.flush()
+  assert.deepEqual([...letters.summaries()], [undefined], "newsletter saves leave the summary out")
+})
+function host_value(ui, id) { return ui.inputValue(id) }

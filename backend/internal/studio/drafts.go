@@ -132,6 +132,18 @@ func (s *Service) saveDraft(w http.ResponseWriter, r *http.Request) {
 	subject, _ := body["subject"].(string)
 	markdown, _ := body["markdown"].(string)
 	subject = strings.TrimSpace(subject)
+	// The summary is optional on each save: a request without it (newsletters,
+	// older tabs) keeps the saved one instead of clearing it.
+	var description *string
+	if value, present := body["description"]; present {
+		text, isText := value.(string)
+		text = strings.TrimSpace(text)
+		if !isText || utf8.RuneCountInString(text) > 300 || strings.ContainsAny(text, "\r\n") {
+			httpx.BadRequest(w, "Keep the summary to one line of up to 300 characters.", nil)
+			return
+		}
+		description = &text
+	}
 	if subject == "" || utf8.RuneCountInString(subject) > sendy.NewsletterSubjectLimit || len(subject) > sendy.SubjectByteLimit || len(markdown) > sendy.NewsletterBodyLimit || strings.ContainsAny(subject, "\r\n") || strings.Contains(subject, "{{") || strings.Contains(subject, "{%") {
 		httpx.BadRequest(w, "Check the subject and newsletter length.", nil)
 		return
@@ -143,7 +155,7 @@ func (s *Service) saveDraft(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer release()
-	draft, err := scanDraft(conn.QueryRow(r.Context(), `UPDATE newsletter_studio_drafts SET subject=$1,markdown=$2,revision=revision+1,last_error='',updated_at=NOW(),state='draft' WHERE id=$3::text::uuid AND revision=$4 AND operation='' AND state IN ('draft','error') RETURNING `+draftColumns, subject, markdown, current.ID, revisionOf(body)))
+	draft, err := scanDraft(conn.QueryRow(r.Context(), `UPDATE newsletter_studio_drafts SET subject=$1,markdown=$2,description=COALESCE($5,description),revision=revision+1,last_error='',updated_at=NOW(),state='draft' WHERE id=$3::text::uuid AND revision=$4 AND operation='' AND state IN ('draft','error') RETURNING `+draftColumns, subject, markdown, current.ID, revisionOf(body), description))
 	if errors.Is(err, pgx.ErrNoRows) {
 		httpx.WriteJSON(w, 409, httpx.Problem{Detail: "This newsletter changed or is no longer editable. Reload it before continuing."})
 		return

@@ -199,10 +199,12 @@ export async function studioDrafts(): Promise<NewsletterDraft[]> {
   return result.drafts.map(draft)
 }
 export async function studioCreate(csrf: string, subject: string, kind: "post" | "newsletter" = "newsletter"): Promise<NewsletterDraft> { return draft(await request("drafts", csrf, { subject, kind })) }
-export async function studioSave(csrf: string, current: NewsletterDraft, subject: string, markdown: string): Promise<NewsletterDraft> {
+export const STUDIO_SUMMARY_LIMIT = 300
+// Posts save their summary with each change; newsletters leave it out.
+export async function studioSave(csrf: string, current: NewsletterDraft, subject: string, markdown: string, description?: string): Promise<NewsletterDraft> {
   if (new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT) throw new Error("This newsletter is too long. Shorten it before saving.")
-  const result = draft(await request(`drafts/${current.id}/save`, csrf, { subject, markdown, revision: current.revision }))
-  if (result.revision !== current.revision + 1 || result.subject !== subject.trim() || result.markdown !== markdown) throw new Error("The latest changes were not confirmed as saved. Reload before sending.")
+  const result = draft(await request(`drafts/${current.id}/save`, csrf, { subject, markdown, revision: current.revision, ...(description === undefined ? {} : { description }) }))
+  if (result.revision !== current.revision + 1 || result.subject !== subject.trim() || result.markdown !== markdown || (description !== undefined && result.description !== description.trim())) throw new Error("The latest changes were not confirmed as saved. Reload before sending.")
   return result
 }
 export async function studioPreview(csrf: string, current: NewsletterDraft): Promise<{ html: string; preheader: string }> {
