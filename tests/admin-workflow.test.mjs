@@ -43,7 +43,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     "@/components/ui/button": { Button: "button" }, "@/components/ui/badge": { Badge: "badge" },
     "@/components/ui/skeleton": { Skeleton: "skeleton" }, "@/components/ui/select": { SelectField: "select-field" },
     "@/components/ui/tooltip": { Tooltip: "tooltip", TooltipContent: "tooltip-content", TooltipTrigger: "tooltip-trigger" },
-    "@/components/portfolio/document-actions": { DocumentActions: "document-actions" }, "@/components/portfolio/admin-shell": { AdminShell: "shell" }, "@/components/portfolio/newsletter-editor": { NewsletterEditor: "editor" },
+    "@/components/portfolio/table-pager": { TablePager: "table-pager" }, "@/components/portfolio/document-actions": { DocumentActions: "document-actions" }, "@/components/portfolio/admin-shell": { AdminShell: "shell" }, "@/components/portfolio/newsletter-editor": { NewsletterEditor: "editor" },
     "@/components/prompt-kit/markdown": { Markdown: "markdown" }, "@/lib/portfolio-data": { site: { url: "https://example.com" } },
     "@/lib/newsletter-studio": api, "@/lib/scroll": { focusElement() {} },
   }
@@ -79,6 +79,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     input(id,value) { nodes.find((node)=>node.props.id===id).props.onChange({target:{value}});render() },
     node:(label)=>nodes.find((node)=>node.props["aria-label"]===label),
     rows:()=>nodes.filter((node)=>node.type==="document-actions").map((node)=>node.props),
+    pager:()=>nodes.find((node)=>node.type==="table-pager").props,
     has:(label)=>nodes.some((node)=>node.type==="button"&&text(node.props.children)===label),
     button,
     header:()=>tree.props.actions,
@@ -131,10 +132,11 @@ test("posts lists drafts and published articles together, a page at a time", asy
   await ui.flush()
   assert.equal(ui.rows().length, 20)
   assert(ui.rows().some((item) => item.document.published_revision) && ui.rows().some((item) => !item.document.published_revision))
-  assert.equal(ui.node("Previous page").props.disabled, true)
-  for (let turn = 0; turn < 2; turn++) { ui.node("Next page").props.onClick(); await ui.flush() }
+  const pager = () => ui.pager()
+  assert.deepEqual([pager().page, pager().pages, pager().total], [0, 3, 45])
+  for (let turn = 0; turn < 2; turn++) { pager().onPage(pager().page + 1); await ui.flush() }
   assert.equal(ui.rows().length, 5)
-  assert.equal(ui.node("Next page").props.disabled, true)
+  assert.deepEqual([pager().first, pager().shown, pager().page], [40, 5, 2])
 })
 
 test("deleting acts on the chosen revision, updates the list and keeps it on failure", async () => {

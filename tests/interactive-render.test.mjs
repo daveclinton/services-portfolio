@@ -459,3 +459,29 @@ test("article section links and selections preserve the page color while other l
     }
   }
 })
+
+test("the desk pager reports the visible range and stops at both ends", () => {
+  const { TablePager } = require("../components/portfolio/table-pager.tsx")
+  const html = renderToStaticMarkup(React.createElement(TablePager, { first: 20, shown: 5, total: 25, page: 1, pages: 2, onPage() {} }))
+  assert(html.includes("21–25 of 25"))
+  assert(html.includes("Page 2 of 2"))
+  const button = (label) => html.match(new RegExp(`<button[^>]*aria-label="${label}"[^>]*>`))[0]
+  assert.match(button("Next page"), / disabled=""/)
+  assert.doesNotMatch(button("Previous page"), / disabled=""/)
+})
+
+test("contacts are read only from a validated owner response", async (t) => {
+  const { studioContacts } = require("../lib/newsletter-studio.ts")
+  let body = { contacts: [{ email: "reader@example.com", status: "subscribed", joined_at: "2026-11-20T10:00:00Z", confirmed_at: "2026-11-20T10:05:00Z" }], limit: 5000 }, seen
+  t.mock.method(globalThis, "fetch", async (url, options) => { seen = { url, options }; return Response.json(body) })
+  assert.equal((await studioContacts()).contacts[0].email, "reader@example.com")
+  assert(seen.url.endsWith("/admin/newsletters/contacts"))
+  assert.equal(seen.options.credentials, "include")
+  body = { contacts: [{ email: "x@example.com", status: "everyone", joined_at: "", confirmed_at: null }], limit: 5000 }
+  await assert.rejects(() => studioContacts(), /contacts/)
+})
+
+test("the admin shell links to contacts", () => {
+  const html = renderToStaticMarkup(React.createElement(AdminShell, { section: "contacts", session: { authenticated: true, login: "owner" }, loading: false, busy: false, onNavigate: async () => {}, onLogout() {} }, "List"))
+  assert.match(html, /href="\/admin\/contacts" aria-current="page"/)
+})

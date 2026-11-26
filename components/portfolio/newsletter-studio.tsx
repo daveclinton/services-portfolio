@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { focusElement } from "@/lib/scroll"
 import { Markdown } from "@/components/prompt-kit/markdown"
-import { AdminShell, type AdminSection } from "@/components/portfolio/admin-shell"
+import { AdminShell } from "@/components/portfolio/admin-shell"
 import { DocumentActions } from "@/components/portfolio/document-actions"
+import { TablePager } from "@/components/portfolio/table-pager"
 import { SelectField } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { FileText, Mail, Plus, Info, LoaderCircle, X, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react"
+import { FileText, Mail, Plus, Info, LoaderCircle, X, ExternalLink } from "lucide-react"
 import { site } from "@/lib/portfolio-data"
 import {
   studioBootstrap, studioCachedDesk, studioUpdateDesk, studioOpen, studioWarm, studioRemove, studioCreate, studioSave, studioPreview, studioMeta, studioAction, studioLogout, studioFromPost, studioPublish, studioUpload,
@@ -29,7 +30,7 @@ const surfaceClass = "glass-surface rounded-2xl border border-input p-2.5 focus-
 
 // Ghost's writing -> email preview/test -> delivery -> confirmation flow.
 // The portfolio's form controls and theme are reused throughout.
-export function NewsletterStudio({ section = "posts", initialPost }: { section?: AdminSection; initialPost?: string }) {
+export function NewsletterStudio({ section = "posts", initialPost }: { section?: "posts" | "newsletters"; initialPost?: string }) {
   const router = useRouter()
   const [stage, setStage] = useState<Stage>("loading")
   const [session, setSession] = useState<StudioSession | null>(null)
@@ -302,10 +303,7 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
           })}
           {rows.length === 0 ? <tr><td colSpan={4}><div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">{section === "posts" ? <FileText className="size-6" /> : <Mail className="size-6" />}<p>{section === "posts" ? "No posts yet" : "No newsletters yet"}</p></div></td></tr> : null}
         </tbody></table></div>
-        <nav aria-label="Pagination" className="admin-table-footer">
-          <p role="status">{rows.length ? `${firstRow + 1}–${firstRow + visibleRows.length} of ${rows.length}` : "0 results"}</p>
-          <div className="flex items-center gap-2"><span>Page {currentPage + 1} of {pages}</span><Button variant="outline" size="icon-sm" aria-label="Previous page" disabled={currentPage === 0} onClick={() => turnPage(currentPage - 1)}><ChevronLeft /></Button><Button variant="outline" size="icon-sm" aria-label="Next page" disabled={currentPage >= pages - 1} onClick={() => turnPage(currentPage + 1)}><ChevronRight /></Button></div>
-        </nav>
+        <TablePager first={firstRow} shown={visibleRows.length} total={rows.length} page={currentPage} pages={pages} onPage={turnPage} />
       </div> : null}
       {stage === "pick" ? <form className="flex max-w-(--measure) flex-col gap-6" onSubmit={(event) => { event.preventDefault(); void work(usePublishedPost) }}>
         <div className="flex flex-col gap-3"><div className="flex items-center gap-2"><label htmlFor="newsletter-source" className="text-body font-medium">Published post</label><Tooltip><TooltipTrigger render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Newsletter content details" />}><Info /></TooltipTrigger><TooltipContent>Copies the whole post into an editable newsletter. Interactive parts become links.</TooltipContent></Tooltip></div>

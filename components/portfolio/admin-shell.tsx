@@ -4,7 +4,7 @@ import { useLayoutEffect, useState, type ReactNode } from "react"
 import { Dialog } from "@base-ui/react/dialog"
 import { Menu } from "@base-ui/react/menu"
 import Image from "next/image"
-import { FileText, Mail, PanelLeft, ChevronsUpDown, ExternalLink, LogOut, X, LoaderCircle } from "lucide-react"
+import { FileText, Mail, Users, PanelLeft, ChevronsUpDown, ExternalLink, LogOut, X, LoaderCircle } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -13,7 +13,7 @@ import { enterAdminTheme } from "@/lib/tone"
 import { site } from "@/lib/portfolio-data"
 import type { StudioSession } from "@/lib/newsletter-studio"
 
-export type AdminSection = "posts" | "newsletters"
+export type AdminSection = "posts" | "newsletters" | "contacts"
 type Props = { section: AdminSection; session: StudioSession | null; loading: boolean; busy: boolean; title?: string; actions?: ReactNode; editing?: boolean; onNavigate: (href: string) => Promise<void>; onLogout: () => void; children: ReactNode }
 
 // Header / content / profile-footer hierarchy follows shadcn sidebar-07.
@@ -25,15 +25,17 @@ export function AdminShell({ section, session, loading, busy, title, actions, ed
   const content = <>
     <div className="admin-sidebar-header"><Image src="/icon.svg" alt="" width={32} height={32} className="size-8 shrink-0" /><div><p className="text-body font-semibold">Writing desk</p><p className="text-caption text-muted-foreground">{site.name}</p></div></div>
     <div className="admin-sidebar-content">
-      <p className="px-3 pb-2 text-caption text-muted-foreground">Content</p>
-      <nav aria-label="Admin navigation"><ul className="flex flex-col gap-1">
-        {([{ id: "posts", label: "Posts", icon: FileText }, { id: "newsletters", label: "Newsletters", icon: Mail }] as const).map(({ id, label, icon: Icon }) => <li key={id}><a href={`/admin/${id}`} aria-current={section === id ? "page" : undefined} className="admin-nav-link" onClick={(event) => {
+      <nav aria-label="Admin navigation" className="flex flex-col gap-4">
+        {([["Content", [{ id: "posts", label: "Posts", icon: FileText }, { id: "newsletters", label: "Newsletters", icon: Mail }]], ["Audience", [{ id: "contacts", label: "Contacts", icon: Users }]]] as const).map(([group, items]) => <div key={group}>
+          <p className="px-3 pb-2 text-caption text-muted-foreground">{group}</p>
+          <ul className="flex flex-col gap-1">{items.map(({ id, label, icon: Icon }) => <li key={id}><a href={`/admin/${id}`} aria-current={section === id ? "page" : undefined} className="admin-nav-link" onClick={(event) => {
           if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
           event.preventDefault()
           if (busy) return
           void onNavigate(`/admin/${id}`).then(() => setMobileOpen(false))
-        }}><Icon className="size-4" />{label}</a></li>)}
-      </ul></nav>
+        }}><Icon className="size-4" />{label}</a></li>)}</ul>
+        </div>)}
+      </nav>
     </div>
     <div className="admin-sidebar-footer">
       {loading ? <div className="flex items-center gap-3 p-2"><Skeleton className="size-8 rounded-full" /><div className="flex flex-1 flex-col gap-2"><Skeleton className="h-4 w-24" /><Skeleton className="h-3 w-16" /></div></div> : session?.authenticated ? <Menu.Root>
@@ -63,7 +65,7 @@ export function AdminShell({ section, session, loading, busy, title, actions, ed
             {content}
           </Dialog.Popup></Dialog.Portal>
         </Dialog.Root>
-        <span className="min-w-0 truncate text-caption font-medium">{title ?? (section === "posts" ? "Posts" : "Newsletters")}</span>
+        <span className="min-w-0 truncate text-caption font-medium">{title ?? { posts: "Posts", newsletters: "Newsletters", contacts: "Contacts" }[section]}</span>
         <div className="ml-auto flex shrink-0 items-center gap-2">{busy ? <span role="status" aria-label="Working"><LoaderCircle className="size-4 motion-safe:animate-spin" /></span> : null}{actions}</div>
       </header>
       <main id="content" className={`admin-content${editing ? " admin-content-editing" : ""}`} aria-busy={loading || busy}>{children}</main>

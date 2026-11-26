@@ -78,6 +78,7 @@ func (s *Service) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /admin/newsletters/auth/login", s.login)
 	mux.HandleFunc("GET /admin/newsletters/auth/callback", s.callback)
 	mux.HandleFunc("POST /admin/newsletters/logout", s.protect(s.logout))
+	mux.HandleFunc("GET /admin/newsletters/contacts", s.protect(s.contacts))
 	mux.HandleFunc("GET /admin/newsletters/meta", s.protect(s.metadata))
 	mux.HandleFunc("GET /admin/newsletters/drafts", s.protect(s.listDrafts))
 	mux.HandleFunc("POST /admin/newsletters/drafts", s.protect(s.createDraft))

@@ -112,6 +112,17 @@ export async function studioOpen(d: NewsletterDraft): Promise<NewsletterDraft> {
   if (entry && entry.version === version(d) && Date.now() - entry.at < 30_000) return entry.value.catch(() => studioDraft(d.id))
   return studioDraft(d.id)
 }
+export type StudioContact = { email: string; status: "subscribed" | "pending" | "suppressed"; joined_at: string; confirmed_at: string | null }
+export async function studioContacts(): Promise<{ contacts: StudioContact[]; limit: number }> {
+  const result = await request("contacts")
+  if (!Array.isArray(result.contacts) || !Number.isSafeInteger(result.limit)) throw new Error("Couldn’t read your contacts.")
+  const contacts = result.contacts.map((value): StudioContact => {
+    const c = value as Record<string, unknown>
+    if (!c || typeof c.email !== "string" || !["subscribed", "pending", "suppressed"].includes(String(c.status)) || typeof c.joined_at !== "string" || (c.confirmed_at !== null && typeof c.confirmed_at !== "string")) throw new Error("Couldn’t read your contacts.")
+    return c as StudioContact
+  })
+  return { contacts, limit: result.limit as number }
+}
 export type StudioRemoval = "unpublish" | "discard" | "delete"
 export async function studioRemove(csrf: string, current: NewsletterDraft, action: StudioRemoval): Promise<NewsletterDraft | null> {
   const result = await request(`drafts/${current.id}/${action}`, csrf, { revision: current.revision })
