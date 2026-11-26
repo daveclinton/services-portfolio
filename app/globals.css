@@ -334,6 +334,56 @@ dialog[open] {
   font-family: var(--font-display), system-ui, sans-serif;
 }
 
+/* Side by side: writing on the left, the article as readers see it on the
+   right. The desk's own width decides the layout, not the window's. */
+.admin-write-layout {
+  @apply flex min-h-0 flex-1;
+  container: write / inline-size;
+}
+
+.admin-write-grid {
+  @apply grid min-h-0 flex-1 gap-6;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.admin-live-preview {
+  @apply hidden min-h-0 min-w-0 overflow-y-auto overscroll-contain border-l border-border pl-6 pr-2 pb-8;
+  container: live / inline-size;
+  scrollbar-gutter: stable;
+}
+
+@container write (min-width: 56rem) {
+  .admin-write-grid {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+
+  .admin-live-preview {
+    @apply block;
+  }
+}
+
+@container write (min-width: 72rem) {
+  .admin-write-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.live-article-header {
+  @apply flex flex-col gap-2 pb-2;
+}
+
+/* A narrow live column steps its reading size down rather than wrapping hard. */
+@container live (max-width: 30rem) {
+  .live-article {
+    font-size: 0.9375rem;
+  }
+
+  .live-article .studio-title {
+    font-size: 1.5rem;
+  }
+}
+
 .admin-menu-item {
   @apply flex cursor-default items-center gap-2 rounded-md px-2.5 py-2 text-caption outline-none data-highlighted:bg-muted data-disabled:opacity-50;
 }

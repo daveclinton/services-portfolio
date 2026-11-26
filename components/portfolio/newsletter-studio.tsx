@@ -9,6 +9,7 @@ import { Markdown } from "@/components/prompt-kit/markdown"
 import { AdminShell } from "@/components/portfolio/admin-shell"
 import { DocumentActions } from "@/components/portfolio/document-actions"
 import { TablePager } from "@/components/portfolio/table-pager"
+import { LiveArticle } from "@/components/portfolio/live-article"
 import { SortHeader } from "@/components/portfolio/sort-header"
 import { EMPTY_QUERY, compareText, leaveDeskQuery, nextSort, readPage, readSort, setDeskQuery, type DeskQuery, type SortDir } from "@/lib/desk-url"
 import { SelectField } from "@/components/ui/select"
@@ -35,6 +36,9 @@ const surfaceClass = "glass-surface rounded-2xl border border-input p-2.5 focus-
 const SORT_KEYS = ["title", "status", "date"] as const
 type SortKey = typeof SORT_KEYS[number]
 const sortDefault = (key: SortKey): SortDir => key === "date" ? "desc" : "asc"
+// Matches the container query in globals.css: below this the desk shows the
+// editor alone, and the live view is not rendered at all.
+const LIVE_VIEW_MIN_WIDTH = 896
 
 export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY_QUERY }: { section?: "posts" | "newsletters"; initialPost?: string; query?: DeskQuery }) {
   const router = useRouter()
@@ -74,6 +78,9 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const startPost = useRef(initialPost)
   const actionPending = useRef(false)
   const tableScroll = useRef<HTMLDivElement>(null)
+  const writeArea = useRef<HTMLDivElement>(null)
+  const livePane = useRef<HTMLElement>(null)
+  const [roomy, setRoomy] = useState(true)
   // Lists changed on this screen win over responses that were already in flight.
   const listVersion = useRef(0)
 
@@ -117,6 +124,15 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
     if (stage === "write" && !busy) { focusElement(subjectInput.current); if (subjectInput.current?.value === "Untitled post") subjectInput.current.select() }
     else if (stage !== "loading") focusElement(heading.current)
   }, [stage, busy])
+
+  // Measured on the desk itself, since the sidebar takes part of the window.
+  useEffect(() => {
+    const area = writeArea.current
+    if (stage !== "write" || !area || typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(([entry]) => setRoomy(entry.contentRect.width >= LIVE_VIEW_MIN_WIDTH))
+    observer.observe(area)
+    return () => observer.disconnect()
+  }, [stage])
 
   // Back, Forward, reloads and shared links drive the desk through ?doc and ?view.
   const docParam = query.get("doc")
@@ -420,12 +436,23 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
           <p>{section === "posts" ? current?.published_revision ? "Published · Editing draft" : "Draft post" : "Draft newsletter"}</p>
           <div className="flex items-center gap-2">{saved === "saving" ? <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" /> : null}<p role="status">{saved === "saving" ? "Saving…" : saved === "error" ? "Changes not saved" : dirty ? "Unsaved changes" : "Saved"}</p>{saved === "error" ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void work(async () => { await save() })}>Retry save</Button> : null}</div>
         </div>
-        <div className="admin-editor-scroll" role="region" aria-label="Article editor" tabIndex={0}>
+        <div ref={writeArea} className="admin-write-layout"><div className="admin-write-grid">
+        {/* The live view follows the editor's scroll position by proportion, as
+            Joplin does; exact line mapping drifts around images. */}
+        <div className="admin-editor-scroll" role="region" aria-label="Article editor" tabIndex={0} onScroll={(event) => {
+          const editor = event.currentTarget, live = livePane.current
+          if (!live) return
+          const range = editor.scrollHeight - editor.clientHeight
+          live.scrollTop = range > 0 ? (editor.scrollTop / range) * (live.scrollHeight - live.clientHeight) : 0
+        }}>
         <div className="flex flex-col gap-2">
           <label htmlFor="post-title" className="sr-only">Post title</label>
           <textarea ref={subjectInput} id="post-title" rows={2} className="studio-title w-full resize-none bg-transparent pl-8 font-bold text-foreground outline-none" value={subject} required maxLength={STUDIO_SUBJECT_LIMIT} disabled={busy} placeholder="Untitled post" onChange={(event) => { const value = event.target.value.replace(/[\r\n]+/g, " "); text.current.subject = value; setSubject(value); setSaved("unsaved") }} />
         </div>
         <NewsletterEditor key={current?.id} value={markdown} disabled={busy} onUpload={(file) => studioUpload(session!.csrf,file)} onChange={(value) => { text.current.markdown = value; setMarkdown(value); setSaved("unsaved") }} />
+        </div>
+        {roomy ? <LiveArticle ref={livePane} subject={subject} markdown={markdown} description={current?.description} /> : null}
+        </div>
         </div>
       </> : null}
       {stage === "preview" ? <>

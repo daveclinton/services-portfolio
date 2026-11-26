@@ -48,7 +48,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     "@/components/ui/button": { Button: "button" }, "@/components/ui/badge": { Badge: "badge" },
     "@/components/ui/skeleton": { Skeleton: "skeleton" }, "@/components/ui/select": { SelectField: "select-field" },
     "@/components/ui/tooltip": { Tooltip: "tooltip", TooltipContent: "tooltip-content", TooltipTrigger: "tooltip-trigger" },
-    "@/components/portfolio/table-pager": { TablePager: "table-pager" }, "@/components/portfolio/sort-header": { SortHeader: "sort-header" }, "@/components/portfolio/document-actions": { DocumentActions: "document-actions" }, "@/components/portfolio/admin-shell": { AdminShell: "shell" }, "@/components/portfolio/newsletter-editor": { NewsletterEditor: "editor" },
+    "@/components/portfolio/table-pager": { TablePager: "table-pager" }, "@/components/portfolio/live-article": { LiveArticle: "live-article" }, "@/components/portfolio/sort-header": { SortHeader: "sort-header" }, "@/components/portfolio/document-actions": { DocumentActions: "document-actions" }, "@/components/portfolio/admin-shell": { AdminShell: "shell" }, "@/components/portfolio/newsletter-editor": { NewsletterEditor: "editor" },
     "@/components/prompt-kit/markdown": { Markdown: "markdown" }, "@/lib/portfolio-data": { site: { url: "https://example.com" } },
     "@/lib/newsletter-studio": api, "@/lib/scroll": { focusElement() {} },
   }
@@ -103,6 +103,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     rows:()=>nodes.filter((node)=>node.type==="document-actions").map((node)=>node.props),
     checkbox:(email)=>nodes.find((node)=>node.type==="input"&&node.props.type==="checkbox"&&text(nodes[nodes.indexOf(node)+1]?.props?.children)===email),
     checkboxes:()=>nodes.filter((node)=>node.type==="input"&&node.props.type==="checkbox").length,
+    nodeOfType:(type)=>nodes.find((node)=>node.type===type),
     pressed:()=>nodes.filter((node)=>node.type==="button"&&node.props["aria-pressed"]).map((node)=>text(node.props.children)),
     tabs:()=>tabs, announced:()=>announced,
     url:()=>entries[at], history:()=>[...entries], back(){ history.back(); render() },
@@ -296,4 +297,30 @@ test("a blocked preview tab is explained, and post links to the old preview step
   await linked.flush(); await linked.flush(); await linked.flush()
   assert.equal(linked.url(), `doc=${post.id}`)
   assert(linked.headerButton("Publish"), "the post opens for writing with Publish at hand")
+})
+
+test("the editor and its live view sit side by side, with no layout switch to manage", async () => {
+  const ui = desk({ section: "posts", width: 1200 }); await ui.flush()
+  ui.click("New post"); await ui.flush()
+  ui.input("post-title", "Live title"); ui.edit("A **live** paragraph"); await ui.flush()
+  const live = () => ui.nodeOfType("live-article")
+  assert(live(), "the live view is shown beside the editor")
+  assert.equal(live().props.subject, "Live title")
+  assert.equal(live().props.markdown, "A **live** paragraph", "it follows every edit")
+  assert.deepEqual(ui.pressed(), [], "there is no Write / Split / Live view switch")
+  for (const label of ["Write", "Split", "Live view"]) assert(!ui.has(label), label)
+
+  const narrow = desk({ section: "posts", width: 700 }); await narrow.flush()
+  narrow.click("New post"); await narrow.flush(); await narrow.flush()
+  assert(!narrow.nodeOfType("live-article"), "a narrow desk shows the editor alone and does not render the live view")
+  assert(narrow.headerButton("Preview"), "the full preview stays one click away")
+})
+
+test("scrolling the editor carries the live view to the same place", async () => {
+  const ui = desk({ section: "posts", width: 1200 }); await ui.flush()
+  ui.click("New post"); await ui.flush()
+  const live = { scrollTop: 0, scrollHeight: 3000, clientHeight: 1000 }
+  ui.nodeOfType("live-article").props.ref.current = live
+  ui.node("Article editor").props.onScroll({ currentTarget: { scrollTop: 500, scrollHeight: 2000, clientHeight: 1000 } })
+  assert.equal(live.scrollTop, 1000, "half way down the editor is half way down the article")
 })
