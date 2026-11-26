@@ -25,7 +25,7 @@ const number = (index: number) => String(index).padStart(2, "0")
 //
 // Every item has its own address (37signals.com/05 does the same), because the
 // part of a URL after "#" never reaches the sites that draw link previews.
-export function Signals({ id, items, listPath, basePath, initial, addressMode = "path", changeTone = true, footer }: {
+export function Signals({ id, items, listPath, basePath, initial, addressMode = "path", changeTone = true, showNext = true, footer }: {
   id: string
   items: SignalItem[]
   /** The list's own page. */
@@ -39,6 +39,8 @@ export function Signals({ id, items, listPath, basePath, initial, addressMode = 
   addressMode?: "path" | "hash" | "none"
   /** Articles keep the same page color as readers move between sections. */
   changeTone?: boolean
+  /** Embedded previews can omit the next-section control. */
+  showNext?: boolean
   footer: ReactNode
 }) {
   const [open, setOpen] = useState(initial ?? -1)
@@ -158,12 +160,12 @@ export function Signals({ id, items, listPath, basePath, initial, addressMode = 
           </li>
         ))}
       </ol>
-      <footer className="signals-bar">
+      {showNext || footer ? <footer className="signals-bar">
         {footer}
-        <button type="button" className="signals-dot" onClick={() => show((open + 1) % items.length)}>
+        {showNext ? <button type="button" className="signals-dot" onClick={() => show((open + 1) % items.length)}>
           <span className="sr-only">Next: {next.title}</span>
-        </button>
-      </footer>
+        </button> : null}
+      </footer> : null}
     </div>
   )
 }
