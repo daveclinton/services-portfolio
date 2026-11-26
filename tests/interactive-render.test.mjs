@@ -485,3 +485,13 @@ test("the admin shell links to contacts", () => {
   const html = renderToStaticMarkup(React.createElement(AdminShell, { section: "contacts", session: { authenticated: true, login: "owner" }, loading: false, busy: false, onNavigate: async () => {}, onLogout() {} }, "List"))
   assert.match(html, /href="\/admin\/contacts" aria-current="page"/)
 })
+
+test("recipient choices must come back exactly as chosen", async (t) => {
+  const { studioRecipients } = require("../lib/newsletter-studio.ts")
+  let body = { ...studioDraft, recipients: ["a@example.com"] }, sent
+  t.mock.method(globalThis, "fetch", async (_url, options) => { sent = JSON.parse(options.body); return Response.json(body) })
+  assert.deepEqual((await studioRecipients("csrf", studioDraft, ["A@example.com"])).recipients, ["a@example.com"])
+  assert.deepEqual(sent, { revision: 1, recipients: ["A@example.com"] })
+  body = { ...studioDraft, recipients: null }
+  await assert.rejects(() => studioRecipients("csrf", studioDraft, ["a@example.com"]), /not confirmed/)
+})

@@ -44,7 +44,7 @@ Posts are at `/admin/posts` and newsletters at `/admin/newsletters`.
 - Publishing a post never sends email.
 - A newsletter made from a post copies the whole article. Interactive parts become links.
 - Contacts at `/admin/contacts` lists everyone who signed up.
-- Newsletters go only to confirmed subscribers. **Sent** means the provider accepted the email, not that it reached the inbox.
+- Newsletters go to all confirmed subscribers or to contacts you pick. Anyone unsubscribed is skipped. **Sent** means the provider accepted the email, not that it reached the inbox.
 - Images can be PNG, JPEG or GIF, up to 5 MB and 16 megapixels.
 
 To enable it:

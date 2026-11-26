@@ -16,9 +16,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { FileText, Mail, Plus, Info, LoaderCircle, X, ExternalLink, Send, Check, Monitor, Smartphone } from "lucide-react"
 import { site } from "@/lib/portfolio-data"
 import {
-  studioBootstrap, studioCachedDesk, studioUpdateDesk, studioOpen, studioWarm, studioRemove, studioCreate, studioSave, studioPreview, studioMeta, studioAction, studioLogout, studioFromPost, studioPublish, studioUpload,
+  studioRecipients, studioContacts, studioBootstrap, studioCachedDesk, studioUpdateDesk, studioOpen, studioWarm, studioRemove, studioCreate, studioSave, studioPreview, studioMeta, studioAction, studioLogout, studioFromPost, studioPublish, studioUpload,
   studioLoginURL, nairobiSchedule, newsletterStateLabel, STUDIO_SUBJECT_LIMIT, STUDIO_BODY_LIMIT,
-  type NewsletterDraft, type StudioSession, type StudioMeta, type PublishedStudioPost, type StudioRemoval, type AdminDesk,
+  type NewsletterDraft, type StudioSession, type StudioMeta, type PublishedStudioPost, type StudioRemoval, type AdminDesk, type StudioContact,
 } from "@/lib/newsletter-studio"
 
 type Stage = "loading" | "signin" | "list" | "pick" | "write" | "preview" | "delivery" | "confirm" | "outcome" | "publish-url" | "publish-summary" | "publish-review" | "published"
@@ -45,6 +45,10 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
   const [notice, setNotice] = useState("")
   const [html, setHTML] = useState("")
   const [preheader, setPreheader] = useState("")
+  const [audience, setAudience] = useState<"all" | "selected">("all")
+  const [picked, setPicked] = useState<string[]>([])
+  const [subscribers, setSubscribers] = useState<StudioContact[] | null>(null)
+  const [pickerQuery, setPickerQuery] = useState("")
   const [meta, setMeta] = useState<StudioMeta | null>(null)
   const [page, setPage] = useState(0)
   const [selectedPost, setSelectedPost] = useState<string | null>(initialPost ?? null)
@@ -248,6 +252,25 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
     const [email, audience] = await Promise.all([studioPreview(session!.csrf, d), studioMeta()])
     setHTML(email.html); setPreheader(email.preheader); setMeta(audience); setPreviewMode("email")
   }
+  // Delivery opens with the draft's saved choice, so returning never widens it.
+  function openDelivery() {
+    const saved = currentRef.current?.recipients ?? null
+    setLater(false); setAudience(saved ? "selected" : "all"); setPicked(saved ?? []); setPickerQuery("")
+    setStage("delivery")
+    if (saved) loadSubscribers()
+  }
+  function loadSubscribers() {
+    if (subscribers) return
+    studioContacts().then((result) => { if (mounted.current) setSubscribers(result.contacts.filter((contact) => contact.status === "subscribed")) }).catch(fail)
+  }
+  async function confirmDelivery() {
+    if (later) nairobiSchedule(schedule)
+    const draft = currentRef.current!
+    const wanted = audience === "all" ? null : picked
+    const saved = draft.recipients ?? null
+    if (JSON.stringify(saved) !== JSON.stringify(wanted ? [...wanted].sort() : null)) accept(await studioRecipients(session!.csrf, draft, wanted))
+    setMeta(await studioMeta()); setStage("confirm")
+  }
   async function action(kind: "test" | "send" | "schedule" | "cancel" | "refresh") {
     if (!currentRef.current || !session?.csrf) return
     const result = await studioAction(session.csrf, currentRef.current, kind, kind === "schedule" ? nairobiSchedule(schedule) : undefined)
@@ -269,13 +292,14 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
   const visibleRows = rows.slice(firstRow, firstRow + PAGE_SIZE)
   const listing = stage === "list" || stage === "loading"
   function turnPage(next: number) { setPage(next); if (tableScroll.current) tableScroll.current.scrollTop = 0 }
+  const reach = audience === "all" ? meta?.subscribers ?? 0 : picked.length
   const scheduleLabel = (value: string) => { try { return formatDate(new Date(`${value}:00+03:00`).toISOString()) } catch { return value } }
   const pickedPost = publishedPosts.find((post) => post.slug === selectedPost)
 
   return (
     <AdminShell section={section} title={title} session={session} loading={stage === "loading"} busy={busy} editing={stage === "write" || listing} onNavigate={navigate} onLogout={() => void work(logout)} actions={<>
       {stage === "write" ? <Button size="sm" disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(preview)}>Preview</Button> : null}
-      {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => setStage("write")}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(preparePublish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : meta ? <><Button size="sm" variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}><Send />Send test</Button><Button size="sm" disabled={busy} onClick={() => { setLater(false); setStage("delivery") }}>Continue</Button></> : null}</> : null}
+      {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => setStage("write")}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(preparePublish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : meta ? <><Button size="sm" variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}><Send />Send test</Button><Button size="sm" disabled={busy} onClick={openDelivery}>Continue</Button></> : null}</> : null}
       {!["loading","signin","list"].includes(stage) ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" disabled={busy} aria-label="Save and close" onClick={() => void work(backToList)} />}><X /></TooltipTrigger><TooltipContent>Save and close</TooltipContent></Tooltip> : null}
       {stage === "list" ? <>{error ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void work(backToList)}>Reload</Button> : null}<Button size="sm" disabled={busy} onClick={() => void work(section === "posts" ? newPost : newNewsletter)}><Plus />{section === "posts" ? "New post" : "New newsletter"}</Button></> : null}
       {["write", "preview", "published"].includes(stage) && current ? <DocumentActions document={current} busy={busy} onNewsletter={() => void navigate(`/admin/newsletters?post=${encodeURIComponent(current.slug!)}`)} onRemove={(kind) => remove(current, kind)} /> : null}
@@ -335,7 +359,7 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
         <section aria-label="How it appears in the inbox" className="flex flex-wrap items-start justify-between gap-4 rounded-lg border border-border p-4">
           <dl className="grid min-w-0 flex-1 grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-caption">
             <dt className="text-muted-foreground">From</dt><dd className="min-w-0 break-words">{meta.sender.name} &lt;{meta.sender.email}&gt;</dd>
-            <dt className="text-muted-foreground">To</dt><dd>All subscribers · {meta.subscribers}</dd>
+            <dt className="text-muted-foreground">To</dt><dd>{current?.recipients ? `${current.recipients.length} selected ${current.recipients.length === 1 ? "contact" : "contacts"}` : `All subscribers · ${meta.subscribers}`}</dd>
             <dt className="text-muted-foreground">Subject</dt><dd className="min-w-0 font-medium break-words">{subject}</dd>
             {preheader ? <><dt className="text-muted-foreground">Preview text</dt><dd className="min-w-0 break-words text-muted-foreground">{preheader}</dd></> : null}
           </dl>
@@ -355,23 +379,31 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
         <div className="flex gap-2"><Button disabled={busy} onClick={()=>void work(publish)}>{busy ? <LoaderCircle className="motion-safe:animate-spin"/> : null}{current?.published_revision ? "Confirm update" : "Publish post"}</Button><Button variant="ghost" disabled={busy} onClick={()=>setStage("publish-summary")}>Back</Button></div>
       </div> : null}
       {stage === "published" && current?.slug ? <div className="flex flex-col gap-4"><div className="flex items-center gap-2"><h2 className="text-title font-semibold">{current.subject}</h2>{current.cache_invalidated === false ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Public page refresh status"/>}><Info/></TooltipTrigger><TooltipContent>Published. Public pages will refresh through the cache; reload shortly if you see the previous version.</TooltipContent></Tooltip> : null}</div><div className="flex flex-wrap gap-2"><Button nativeButton={false} render={<a href={`/blog/${current.slug}`} target="_blank" rel="noreferrer"/>}><ExternalLink/>View post</Button><Button variant="outline" disabled={busy} onClick={()=>void navigate(`/admin/newsletters?post=${encodeURIComponent(current.slug!)}`)}><Mail/>Create newsletter</Button></div></div> : null}
-      {stage === "delivery" && meta ? <form className="flex max-w-(--measure) flex-col gap-6" onSubmit={(event) => { event.preventDefault(); void work(async () => { if (later) nairobiSchedule(schedule); setMeta(await studioMeta()); setStage("confirm") }) }}>
+      {stage === "delivery" && meta ? <form className="flex max-w-(--measure) flex-col gap-6" onSubmit={(event) => { event.preventDefault(); void work(confirmDelivery) }}>
         {/* Ghost's publish settings: recipients, then timing, then a one-line summary. */}
         <fieldset className="flex flex-col gap-3"><legend className="pb-3 text-body font-medium">Recipients</legend>
-          <p className="flex items-center gap-2 rounded-lg border border-ring bg-primary/5 p-3 text-body"><Check className="size-4 text-primary" />All subscribers · {meta.subscribers}</p>
-          <p className="text-caption text-muted-foreground">Only confirmed subscribers receive it. Unsubscribed and pending contacts are skipped.</p>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Recipients"><Button type="button" variant={audience === "all" ? "secondary" : "ghost"} aria-pressed={audience === "all"} onClick={() => setAudience("all")}>All subscribers · {meta.subscribers}</Button><Button type="button" variant={audience === "selected" ? "secondary" : "ghost"} aria-pressed={audience === "selected"} onClick={() => { setAudience("selected"); loadSubscribers() }}>Selected contacts{audience === "selected" ? ` · ${picked.length}` : ""}</Button></div>
+          {/* The picker opens under its own option, so the choice and its list stay together. */}
+          {audience === "selected" ? <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+            <div className={surfaceClass}><label htmlFor="recipient-search" className="sr-only">Search subscribers</label><input id="recipient-search" type="search" className={inputClass} placeholder="Search by email" value={pickerQuery} disabled={!subscribers} autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={(event) => setPickerQuery(event.target.value)} /></div>
+            {subscribers ? <ul className="flex max-h-64 flex-col overflow-y-auto overscroll-contain" aria-label="Subscribers">
+              {subscribers.filter((contact) => contact.email.includes(pickerQuery.trim().toLowerCase())).map((contact) => <li key={contact.email}><label className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-caption hover:bg-muted"><input type="checkbox" className="size-4 accent-primary" checked={picked.includes(contact.email)} disabled={busy} onChange={(event) => setPicked((list) => event.target.checked ? [...list, contact.email] : list.filter((email) => email !== contact.email))} /><span className="min-w-0 break-all">{contact.email}</span></label></li>)}
+              {subscribers.length === 0 ? <li className="px-2 py-2 text-caption text-muted-foreground">No confirmed subscribers yet.</li> : null}
+            </ul> : <div role="status" aria-label="Loading subscribers" className="flex flex-col gap-2"><Skeleton className="h-6 w-full" /><Skeleton className="h-6 w-full" /><Skeleton className="h-6 w-2/3" /></div>}
+          </div> : null}
+          <p className="text-caption text-muted-foreground">Only confirmed subscribers receive it. Anyone who unsubscribes before sending is skipped.</p>
         </fieldset>
         <fieldset className="flex flex-col gap-3"><legend className="pb-3 text-body font-medium">When</legend>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Delivery time"><Button type="button" variant={!later ? "secondary" : "ghost"} aria-pressed={!later} onClick={() => setLater(false)}>Right now</Button><Button type="button" variant={later ? "secondary" : "ghost"} aria-pressed={later} onClick={() => setLater(true)}>Schedule for later</Button></div>
           {later ? <><label htmlFor="newsletter-schedule" className="text-caption text-muted-foreground">Date and time in Nairobi (EAT)</label><div className={surfaceClass}><input id="newsletter-schedule" className={inputClass} type="datetime-local" required value={schedule} disabled={busy} onChange={(e) => setSchedule(e.target.value)} /></div></> : null}
         </fieldset>
-        <p className="text-body">{meta.subscribers < 1 ? "There are no confirmed subscribers yet." : `Goes to ${meta.subscribers} ${meta.subscribers === 1 ? "subscriber" : "subscribers"} ${later ? (schedule ? `on ${scheduleLabel(schedule)}` : "at the time you choose") : "right now"}.`}</p>
-        <div className="flex flex-wrap gap-2"><Button disabled={busy || meta.subscribers < 1} type="submit">Continue</Button><Button disabled={busy} variant="ghost" type="button" onClick={() => setStage("preview")}>Back</Button></div>
+        <p className="text-body">{reach < 1 ? (audience === "all" ? "There are no confirmed subscribers yet." : "Choose at least one contact.") : `Goes to ${reach} ${reach === 1 ? "subscriber" : "subscribers"} ${later ? (schedule ? `on ${scheduleLabel(schedule)}` : "at the time you choose") : "right now"}.`}</p>
+        <div className="flex flex-wrap gap-2"><Button disabled={busy || reach < 1} type="submit">Continue</Button><Button disabled={busy} variant="ghost" type="button" onClick={() => setStage("preview")}>Back</Button></div>
       </form> : null}
       {stage === "confirm" && meta ? <div className="flex max-w-(--measure) flex-col gap-4">
         <h2 className="text-title font-semibold">Ready to send?</h2>
-        <p className="text-body">“{subject}” goes to {meta.subscribers} {meta.subscribers === 1 ? "subscriber" : "subscribers"} {later ? `on ${scheduleLabel(schedule)}` : "right now"}. Sent emails can’t be recalled.</p>
-        <div className="flex flex-wrap gap-2"><Button disabled={busy || meta.subscribers < 1} onClick={() => void work(() => action(later ? "schedule" : "send"))}>{busy ? <LoaderCircle className="motion-safe:animate-spin" /> : <Send />}{later ? "Schedule email" : "Send email, right now"}</Button><Button disabled={busy} variant="ghost" onClick={() => setStage("delivery")}>Back</Button></div>
+        <p className="text-body">“{subject}” goes to {current?.recipients ? `${current.recipients.length} selected` : `all ${meta.subscribers}`} {(current?.recipients?.length ?? meta.subscribers) === 1 ? "subscriber" : "subscribers"} {later ? `on ${scheduleLabel(schedule)}` : "right now"}. Sent emails can’t be recalled.</p>
+        <div className="flex flex-wrap gap-2"><Button disabled={busy || (current?.recipients?.length ?? meta.subscribers) < 1} onClick={() => void work(() => action(later ? "schedule" : "send"))}>{busy ? <LoaderCircle className="motion-safe:animate-spin" /> : <Send />}{later ? "Schedule email" : "Send email, right now"}</Button><Button disabled={busy} variant="ghost" onClick={() => setStage("delivery")}>Back</Button></div>
       </div> : null}
       {stage === "outcome" && current ? <>
         <p className="text-body">{current.subject}</p>

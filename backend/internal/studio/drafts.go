@@ -34,13 +34,14 @@ type Draft struct {
 	Description       string     `json:"description"`
 	PublishedRevision int64      `json:"published_revision"`
 	Legacy            bool       `json:"legacy"`
+	Recipients        []string   `json:"recipients"`
 }
 
-const draftColumns = `id::text,subject,markdown,revision,state,campaign_id,operation,scheduled_at,tested_revision,last_error,updated_at,delivery_provider,kind,slug,description,published_revision,legacy`
+const draftColumns = `id::text,subject,markdown,revision,state,campaign_id,operation,scheduled_at,tested_revision,last_error,updated_at,delivery_provider,kind,slug,description,published_revision,legacy,recipients`
 
 func scanDraft(row pgx.Row) (Draft, error) {
 	var d Draft
-	err := row.Scan(&d.ID, &d.Subject, &d.Markdown, &d.Revision, &d.State, &d.CampaignID, &d.Operation, &d.ScheduledAt, &d.TestedRevision, &d.LastError, &d.UpdatedAt, &d.DeliveryProvider, &d.Kind, &d.Slug, &d.Description, &d.PublishedRevision, &d.Legacy)
+	err := row.Scan(&d.ID, &d.Subject, &d.Markdown, &d.Revision, &d.State, &d.CampaignID, &d.Operation, &d.ScheduledAt, &d.TestedRevision, &d.LastError, &d.UpdatedAt, &d.DeliveryProvider, &d.Kind, &d.Slug, &d.Description, &d.PublishedRevision, &d.Legacy, &d.Recipients)
 	return d, err
 }
 func (s *Service) getDraft(ctx context.Context, id string) (Draft, error) {

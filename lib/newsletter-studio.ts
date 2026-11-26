@@ -5,7 +5,7 @@ export type NewsletterDraft = {
   id: string; subject: string; markdown: string; revision: number
   state: "draft" | "error" | "checking" | "scheduled" | "sending" | "sent" | "stopped"
   campaign_id: number; scheduled_at: string | null; tested_revision: number; last_error: string; updated_at: string
-  kind?: "post" | "newsletter"; slug?: string; description?: string; published_revision?: number; legacy?: boolean; cache_invalidated?: boolean
+  kind?: "post" | "newsletter"; slug?: string; description?: string; published_revision?: number; legacy?: boolean; cache_invalidated?: boolean; recipients?: string[] | null
 }
 export type StudioMeta = { sender: { name: string; email: string }; audience: string; subscribers: number; test_email: string; timezone: string }
 export const STUDIO_SUBJECT_LIMIT = 180
@@ -122,6 +122,14 @@ export async function studioContacts(): Promise<{ contacts: StudioContact[]; lim
     return c as StudioContact
   })
   return { contacts, limit: result.limit as number }
+}
+// null sends to every confirmed subscriber; a list narrows it to those contacts.
+export async function studioRecipients(csrf: string, current: NewsletterDraft, recipients: string[] | null): Promise<NewsletterDraft> {
+  const result = draft(await request(`drafts/${current.id}/recipients`, csrf, { revision: current.revision, recipients }))
+  const saved = result.recipients ?? null
+  const wanted = recipients ? [...new Set(recipients.map((email) => email.toLowerCase()))].sort() : null
+  if (result.id !== current.id || JSON.stringify(saved) !== JSON.stringify(wanted)) throw new Error("The recipients were not confirmed. Review them before sending.")
+  return result
 }
 export type StudioRemoval = "unpublish" | "discard" | "delete"
 export async function studioRemove(csrf: string, current: NewsletterDraft, action: StudioRemoval): Promise<NewsletterDraft | null> {

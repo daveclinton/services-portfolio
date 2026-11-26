@@ -25,6 +25,8 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     studioBootstrap: async () => ({session:{ authenticated: true, configured: true, csrf: "owner-csrf", login: "owner" },drafts,posts:[published]}),
     studioCachedDesk: () => cached, studioUpdateDesk: (_section, list) => { cached = undefined; calls.push(["list", list.map((item) => item.id)]) }, studioWarm() {}, studioOpen: async (row) => row,
     studioRemove: async (_csrf, row, action) => { calls.push([action, row.id, row.revision]); if (failRemove) throw new Error("Removal failed"); if (action === "delete") { drafts = drafts.filter((item) => item.id !== row.id); return null } return { ...row, published_revision: action === "unpublish" ? 0 : row.revision } },
+    studioContacts: async () => ({ contacts: [{ email: "a@example.com", status: "subscribed", joined_at: "2026-11-20T00:00:00Z", confirmed_at: null }, { email: "b@example.com", status: "subscribed", joined_at: "2026-11-20T00:00:00Z", confirmed_at: null }, { email: "gone@example.com", status: "suppressed", joined_at: "2026-11-20T00:00:00Z", confirmed_at: null }], limit: 5000 }),
+    studioRecipients: async (_csrf, draft, recipients) => { calls.push(["recipients", recipients]); return { ...draft, recipients: recipients ? [...recipients].sort() : null } },
     studioFromPost: async (_csrf, slug) => {calls.push(["from-post",slug]);return {...baseDraft,markdown:`${published.description}\n\n[Read the post](<https://example.com/blog/${slug}>)`}},
     studioCreate: async (_csrf, subject, kind) => { calls.push(["create", subject, kind]); return { ...baseDraft, subject,kind } },
     studioSave: async (_csrf, draft, subject, markdown) => { calls.push(["save", subject, markdown]); if (failSave) throw new Error("Save failed"); return { ...draft, subject, markdown, revision: draft.revision + 1 } },
@@ -81,6 +83,8 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     input(id,value) { nodes.find((node)=>node.props.id===id).props.onChange({target:{value}});render() },
     node:(label)=>nodes.find((node)=>node.props["aria-label"]===label),
     rows:()=>nodes.filter((node)=>node.type==="document-actions").map((node)=>node.props),
+    checkbox:(email)=>nodes.find((node)=>node.type==="input"&&node.props.type==="checkbox"&&text(nodes[nodes.indexOf(node)+1]?.props?.children)===email),
+    checkboxes:()=>nodes.filter((node)=>node.type==="input"&&node.props.type==="checkbox").length,
     pager:()=>nodes.find((node)=>node.type==="table-pager").props,
     has:(label)=>nodes.some((node)=>node.type==="button"&&text(node.props.children)===label),
     button,
@@ -182,4 +186,22 @@ test("a newsletter goes preview, test, recipients and timing, then an explicit c
   assert(ui.text().includes("Ready to send?"))
   ui.click("Send email, right now"); await ui.flush()
   assert.deepEqual(ui.calls.at(-1), ["send", undefined])
+})
+
+test("choosing selected contacts saves them before the final confirmation and sends only after it", async () => {
+  const ui = desk({ allowSend: true }); await ui.flush()
+  ui.click("New newsletter"); await ui.flush(); ui.select(published.slug); ui.submit(); await ui.flush()
+  ui.click("Preview"); await ui.flush(); await ui.flush()
+  ui.headerButton("Continue").props.onClick(); await ui.flush()
+  ui.click("Selected contacts"); await ui.flush(); await ui.flush()
+  assert.equal(ui.checkboxes(), 2, "only confirmed subscribers can be picked")
+  assert(ui.text().includes("Choose at least one contact."))
+  ui.checkbox("b@example.com").props.onChange({ target: { checked: true } }); await ui.flush()
+  assert(ui.text().includes("Goes to 1 subscriber right now."))
+  ui.submit(); await ui.flush()
+  assert.equal(JSON.stringify(ui.calls.filter((call) => call[0] === "recipients")), JSON.stringify([["recipients", ["b@example.com"]]]))
+  assert(ui.text().includes("goes to 1 selected subscriber right now"))
+  assert(!ui.calls.some((call) => call[0] === "send"))
+  ui.click("Send email, right now"); await ui.flush()
+  assert.equal(ui.calls.at(-1)[0], "send")
 })

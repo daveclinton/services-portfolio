@@ -29,6 +29,7 @@ type campaignProvider interface {
 	SendCampaign(context.Context, int64) error
 	SetCampaignStatus(context.Context, int64, string) error
 	CampaignAudience(context.Context, int64) (int, error)
+	SetCampaignRecipients(context.Context, int64, []string) error
 }
 
 type Service struct {
@@ -84,6 +85,7 @@ func (s *Service) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/newsletters/drafts", s.protect(s.createDraft))
 	mux.HandleFunc("POST /admin/newsletters/drafts/{id}/save", s.protect(s.saveDraft))
 	mux.HandleFunc("POST /admin/newsletters/drafts/{id}/preview", s.protect(s.preview))
+	mux.HandleFunc("POST /admin/newsletters/drafts/{id}/recipients", s.protect(s.setRecipients))
 	mux.HandleFunc("POST /admin/newsletters/drafts/{id}/test", s.protect(s.campaignAction))
 	mux.HandleFunc("POST /admin/newsletters/drafts/{id}/send", s.protect(s.campaignAction))
 	mux.HandleFunc("POST /admin/newsletters/drafts/{id}/schedule", s.protect(s.campaignAction))
