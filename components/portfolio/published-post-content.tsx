@@ -1,4 +1,4 @@
-import { Children, isValidElement, type ComponentProps } from "react"
+import { Children, isValidElement, memo, type ComponentProps } from "react"
 import ReactMarkdown from "react-markdown"
 import { marked } from "marked"
 import remarkGfm from "remark-gfm"
@@ -27,8 +27,9 @@ function widget(source: string) {
   return null
 }
 
-export function PublishedPostContent({slug,markdown}:{slug:string;markdown:string}) {
-  const sections:{title:string;id:string;markdown:string}[]=[]
+// One section per h2, as the public reader numbers them.
+export function splitSections(markdown:string) {
+  const sections:{title:string;id:string;markdown:string;lead?:boolean}[]=[]
   const used=new Set<string>()
   for(const token of marked.lexer(markdown)) {
     if(token.type==="heading" && token.depth===2) {
@@ -37,17 +38,27 @@ export function PublishedPostContent({slug,markdown}:{slug:string;markdown:strin
       let id=base;for(let n=2;used.has(id);n++)id=`${base}-${n}`
       used.add(id);sections.push({title,id,markdown:""})
     } else {
-      if(!sections.length){sections.push({title:"Introduction",id:"introduction",markdown:""});used.add("introduction")}
+      if(!sections.length){sections.push({title:"Introduction",id:"introduction",markdown:"",lead:true});used.add("introduction")}
       sections.at(-1)!.markdown+=token.raw
     }
   }
-  return <ArticleSections id={`article-${slug}`}>{sections.map((section)=><section key={section.id} id={section.id} data-section-title={section.title}>
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={{pre:({children})=>{
-      const child=Children.toArray(children)[0]
-      if(isValidElement<{className?:string;children?:string}>(child)&&child.props.className==="language-portfolio-widget") {
-        const restored=widget(String(child.props.children??""));if(restored)return restored
-      }
-      return <pre>{children}</pre>
-    }}}>{section.markdown}</ReactMarkdown>
+  return sections
+}
+
+// The public body renderer, with portable blocks restored. Memoized so a live
+// view only re-renders the section that changed.
+export const PostMarkdown=memo(function PostMarkdown({markdown}:{markdown:string}) {
+  return <ReactMarkdown remarkPlugins={[remarkGfm]} components={{pre:({children})=>{
+    const child=Children.toArray(children)[0]
+    if(isValidElement<{className?:string;children?:string}>(child)&&child.props.className==="language-portfolio-widget") {
+      const restored=widget(String(child.props.children??""));if(restored)return restored
+    }
+    return <pre>{children}</pre>
+  }}}>{markdown}</ReactMarkdown>
+})
+
+export function PublishedPostContent({slug,markdown}:{slug:string;markdown:string}) {
+  return <ArticleSections id={`article-${slug}`}>{splitSections(markdown).map((section)=><section key={section.id} id={section.id} data-section-title={section.title}>
+    <PostMarkdown markdown={section.markdown}/>
   </section>)}</ArticleSections>
 }

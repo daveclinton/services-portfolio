@@ -561,3 +561,18 @@ test("the draft preview page uses the public article layout and says it is a pre
   assert(html.includes('class="page numbered"'))
   assert(html.includes('aria-label="Loading preview"'))
 })
+
+test("the live view renders the article with the public renderer, every section open", () => {
+  const { LiveArticle } = require("../components/portfolio/live-article.tsx")
+  const html = renderToStaticMarkup(React.createElement(LiveArticle, { subject: "A title", description: "A summary", markdown: "Opening line.\n\n## First part\n\nBody with **bold**.\n\n```portfolio-widget\n{\"name\":\"YouTubePreview\",\"props\":{\"videoId\":\"dQw4w9WgXcQ\",\"title\":\"A talk\"}}\n```" }))
+  assert(html.includes('aria-label="Live view"'))
+  assert(html.includes("A title") && html.includes("A summary"))
+  assert(!html.includes(">Introduction<"), "the untitled opening is not given a made-up heading")
+  assert(html.includes("<h2>First part</h2>"))
+  assert(!html.includes("<details"), "sections are open, not collapsed")
+  assert(html.includes("youtube-nocookie.com/embed/dQw4w9WgXcQ"), "portable blocks render as on the site")
+  const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+  assert.match(css, /@container write \(min-width: 56rem\)/)
+  assert.match(css, /@container write \(min-width: 72rem\)/)
+  assert.match(css, /@container live \(max-width: 30rem\)/)
+})
