@@ -347,3 +347,18 @@ test("posts have a summary under the title that saves with the draft and shows i
   assert.deepEqual([...letters.summaries()], [undefined], "newsletter saves leave the summary out")
 })
 function host_value(ui, id) { return ui.inputValue(id) }
+
+test("whole-document source edits update the live metadata and save title, description and article together", async () => {
+  const ui = desk({ section: "posts", width: 1200 }); await ui.flush()
+  ui.click("New post"); await ui.flush()
+  ui.editor().props.onDocumentChange({ subject: "Changed in Markdown", description: "A source description", markdown: "## A section\n\nAn updated body." })
+  await ui.flush()
+  assert.equal(ui.editor().props.subject, "Changed in Markdown")
+  assert.equal(ui.editor().props.description, "A source description")
+  assert.equal(ui.nodeOfType("live-article").props.subject, "Changed in Markdown")
+  assert.equal(ui.nodeOfType("live-article").props.description, "A source description")
+  assert.equal(ui.nodeOfType("live-article").props.markdown, "## A section\n\nAn updated body.")
+  ui.headerButton("Publish").props.onClick(); await ui.flush(); await ui.flush()
+  assert.deepEqual(ui.calls.find((call) => call[0] === "save"), ["save", "Changed in Markdown", "## A section\n\nAn updated body."])
+  assert.deepEqual([...ui.summaries()], ["A source description"])
+})

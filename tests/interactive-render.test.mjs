@@ -587,9 +587,9 @@ test("phones keep document actions in the header and the date beside each title"
   assert(!/max-sm:sr-only[^>]*>Posts/.test(list), "list pages keep their title on phones")
 })
 
-test("Markdown uses GitHub's Write / Preview composer above the title and preserves source", () => {
+test("Markdown edits the whole document on an open canvas without separate title fields or footer prompts", () => {
   const { NewsletterEditor } = require("../components/portfolio/newsletter-editor.tsx")
-  const html = renderToStaticMarkup(React.createElement(NewsletterEditor, { value: "<div>raw</div>", disabled: false, onChange() {}, onUpload: async () => "https://example.com/image.png" }, React.createElement("h2", null, "Document title")))
+  const html = renderToStaticMarkup(React.createElement(NewsletterEditor, { value: "<div>raw</div>", subject: "Document title", description: "A description", disabled: false, onChange() {}, onDocumentChange() {}, onUpload: async () => "https://example.com/image.png" }, React.createElement("h2", null, "Separate title field")))
   assert(html.includes('aria-label="Markdown formatting"'), "Markdown mode has its own sticky bar")
   assert.match(html, /role="tab"[^>]*aria-label="Write"/)
   assert.match(html, /role="tab"[^>]*aria-label="Preview"/)
@@ -600,13 +600,18 @@ test("Markdown uses GitHub's Write / Preview composer above the title and preser
   assert(back?.includes('disabled=""'), "raw HTML keeps the draft in Markdown until it is removed")
   assert(html.includes("raw HTML"))
   assert(html.includes("&lt;div&gt;raw&lt;/div&gt;"), "source is kept verbatim and escaped")
-  assert(html.includes("attach an image"))
+  assert(html.includes("# Document title\n\nA description\n\n&lt;div&gt;raw&lt;/div&gt;"), "title, description and body share one source")
+  assert(!html.includes("Separate title field"), "visual metadata fields are absent in source mode")
+  assert.equal((html.match(/<textarea/g) ?? []).length, 1)
+  assert(!html.includes("Markdown is supported") && !html.includes("attach an image"))
+  const field = html.match(/<textarea[^>]*>/)?.[0]
+  assert(field && !/border-|rounded-|p-4/.test(field), "source has no input box treatment")
   assert(html.includes('role="tabpanel"'))
 })
 
 test("rich editing keeps a single row of icon controls above the title and inserts blocks through slash commands", () => {
   const { NewsletterEditor } = require("../components/portfolio/newsletter-editor.tsx")
-  const html = renderToStaticMarkup(React.createElement(NewsletterEditor, { value: "A draft", disabled: false, onChange() {} }, React.createElement("h2", null, "Document title")))
+  const html = renderToStaticMarkup(React.createElement(NewsletterEditor, { value: "A draft", subject: "Document title", disabled: false, onChange() {}, onDocumentChange() {} }, React.createElement("h2", null, "Document title")))
   assert(html.indexOf('aria-label="Text formatting"') < html.indexOf("Document title"))
   assert(html.indexOf("Edit Markdown") < html.indexOf("Document title"))
   assert(!html.includes("Insert block"), "block insertion stays in the slash command menu")

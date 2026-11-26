@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { SelectField } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { newsletterEditorExtensions, newsletterRichTextIssue, formatMarkdown, newsletterImageMarkdown, type MarkdownFormat } from "@/lib/newsletter-editor"
+import { newsletterEditorExtensions, newsletterRichTextIssue, formatMarkdown, newsletterImageMarkdown, newsletterDocumentMarkdown, parseNewsletterDocument, type MarkdownFormat, type NewsletterDocument } from "@/lib/newsletter-editor"
 import { createWritingSlash } from "@/components/portfolio/newsletter-command-menu"
 import { STUDIO_BODY_LIMIT, studioImageURL } from "@/lib/newsletter-studio"
 import { DEFAULT_FRAME, FRAME_IDS, IMAGE_FRAMES, frameOf, withFrame, withoutFrame, type ImageFrame } from "@/lib/image-frames"
@@ -20,29 +20,35 @@ import { PostMarkdown } from "@/components/portfolio/published-post-content"
 import { focusElement } from "@/lib/scroll"
 
 type Props = { value: string; disabled: boolean; onChange: (value: string) => void; onUpload?: (file: File) => Promise<string>; modeSwitch?: ReactNode; children?: ReactNode }
+type DocumentProps = Props & { subject: string; description?: string; onDocumentChange: (document: NewsletterDocument) => void }
 
 // Novel's document canvas, slash commands, contextual formatting, and handles.
 // https://github.com/steven-tey/novel/tree/main/apps/web/components/tailwind
-export function NewsletterEditor({ value, disabled, onChange, onUpload, children }: Props) {
+export function NewsletterEditor({ value, subject, description, disabled, onChange, onDocumentChange, onUpload, children }: DocumentProps) {
   const [mode, setMode] = useState<"rich" | "markdown">(() => newsletterRichTextIssue(value) ? "markdown" : "rich")
+  const [source, setSource] = useState(() => newsletterDocumentMarkdown({ subject, description, markdown: value }))
   const issue = newsletterRichTextIssue(value)
   const bytes = new TextEncoder().encode(value).length
 
   // The switch sits in the sticky formatting bar at the top, reachable at any
   // scroll position, rather than after the end of a long article.
   const modeSwitch = mode === "rich"
-    ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" aria-label="Edit Markdown" disabled={disabled} onClick={() => setMode("markdown")} />}><FileCode /></TooltipTrigger><TooltipContent>Edit Markdown</TooltipContent></Tooltip>
+    ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" aria-label="Edit Markdown" disabled={disabled} onClick={() => { setSource(newsletterDocumentMarkdown({ subject, description, markdown: value })); setMode("markdown") }} />}><FileCode /></TooltipTrigger><TooltipContent>Edit Markdown</TooltipContent></Tooltip>
     : <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" aria-label="Back to editor" disabled={disabled || !!issue} onClick={() => setMode("rich")} />}><PenLine /></TooltipTrigger><TooltipContent>Back to editor</TooltipContent></Tooltip>
 
   return <section className="writing-editor flex min-w-0 flex-col gap-4" aria-label="Post content">
-    {mode === "rich" ? <RichTextEditor value={value} disabled={disabled} onChange={onChange} onUpload={onUpload} modeSwitch={modeSwitch}>{children}</RichTextEditor> : <MarkdownEditor value={value} disabled={disabled} onChange={onChange} onUpload={onUpload} modeSwitch={modeSwitch}>{children}</MarkdownEditor>}
+    {mode === "rich" ? <RichTextEditor value={value} disabled={disabled} onChange={onChange} onUpload={onUpload} modeSwitch={modeSwitch}>{children}</RichTextEditor> : <MarkdownEditor value={source} disabled={disabled} onChange={(next) => {
+      setSource(next)
+      onDocumentChange(parseNewsletterDocument(next, description !== undefined))
+    }} onUpload={onUpload} modeSwitch={modeSwitch} />}
     <p className="text-caption text-muted-foreground">{value.trim() ? value.trim().split(/\s+/).length : 0} words</p>
     {bytes > STUDIO_BODY_LIMIT ? <p role="alert" className="text-caption text-destructive">This draft is too long to save. Remove {bytes - STUDIO_BODY_LIMIT} bytes to continue.</p> : null}
   </section>
 }
 
-// GitHub's Write / Preview composer and selection-based formatting, using this
-// app's controls, renderer, upload service, and theme.
+// HackMD's whole-document source view, with the existing selection formatting,
+// renderer, upload service, and theme.
+// https://hackmd.io/features
 // https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/about-writing-and-formatting-on-github
 // https://docs.github.com/en/get-started/accessibility/keyboard-shortcuts#comments
 const markdownTools: { format: MarkdownFormat; label: string; icon: ComponentType<{ className?: string }> }[] = [
@@ -69,10 +75,9 @@ function WritingMore({ children }: { children: ReactNode }) {
   </Menu.Root>
 }
 
-function MarkdownEditor({ value, disabled, onChange, onUpload, modeSwitch, children }: Props) {
+function MarkdownEditor({ value, disabled, onChange, onUpload, modeSwitch }: Props) {
   const id = useId()
   const input = useRef<HTMLTextAreaElement>(null)
-  const fileInput = useRef<HTMLInputElement>(null)
   const selection = useRef<{ selectionStart: number; selectionEnd: number } | null>(null)
   const uploadVersion = useRef(0)
   const [tab, setTab] = useState("write")
@@ -141,12 +146,10 @@ function MarkdownEditor({ value, disabled, onChange, onUpload, modeSwitch, child
         <div className="ml-auto shrink-0">{modeSwitch}</div>
       </div>
     </TooltipProvider>
-    {children}
     {issue ? <p role="status" className="py-2 text-caption text-muted-foreground">{issue}</p> : null}
-    <div className="mt-4 rounded-lg border border-border bg-background focus-within:border-ring">
-      <Tabs.Panel value="write" keepMounted>
+      <Tabs.Panel value="write" keepMounted className="pt-4">
         <label htmlFor={`${id}-markdown`} className="sr-only">Post Markdown</label>
-        <textarea ref={input} id={`${id}-markdown`} rows={14} spellCheck className="min-h-96 w-full resize-y rounded-lg bg-transparent p-4 font-mono text-body leading-7 outline-none [field-sizing:content]" placeholder="Write your post using Markdown…" value={value} disabled={disabled} readOnly={uploading} onChange={(event) => onChange(event.target.value)} onKeyDown={(event) => {
+        <textarea ref={input} id={`${id}-markdown`} rows={14} spellCheck className="min-h-96 w-full resize-none bg-transparent font-mono text-body leading-7 outline-none [field-sizing:content]" placeholder="Write your post using Markdown…" value={value} disabled={disabled} readOnly={uploading} onChange={(event) => onChange(event.target.value)} onKeyDown={(event) => {
           if (!(event.metaKey || event.ctrlKey) || event.altKey) return
           const key = event.key.toLowerCase()
           const kind = event.shiftKey ? event.code === "Digit7" ? "orderedList" : event.code === "Digit8" ? "bulletList" : event.code === "Period" ? "quote" : null : ({ b: "bold", i: "italic", e: "code", k: "link" } as const)[key as "b" | "i" | "e" | "k"]
@@ -164,16 +167,10 @@ function MarkdownEditor({ value, disabled, onChange, onUpload, modeSwitch, child
         }} onDragOver={(event) => { if (onUpload && event.dataTransfer.types.includes("Files")) event.preventDefault() }} onDrop={(event) => {
           if (onUpload && event.dataTransfer.files.length) { event.preventDefault(); void upload(event.dataTransfer.files[0]) }
         }} />
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border p-2.5 text-caption text-muted-foreground">
-          <a href="https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax" target="_blank" rel="noreferrer" className="admin-text-link">Markdown is supported</a>
-          {onUpload ? <Button variant="ghost" size="sm" disabled={locked} onMouseDown={(event) => event.preventDefault()} onClick={() => fileInput.current?.click()}>{uploading ? <LoaderCircle className="motion-safe:animate-spin" /> : <Upload />}{uploading ? "Uploading…" : "Paste, drop, or attach an image"}</Button> : null}
-          <input ref={fileInput} type="file" accept="image/*" className="hidden" aria-label="Attach an image" disabled={locked} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void upload(file) }} />
-        </div>
       </Tabs.Panel>
-      <Tabs.Panel value="preview" className="min-h-96 p-4">
+      <Tabs.Panel value="preview" className="min-h-96 pt-4">
         {value.trim() ? <div className="blog-prose"><PostMarkdown markdown={value} /></div> : <p className="text-body text-muted-foreground">Nothing to preview</p>}
       </Tabs.Panel>
-    </div>
     {uploading ? <p role="status" className="text-caption text-muted-foreground">Uploading image…</p> : null}
     {error ? <p role="alert" className="text-caption text-destructive">{error}</p> : null}
   </Tabs.Root>
