@@ -14,11 +14,11 @@ import { site } from "@/lib/portfolio-data"
 import type { StudioSession } from "@/lib/newsletter-studio"
 
 export type AdminSection = "posts" | "newsletters" | "contacts"
-type Props = { section: AdminSection; session: StudioSession | null; loading: boolean; busy: boolean; title?: string; actions?: ReactNode; editing?: boolean; onNavigate: (href: string) => Promise<void>; onLogout: () => void; children: ReactNode }
+type Props = { section: AdminSection; session: StudioSession | null; loading: boolean; busy: boolean; title?: string; actions?: ReactNode; editing?: boolean; compactTitle?: boolean; onNavigate: (href: string) => Promise<void>; onLogout: () => void; children: ReactNode }
 
 // Header / content / profile-footer hierarchy follows shadcn sidebar-07.
 // https://ui.shadcn.com/blocks/sidebar#sidebar-07
-export function AdminShell({ section, session, loading, busy, title, actions, editing, onNavigate, onLogout, children }: Props) {
+export function AdminShell({ section, session, loading, busy, title, actions, editing, compactTitle, onNavigate, onLogout, children }: Props) {
   const [mobileOpen, setMobileOpen] = useState(false)
   useLayoutEffect(enterAdminTheme, [])
 
@@ -65,8 +65,9 @@ export function AdminShell({ section, session, loading, busy, title, actions, ed
             {content}
           </Dialog.Popup></Dialog.Portal>
         </Dialog.Root>
-        <span className="min-w-0 truncate text-caption font-medium">{title ?? { posts: "Posts", newsletters: "Newsletters", contacts: "Contacts" }[section]}</span>
-        <div className="ml-auto flex shrink-0 items-center gap-2">{busy ? <span role="status" aria-label="Working"><LoaderCircle className="size-4 motion-safe:animate-spin" /></span> : null}{actions}</div>
+        {/* On phones, document steps give the header row to their actions; the page keeps its own heading. */}
+        <span className={`min-w-0 truncate text-caption font-medium${compactTitle ? " max-sm:sr-only" : ""}`}>{title ?? { posts: "Posts", newsletters: "Newsletters", contacts: "Contacts" }[section]}</span>
+        <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">{busy ? <span role="status" aria-label="Working"><LoaderCircle className="size-4 motion-safe:animate-spin" /></span> : null}{actions}</div>
       </header>
       <main id="content" className={`admin-content${editing ? " admin-content-editing" : ""}`} aria-busy={loading || busy}>{children}</main>
     </div>

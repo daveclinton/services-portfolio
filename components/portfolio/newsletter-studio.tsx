@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useDeferredValue, useEffect, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -15,7 +15,7 @@ import { SelectField } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { FileText, Mail, Search, Plus, Info, LoaderCircle, X, ExternalLink, Send, Check, Monitor, Smartphone } from "lucide-react"
+import { FileText, Mail, Search, PenLine, Columns2, BookOpen, Plus, Info, LoaderCircle, X, ExternalLink, Send, Check, Monitor, Smartphone } from "lucide-react"
 import { site } from "@/lib/portfolio-data"
 import {
   studioDraft, studioRecipients, studioContacts, studioBootstrap, studioCachedDesk, studioUpdateDesk, studioOpen, studioWarm, studioRemove, studioCreate, studioSave, studioPreview, studioMeta, studioAction, studioLogout, studioFromPost, studioPublish, studioUpload,
@@ -35,6 +35,9 @@ const surfaceClass = "glass-surface rounded-2xl border border-input p-2.5 focus-
 const SORT_KEYS = ["title", "status", "date"] as const
 type SortKey = typeof SORT_KEYS[number]
 const sortDefault = (key: SortKey): SortDir => key === "date" ? "desc" : "asc"
+// Two readable columns need about 56rem; narrower screens switch between them.
+const SPLIT_MIN_WIDTH = 896
+type Pane = "write" | "split" | "preview"
 
 export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY_QUERY }: { section?: "posts" | "newsletters"; initialPost?: string; query?: DeskQuery }) {
   const router = useRouter()
@@ -74,6 +77,11 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const startPost = useRef(initialPost)
   const actionPending = useRef(false)
   const tableScroll = useRef<HTMLDivElement>(null)
+  const writeArea = useRef<HTMLDivElement>(null)
+  const [wide, setWide] = useState(true)
+  // The live view trails typing slightly so long articles never slow the editor.
+  const liveSubject = useDeferredValue(subject)
+  const liveMarkdown = useDeferredValue(markdown)
   // Lists changed on this screen win over responses that were already in flight.
   const listVersion = useRef(0)
 
@@ -117,6 +125,16 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
     if (stage === "write" && !busy) { focusElement(subjectInput.current); if (subjectInput.current?.value === "Untitled post") subjectInput.current.select() }
     else if (stage !== "loading") focusElement(heading.current)
   }, [stage, busy])
+
+  // Split needs room for two readable columns, measured on the desk itself
+  // rather than the window, since the sidebar takes part of the screen.
+  useEffect(() => {
+    const area = writeArea.current
+    if (stage !== "write" || !area || typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(([entry]) => setWide(entry.contentRect.width >= SPLIT_MIN_WIDTH))
+    observer.observe(area)
+    return () => observer.disconnect()
+  }, [stage])
 
   // Back, Forward, reloads and shared links drive the desk through ?doc and ?view.
   const docParam = query.get("doc")
@@ -332,6 +350,11 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const publishedDates = new Map(publishedPosts.map((post) => [post.slug, post.date]))
   // A published article is dated by its publication, everything else by its last edit.
   const dateOf = (d: NewsletterDraft) => d.published_revision && d.published_revision === d.revision && d.slug ? publishedDates.get(d.slug) ?? d.updated_at : d.updated_at
+  // Split is the default; the choice lives in ?pane so it survives reloads.
+  const requestedPane = query.get("pane")
+  const chosenPane: Pane = requestedPane === "write" || requestedPane === "preview" ? requestedPane : "split"
+  const pane: Pane = chosenPane === "split" && !wide ? "write" : chosenPane
+  const choosePane = (next: Pane) => setDeskQuery({ pane: next === "split" || (next === "write" && !wide && chosenPane === "split") ? null : next })
   const sort = readSort(query, SORT_KEYS, "date", sortDefault)
   const search = query.get("q") ?? ""
   const needle = search.trim().toLowerCase()
@@ -345,13 +368,14 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const listing = stage === "list" || stage === "loading"
   function turnPage(next: number) { setDeskQuery({ page: next > 0 ? String(next + 1) : null }); if (tableScroll.current) tableScroll.current.scrollTop = 0 }
   const reach = audience === "all" ? meta?.subscribers ?? 0 : picked.length
+  const shortDate = (value: string) => new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeZone: value.length === 10 ? "UTC" : "Africa/Nairobi" }).format(new Date(value))
   const scheduleLabel = (value: string) => { try { return formatDate(new Date(`${value}:00+03:00`).toISOString()) } catch { return value } }
   const pickedPost = publishedPosts.find((post) => post.slug === selectedPost)
 
   return (
-    <AdminShell section={section} title={title} session={session} loading={stage === "loading"} busy={busy} editing={stage === "write" || listing} onNavigate={navigate} onLogout={() => void work(logout)} actions={<>
+    <AdminShell section={section} title={title} session={session} loading={stage === "loading"} busy={busy} editing={stage === "write" || listing} compactTitle={!listing && stage !== "signin"} onNavigate={navigate} onLogout={() => void work(logout)} actions={<>
       {stage === "write" ? <Button size="sm" disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(preview)}>Preview</Button> : null}
-      {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setStage("write"); leaveDeskQuery({ view: null }) }}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(preparePublish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : meta ? <><Button size="sm" variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}><Send />Send test</Button><Button size="sm" disabled={busy} onClick={openDelivery}>Continue</Button></> : null}</> : null}
+      {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setStage("write"); leaveDeskQuery({ view: null }) }}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(preparePublish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : meta ? <><Button size="sm" variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}><Send /><span className="max-sm:sr-only">Send test</span></Button><Button size="sm" disabled={busy} onClick={openDelivery}>Continue</Button></> : null}</> : null}
       {!["loading","signin","list"].includes(stage) ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" disabled={busy} aria-label="Save and close" onClick={() => void work(backToList)} />}><X /></TooltipTrigger><TooltipContent>Save and close</TooltipContent></Tooltip> : null}
       {stage === "list" ? <>{error ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void work(backToList)}>Reload</Button> : null}<Button size="sm" disabled={busy} onClick={() => void work(section === "posts" ? newPost : newNewsletter)}><Plus />{section === "posts" ? "New post" : "New newsletter"}</Button></> : null}
       {["write", "preview", "published"].includes(stage) && current ? <DocumentActions document={current} busy={busy} onNewsletter={() => void navigate(`/admin/newsletters?post=${encodeURIComponent(current.slug!)}`)} onRemove={(kind) => remove(current, kind)} /> : null}
@@ -376,13 +400,13 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
         </label>
       </div> : null}
       {stage === "list" ? <div className="admin-table-frame">
-        <div ref={tableScroll} className="admin-table-scroll" role="region" aria-label={section === "posts" ? "All posts" : "All newsletters"} tabIndex={0}><table className="admin-table"><thead><tr>{(["title", "status", "date"] as const).map((key) => <SortHeader key={key} label={{ title: "Title", status: "Status", date: "Date" }[key]} active={sort.key === key} dir={sort.dir} onSort={() => setDeskQuery(nextSort(sort, key, "date", sortDefault))} />)}<th scope="col"><span className="sr-only">Actions</span></th></tr></thead><tbody>
+        <div ref={tableScroll} className="admin-table-scroll" role="region" aria-label={section === "posts" ? "All posts" : "All newsletters"} tabIndex={0}><table className="admin-table"><thead><tr>{(["title", "status", "date"] as const).map((key) => <SortHeader key={key} label={{ title: "Title", status: "Status", date: "Date" }[key]} active={sort.key === key} dir={sort.dir} className={key === "date" ? "max-sm:hidden" : undefined} onSort={() => setDeskQuery(nextSort(sort, key, "date", sortDefault))} />)}<th scope="col"><span className="sr-only">Actions</span></th></tr></thead><tbody>
           {visibleRows.map((row) => {
             const date = dateOf(row)
             return <tr key={row.id}>
-              <td className="min-w-48"><button type="button" disabled={busy} className="text-left font-medium hover:underline" onPointerEnter={() => warm(row)} onFocus={() => warm(row)} onClick={() => void work(async () => open(await studioOpen(row)))}>{row.subject}</button></td>
+              <td className="min-w-36 sm:min-w-48"><button type="button" disabled={busy} className="text-left font-medium hover:underline" onPointerEnter={() => warm(row)} onFocus={() => warm(row)} onClick={() => void work(async () => open(await studioOpen(row)))}>{row.subject}</button>{/* Phones drop the date column and keep the date with its title. */}<span className="block text-muted-foreground sm:hidden">{shortDate(date)}</span></td>
               <td><Badge variant="secondary">{statusOf(row)}</Badge></td>
-              <td className="whitespace-nowrap"><time dateTime={date}>{date.length === 10 ? new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(date)) : formatDate(date)}</time></td>
+              <td className="whitespace-nowrap max-sm:hidden"><time dateTime={date}>{date.length === 10 ? new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(date)) : formatDate(date)}</time></td>
               <td className="text-right"><DocumentActions document={row} busy={busy} onOpen={() => void work(async () => open(await studioOpen(row)))} onNewsletter={() => void navigate(`/admin/newsletters?post=${encodeURIComponent(row.slug!)}`)} onRemove={(kind) => remove(row, kind)} /></td>
             </tr>
           })}
@@ -399,15 +423,30 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
       </form> : null}
       {stage === "write" ? <>
         <div className="flex flex-wrap items-center justify-between gap-2 text-caption text-muted-foreground">
-          <p>{section === "posts" ? current?.published_revision ? "Published · Editing draft" : "Draft post" : "Draft newsletter"}</p>
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            {/* The view switch sits with the document status, right above the panes it controls. */}
+            <div className="flex gap-1" role="group" aria-label="Editor layout">
+              <Button size="sm" variant={pane === "write" ? "secondary" : "ghost"} aria-pressed={pane === "write"} onClick={() => choosePane("write")}><PenLine />Write</Button>
+              {wide ? <Button size="sm" variant={pane === "split" ? "secondary" : "ghost"} aria-pressed={pane === "split"} onClick={() => choosePane("split")}><Columns2 />Split</Button> : null}
+              <Button size="sm" variant={pane === "preview" ? "secondary" : "ghost"} aria-pressed={pane === "preview"} onClick={() => choosePane("preview")}><BookOpen />Live view</Button>
+            </div>
+            <p className="max-sm:hidden">{section === "posts" ? current?.published_revision ? "Published · Editing draft" : "Draft post" : "Draft newsletter"}</p>
+          </div>
           <div className="flex items-center gap-2">{saved === "saving" ? <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" /> : null}<p role="status">{saved === "saving" ? "Saving…" : saved === "error" ? "Changes not saved" : dirty ? "Unsaved changes" : "Saved"}</p>{saved === "error" ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void work(async () => { await save() })}>Retry save</Button> : null}</div>
         </div>
-        <div className="admin-editor-scroll" role="region" aria-label="Article editor" tabIndex={0}>
+        <div ref={writeArea} className="admin-write-area">
+        {/* The editor stays mounted while hidden, so its undo history survives. */}
+        <div className={pane === "preview" ? "hidden" : "admin-editor-scroll"} role="region" aria-label="Article editor" tabIndex={0}>
         <div className="flex flex-col gap-2">
           <label htmlFor="post-title" className="sr-only">Post title</label>
           <textarea ref={subjectInput} id="post-title" rows={2} className="studio-title w-full resize-none bg-transparent pl-8 font-bold text-foreground outline-none" value={subject} required maxLength={STUDIO_SUBJECT_LIMIT} disabled={busy} placeholder="Untitled post" onChange={(event) => { const value = event.target.value.replace(/[\r\n]+/g, " "); text.current.subject = value; setSubject(value); setSaved("unsaved") }} />
         </div>
         <NewsletterEditor key={current?.id} value={markdown} disabled={busy} onUpload={(file) => studioUpload(session!.csrf,file)} onChange={(value) => { text.current.markdown = value; setMarkdown(value); setSaved("unsaved") }} />
+        </div>
+        {pane !== "write" ? <section className="admin-live-preview" aria-label="Live view" tabIndex={0}>
+          <h2 className="studio-title font-bold">{liveSubject || "Untitled post"}</h2>
+          {liveMarkdown.trim() ? <Markdown className="mt-6">{liveMarkdown}</Markdown> : <p className="mt-6 text-body text-muted-foreground">Start writing to see it here.</p>}
+        </section> : null}
         </div>
       </> : null}
       {stage === "preview" ? <>
