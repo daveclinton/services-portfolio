@@ -123,3 +123,12 @@ test("the block picker and slash commands retain text and round-trip through sav
     } finally { editor.destroy() }
   }
 })
+
+test("an image's frame survives the editor, Markdown and reopening", () => {
+  for (const frame of ["landscape", "wide", "square", "portrait"]) {
+    const source = `![A chart](<https://res.cloudinary.com/my-cloud/image/upload/v17/blog/c.png#frame=${frame}>)`
+    const { document, output } = roundtrip(source)
+    assert.equal(document.content[0].content[0].attrs.src, `https://res.cloudinary.com/my-cloud/image/upload/v17/blog/c.png#frame=${frame}`)
+    assert(output.includes(`#frame=${frame}`), frame)
+  }
+})

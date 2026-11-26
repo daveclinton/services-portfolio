@@ -72,6 +72,7 @@ func (s *Service) Routes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /admin/newsletters/drafts/{id}/delete", s.protect(s.manage(deletable, deleteDocument)))
 	mux.HandleFunc("POST /admin/newsletters/from-post", s.protect(s.newsletterFromPost))
 	mux.HandleFunc("POST /admin/newsletters/media", s.protect(s.uploadMedia))
+	mux.HandleFunc("POST /admin/newsletters/media/sign", s.protect(s.signUpload))
 	mux.HandleFunc("GET /media/{id}", s.media)
 	mux.HandleFunc("GET /blog/posts", s.publicPosts)
 	mux.HandleFunc("GET /blog/posts/{slug}", s.publicPost)

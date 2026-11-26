@@ -451,7 +451,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
         </div>
         <NewsletterEditor key={current?.id} value={markdown} disabled={busy} onUpload={(file) => studioUpload(session!.csrf,file)} onChange={(value) => { text.current.markdown = value; setMarkdown(value); setSaved("unsaved") }} />
         </div>
-        {roomy ? <LiveArticle ref={livePane} subject={subject} markdown={markdown} description={current?.description} /> : null}
+        {roomy ? <LiveArticle ref={livePane} subject={subject} markdown={markdown} description={current?.description} date={current?.slug ? publishedPosts.find((post) => post.slug === current.slug)?.date : undefined} /> : null}
         </div>
         </div>
       </> : null}

@@ -3,6 +3,7 @@ package sendy
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	stdhtml "html"
 	"html/template"
 	"net/url"
@@ -41,7 +42,7 @@ func RenderNewsletter(subject, markdown, siteURL string) (string, error) {
 		body = strings.ReplaceAll(body, "<"+tag+">", "<"+tag+` style="margin:0 0 24px;font-size:16px;line-height:1.6">`)
 	}
 	body = strings.ReplaceAll(body, "<a ", `<a style="color:#ffffff;text-decoration:underline" `)
-	body = strings.ReplaceAll(body, "<img ", `<img style="max-width:100%;height:auto" `)
+	body = frameEmailImages(body)
 	html, _, err := RenderNote(Note{Title: subject, SiteURL: siteURL, Campaign: true, UnsubscribeURL: unsubscribePlaceholder, Body: template.HTML(body), Preheader: preheaderFrom(body)})
 	if err == nil && len(html) > NewsletterHTMLLimit {
 		return "", errors.New("This email is too large; shorten it before sending")
@@ -50,6 +51,37 @@ func RenderNewsletter(subject, markdown, siteURL string) (string, error) {
 }
 
 var markup = regexp.MustCompile(`<[^>]*>`)
+
+// The four article frames (lib/image-frames.ts). Email clients cannot crop with
+// CSS, so Cloudinary images arrive already cut to their frame at 1200px; other
+// images keep their own shape at the frame's width.
+var emailFrames = map[string]struct {
+	ratio string
+	width int
+}{"landscape": {"3:2", 100}, "wide": {"16:9", 100}, "square": {"1:1", 66}, "portrait": {"4:5", 56}}
+var (
+	emailImage      = regexp.MustCompile(`<img src="([^"]*)"`)
+	imageFrame      = regexp.MustCompile(`#frame=([a-z]+)$`)
+	cloudinaryImage = regexp.MustCompile(`^https://res\.cloudinary\.com/([a-z0-9_-]+)/image/upload/(v\d+/.+)$`)
+)
+
+func frameEmailImages(body string) string {
+	return emailImage.ReplaceAllStringFunc(body, func(tag string) string {
+		src := emailImage.FindStringSubmatch(tag)[1]
+		name := "landscape"
+		if match := imageFrame.FindStringSubmatch(src); match != nil {
+			if _, known := emailFrames[match[1]]; known {
+				name = match[1]
+			}
+		}
+		frame := emailFrames[name]
+		src = imageFrame.ReplaceAllString(src, "")
+		if match := cloudinaryImage.FindStringSubmatch(src); match != nil {
+			src = "https://res.cloudinary.com/" + match[1] + "/image/upload/c_fill,ar_" + frame.ratio + ",g_auto,w_1200/f_auto,q_auto/" + match[2]
+		}
+		return fmt.Sprintf(`<img style="display:block;width:%d%%;max-width:100%%;height:auto;margin:0 auto" src="%s"`, frame.width, src)
+	})
+}
 
 // Preheader returns the inbox summary for a newsletter, as the email uses it.
 func Preheader(markdown, siteURL string) string {

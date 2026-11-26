@@ -301,17 +301,73 @@ test("newsletter failures and malformed success responses do not pretend to subs
 
 const studioDraft = { id: "a5cd8282-68f1-4b4a-9c19-000000000001", subject: "A note", markdown: "Hello", revision: 1, state: "draft", campaign_id: 0, scheduled_at: null, tested_revision: 0, last_error: "", updated_at: "2026-11-25T09:00:00Z" }
 
-test("image uploads use authenticated multipart data and reject unsupported files before requesting",async(t)=>{
- let sent,calls=0
- t.mock.method(globalThis,"fetch",async(url,options)=>{calls++;sent={url,options};return Response.json({url:"https://api.example.com/media/image"})})
- await assert.rejects(()=>studioUpload("csrf",new File(["<svg/>"],"image.svg",{type:"image/svg+xml"})),/PNG, JPEG or GIF/)
- assert.equal(calls,0)
- const url=await studioUpload("csrf",new File(["png bytes"],"image.png",{type:"image/png"}))
- assert.equal(url,"https://api.example.com/media/image")
- assert(sent.options.body instanceof FormData)
- assert.equal(sent.options.headers["Content-Type"],undefined,"fetch supplies the multipart boundary")
- assert.equal(sent.options.headers["X-CSRF-Token"],"csrf")
- assert.equal(sent.options.credentials,"include")
+test("without Cloudinary, uploads keep using the API's own storage and its limits", async (t) => {
+ const calls = []
+ t.mock.method(globalThis, "fetch", async (url, options) => { calls.push({ url: String(url), options }); return Response.json(String(url).endsWith("/media/sign") ? { configured: false } : { url: "https://api.example.com/media/image" }) })
+ await assert.rejects(() => studioUpload("csrf", new File(["<svg/>"], "image.svg", { type: "image/svg+xml" })), /set up Cloudinary/)
+ assert.deepEqual(calls.map((call) => call.url.split("/admin/newsletters/")[1]), ["media/sign"], "nothing is uploaded once the fallback refuses")
+ const url = await studioUpload("csrf", new File(["png bytes"], "image.png", { type: "image/png" }))
+ assert.equal(url, "https://api.example.com/media/image")
+ const sent = calls.at(-1).options
+ assert(sent.body instanceof FormData)
+ assert.equal(sent.headers["Content-Type"], undefined, "fetch supplies the multipart boundary")
+ assert.equal(sent.headers["X-CSRF-Token"], "csrf")
+ assert.equal(sent.credentials, "include")
+})
+
+test("with Cloudinary, any image goes straight to it with the signed parameters, and only its own address is accepted", async (t) => {
+ const params = { allowed_formats: "avif,gif,heic,heif,jpeg,jpg,png,webp", folder: "blog", public_id: "a5cd8282-68f1-4b4a-9c19-000000000001", timestamp: "1700000000" }
+ let uploaded, reply = { secure_url: `https://res.cloudinary.com/my-cloud/image/upload/v17/blog/${params.public_id}.heic` }
+ t.mock.method(globalThis, "fetch", async (url, options) => {
+  if (String(url).endsWith("/media/sign")) { assert.equal(options.headers["X-CSRF-Token"], "csrf"); return Response.json({ configured: true, cloud_name: "my-cloud", api_key: "123", signature: "sig", params }) }
+  uploaded = { url: String(url), options }
+  return Response.json(reply)
+ })
+ const huge = new File([new Uint8Array(12 * 1024 * 1024)], "phone.heic", { type: "image/heic" })
+ assert.equal(await studioUpload("csrf", huge), reply.secure_url, "large and uncommon formats are not refused by the desk")
+ assert.equal(uploaded.url, "https://api.cloudinary.com/v1_1/my-cloud/image/upload")
+ assert.equal(uploaded.options.credentials, undefined, "no desk cookie goes to Cloudinary")
+ const form = Object.fromEntries([...uploaded.options.body.entries()].filter(([name]) => name !== "file"))
+ assert.deepEqual(form, { api_key: "123", signature: "sig", ...params })
+ for (const address of ["https://res.cloudinary.com/other-cloud/image/upload/v17/blog/x.jpg", `https://res.cloudinary.com/my-cloud/image/upload/v17/elsewhere/${params.public_id}.jpg`, "https://evil.example/x.jpg"]) {
+  reply = { secure_url: address }
+  await assert.rejects(() => studioUpload("csrf", huge), /confirm/, address)
+ }
+ reply = { error: { message: "Invalid image file" } }
+ t.mock.method(globalThis, "fetch", async (url) => String(url).endsWith("/media/sign") ? Response.json({ configured: true, cloud_name: "my-cloud", api_key: "123", signature: "sig", params }) : Response.json(reply, { status: 400 }))
+ await assert.rejects(() => studioUpload("csrf", huge), /Cloudinary: Invalid image file/)
+})
+
+test("every image is shown in one of the four frames, with Cloudinary cutting it to that frame", () => {
+ const { framedSource, frameOf, withFrame } = require("../lib/image-frames.ts")
+ const { FramedImage } = require("../components/portfolio/framed-image.tsx")
+ const cloud = "https://res.cloudinary.com/my-cloud/image/upload/v17/blog/x.jpg"
+ assert.equal(frameOf(cloud), "landscape", "images without a frame use Landscape")
+ assert.equal(frameOf(`${cloud}#frame=bogus`), "landscape")
+ assert.equal(withFrame(`${cloud}#frame=wide`, "portrait"), `${cloud}#frame=portrait`)
+ const wide = framedSource(`${cloud}#frame=wide`)
+ assert.equal(wide.src, "https://res.cloudinary.com/my-cloud/image/upload/c_fill,ar_16:9,g_auto,w_960/f_auto,q_auto/v17/blog/x.jpg")
+ assert.equal(wide.srcSet.split(", ").length, 5)
+ assert.match(wide.srcSet, /w_1840\/f_auto,q_auto\/v17\/blog\/x\.jpg 1840w$/)
+ assert.equal(wide.height / wide.width, 9 / 16, "space is reserved in the frame's shape")
+ const square = framedSource(`${cloud}#frame=square`)
+ assert.equal(square.sizes, "(min-width: 1280px) 607px, 66vw", "taller frames are shown narrower")
+ const local = framedSource("https://api.example.com/media/abc#frame=portrait")
+ assert.equal(local.src, "https://api.example.com/media/abc")
+ assert.equal(local.srcSet, undefined)
+ const html = renderToStaticMarkup(React.createElement(FramedImage, { src: `${cloud}#frame=portrait`, alt: "A phone" }))
+ assert.match(html, /data-frame="portrait"/)
+ assert.match(html, /class="framed-image"/)
+ assert.match(html, /alt="A phone"/)
+ const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+ for (const rule of [/\.framed-image\[data-frame="wide"\][^{]*\{\s*aspect-ratio: 16 \/ 9;/, /\[data-frame="square"\][^{]*\{\s*width: 66%;\s*aspect-ratio: 1 \/ 1;/, /\[data-frame="portrait"\][^{]*\{\s*width: 56%;\s*aspect-ratio: 4 \/ 5;/, /:is\(\.framed-image, \.blog-prose img, \.newsletter-editor img\) \{[^}]*aspect-ratio: 3 \/ 2;[^}]*object-fit: cover;/]) assert.match(css, rule)
+})
+
+test("article Markdown renders its images framed on the public page, preview and live view", () => {
+ const { PostMarkdown } = require("../components/portfolio/published-post-content.tsx")
+ const html = renderToStaticMarkup(React.createElement(PostMarkdown, { markdown: "![Chart](https://res.cloudinary.com/my-cloud/image/upload/v17/blog/c.png#frame=wide)" }))
+ assert.match(html, /data-frame="wide"/)
+ assert.match(html, /srcSet="[^"]*c_fill,ar_16:9/i)
 })
 
 test("publication requires acknowledgement of the saved revision",async(t)=>{
@@ -562,17 +618,22 @@ test("the draft preview page uses the public article layout and says it is a pre
   assert(html.includes('aria-label="Loading preview"'))
 })
 
-test("the live view renders the article with the public renderer, every section open", () => {
+test("the live view is the public 37signals article: page tone, numbered sections, every one open", () => {
   const { LiveArticle } = require("../components/portfolio/live-article.tsx")
-  const html = renderToStaticMarkup(React.createElement(LiveArticle, { subject: "A title", description: "A summary", markdown: "Opening line.\n\n## First part\n\nBody with **bold**.\n\n```portfolio-widget\n{\"name\":\"YouTubePreview\",\"props\":{\"videoId\":\"dQw4w9WgXcQ\",\"title\":\"A talk\"}}\n```" }))
+  const html = renderToStaticMarkup(React.createElement(LiveArticle, { subject: "A title", description: "A summary", date: "2026-11-26", markdown: "Opening line.\n\n## First part\n\nBody with **bold**.\n\n```portfolio-widget\n{\"name\":\"YouTubePreview\",\"props\":{\"videoId\":\"dQw4w9WgXcQ\",\"title\":\"A talk\"}}\n```" }))
   assert(html.includes('aria-label="Live view"'))
-  assert(html.includes("A title") && html.includes("A summary"))
-  assert(!html.includes(">Introduction<"), "the untitled opening is not given a made-up heading")
-  assert(html.includes("<h2>First part</h2>"))
-  assert(!html.includes("<details"), "sections are open, not collapsed")
+  assert(html.includes('class="page numbered live-tone"'), "the public page tone and type, scoped to the pane")
+  assert.match(html, /<h1 class="font-bold">A title<\/h1>/)
+  assert(html.includes("November 26, 2026") && html.includes("A summary"))
+  assert.match(html, /01\.<\/span> <h2>Introduction<\/h2>/, "numbered like the public reader")
+  assert.match(html, /02\.<\/span> <h2>First part<\/h2>/)
+  assert.equal((html.match(/<details open="">/g) ?? []).length, 2, "every section open")
+  assert(!html.includes("<details name="), "not an exclusive accordion")
+  assert(html.includes("signal-avatar"), "with the portrait beside each section")
   assert(html.includes("youtube-nocookie.com/embed/dQw4w9WgXcQ"), "portable blocks render as on the site")
   const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+  assert.match(css, /html\[data-tone\],\s*\.live-tone \{\s*color-scheme: dark;/, "the tone palette applies inside the pane")
+  assert.match(css, /\.admin-live-preview \.live-tone \.signals \{\s*font-size: clamp\(1\.125rem, 4\.2cqi, 2\.05rem\);/, "titles size from the pane, not the window")
   assert.match(css, /@container write \(min-width: 56rem\)/)
   assert.match(css, /@container write \(min-width: 72rem\)/)
-  assert.match(css, /@container live \(max-width: 30rem\)/)
 })

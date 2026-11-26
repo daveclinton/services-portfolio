@@ -158,12 +158,34 @@ export async function studioPublish(csrf: string, current: NewsletterDraft, slug
   if(result.published_revision!==current.revision || result.slug!==slug) throw new Error("Publication was not confirmed. Reload this post to check its status.")
   return result
 }
+// Cloudinary when it is set up: the API signs, the browser uploads directly, so
+// large files never pass through the VPS. Otherwise PostgreSQL, as before.
+// https://cloudinary.com/documentation/authentication_signatures
 export async function studioUpload(csrf: string, file: File): Promise<string> {
-  if (!['image/png', 'image/jpeg', 'image/gif'].includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error("Choose a PNG, JPEG or GIF of up to 5 MB.")
+  const signed = await request("media/sign", csrf, {})
+  if (signed.configured === true) return cloudinaryUpload(signed, file)
+  if (!['image/png', 'image/jpeg', 'image/gif'].includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error("Choose a PNG, JPEG or GIF of up to 5 MB, or set up Cloudinary to upload any image.")
   const data=new FormData(); data.set("file", file)
   const result=await request("media",csrf,data)
   if(typeof result.url!=="string" || !studioImageURL(result.url)) throw new Error("Couldn’t confirm the uploaded image.")
   return result.url
+}
+async function cloudinaryUpload(signed: Record<string, unknown>, file: File): Promise<string> {
+  const cloud = signed.cloud_name, key = signed.api_key, signature = signed.signature, params = signed.params as Record<string, unknown> | undefined
+  if (typeof cloud !== "string" || !/^[a-z0-9_-]+$/i.test(cloud) || typeof key !== "string" || typeof signature !== "string" || !params || typeof params.public_id !== "string" || typeof params.folder !== "string") throw new Error("Couldn’t prepare the upload. Reload and try again.")
+  const data = new FormData()
+  data.set("file", file); data.set("api_key", key); data.set("signature", signature)
+  for (const [name, value] of Object.entries(params)) data.set(name, String(value))
+  let response: Response
+  try { response = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, { method: "POST", body: data, signal: AbortSignal.timeout(120_000) }) }
+  catch { throw new Error("The upload didn’t finish. Check your connection and try again.") }
+  const result = await response.json().catch(() => null) as { secure_url?: unknown; error?: { message?: unknown } } | null
+  if (!response.ok) throw new Error(typeof result?.error?.message === "string" ? `Cloudinary: ${result.error.message}` : "Cloudinary declined this image. Try another file.")
+  // Only an address for this upload, in this account, is accepted back.
+  const url = result?.secure_url
+  const expected = `https://res.cloudinary.com/${cloud}/image/upload/`
+  if (typeof url !== "string" || !url.startsWith(expected) || !new RegExp(`^v\\d+/${params.folder}/${params.public_id}\\.[a-z0-9]+$`).test(url.slice(expected.length))) throw new Error("Couldn’t confirm the uploaded image.")
+  return url
 }
 export function studioImageURL(value: string): boolean {
   try {
