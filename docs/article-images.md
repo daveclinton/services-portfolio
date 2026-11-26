@@ -61,10 +61,15 @@ for format and compression. Email uses one 1200px version.
 
 ## Upload flow (owner only)
 
-1. **Add.** Select, paste or drop any image, or give an HTTPS address.
-2. **Frame.** The next screen asks for the frame, defaulting to Landscape. The
-   bubble menu's Edit image changes it later.
-3. **Describe, then review** the image in its frame, as articles will show it.
+1. **Select.** The toolbar's Upload image action opens the native file picker
+   directly, filtered to AVIF, GIF, HEIC/HEIF, JPEG, PNG and WebP. The slash
+   command's Image action uses the same picker; paste and drop work too.
+2. **Upload and insert.** The existing upload service stores the selected file
+   and inserts it at the cursor in the default Landscape frame. Cancelling the
+   picker leaves the draft alone; failures appear in the editor.
+3. **Edit later.** Select the inserted image and use Edit image to change its
+   frame, address or description. Markdown mode inserts the uploaded address
+   directly into the source.
 
 Behind the upload, the browser asks the API for a signature
 (`POST /admin/newsletters/media/sign`, owner session and CSRF). The API secret
@@ -101,6 +106,17 @@ A Cloudinary account (free), then on the VPS in `backend/.env`:
 three or none; the API refuses to start with only some. Nothing is needed in
 Vercel: the cloud name reaches the browser with each signature and in image
 addresses.
+
+In Cloudinary, open **Settings → API Keys** to find the cloud name, API key and
+API secret. Keep the secret only in the backend environment. This app generates
+signed uploads itself, so an unsigned upload preset is not needed.
+
+After setting the three values, recreate the API from the VPS's `backend/`
+directory so it reads the updated environment:
+
+```bash
+docker compose up -d --build --no-deps --force-recreate --wait api
+```
 
 ## Sources
 

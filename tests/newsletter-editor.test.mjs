@@ -5,7 +5,8 @@ import vm from "node:vm"
 import ts from "typescript"
 import { marked } from "marked"
 import { MarkdownManager } from "@tiptap/markdown"
-import { Editor, getSchema } from "@tiptap/react"
+import { Editor, Extension, getSchema } from "@tiptap/react"
+import * as imageFrames from "../lib/image-frames.ts"
 import { applyWritingBlock, writingBlocks, newsletterEditorExtensions, newsletterRichTextIssue, formatMarkdown, newsletterImageMarkdown, newsletterDocumentMarkdown, parseNewsletterDocument } from "../lib/newsletter-editor.ts"
 
 // Exercise the real parser, serializer, and ProseMirror schema without a DOM or
@@ -268,4 +269,110 @@ test("Markdown image attachments reuse the rich editor serializer and preserve e
   const { document } = roundtrip(newsletterImageMarkdown(address, alt))
   assert.equal(document.content[0].content[0].attrs.src, address)
   assert.equal(document.content[0].content[0].attrs.alt, alt)
+})
+
+// Exercise the real picker handlers and real Tiptap document commands with
+// hook/host doubles. Native file-picker clicks are recorded, never opened.
+function imageEditor(mode, onUpload) {
+  const slots = [], host = new Map(), effects = [], cleanups = [], changes = []
+  let cursor = 0, nodes = [], editor, slashImage, pickerClicks = 0
+  const jsx = (type, props) => ({ type, props: props ?? {} })
+  const props = { value: mode === "rich" ? "Before after" : "# Title\n\nSummary\n\nBefore after", disabled: false, onUpload, onChange(value) { props.value = value; changes.push(value) } }
+  const hooks = {
+    useId: () => "image-test",
+    useState(initial) { const index = cursor++; if (!(index in slots)) slots[index] = typeof initial === "function" ? initial() : initial; return [slots[index], (value) => { slots[index] = typeof value === "function" ? value(slots[index]) : value }] },
+    useRef(initial) { return slots[cursor++] ??= { current: initial } },
+    useMemo: (create) => create(),
+    useEffect: (callback) => effects.push(callback), useLayoutEffect: (callback) => effects.push(callback),
+  }
+  const exports = {}, source = ts.transpileModule(readFileSync(new URL("../components/portfolio/newsletter-editor.tsx", import.meta.url), "utf8"), { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS } }).outputText
+  vm.runInNewContext(source + "\nexports.RichTextEditor = RichTextEditor; exports.MarkdownEditor = MarkdownEditor;", { exports, Error, TextEncoder, document: { execCommand: () => false }, require(name) {
+    if (name === "react") return hooks
+    if (name === "react/jsx-runtime") return { jsx, jsxs: jsx }
+    if (name === "@tiptap/react") return { useEditor(options) { return editor ??= new Editor({ ...options, element: null }) }, useEditorState: () => null, EditorContent: "editor-content" }
+    if (name === "@/lib/newsletter-editor") return { newsletterEditorExtensions, newsletterRichTextIssue, formatMarkdown, newsletterImageMarkdown }
+    if (name === "@/lib/image-frames") return imageFrames
+    if (name === "@/lib/newsletter-studio") return { STUDIO_IMAGE_ACCEPT: ".png" }
+    if (name === "@/lib/scroll") return { focusElement() {} }
+    if (name === "@/components/portfolio/newsletter-command-menu") return { createWritingSlash(callback) { slashImage = callback; return Extension.create({ name: "testSlash" }) } }
+    return new Proxy({}, { get: (_object, key) => key })
+  } })
+  function render() {
+    cursor = 0; nodes = []; effects.length = 0
+    const tree = (mode === "rich" ? exports.RichTextEditor : exports.MarkdownEditor)(props)
+    function visit(node) {
+      if (Array.isArray(node)) { node.forEach(visit); return }
+      if (!node?.props) return
+      const element = host.get(node.props.ref ?? node.props.id ?? node) ?? { click() { pickerClicks++ }, focus() {}, open: false, showModal() { this.open = true }, setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end }, setRangeText(text, start, end) { this.value = this.value.slice(0, start) + text + this.value.slice(end) } }
+      element.type = node.type; element.props = node.props
+      if (node.props.value !== undefined) element.value = node.props.value
+      host.set(node.props.ref ?? node.props.id ?? node, element); nodes.push(element)
+      if (node.props.ref) node.props.ref.current = element
+      visit(node.props.render); visit(node.props.children)
+    }
+    visit(tree)
+    effects.forEach((effect) => { const cleanup = effect(); if (cleanup) cleanups.push(cleanup) })
+  }
+  render()
+  return {
+    get editor() { return editor }, get value() { return props.value }, changes,
+    get pickerClicks() { return pickerClicks },
+    click() { nodes.find((node) => node.props["aria-label"] === "Upload image").props.onClick() },
+    choose(file) { nodes.find((node) => node.type === "input" && node.props.type === "file").props.onChange({ target: { files: file ? [file] : [], value: "selected" } }); render() },
+    field: () => nodes.find((node) => node.type === "textarea"),
+    alerts: () => nodes.filter((node) => node.props.role === "alert").map((node) => node.props.children),
+    modal: () => nodes.find((node) => node.type === "dialog"),
+    slash: () => slashImage(), render,
+    async flush() { await new Promise((resolve) => setImmediate(resolve)); render() },
+    destroy() { cleanups.forEach((cleanup) => cleanup()); editor?.destroy() },
+  }
+}
+
+test("rich image actions open the picker directly and insert the uploaded image at the original cursor", async () => {
+  const files = [], address = "https://res.cloudinary.com/my-cloud/image/upload/v17/blog/photo.png"
+  let finish
+  const ui = imageEditor("rich", (file) => { files.push(file); return new Promise((resolve) => { finish = resolve }) })
+  try {
+    ui.editor.commands.setTextSelection(8)
+    ui.click()
+    assert.equal(ui.pickerClicks, 1)
+    assert.equal(ui.modal().open, false, "no URL, frame, description or review dialog opens")
+    ui.choose(null)
+    assert.equal(files.length, 0, "cancelling the picker uploads nothing")
+    assert.equal(ui.editor.getMarkdown(), "Before after")
+    ui.slash()
+    assert.equal(ui.pickerClicks, 2, "the slash image command shares the direct picker")
+    const file = new File(["image"], "photo.png", { type: "image/png" })
+    ui.choose(file)
+    assert.deepEqual(files, [file])
+    ui.editor.commands.setTextSelection(1)
+    finish(address); await ui.flush()
+    const content = ui.editor.getJSON().content[0].content
+    assert.equal(content[0].text, "Before ")
+    assert.equal(content[1].type, "image")
+    assert.equal(content[1].attrs.src, `${address}#frame=landscape`)
+    assert.equal(content[2].text, "after")
+    assert.equal(ui.modal().open, false)
+    assert.equal(ui.changes.length, 1, "the insertion uses the existing save callback")
+  } finally { ui.destroy() }
+})
+
+test("image upload failures preserve the rich document and Markdown uploads insert directly into source", async () => {
+  const rich = imageEditor("rich", async () => { throw new Error("Upload failed. Retry.") })
+  try {
+    rich.choose(new File(["image"], "photo.png", { type: "image/png" })); await rich.flush()
+    assert.equal(rich.editor.getMarkdown(), "Before after")
+    assert.deepEqual(rich.alerts(), ["Upload failed. Retry."])
+    assert.equal(rich.changes.length, 0)
+  } finally { rich.destroy() }
+  const markdown = imageEditor("markdown", async () => "https://example.com/photo.png")
+  try {
+    const position = markdown.value.indexOf("after")
+    markdown.field().setSelectionRange(position, position)
+    markdown.click()
+    assert.equal(markdown.pickerClicks, 1)
+    markdown.choose(new File(["image"], "photo.png", { type: "image/png" })); await markdown.flush()
+    assert.equal(markdown.value, "# Title\n\nSummary\n\nBefore ![](<https://example.com/photo.png#frame=landscape>)after")
+    assert.equal(markdown.changes.length, 1)
+  } finally { markdown.destroy() }
 })

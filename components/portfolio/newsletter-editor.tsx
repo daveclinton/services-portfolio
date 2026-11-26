@@ -6,14 +6,14 @@ import { BubbleMenu } from "@tiptap/react/menus"
 import DragHandle from "@tiptap/extension-drag-handle-react"
 import { Menu } from "@base-ui/react/menu"
 import { Tabs } from "@base-ui/react/tabs"
-import { Bold, Italic, Code, Link, ImagePlus, GripVertical, Undo2, Redo2, Unlink, Trash2, Info, Upload, LoaderCircle, FileCode, PenLine, Heading, Strikethrough, Quote, List, ListOrdered, ListChecks, MoreHorizontal, Eye, Type } from "lucide-react"
+import { Bold, Italic, Code, Link, ImagePlus, GripVertical, Undo2, Redo2, Unlink, Trash2, Info, LoaderCircle, FileCode, PenLine, Heading, Strikethrough, Quote, List, ListOrdered, ListChecks, MoreHorizontal, Eye, Type } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SelectField } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { newsletterEditorExtensions, newsletterRichTextIssue, formatMarkdown, newsletterImageMarkdown, newsletterDocumentMarkdown, parseNewsletterDocument, type MarkdownFormat, type NewsletterDocument } from "@/lib/newsletter-editor"
 import { createWritingSlash } from "@/components/portfolio/newsletter-command-menu"
-import { STUDIO_BODY_LIMIT, studioImageURL } from "@/lib/newsletter-studio"
+import { STUDIO_BODY_LIMIT, STUDIO_IMAGE_ACCEPT, studioImageURL } from "@/lib/newsletter-studio"
 import { DEFAULT_FRAME, FRAME_IDS, IMAGE_FRAMES, frameOf, withFrame, withoutFrame, type ImageFrame } from "@/lib/image-frames"
 import { FramedImage } from "@/components/portfolio/framed-image"
 import { PostMarkdown } from "@/components/portfolio/published-post-content"
@@ -78,6 +78,7 @@ function WritingMore({ children }: { children: ReactNode }) {
 function MarkdownEditor({ value, disabled, onChange, onUpload, modeSwitch }: Props) {
   const id = useId()
   const input = useRef<HTMLTextAreaElement>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
   const selection = useRef<{ selectionStart: number; selectionEnd: number } | null>(null)
   const uploadVersion = useRef(0)
   const [tab, setTab] = useState("write")
@@ -108,6 +109,7 @@ function MarkdownEditor({ value, disabled, onChange, onUpload, modeSwitch }: Pro
   function format(kind: MarkdownFormat) {
     const field = input.current
     if (!field || locked || tab !== "write") return
+    if (kind === "image" && onUpload) { fileInput.current?.click(); return }
     replace(formatMarkdown(field.value, field.selectionStart, field.selectionEnd, kind))
   }
   async function upload(file: File) {
@@ -139,13 +141,14 @@ function MarkdownEditor({ value, disabled, onChange, onUpload, modeSwitch }: Pro
           <Tooltip><TooltipTrigger render={<Tabs.Tab value="preview" aria-label="Preview" render={<Button variant="ghost" size="icon" />} />}><Eye /></TooltipTrigger><TooltipContent>Preview</TooltipContent></Tooltip>
         </Tabs.List>
         {markdownTools.map(({ format: kind, label, icon: Icon }) => <Tooltip key={kind}>
-          <TooltipTrigger render={<Button size="icon" variant="ghost" className={["bold", "italic", "link"].includes(kind) ? undefined : "writing-toolbar-secondary"} aria-label={label} disabled={locked || tab !== "write"} onMouseDown={(event) => event.preventDefault()} onClick={() => format(kind)} />}><Icon /></TooltipTrigger>
-          <TooltipContent>{label}</TooltipContent>
+          <TooltipTrigger render={<Button size="icon" variant="ghost" className={["bold", "italic", "link"].includes(kind) ? undefined : "writing-toolbar-secondary"} aria-label={kind === "image" && onUpload ? "Upload image" : label} disabled={locked || tab !== "write"} onMouseDown={(event) => event.preventDefault()} onClick={() => format(kind)} />}><Icon /></TooltipTrigger>
+          <TooltipContent>{kind === "image" && onUpload ? "Upload image" : label}</TooltipContent>
         </Tooltip>)}
-        <WritingMore>{markdownTools.filter(({ format }) => !["bold", "italic", "link"].includes(format)).map(({ format: kind, label, icon: Icon }) => <Menu.Item key={kind} className="admin-menu-item" disabled={locked || tab !== "write"} onClick={() => format(kind)}><Icon className="size-4" />{label}</Menu.Item>)}</WritingMore>
+        <WritingMore>{markdownTools.filter(({ format }) => !["bold", "italic", "link"].includes(format)).map(({ format: kind, label, icon: Icon }) => <Menu.Item key={kind} className="admin-menu-item" disabled={locked || tab !== "write"} onClick={() => format(kind)}><Icon className="size-4" />{kind === "image" && onUpload ? "Upload image" : label}</Menu.Item>)}</WritingMore>
         <div className="ml-auto shrink-0">{modeSwitch}</div>
       </div>
     </TooltipProvider>
+    <input ref={fileInput} type="file" accept={STUDIO_IMAGE_ACCEPT} className="hidden" aria-label="Choose image file" disabled={locked} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void upload(file) }} />
     {issue ? <p role="status" className="py-2 text-caption text-muted-foreground">{issue}</p> : null}
       <Tabs.Panel value="write" keepMounted className="pt-4">
         <label htmlFor={`${id}-markdown`} className="sr-only">Post Markdown</label>
@@ -246,11 +249,10 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch, child
     emitted.current = value
   }, [editor, value])
   useEffect(() => {
-    imageAction.current = () => openInsert("image", imageTrigger.current)
+    imageAction.current = chooseImage
     linkAction.current = () => openInsert("link", null)
     uploadAction.current = (file) => {
       if (disabled || uploading) return
-      openInsert("image", imageTrigger.current)
       void upload(file)
     }
   })
@@ -272,13 +274,20 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch, child
     setAlt(String(editor.getAttributes(kind).alt ?? ""))
     setStep("url"); setError(""); setInsert(kind)
   }
+  function chooseImage() {
+    if (!editor || !onUpload || disabled || uploading) return
+    fileInput.current?.click()
+  }
   async function upload(file: File) {
-    if (!onUpload || disabled || uploading) return
+    if (!editor || !onUpload || disabled || uploading) return
+    const selection = editor.state.selection.getBookmark(), document = editor.state.doc
     const version=++uploadVersion.current
-    setUploading(true);setError("");setURL("")
+    setUploading(true);setError("")
     try {
       const address=await onUpload(file)
-      if(version===uploadVersion.current){setURL(withoutFrame(address));setAlt("");setStep("frame")}
+      if(version!==uploadVersion.current)return
+      if(!editor.state.doc.eq(document))throw new Error("The draft changed during upload. Please insert the image again.")
+      if(!editor.chain().command(({tr})=>{tr.setSelection(selection.resolve(tr.doc));return true}).setImage({src:withFrame(address,DEFAULT_FRAME),alt:""}).run())throw new Error("The image could not be inserted. Please try again.")
     } catch(failure) { if(version===uploadVersion.current)setError(failure instanceof Error ? failure.message : "Upload failed. Please try again.") }
     finally {if(version===uploadVersion.current)setUploading(false)}
   }
@@ -330,11 +339,11 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch, child
         }} options={[{ value: "paragraph", label: "Paragraph" }, ...[1, 2, 3, 4, 5, 6].map((level) => ({ value: String(level), label: `Heading ${level}` }))]} />
         {formatButtons()}
         <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" aria-label="Link" aria-pressed={state?.link} disabled={!editor || disabled} onClick={(event) => openInsert("link", event.currentTarget)} />}><Link /></TooltipTrigger><TooltipContent>Link</TooltipContent></Tooltip>
-        <Tooltip><TooltipTrigger render={<Button ref={imageTrigger} variant="ghost" size="icon" className="writing-toolbar-secondary" aria-label="Image" aria-pressed={state?.image} disabled={!editor || disabled} onClick={(event) => openInsert("image", event.currentTarget)} />}><ImagePlus /></TooltipTrigger><TooltipContent>Image</TooltipContent></Tooltip>
+        <Tooltip><TooltipTrigger render={<Button ref={imageTrigger} variant="ghost" size="icon" className="writing-toolbar-secondary" aria-label="Upload image" disabled={!editor || !onUpload || disabled || uploading} onMouseDown={(event)=>event.preventDefault()} onClick={chooseImage} />}><ImagePlus /></TooltipTrigger><TooltipContent>Upload image</TooltipContent></Tooltip>
         {state?.link ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" className="writing-toolbar-secondary" aria-label="Remove link" disabled={disabled} onClick={() => editor?.chain().focus().extendMarkRange("link").unsetLink().run()} />}><Unlink /></TooltipTrigger><TooltipContent>Remove link</TooltipContent></Tooltip> : null}
         <WritingMore>
           {controls.filter(({ label }) => ["Undo", "Redo"].includes(label)).map(({ label, icon: Icon, enabled, run }) => <Menu.Item key={label} className="admin-menu-item" disabled={!editor || disabled || enabled === false} onClick={run}><Icon className="size-4" />{label}</Menu.Item>)}
-          <Menu.Item className="admin-menu-item" disabled={!editor || disabled} onClick={() => openInsert("image", null)}><ImagePlus className="size-4" />Image</Menu.Item>
+          <Menu.Item className="admin-menu-item" disabled={!editor || !onUpload || disabled || uploading} onClick={chooseImage}><ImagePlus className="size-4" />Upload image</Menu.Item>
           {state?.link ? <Menu.Item className="admin-menu-item" disabled={disabled} onClick={() => editor?.chain().focus().extendMarkRange("link").unsetLink().run()}><Unlink className="size-4" />Remove link</Menu.Item> : null}
         </WritingMore>
         <div className="ml-auto shrink-0">{modeSwitch}</div>
@@ -351,9 +360,12 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch, child
         </BubbleMenu>
       </> : null}
     </TooltipProvider>
+    <input ref={fileInput} type="file" accept={STUDIO_IMAGE_ACCEPT} className="hidden" aria-label="Choose image file" disabled={disabled || uploading} onChange={(event)=>{const file=event.target.files?.[0];event.target.value="";if(file)void upload(file)}} />
     {children}
     {!editor ? <div role="status" aria-label="Loading editor" className="flex min-h-96 flex-col gap-4 py-6"><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-1/2" /></div> : null}
     <EditorContent editor={editor} />
+    {uploading ? <p role="status" className="text-caption text-muted-foreground">Uploading image…</p> : null}
+    {error && !insert ? <p role="alert" className="text-caption text-destructive">{error}</p> : null}
     {editor && !disabled ? <DragHandle editor={editor} className="writing-drag-handle" onNodeChange={({ pos }) => setBlockPosition(pos)}>
       <button type="button" className="flex size-8 cursor-grab items-center justify-center rounded-lg text-muted-foreground hover:bg-muted active:cursor-grabbing" aria-label="Drag to move this block, or select it to cut and paste" onClick={() => { if (blockPosition >= 0) editor.commands.setNodeSelection(blockPosition) }}><GripVertical className="size-4" /></button>
     </DragHandle> : null}
@@ -369,7 +381,6 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch, child
         <p className="text-caption text-muted-foreground">{insert === "image" ? `${{ url: 1, frame: 2, alt: 3, review: 4 }[step]} of 4 · Image` : "Link"}</p>
         <h2 id={`${id}-insert-title`} tabIndex={-1} className="text-title">{insert === "link" ? "Where should this link go?" : step === "url" ? "Add an image" : step === "frame" ? "How should it be framed?" : step === "alt" ? "Describe the image" : "Review your image"}</h2>
         {step === "url" ? <>
-          {insert === "image" && onUpload ? <><input ref={fileInput} type="file" accept="image/*" className="sr-only" aria-label="Choose image file" disabled={uploading} onChange={(event)=>{const file=event.target.files?.[0];if(file)void upload(file);event.target.value=""}}/><Button type="button" className="w-fit" disabled={uploading} onClick={()=>fileInput.current?.click()}>{uploading ? <LoaderCircle className="motion-safe:animate-spin"/> : <Upload/>}{uploading ? "Uploading…" : "Upload image"}</Button><p className="text-caption text-muted-foreground" role={uploading ? "status" : undefined}>{uploading ? "Saving image…" : "Any image. You choose its frame next."}</p></> : null}
           <label htmlFor={`${id}-url`} className="text-body">{insert === "image" ? "HTTPS image address" : "Link address"}</label>
           <input id={`${id}-url`} type="text" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} className="chat-input min-h-8 w-full min-w-0 rounded-lg border border-input bg-background p-2.5 text-body outline-none focus-visible:ring-3 focus-visible:ring-ring/20" required value={url} onChange={(event) => { setURL(event.target.value); setError("") }} aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined} />
         </> : step === "frame" ? <fieldset className="flex flex-col gap-2">
