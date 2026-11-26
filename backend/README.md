@@ -32,6 +32,7 @@ Every setting is explained in [.env.example](.env.example). The main ones:
 | `CONTENT_REVALIDATION_SECRET` | Refreshes the site after publishing. 32+ characters, same value in Vercel |
 | `SENDY_*` | Email delivery and alerts |
 | `NEWSLETTER_GITHUB_*` | Writing desk sign-in |
+| `CLOUDINARY_*` | Optional image hosting. Set all three or none |
 
 The API does not track your OpenAI balance. Set spend limits in the OpenAI dashboard.
 
@@ -45,7 +46,8 @@ Posts are at `/admin/posts` and newsletters at `/admin/newsletters`.
 - A newsletter made from a post copies the whole article. Interactive parts become links.
 - Contacts at `/admin/contacts` lists everyone who signed up.
 - Newsletters go to all confirmed subscribers or to contacts you pick. Anyone unsubscribed is skipped. **Sent** means the provider accepted the email, not that it reached the inbox.
-- Images can be PNG, JPEG or GIF, up to 5 MB and 16 megapixels.
+- Every image is shown in one of four frames: Landscape 3:2, Wide 16:9, Square 1:1 or Portrait 4:5. See [docs/article-images.md](../docs/article-images.md).
+- With Cloudinary set up, any image uploads straight to it. Without it, images are PNG, JPEG or GIF up to 5 MB.
 
 To enable it:
 

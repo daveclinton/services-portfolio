@@ -348,7 +348,7 @@ dialog[open] {
 }
 
 .admin-live-preview {
-  @apply hidden min-h-0 min-w-0 overflow-y-auto overscroll-contain border-l border-border pl-6 pr-2 pb-8;
+  @apply hidden min-h-0 min-w-0 overflow-y-auto overscroll-contain rounded-lg;
   container: live / inline-size;
   scrollbar-gutter: stable;
 }
@@ -369,19 +369,54 @@ dialog[open] {
   }
 }
 
-.live-article-header {
-  @apply flex flex-col gap-2 pb-2;
+/* The public page sizes its titles from the window (2.56vw at full width).
+   The live column is a fraction of the window, so it sizes from itself. */
+.admin-live-preview .live-tone {
+  min-height: 100%;
+  padding: 1rem clamp(0.9375rem, 3cqi, 1.5rem) 4rem;
 }
 
-/* A narrow live column steps its reading size down rather than wrapping hard. */
-@container live (max-width: 30rem) {
-  .live-article {
-    font-size: 0.9375rem;
-  }
+.admin-live-preview .live-tone .signals {
+  font-size: clamp(1.125rem, 4.2cqi, 2.05rem);
+}
 
-  .live-article .studio-title {
-    font-size: 1.5rem;
+.admin-live-preview .live-tone .signals > ol > li > details > summary {
+  cursor: default;
+}
+
+@container live (max-width: 30rem) {
+  .admin-live-preview .live-tone {
+    font-size: 1rem;
   }
+}
+
+/* ---------- Image frames (lib/image-frames.ts, docs/article-images.md) ----------
+   Landscape 3:2 and Wide 16:9 fill the column; Square 1:1 and Portrait 4:5 are
+   narrower, so no image is taller than about 0.7 of the column's width.
+   Images without a frame, including older articles, use Landscape. */
+:is(.framed-image, .blog-prose img, .newsletter-editor img) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin: 1.5rem auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+}
+
+:is(.framed-image[data-frame="wide"], .newsletter-editor img[src$="#frame=wide"]) {
+  aspect-ratio: 16 / 9;
+}
+
+:is(.framed-image[data-frame="square"], .newsletter-editor img[src$="#frame=square"]) {
+  width: 66%;
+  aspect-ratio: 1 / 1;
+}
+
+:is(.framed-image[data-frame="portrait"], .newsletter-editor img[src$="#frame=portrait"]) {
+  width: 56%;
+  aspect-ratio: 4 / 5;
 }
 
 .admin-menu-item {
@@ -720,7 +755,12 @@ html[data-tone="3"] { --tone: #6a3fb5; }
 html[data-tone="4"] { --tone: #a8480c; }
 html[data-tone="5"] { --tone: #0d7077; }
 
-html[data-tone] {
+/* The desk's live view carries the default page tone on its own, without
+   changing the desk's neutral theme. */
+.live-tone { --tone: #1557c0; }
+
+html[data-tone],
+.live-tone {
   color-scheme: dark;
   --background: var(--tone);
   --foreground: #fff;
@@ -740,11 +780,11 @@ html[data-tone] body {
   transition: background-color 250ms ease;
 }
 
-html[data-tone] .blog-prose pre {
+:is(html[data-tone], .live-tone) .blog-prose pre {
   background: color-mix(in srgb, var(--tone) 25%, #101010);
 }
 
-html[data-tone] .blog-prose pre code span {
+:is(html[data-tone], .live-tone) .blog-prose pre code span {
   color: var(--shiki-dark);
 }
 

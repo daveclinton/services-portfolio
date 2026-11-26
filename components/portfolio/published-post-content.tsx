@@ -8,6 +8,7 @@ import { AutomationFlowVisual } from "@/components/portfolio/automation-flow-vis
 import { AskAiChat } from "@/components/portfolio/ask-ai-chat"
 import { StudyUnits } from "@/components/portfolio/study-units"
 import { YouTubePreview } from "@/mdx-components"
+import { FramedImage } from "@/components/portfolio/framed-image"
 
 // Only these existing components can be restored from a portable import block.
 // The database never supplies executable MDX, module names, or arbitrary props.
@@ -48,7 +49,7 @@ export function splitSections(markdown:string) {
 // The public body renderer, with portable blocks restored. Memoized so a live
 // view only re-renders the section that changed.
 export const PostMarkdown=memo(function PostMarkdown({markdown}:{markdown:string}) {
-  return <ReactMarkdown remarkPlugins={[remarkGfm]} components={{pre:({children})=>{
+  return <ReactMarkdown remarkPlugins={[remarkGfm]} components={{img:({src,alt})=>typeof src==="string" ? <FramedImage src={src} alt={alt}/> : null,pre:({children})=>{
     const child=Children.toArray(children)[0]
     if(isValidElement<{className?:string;children?:string}>(child)&&child.props.className==="language-portfolio-widget") {
       const restored=widget(String(child.props.children??""));if(restored)return restored

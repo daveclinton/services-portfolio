@@ -13,6 +13,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { applyWritingBlock, writingBlocks, newsletterEditorExtensions, newsletterRichTextIssue } from "@/lib/newsletter-editor"
 import { createWritingSlash, WritingBlockLabel } from "@/components/portfolio/newsletter-command-menu"
 import { STUDIO_BODY_LIMIT, studioImageURL } from "@/lib/newsletter-studio"
+import { DEFAULT_FRAME, FRAME_IDS, IMAGE_FRAMES, frameOf, withFrame, withoutFrame, type ImageFrame } from "@/lib/image-frames"
+import { FramedImage } from "@/components/portfolio/framed-image"
 import { focusElement } from "@/lib/scroll"
 
 type Props = { value: string; disabled: boolean; onChange: (value: string) => void; onUpload?: (file: File) => Promise<string>; modeSwitch?: ReactNode }
@@ -65,7 +67,8 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch }: Pro
   const [insert, setInsert] = useState<"link" | "image" | null>(null)
   const [url, setURL] = useState("")
   const [alt, setAlt] = useState("")
-  const [step, setStep] = useState<"url" | "alt" | "review">("url")
+  const [step, setStep] = useState<"url" | "frame" | "alt" | "review">("url")
+  const [frame, setFrame] = useState<ImageFrame>(DEFAULT_FRAME)
   const [error, setError] = useState("")
   // https://tiptap.dev/docs/editor/getting-started/install/nextjs
   const editor = useEditor({
@@ -135,7 +138,10 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch }: Pro
   function openInsert(kind: "link" | "image", trigger: HTMLButtonElement | null) {
     if (!editor) return
     returnFocus.current = trigger
-    setURL(String(editor.getAttributes(kind).href ?? editor.getAttributes(kind).src ?? ""))
+    const current = String(editor.getAttributes(kind).href ?? editor.getAttributes(kind).src ?? "")
+    // An image's frame is kept apart from its address while editing.
+    setURL(kind === "image" ? withoutFrame(current) : current)
+    setFrame(kind === "image" && current ? frameOf(current) : DEFAULT_FRAME)
     setAlt(String(editor.getAttributes(kind).alt ?? ""))
     setStep("url"); setError(""); setInsert(kind)
   }
@@ -145,13 +151,13 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch }: Pro
     setUploading(true);setError("");setURL("")
     try {
       const address=await onUpload(file)
-      if(version===uploadVersion.current){setURL(address);setAlt("");setStep("alt")}
+      if(version===uploadVersion.current){setURL(withoutFrame(address));setAlt("");setStep("frame")}
     } catch(failure) { if(version===uploadVersion.current)setError(failure instanceof Error ? failure.message : "Upload failed. Please try again.") }
     finally {if(version===uploadVersion.current)setUploading(false)}
   }
   function validateURL(): string | null {
     try {
-      const parsed = new URL(url.trim())
+      const parsed = new URL(insert === "image" ? withoutFrame(url.trim()) : url.trim())
       if (parsed.username || parsed.password || (insert === "image" ? !studioImageURL(parsed.href) : !["https:","http:","mailto:"].includes(parsed.protocol))) throw new Error()
       setURL(parsed.href)
       setError("")
@@ -163,8 +169,9 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch }: Pro
     const address = validateURL()
     if (!address) return
     if (insert === "image") {
-      if (editor.isActive("image")) editor.chain().focus().updateAttributes("image", { src: address, alt: alt.trim() }).run()
-      else editor.chain().focus().setImage({ src: address, alt: alt.trim() }).run()
+      const framed = withFrame(address, frame)
+      if (editor.isActive("image")) editor.chain().focus().updateAttributes("image", { src: framed, alt: alt.trim() }).run()
+      else editor.chain().focus().setImage({ src: framed, alt: alt.trim() }).run()
     } else if (editor.state.selection.empty && !editor.isActive("link")) {
       editor.chain().focus().insertContent({ type: "text", text: address, marks: [{ type: "link", attrs: { href: address } }] }).run()
     } else editor.chain().focus().extendMarkRange("link").setLink({ href: address }).run()
@@ -233,29 +240,37 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch }: Pro
         event.preventDefault()
         if(uploading) return
         if (insert === "link" || step === "review") applyInsert()
-        else if (step === "url" && validateURL()) setStep("alt")
+        else if (step === "url" && validateURL()) setStep("frame")
+        else if (step === "frame") setStep("alt")
         else if (step === "alt") setStep("review")
       }}>
-        <p className="text-caption text-muted-foreground">{insert === "image" ? `${step === "url" ? 1 : step === "alt" ? 2 : 3} of 3 · Image` : "Link"}</p>
-        <h2 id={`${id}-insert-title`} tabIndex={-1} className="text-title">{insert === "link" ? "Where should this link go?" : step === "url" ? "Add an image" : step === "alt" ? "Describe the image" : "Review your image"}</h2>
+        <p className="text-caption text-muted-foreground">{insert === "image" ? `${{ url: 1, frame: 2, alt: 3, review: 4 }[step]} of 4 · Image` : "Link"}</p>
+        <h2 id={`${id}-insert-title`} tabIndex={-1} className="text-title">{insert === "link" ? "Where should this link go?" : step === "url" ? "Add an image" : step === "frame" ? "How should it be framed?" : step === "alt" ? "Describe the image" : "Review your image"}</h2>
         {step === "url" ? <>
-          {insert === "image" && onUpload ? <><input ref={fileInput} type="file" accept="image/png,image/jpeg,image/gif" className="sr-only" aria-label="Choose image file" disabled={uploading} onChange={(event)=>{const file=event.target.files?.[0];if(file)void upload(file);event.target.value=""}}/><Button type="button" className="w-fit" disabled={uploading} onClick={()=>fileInput.current?.click()}>{uploading ? <LoaderCircle className="motion-safe:animate-spin"/> : <Upload/>}{uploading ? "Uploading…" : "Upload image"}</Button><p className="text-caption text-muted-foreground" role={uploading ? "status" : undefined}>{uploading ? "Saving image…" : "PNG, JPEG or GIF · up to 5 MB"}</p></> : null}
+          {insert === "image" && onUpload ? <><input ref={fileInput} type="file" accept="image/*" className="sr-only" aria-label="Choose image file" disabled={uploading} onChange={(event)=>{const file=event.target.files?.[0];if(file)void upload(file);event.target.value=""}}/><Button type="button" className="w-fit" disabled={uploading} onClick={()=>fileInput.current?.click()}>{uploading ? <LoaderCircle className="motion-safe:animate-spin"/> : <Upload/>}{uploading ? "Uploading…" : "Upload image"}</Button><p className="text-caption text-muted-foreground" role={uploading ? "status" : undefined}>{uploading ? "Saving image…" : "Any image. You choose its frame next."}</p></> : null}
           <label htmlFor={`${id}-url`} className="text-body">{insert === "image" ? "HTTPS image address" : "Link address"}</label>
           <input id={`${id}-url`} type="text" inputMode="url" autoCapitalize="none" autoCorrect="off" spellCheck={false} className="chat-input min-h-8 w-full min-w-0 rounded-lg border border-input bg-background p-2.5 text-body outline-none focus-visible:ring-3 focus-visible:ring-ring/20" required value={url} onChange={(event) => { setURL(event.target.value); setError("") }} aria-invalid={!!error} aria-describedby={error ? `${id}-error` : undefined} />
-        </> : step === "alt" ? <>
+        </> : step === "frame" ? <fieldset className="flex flex-col gap-2">
+          <legend className="sr-only">Frame</legend>
+          {/* Every article image uses one of these frames (docs/article-images.md). */}
+          {FRAME_IDS.map((id) => { const option = IMAGE_FRAMES[id]; return <label key={id} className="flex cursor-pointer items-center gap-4 rounded-lg p-3 hover:bg-muted has-checked:bg-muted has-focus-visible:ring-3 has-focus-visible:ring-ring/50">
+            <input type="radio" name="image-frame" value={id} checked={frame === id} onChange={() => setFrame(id)} className="sr-only" />
+            <span aria-hidden="true" className="flex w-14 shrink-0 justify-center"><span className="block rounded-sm border-2 border-current" style={{ width: `${Math.round(56 * option.share)}px`, aspectRatio: `${option.ratio[0]} / ${option.ratio[1]}` }} /></span>
+            <span className="flex flex-col"><span className="text-body font-medium">{option.label} · {option.ratio.join(":")}</span><span className="text-caption text-muted-foreground">{option.use}{option.share < 1 ? `, shown at ${Math.round(option.share * 100)}% width` : ""}</span></span>
+          </label> })}
+        </fieldset> : step === "alt" ? <>
           <label htmlFor={`${id}-alt`} className="text-body">What does the image show?</label>
           <textarea id={`${id}-alt`} rows={3} className="chat-input w-full rounded-lg border border-input bg-background p-2.5 text-body outline-none focus-visible:ring-3 focus-visible:ring-ring/20" value={alt} onChange={(event) => setAlt(event.target.value)} />
           <Tooltip><TooltipTrigger render={<Button type="button" variant="ghost" size="icon-sm" aria-label="Image description help" />}><Info /></TooltipTrigger><TooltipContent>Describe the image for readers who cannot see it. Leave this empty for a decorative image.</TooltipContent></Tooltip>
         </> : <>
-          {/* Remote editor media has no known dimensions; render it as the email does. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt={alt} className="h-auto max-w-full rounded-lg" onLoad={() => setError("")} onError={() => setError("This image could not be loaded. Go Back to check its address.")} />
-          <dl className="flex min-w-0 flex-col gap-2 text-body"><dt className="text-caption text-muted-foreground">Image address</dt><dd className="break-all">{url}</dd><dt className="text-caption text-muted-foreground">Description</dt><dd>{alt.trim() || "Decorative image"}</dd></dl>
+          {/* Shown exactly as articles show it, in its frame. */}
+          <FramedImage src={withFrame(url, frame)} alt={alt} onLoad={() => setError("")} onError={() => setError("This image could not be loaded. Go Back to check its address.")} />
+          <dl className="flex min-w-0 flex-col gap-2 text-body"><dt className="text-caption text-muted-foreground">Frame</dt><dd>{IMAGE_FRAMES[frame].label} · {IMAGE_FRAMES[frame].ratio.join(":")}</dd><dt className="text-caption text-muted-foreground">Image address</dt><dd className="break-all">{url}</dd><dt className="text-caption text-muted-foreground">Description</dt><dd>{alt.trim() || "Decorative image"}</dd></dl>
         </>}
         {error ? <p id={`${id}-error`} role="alert" className="text-body text-destructive">{error}</p> : null}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" disabled={disabled || uploading || !url.trim() || (step === "review" && !!error)}>{insert === "link" ? "Apply link" : step === "review" ? "Insert image" : "Next"}</Button>
-          {step !== "url" ? <Button type="button" variant="ghost" onClick={() => { setError(""); setStep(step === "review" ? "alt" : "url") }}>Back</Button> : null}
+          {step !== "url" ? <Button type="button" variant="ghost" onClick={() => { setError(""); setStep(step === "review" ? "alt" : step === "alt" ? "frame" : "url") }}>Back</Button> : null}
           <Button type="button" variant="ghost" onClick={() => dialog.current?.close()}>Cancel</Button>
         </div>
       </form> : null}

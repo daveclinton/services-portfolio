@@ -105,3 +105,27 @@ func TestFeaturesAreEnabledWithoutBooleanEnvironmentSwitches(t *testing.T) {
 		t.Fatal("obsolete boolean environment settings changed feature defaults", err)
 	}
 }
+
+func TestCloudinaryIsOptionalButAllOrNothing(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://test.invalid/test")
+	t.Setenv("RATE_LIMIT_SECRET", strings.Repeat("x", 32))
+	t.Setenv("EMBEDDINGS_PROVIDER", "off")
+	t.Setenv("SITE_URL", "http://localhost:3000")
+	if _, err := Load(); err != nil {
+		t.Fatalf("Cloudinary should be optional: %v", err)
+	}
+	t.Setenv("CLOUDINARY_CLOUD_NAME", "my-cloud")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "CLOUDINARY") {
+		t.Fatalf("a partial Cloudinary setup was accepted: %v", err)
+	}
+	t.Setenv("CLOUDINARY_API_KEY", "123")
+	t.Setenv("CLOUDINARY_API_SECRET", "secret")
+	cfg, err := Load()
+	if err != nil || cfg.CloudinaryCloudName != "my-cloud" {
+		t.Fatalf("a complete Cloudinary setup was rejected: %v", err)
+	}
+	t.Setenv("CLOUDINARY_CLOUD_NAME", "https://res.cloudinary.com/my-cloud")
+	if _, err := Load(); err == nil {
+		t.Fatal("a URL was accepted as the cloud name")
+	}
+}

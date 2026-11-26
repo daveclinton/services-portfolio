@@ -8,6 +8,8 @@ import (
 	"net/mail"
 	"net/url"
 	"os"
+	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -55,6 +57,9 @@ type Config struct {
 	NewsletterGitHubOwnerID      int64
 	NewsletterOAuthCallbackURL   string
 	NewsletterTestEmail          string
+	CloudinaryCloudName          string
+	CloudinaryAPIKey             string
+	CloudinaryAPISecret          string
 	ContentRevalidationSecret    string
 
 	ConversationRetentionDays int
@@ -71,6 +76,8 @@ func (c Config) RateLimitsEnabled() bool {
 func (c Config) AlertsEnabled() bool {
 	return c.SendyAPIKey != "" && c.SendyAlertTo != "" && c.SendySenderEmail != ""
 }
+
+var cloudName = regexp.MustCompile(`^[a-z0-9_-]{1,64}$`)
 
 func Load() (Config, error) {
 	c := Config{
@@ -104,6 +111,9 @@ func Load() (Config, error) {
 		NewsletterGitHubClientSecret: env("NEWSLETTER_GITHUB_CLIENT_SECRET", ""),
 		NewsletterOAuthCallbackURL:   env("NEWSLETTER_OAUTH_CALLBACK_URL", ""),
 		NewsletterTestEmail:          env("NEWSLETTER_TEST_EMAIL", env("SENDY_ALERT_TO_EMAIL", "")),
+		CloudinaryCloudName:          env("CLOUDINARY_CLOUD_NAME", ""),
+		CloudinaryAPIKey:             env("CLOUDINARY_API_KEY", ""),
+		CloudinaryAPISecret:          env("CLOUDINARY_API_SECRET", ""),
 		ContentRevalidationSecret:    env("CONTENT_REVALIDATION_SECRET", ""),
 
 		ConversationRetentionDays: positiveInt(env("CONVERSATION_RETENTION_DAYS", ""), 30),
@@ -119,6 +129,13 @@ func Load() (Config, error) {
 	}
 
 	var problems []error
+	// Cloudinary is optional: all three values, or none (uploads stay in PostgreSQL).
+	cloudinary := []string{c.CloudinaryCloudName, c.CloudinaryAPIKey, c.CloudinaryAPISecret}
+	if set := len(slices.DeleteFunc(slices.Clone(cloudinary), func(v string) bool { return v == "" })); set != 0 && set != 3 {
+		problems = append(problems, errors.New("set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET together, or none of them"))
+	} else if set == 3 && !cloudName.MatchString(c.CloudinaryCloudName) {
+		problems = append(problems, errors.New("CLOUDINARY_CLOUD_NAME must be the account's cloud name, such as my-cloud"))
+	}
 	if c.ContentRevalidationSecret != "" && len(c.ContentRevalidationSecret) < 32 {
 		problems = append(problems, errors.New("CONTENT_REVALIDATION_SECRET must contain at least 32 characters"))
 	}

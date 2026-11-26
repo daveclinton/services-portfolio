@@ -56,7 +56,7 @@ export const newsletterEditorExtensions = [
       return `![${alt}](<${src}>${title ? ` "${title}"` : ""})`
     },
   // Inline, so an image inside a sentence keeps its place; on its own line it still stands alone.
-  }).configure({ inline: true, HTMLAttributes: { class: "my-4 inline-block h-auto max-w-full rounded-lg align-middle" } }),
+  }).configure({ inline: true }),
   // Tiptap unwraps a paragraph holding only an image into a block image. Images
   // are inline here, so they stay inside their paragraph instead.
   Paragraph.extend({
