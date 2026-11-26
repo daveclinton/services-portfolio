@@ -10,6 +10,8 @@ export type NewsletterDraft = {
 export type StudioMeta = { sender: { name: string; email: string }; audience: string; subscribers: number; test_email: string; timezone: string }
 export const STUDIO_SUBJECT_LIMIT = 180
 export const STUDIO_BODY_LIMIT = 40_000
+// Matches the image formats allowed by the signed Cloudinary upload endpoint.
+export const STUDIO_IMAGE_ACCEPT = ".avif,.gif,.heic,.heif,.jpeg,.jpg,.png,.webp,image/avif,image/gif,image/heic,image/heif,image/jpeg,image/png,image/webp"
 export const studioLoginURL = `${API_URL}/admin/newsletters/auth/login`
 
 export type PublishedStudioPost = { slug: string; title: string; description: string; date: string }

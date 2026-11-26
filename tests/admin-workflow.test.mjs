@@ -10,8 +10,8 @@ const published = { slug: "a-published-post", title: "An existing article", desc
 const baseDraft = { id: "a5cd8282-68f1-4b4a-9c19-000000000001", subject: published.title, markdown: "", revision: 1, state: "draft", campaign_id: 0, scheduled_at: null, tested_revision: 0, last_error: "", updated_at: "2026-11-25T09:00:00Z" }
 const settle = () => new Promise((resolve) => setImmediate(resolve))
 
-function desk({ failSave = false, section = "newsletters", drafts = [], cached, failRemove = false, allowSend = false, search = "", openDraft, width, blockPopups = false } = {}) {
-  const slots = [], effects = [], calls = [], host = new Map(), announced = [], summaries = []
+function desk({ failSave = false, failPublish = false, section = "newsletters", drafts = [], cached, failRemove = false, allowSend = false, search = "", openDraft, width, blockPopups = false } = {}) {
+  const slots = [], effects = [], calls = [], host = new Map(), announced = [], summaries = [], focused = []
   let cursor = 0, pending = [], tree, nodes = []
   const same = (a, b) => a && b && a.length === b.length && a.every((item, index) => item === b[index])
   const hooks = {
@@ -37,7 +37,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     studioMeta: async () => ({ sender: { name: "Owner", email: "owner@example.com" }, test_email: "owner@example.com", subscribers: 1, audience: "Readers" }),
     studioAction: async (_csrf, draft, kind, when) => { calls.push([kind, when]); if (!allowSend) throw new Error("No email action expected"); return { ...draft, state: kind === "test" ? "draft" : kind === "schedule" ? "scheduled" : "sending", tested_revision: kind === "test" ? draft.revision : draft.tested_revision } },
     studioLogout: async () => { calls.push(["logout"]) },
-    studioPublish: async (_csrf, draft,slug,description)=>{calls.push(["publish",draft.revision,slug,description]);return {...draft,slug,description,published_revision:draft.revision,cache_invalidated:true}},
+    studioPublish: async (_csrf, draft,slug,description)=>{calls.push(["publish",draft.revision,slug,description]);if(failPublish)throw new Error("Publication failed. Try again.");return {...draft,slug,description,published_revision:draft.revision,cache_invalidated:true}},
     newsletterStateLabel: (state) => state,
   }
   const jsx = (type, props) => ({ type, props: props ?? {} })
@@ -50,7 +50,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     "@/components/ui/tooltip": { Tooltip: "tooltip", TooltipContent: "tooltip-content", TooltipTrigger: "tooltip-trigger" },
     "@/components/portfolio/table-pager": { TablePager: "table-pager" }, "@/components/portfolio/live-article": { LiveArticle: "live-article" }, "@/components/portfolio/sort-header": { SortHeader: "sort-header" }, "@/components/portfolio/document-actions": { DocumentActions: "document-actions" }, "@/components/portfolio/admin-shell": { AdminShell: "shell" }, "@/components/portfolio/newsletter-editor": { NewsletterEditor: "editor" },
     "@/components/prompt-kit/markdown": { Markdown: "markdown" }, "@/lib/portfolio-data": { site: { url: "https://example.com" } },
-    "@/lib/newsletter-studio": api, "@/lib/scroll": { focusElement() {} },
+    "@/lib/newsletter-studio": api, "@/lib/scroll": { focusElement(element) { if (element) focused.push(element) } },
   }
   // A small browser history: entries hold the query string, as the address bar would.
   const entries = [search], listeners = []
@@ -68,7 +68,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
   modules["@/lib/desk-url"] = urlExports
   const exports = {}
   const source = ts.transpileModule(readFileSync(new URL("../components/portfolio/newsletter-studio.tsx", import.meta.url), "utf8"), { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS } }).outputText
-  vm.runInNewContext(source, { ResizeObserver: width ? class { constructor(callback) { this.callback = callback } observe() { this.callback([{ contentRect: { width } }]) } disconnect() {} } : undefined, exports, TextEncoder, URLSearchParams, setTimeout: () => 1, clearTimeout() {}, window, require(name) { assert(name in modules, name); return modules[name] } })
+  vm.runInNewContext(source, { ResizeObserver: width ? class { constructor(callback) { this.callback = callback } observe() { this.callback([{ contentRect: { width } }]) } disconnect() {} } : undefined, exports, Error, TextEncoder, URLSearchParams, setTimeout: () => 1, clearTimeout() {}, window, require(name) { assert(name in modules, name); return modules[name] } })
   const props = { section }
   function render() {
     props.query = new URLSearchParams(location.search)
@@ -80,7 +80,9 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
       const element = host.get(key) ?? { select() {} }
       element.type = node.type; element.props = node.props; element.value = node.props.value
       host.set(key, element); nodes.push(element)
-      if (node.props.ref) node.props.ref.current = element
+      if (typeof node.props.ref === "function") {
+        if (element.ref !== node.props.ref) { element.ref = node.props.ref; node.props.ref(element) }
+      } else if (node.props.ref) node.props.ref.current = element
       visit(node.props.children)
     }
     visit(tree); visit(tree.props.actions); pending.forEach((effect) => effect())
@@ -90,6 +92,8 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
   render()
   return {
     calls,
+    focused,
+    render,
     async flush() { await settle(); render() },
     click(label) { button(label).props.onClick() },
     text: () => text(tree),
@@ -117,6 +121,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     header:()=>tree.props.actions,
     navigate: (href) => tree.props.onNavigate(href),
     setFailSave(value) { failSave = value },
+    setFailPublish(value) { failPublish = value },
   }
 }
 
@@ -142,9 +147,10 @@ test("a failed newsletter save retains its content, and navigation saves before 
   assert(!ui.calls.some((call) => call[0] === "send"))
 })
 
-test("post preview lives in the top bar, the document has its own scroll region, and publication requires review", async()=>{
+test("preview and one-click publication stay in the editor and publish the saved description", async()=>{
  const ui=desk({section:"posts"});await ui.flush();ui.click("New post");await ui.flush()
  ui.input("post-title","An article");ui.edit("A draft body")
+ ui.input("post-summary-line","A useful summary.")
  assert(ui.header(),"editor controls must be passed to the shell header")
  assert.equal(ui.node("Article editor").props.className,"admin-editor-scroll")
  ui.headerButton("Preview").props.onClick();await ui.flush();await ui.flush()
@@ -153,12 +159,13 @@ test("post preview lives in the top bar, the document has its own scroll region,
  assert.deepEqual([...ui.announced()],[baseDraft.id],"saving tells open preview tabs to reload")
  assert.deepEqual(ui.tabs()[0].opened,["","_blank"],"the tab opens during the click so it is not blocked")
  assert(!ui.calls.some((call)=>call[0]==="publish"),"preview must not publish")
- ui.headerButton("Publish").props.onClick();await ui.flush();await ui.flush();ui.submit();await ui.flush()
- ui.input("post-summary","A useful summary.");ui.submit();await ui.flush()
- assert(!ui.calls.some((call)=>call[0]==="publish"),"review must precede publication")
- ui.click("Publish post");await ui.flush()
+ ui.headerButton("Publish").props.onClick();await ui.flush();await ui.flush()
  assert.deepEqual(ui.calls.filter((call)=>call[0]==="publish").at(-1),["publish",2,"an-article","A useful summary."])
  assert(!ui.calls.some((call)=>call[0]==="send"))
+ assert(ui.editor(),"publishing keeps the document mounted in the editor")
+ assert(ui.text().includes("Post published."))
+ assert(ui.headerButton("Update"),"the same header now offers Update")
+ assert(!ui.nodeOfType("form"),"there is no URL, summary, review or success page")
 })
 
 const row = (index, extra = {}) => ({ ...baseDraft, id: `a5cd8282-68f1-4b4a-9c19-${String(index).padStart(12, "0")}`, subject: `Post ${index}`, kind: "post", slug: "", published_revision: 0, ...extra })
@@ -333,12 +340,13 @@ test("posts have a summary under the title that saves with the draft and shows i
   const ui = desk({ section: "posts", width: 1200 }); await ui.flush()
   ui.click("New post"); await ui.flush()
   ui.input("post-title", "Bubbles"); ui.input("post-summary-line", "What a bubble is,\nand what a burst would change."); await ui.flush()
+  ui.edit("A draft body.")
   assert.equal(ui.nodeOfType("live-article").props.description, "What a bubble is, and what a burst would change.", "line breaks become spaces, and the live view follows")
   assert(ui.text().includes("Unsaved changes"), "a summary change is an unsaved change")
   ui.headerButton("Publish").props.onClick(); await ui.flush(); await ui.flush()
   assert.deepEqual([...ui.summaries()], ["What a bubble is, and what a burst would change."], "the summary is saved with the post")
-  ui.submit(); await ui.flush()
-  assert.equal(host_value(ui, "post-summary"), "What a bubble is, and what a burst would change.", "publishing starts from the saved summary")
+  assert.deepEqual(ui.calls.find((call) => call[0] === "publish"), ["publish", 2, "bubbles", "What a bubble is, and what a burst would change."], "publishing reuses the saved summary in place")
+  assert(ui.editor(), "publication keeps the editor open")
 
   const letters = desk({ section: "newsletters" }); await letters.flush()
   letters.click("New newsletter"); await letters.flush(); letters.select("a-published-post"); letters.submit(); await letters.flush()
@@ -346,7 +354,6 @@ test("posts have a summary under the title that saves with the draft and shows i
   letters.edit("A newsletter body"); letters.click("Preview"); await letters.flush()
   assert.deepEqual([...letters.summaries()], [undefined], "newsletter saves leave the summary out")
 })
-function host_value(ui, id) { return ui.inputValue(id) }
 
 test("whole-document source edits update the live metadata and save title, description and article together", async () => {
   const ui = desk({ section: "posts", width: 1200 }); await ui.flush()
@@ -361,4 +368,70 @@ test("whole-document source edits update the live metadata and save title, descr
   ui.headerButton("Publish").props.onClick(); await ui.flush(); await ui.flush()
   assert.deepEqual(ui.calls.find((call) => call[0] === "save"), ["save", "Changed in Markdown", "## A section\n\nAn updated body."])
   assert.deepEqual([...ui.summaries()], ["A source description"])
+})
+
+test("actions that leave the draft open do not refocus the heading or title when their busy state changes", async () => {
+  const ui = desk({ section: "posts" }); await ui.flush()
+  ui.click("New post"); await ui.flush(); await ui.flush()
+  assert.equal(ui.focused.at(-1)?.props.id, "post-title", "opening a document still focuses its title")
+  ui.input("post-title", "A long draft"); ui.edit("Body\n\n".repeat(100))
+  ui.focused.length = 0
+  ui.headerButton("Preview").props.onClick()
+  ui.render()
+  await ui.flush(); await ui.flush()
+  assert.equal(ui.focused.length, 0, "preview completion must not send the draft back to its title")
+  await ui.navigate("/admin/contacts")
+  await ui.flush()
+  assert.equal(ui.focused.length, 0, "a completed action must not refocus the editor being left")
+})
+
+test("Update saves and publishes in place once, preserving the URL after a title change", async () => {
+  const saved = { ...baseDraft, subject: "Published title", kind: "post", slug: "existing-url", published_revision: 1, description: "Saved summary", markdown: "Original body" }
+  const ui = desk({ section: "posts", search: `doc=${saved.id}`, openDraft: () => saved }); await ui.flush(); await ui.flush()
+  ui.input("post-title", "A different title"); ui.input("post-summary-line", "Updated summary"); ui.edit("An updated article")
+  ui.focused.length = 0
+  const update = ui.headerButton("Update")
+  update.props.onClick(); update.props.onClick(); ui.render()
+  await ui.flush(); await ui.flush()
+  assert.deepEqual(ui.calls.filter((call) => call[0] === "publish"), [["publish", 2, "existing-url", "Updated summary"]])
+  assert(ui.editor() && ui.node("Article editor"), "Update keeps the same writing view")
+  assert(ui.text().includes("Post updated."))
+  assert.equal(ui.inputValue("post-slug"), "existing-url")
+  assert.equal(ui.focused.length, 0, "publishing must not bring the editor back to the title")
+  assert(!ui.nodeOfType("form") && !ui.calls.some((call) => call[0] === "navigate"))
+})
+
+test("new posts can choose their URL in the editor and validation stays on that page", async () => {
+  const ui = desk({ section: "posts" }); await ui.flush(); ui.click("New post"); await ui.flush()
+  ui.input("post-title", "A new title"); ui.edit("Draft body")
+  assert.equal(ui.inputValue("post-slug"), "a-new-title")
+  ui.headerButton("Publish").props.onClick(); await ui.flush()
+  assert(ui.editor() && ui.text().includes("Add a summary in the editor before publishing."))
+  assert(!ui.calls.some((call) => call[0] === "publish"))
+  ui.input("post-summary-line", "An existing summary"); ui.input("post-slug", "INVALID URL")
+  ui.headerButton("Publish").props.onClick(); await ui.flush()
+  assert(ui.editor() && ui.text().includes("Use lowercase words and dashes"))
+  assert(!ui.calls.some((call) => call[0] === "publish"))
+  ui.input("post-slug", "custom-post-url")
+  ui.headerButton("Publish").props.onClick(); await ui.flush(); await ui.flush()
+  assert.deepEqual(ui.calls.find((call) => call[0] === "publish"), ["publish", 2, "custom-post-url", "An existing summary"])
+  assert(ui.editor() && ui.text().includes("Post published."))
+})
+
+test("save and publication failures retain the draft in the editor and can be retried there", async () => {
+  const ui = desk({ section: "posts", failSave: true }); await ui.flush(); ui.click("New post"); await ui.flush()
+  ui.input("post-title", "An article"); ui.input("post-summary-line", "A summary"); ui.edit("Keep this body")
+  ui.headerButton("Publish").props.onClick(); await ui.flush(); await ui.flush()
+  assert(ui.editor() && ui.text().includes("Save failed"), ui.text())
+  assert(!ui.calls.some((call) => call[0] === "publish"), "a failed save must never publish")
+  ui.setFailSave(false); ui.setFailPublish(true)
+  ui.headerButton("Publish").props.onClick(); await ui.flush(); await ui.flush()
+  assert(ui.editor() && ui.text().includes("Publication failed"))
+  assert.equal(ui.editor().props.value, "Keep this body")
+  assert.equal(ui.editor().props.description, "A summary")
+  assert(!ui.text().includes("Post published."))
+  ui.setFailPublish(false)
+  ui.headerButton("Publish").props.onClick(); await ui.flush(); await ui.flush()
+  assert(ui.editor() && ui.text().includes("Post published."))
+  assert.equal(ui.calls.filter((call) => call[0] === "publish").length, 2)
 })

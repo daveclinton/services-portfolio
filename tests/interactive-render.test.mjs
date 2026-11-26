@@ -593,7 +593,7 @@ test("Markdown edits the whole document on an open canvas without separate title
   assert(html.includes('aria-label="Markdown formatting"'), "Markdown mode has its own sticky bar")
   assert.match(html, /role="tab"[^>]*aria-label="Write"/)
   assert.match(html, /role="tab"[^>]*aria-label="Preview"/)
-  for (const label of ["Bold", "Italic", "Code", "Link", "Image", "Bullet list", "Numbered list", "Task list"]) assert(html.includes(`aria-label="${label}"`), label)
+  for (const label of ["Bold", "Italic", "Code", "Link", "Upload image", "Bullet list", "Numbered list", "Task list"]) assert(html.includes(`aria-label="${label}"`), label)
   assert(html.indexOf("Back to editor") < html.indexOf("Document title"), "the toolbar comes before the title")
   assert(html.indexOf("Back to editor") < html.indexOf("<textarea"), "the switch comes before the text, not after it")
   const back = html.match(/<button[^>]*aria-label="Back to editor"[^>]*>[\s\S]*?<\/button>/)?.[0]
@@ -606,6 +606,10 @@ test("Markdown edits the whole document on an open canvas without separate title
   assert(!html.includes("Markdown is supported") && !html.includes("attach an image"))
   const field = html.match(/<textarea[^>]*>/)?.[0]
   assert(field && !/border-|rounded-|p-4/.test(field), "source has no input box treatment")
+  assert(field.includes("data-native-scroll"), "clicking Markdown must leave caret scrolling to the editor")
+  const picker = html.match(/<input[^>]*type="file"[^>]*>/)?.[0]
+  assert(picker?.includes(".avif,.gif,.heic,.heif,.jpeg,.jpg,.png,.webp"), "the picker accepts the signed upload's image formats")
+  assert(!picker.includes("image/*"), "unsupported image types are not offered by the file filter")
   assert(html.includes('role="tabpanel"'))
 })
 
@@ -620,6 +624,7 @@ test("rich editing keeps a single row of icon controls above the title and inser
   assert(mode?.includes("<svg") && !mode.includes("Edit Markdown"), "the mode switch shows only an accessible icon")
   const toolbar = html.slice(html.indexOf('class="writing-toolbar '), html.indexOf("Document title"))
   assert(!toolbar.includes("shadow-sm") && !toolbar.includes("border-border"))
+  assert(toolbar.includes("data-native-scroll"), "sticky toolbar focus must not reveal its original position at the draft's top")
   const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
   assert.match(css, /\.writing-toolbar \{[^}]*flex-nowrap[^}]*overflow-x-auto/)
   assert.match(css, /\.writing-toolbar button \{[^}]*border-0 bg-transparent shadow-none/)
