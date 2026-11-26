@@ -13,7 +13,7 @@ import { SelectField } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { FileText, Mail, Plus, Info, LoaderCircle, X, ExternalLink } from "lucide-react"
+import { FileText, Mail, Plus, Info, LoaderCircle, X, ExternalLink, Send, Check, Monitor, Smartphone } from "lucide-react"
 import { site } from "@/lib/portfolio-data"
 import {
   studioBootstrap, studioCachedDesk, studioUpdateDesk, studioOpen, studioWarm, studioRemove, studioCreate, studioSave, studioPreview, studioMeta, studioAction, studioLogout, studioFromPost, studioPublish, studioUpload,
@@ -44,6 +44,7 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
   const [error, setError] = useState("")
   const [notice, setNotice] = useState("")
   const [html, setHTML] = useState("")
+  const [preheader, setPreheader] = useState("")
   const [meta, setMeta] = useState<StudioMeta | null>(null)
   const [page, setPage] = useState(0)
   const [selectedPost, setSelectedPost] = useState<string | null>(initialPost ?? null)
@@ -245,15 +246,15 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
     const d = currentRef.current
     if (!d) return
     const [email, audience] = await Promise.all([studioPreview(session!.csrf, d), studioMeta()])
-    setHTML(email); setMeta(audience); setPreviewMode("email")
+    setHTML(email.html); setPreheader(email.preheader); setMeta(audience); setPreviewMode("email")
   }
   async function action(kind: "test" | "send" | "schedule" | "cancel" | "refresh") {
     if (!currentRef.current || !session?.csrf) return
     const result = await studioAction(session.csrf, currentRef.current, kind, kind === "schedule" ? nairobiSchedule(schedule) : undefined)
     accept(result)
     text.current = { subject: result.subject, markdown: result.markdown }; setSubject(result.subject); setMarkdown(result.markdown)
-    if (kind === "test" && result.state === "draft" && result.tested_revision === result.revision) setNotice(`Test sent to ${meta?.test_email}.`)
-    else { setStage("outcome"); if (result.last_error) setError(result.last_error) }
+    // A successful test is shown on the preview itself, beside the email.
+    if (!(kind === "test" && result.state === "draft" && result.tested_revision === result.revision)) { setStage("outcome"); if (result.last_error) setError(result.last_error) }
   }
   const title = { loading: section === "posts" ? "Posts" : "Newsletters", signin: "Sign in", list: section === "posts" ? "Posts" : "Newsletters", pick: "New newsletter", write: subject || "Untitled post", preview: section === "posts" ? "Post preview" : "Newsletter preview", delivery: "Email delivery", confirm: "Review delivery", outcome: current ? newsletterStateLabel(current.state) : "Post", "publish-url":"Choose a post URL", "publish-summary":"Add a summary", "publish-review":"Review publication", published:"Post published" }[stage]
   const formatDate = (value: string) => new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Nairobi" }).format(new Date(value)) + " EAT"
@@ -268,12 +269,13 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
   const visibleRows = rows.slice(firstRow, firstRow + PAGE_SIZE)
   const listing = stage === "list" || stage === "loading"
   function turnPage(next: number) { setPage(next); if (tableScroll.current) tableScroll.current.scrollTop = 0 }
+  const scheduleLabel = (value: string) => { try { return formatDate(new Date(`${value}:00+03:00`).toISOString()) } catch { return value } }
   const pickedPost = publishedPosts.find((post) => post.slug === selectedPost)
 
   return (
     <AdminShell section={section} title={title} session={session} loading={stage === "loading"} busy={busy} editing={stage === "write" || listing} onNavigate={navigate} onLogout={() => void work(logout)} actions={<>
       {stage === "write" ? <Button size="sm" disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(preview)}>Preview</Button> : null}
-      {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => setStage("write")}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(preparePublish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : null}</> : null}
+      {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => setStage("write")}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(preparePublish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : meta ? <><Button size="sm" variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}><Send />Send test</Button><Button size="sm" disabled={busy} onClick={() => { setLater(false); setStage("delivery") }}>Continue</Button></> : null}</> : null}
       {!["loading","signin","list"].includes(stage) ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" disabled={busy} aria-label="Save and close" onClick={() => void work(backToList)} />}><X /></TooltipTrigger><TooltipContent>Save and close</TooltipContent></Tooltip> : null}
       {stage === "list" ? <>{error ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void work(backToList)}>Reload</Button> : null}<Button size="sm" disabled={busy} onClick={() => void work(section === "posts" ? newPost : newNewsletter)}><Plus />{section === "posts" ? "New post" : "New newsletter"}</Button></> : null}
       {["write", "preview", "published"].includes(stage) && current ? <DocumentActions document={current} busy={busy} onNewsletter={() => void navigate(`/admin/newsletters?post=${encodeURIComponent(current.slug!)}`)} onRemove={(kind) => remove(current, kind)} /> : null}
@@ -328,13 +330,19 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
       {stage === "preview" ? <>
         {previewMode === "post" ? <>
           <div className="border-y border-border py-6"><h2 className="studio-title font-bold">{subject}</h2><Markdown className="mt-6">{markdown}</Markdown></div>
-        </> : busy && !meta ? <div role="status" aria-label="Loading email preview" className="flex flex-col gap-4"><Skeleton className="h-4 w-48" /><Skeleton className="h-96 w-full" /></div> : meta ? <>
-        <p className="text-caption text-muted-foreground">From {meta.sender.name} · {meta.sender.email}</p>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Email preview device"><Button size="sm" variant={device === "desktop" ? "default" : "ghost"} aria-pressed={device === "desktop"} onClick={() => setDevice("desktop")}>Desktop</Button><Button size="sm" variant={device === "mobile" ? "default" : "ghost"} aria-pressed={device === "mobile"} onClick={() => setDevice("mobile")}>Mobile</Button></div>
-        <div className={device === "mobile" ? "mx-auto w-full max-w-sm" : "w-full"}><iframe title="Newsletter email preview" sandbox="" srcDoc={html} className="min-h-96 w-full rounded-2xl border border-input" /></div>
-        <div className="flex flex-wrap gap-2"><Button disabled={busy} onClick={() => { setLater(false); setStage("delivery") }}>Set up email delivery</Button><Button variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}>Send me a test</Button></div>
-        {current?.tested_revision === current?.revision ? <p className="text-caption text-muted-foreground">A test was sent for this version.</p> : null}
-        {!meta.test_email ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Test email unavailable" />}><Info /></TooltipTrigger><TooltipContent>Configure a test recipient to enable test emails.</TooltipContent></Tooltip> : null}
+        </> : busy && !meta ? <div role="status" aria-label="Loading email preview" className="flex flex-col gap-4"><Skeleton className="h-28 w-full" /><Skeleton className="h-96 w-full" /></div> : meta ? <>
+        {/* Inbox header first, as Buttondown and Ghost preview it: what a reader sees before opening. */}
+        <section aria-label="How it appears in the inbox" className="flex flex-wrap items-start justify-between gap-4 rounded-lg border border-border p-4">
+          <dl className="grid min-w-0 flex-1 grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-caption">
+            <dt className="text-muted-foreground">From</dt><dd className="min-w-0 break-words">{meta.sender.name} &lt;{meta.sender.email}&gt;</dd>
+            <dt className="text-muted-foreground">To</dt><dd>All subscribers · {meta.subscribers}</dd>
+            <dt className="text-muted-foreground">Subject</dt><dd className="min-w-0 font-medium break-words">{subject}</dd>
+            {preheader ? <><dt className="text-muted-foreground">Preview text</dt><dd className="min-w-0 break-words text-muted-foreground">{preheader}</dd></> : null}
+          </dl>
+          <div className="flex gap-1" role="group" aria-label="Email preview device"><Button size="icon-sm" variant={device === "desktop" ? "secondary" : "ghost"} aria-pressed={device === "desktop"} aria-label="Desktop" onClick={() => setDevice("desktop")}><Monitor /></Button><Button size="icon-sm" variant={device === "mobile" ? "secondary" : "ghost"} aria-pressed={device === "mobile"} aria-label="Mobile" onClick={() => setDevice("mobile")}><Smartphone /></Button></div>
+        </section>
+        {current?.tested_revision === current?.revision ? <p className="flex items-center gap-2 text-caption text-muted-foreground"><Check className="size-4" />A test was sent to {meta.test_email} for this version.</p> : !meta.test_email ? <p className="text-caption text-muted-foreground">Set a test address to send yourself a test.</p> : null}
+        <div className={device === "mobile" ? "mx-auto w-full max-w-sm" : "w-full"}><iframe title="Newsletter email preview" sandbox="" srcDoc={html} className="h-[70dvh] min-h-96 w-full rounded-lg border border-border" /></div>
         </> : <Button className="w-fit" variant="outline" disabled={busy} onClick={() => void work(previewEmail)}>Retry email preview</Button>}
       </> : null}
       {stage === "publish-url" || stage === "publish-summary" ? <form className="flex max-w-(--measure) flex-col gap-6" onSubmit={(event)=>{event.preventDefault();setStage(stage==="publish-url" ? "publish-summary" : "publish-review")}}>
@@ -347,15 +355,24 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
         <div className="flex gap-2"><Button disabled={busy} onClick={()=>void work(publish)}>{busy ? <LoaderCircle className="motion-safe:animate-spin"/> : null}{current?.published_revision ? "Confirm update" : "Publish post"}</Button><Button variant="ghost" disabled={busy} onClick={()=>setStage("publish-summary")}>Back</Button></div>
       </div> : null}
       {stage === "published" && current?.slug ? <div className="flex flex-col gap-4"><div className="flex items-center gap-2"><h2 className="text-title font-semibold">{current.subject}</h2>{current.cache_invalidated === false ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Public page refresh status"/>}><Info/></TooltipTrigger><TooltipContent>Published. Public pages will refresh through the cache; reload shortly if you see the previous version.</TooltipContent></Tooltip> : null}</div><div className="flex flex-wrap gap-2"><Button nativeButton={false} render={<a href={`/blog/${current.slug}`} target="_blank" rel="noreferrer"/>}><ExternalLink/>View post</Button><Button variant="outline" disabled={busy} onClick={()=>void navigate(`/admin/newsletters?post=${encodeURIComponent(current.slug!)}`)}><Mail/>Create newsletter</Button></div></div> : null}
-      {stage === "delivery" ? <form className="flex flex-col gap-4" onSubmit={(event) => { event.preventDefault(); void work(async () => { if (later) nairobiSchedule(schedule); setMeta(await studioMeta()); setStage("confirm") }) }}>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Delivery time"><Button type="button" variant={!later ? "default" : "ghost"} aria-pressed={!later} onClick={() => setLater(false)}>Send now</Button><Button type="button" variant={later ? "default" : "ghost"} aria-pressed={later} onClick={() => setLater(true)}>Schedule</Button></div>
-        {later ? <><label htmlFor="newsletter-schedule" className="text-body">Date and time · Nairobi (EAT)</label><div className={surfaceClass}><input id="newsletter-schedule" className={inputClass} type="datetime-local" required value={schedule} disabled={busy} onChange={(e) => setSchedule(e.target.value)} /></div></> : null}
-        <div className="flex flex-wrap gap-2"><Button disabled={busy} type="submit">Review</Button><Button disabled={busy} variant="ghost" type="button" onClick={() => setStage("preview")}>Back</Button></div>
+      {stage === "delivery" && meta ? <form className="flex max-w-(--measure) flex-col gap-6" onSubmit={(event) => { event.preventDefault(); void work(async () => { if (later) nairobiSchedule(schedule); setMeta(await studioMeta()); setStage("confirm") }) }}>
+        {/* Ghost's publish settings: recipients, then timing, then a one-line summary. */}
+        <fieldset className="flex flex-col gap-3"><legend className="pb-3 text-body font-medium">Recipients</legend>
+          <p className="flex items-center gap-2 rounded-lg border border-ring bg-primary/5 p-3 text-body"><Check className="size-4 text-primary" />All subscribers · {meta.subscribers}</p>
+          <p className="text-caption text-muted-foreground">Only confirmed subscribers receive it. Unsubscribed and pending contacts are skipped.</p>
+        </fieldset>
+        <fieldset className="flex flex-col gap-3"><legend className="pb-3 text-body font-medium">When</legend>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Delivery time"><Button type="button" variant={!later ? "secondary" : "ghost"} aria-pressed={!later} onClick={() => setLater(false)}>Right now</Button><Button type="button" variant={later ? "secondary" : "ghost"} aria-pressed={later} onClick={() => setLater(true)}>Schedule for later</Button></div>
+          {later ? <><label htmlFor="newsletter-schedule" className="text-caption text-muted-foreground">Date and time in Nairobi (EAT)</label><div className={surfaceClass}><input id="newsletter-schedule" className={inputClass} type="datetime-local" required value={schedule} disabled={busy} onChange={(e) => setSchedule(e.target.value)} /></div></> : null}
+        </fieldset>
+        <p className="text-body">{meta.subscribers < 1 ? "There are no confirmed subscribers yet." : `Goes to ${meta.subscribers} ${meta.subscribers === 1 ? "subscriber" : "subscribers"} ${later ? (schedule ? `on ${scheduleLabel(schedule)}` : "at the time you choose") : "right now"}.`}</p>
+        <div className="flex flex-wrap gap-2"><Button disabled={busy || meta.subscribers < 1} type="submit">Continue</Button><Button disabled={busy} variant="ghost" type="button" onClick={() => setStage("preview")}>Back</Button></div>
       </form> : null}
-      {stage === "confirm" && meta ? <>
-        <p className="text-body">{subject}</p><p className="text-body">{later ? `Scheduled for ${formatDate(new Date(`${schedule}:00+03:00`).toISOString())}.` : "Send now."} Audience: {meta.audience} · {meta.subscribers} current subscribers.</p>
-        <div className="flex flex-wrap gap-2"><Button disabled={busy || meta.subscribers < 1} onClick={() => void work(() => action(later ? "schedule" : "send"))}>{busy ? "Submitting…" : later ? "Confirm schedule" : "Confirm send"}</Button><Button disabled={busy} variant="ghost" onClick={() => setStage("delivery")}>Back</Button></div>
-      </> : null}
+      {stage === "confirm" && meta ? <div className="flex max-w-(--measure) flex-col gap-4">
+        <h2 className="text-title font-semibold">Ready to send?</h2>
+        <p className="text-body">“{subject}” goes to {meta.subscribers} {meta.subscribers === 1 ? "subscriber" : "subscribers"} {later ? `on ${scheduleLabel(schedule)}` : "right now"}. Sent emails can’t be recalled.</p>
+        <div className="flex flex-wrap gap-2"><Button disabled={busy || meta.subscribers < 1} onClick={() => void work(() => action(later ? "schedule" : "send"))}>{busy ? <LoaderCircle className="motion-safe:animate-spin" /> : <Send />}{later ? "Schedule email" : "Send email, right now"}</Button><Button disabled={busy} variant="ghost" onClick={() => setStage("delivery")}>Back</Button></div>
+      </div> : null}
       {stage === "outcome" && current ? <>
         <p className="text-body">{current.subject}</p>
         {current.scheduled_at ? <p className="text-body">{formatDate(current.scheduled_at)}</p> : null}

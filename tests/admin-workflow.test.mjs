@@ -10,7 +10,7 @@ const published = { slug: "a-published-post", title: "An existing article", desc
 const baseDraft = { id: "a5cd8282-68f1-4b4a-9c19-000000000001", subject: published.title, markdown: "", revision: 1, state: "draft", campaign_id: 0, scheduled_at: null, tested_revision: 0, last_error: "", updated_at: "2026-11-25T09:00:00Z" }
 const settle = () => new Promise((resolve) => setImmediate(resolve))
 
-function desk({ failSave = false, section = "newsletters", drafts = [], cached, failRemove = false } = {}) {
+function desk({ failSave = false, section = "newsletters", drafts = [], cached, failRemove = false, allowSend = false } = {}) {
   const slots = [], effects = [], calls = [], host = new Map()
   let cursor = 0, pending = [], tree, nodes = []
   const same = (a, b) => a && b && a.length === b.length && a.every((item, index) => item === b[index])
@@ -28,9 +28,9 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     studioFromPost: async (_csrf, slug) => {calls.push(["from-post",slug]);return {...baseDraft,markdown:`${published.description}\n\n[Read the post](<https://example.com/blog/${slug}>)`}},
     studioCreate: async (_csrf, subject, kind) => { calls.push(["create", subject, kind]); return { ...baseDraft, subject,kind } },
     studioSave: async (_csrf, draft, subject, markdown) => { calls.push(["save", subject, markdown]); if (failSave) throw new Error("Save failed"); return { ...draft, subject, markdown, revision: draft.revision + 1 } },
-    studioPreview: async () => { calls.push(["preview"]); return "<p>Rendered email</p>" },
+    studioPreview: async () => { calls.push(["preview"]); return { html: "<p>Rendered email</p>", preheader: "Rendered email" } },
     studioMeta: async () => ({ sender: { name: "Owner", email: "owner@example.com" }, test_email: "owner@example.com", subscribers: 1, audience: "Readers" }),
-    studioAction: async () => { calls.push(["send"]); throw new Error("No email action expected") },
+    studioAction: async (_csrf, draft, kind, when) => { calls.push([kind, when]); if (!allowSend) throw new Error("No email action expected"); return { ...draft, state: kind === "test" ? "draft" : kind === "schedule" ? "scheduled" : "sending", tested_revision: kind === "test" ? draft.revision : draft.tested_revision } },
     studioLogout: async () => { calls.push(["logout"]) },
     studioPublish: async (_csrf, draft,slug,description)=>{calls.push(["publish",draft.revision,slug,description]);return {...draft,slug,description,published_revision:draft.revision,cache_invalidated:true}},
     newsletterStateLabel: (state) => state,
@@ -65,13 +65,15 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     }
     visit(tree); visit(tree.props.actions); pending.forEach((effect) => effect())
   }
-  const text = (node) => Array.isArray(node) ? node.map(text).join("") : node?.props ? text(node.props.children) : typeof node === "string" ? node : ""
+  const text = (node) => Array.isArray(node) ? node.map(text).join("") : node?.props ? text(node.props.children) : typeof node === "string" || typeof node === "number" ? String(node) : ""
   const button = (label) => { const found = nodes.find((node) => node.type === "button" && text(node.props.children) === label); assert(found, label); return found }
   render()
   return {
     calls,
     async flush() { await settle(); render() },
     click(label) { button(label).props.onClick() },
+    text: () => text(tree),
+    headerButton: (label) => { const found = []; (function walk(n) { if (Array.isArray(n)) return n.forEach(walk); if (!n?.props) return; if (n.type === "button" && text(n.props.children).includes(label)) found.push(n); walk(n.props.children) })(tree.props.actions); return found[0] },
     select(value) { nodes.find((node) => node.type === "select-field" && node.props.id === "newsletter-source").props.onValueChange(value); render() },
     submit() { nodes.find((node) => node.type === "form").props.onSubmit({ preventDefault() {} }) },
     edit(value) { nodes.find((node) => node.type === "editor").props.onChange(value); render() },
@@ -162,4 +164,22 @@ test("a remembered list is shown immediately on returning to a section", async (
   const cached = { session: { authenticated: true, configured: true, csrf: "owner-csrf", login: "owner" }, drafts: [row(1)], posts: [] }
   const ui = desk({ section: "posts", cached, drafts: [row(1), row(2)] }); await ui.flush()
   assert.equal(ui.rows().length, 2, "the fresh response replaces the remembered list")
+})
+
+test("a newsletter goes preview, test, recipients and timing, then an explicit confirmation", async () => {
+  const ui = desk({ allowSend: true }); await ui.flush()
+  ui.click("New newsletter"); await ui.flush(); ui.select(published.slug); ui.submit(); await ui.flush()
+  ui.click("Preview"); await ui.flush(); await ui.flush()
+  assert(ui.text().includes("All subscribers · 1"), "the inbox header names the audience")
+  assert(ui.text().includes("Rendered email"), "the preview text is shown")
+  ui.headerButton("Send test").props.onClick(); await ui.flush()
+  assert.deepEqual(ui.calls.at(-1), ["test", undefined])
+  assert(ui.text().includes("A test was sent to owner@example.com"))
+  ui.headerButton("Continue").props.onClick(); await ui.flush()
+  assert(ui.text().includes("Goes to 1 subscriber right now."))
+  assert(!ui.calls.some((call) => call[0] === "send"), "choosing settings never sends")
+  ui.submit(); await ui.flush()
+  assert(ui.text().includes("Ready to send?"))
+  ui.click("Send email, right now"); await ui.flush()
+  assert.deepEqual(ui.calls.at(-1), ["send", undefined])
 })

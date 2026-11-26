@@ -172,7 +172,7 @@ func (s *Service) preview(w http.ResponseWriter, r *http.Request) {
 		httpx.BadRequest(w, err.Error(), nil)
 		return
 	}
-	httpx.WriteJSON(w, 200, map[string]any{"html": html, "revision": draft.Revision})
+	httpx.WriteJSON(w, 200, map[string]any{"html": html, "revision": draft.Revision, "preheader": sendy.Preheader(draft.Markdown, s.cfg.SiteURL)})
 }
 func (s *Service) metadata(w http.ResponseWriter, r *http.Request) {
 	ids, ready := s.listIDs()

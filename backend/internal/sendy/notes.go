@@ -28,6 +28,8 @@ type Note struct {
 	Sections                      []NoteSection
 	Confirmation                  bool
 	Campaign                      bool
+	// Preheader is the summary inboxes show after the subject.
+	Preheader string
 	// Body is generated only by RenderNewsletter's Markdown renderer.
 	Body template.HTML
 }

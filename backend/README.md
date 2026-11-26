@@ -42,6 +42,8 @@ Posts are at `/admin/posts` and newsletters at `/admin/newsletters`.
 - Autosave never changes a published post. Publish again to update it.
 - Unpublishing keeps the draft, URL and original date. Deleting is permanent.
 - Publishing a post never sends email.
+- A newsletter made from a post copies the whole article. Interactive parts become links.
+- Contacts at `/admin/contacts` lists everyone who signed up.
 - Newsletters go only to confirmed subscribers. **Sent** means the provider accepted the email, not that it reached the inbox.
 - Images can be PNG, JPEG or GIF, up to 5 MB and 16 megapixels.
 

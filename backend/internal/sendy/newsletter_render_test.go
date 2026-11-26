@@ -31,3 +31,25 @@ func TestNewsletterRendererRejectsUnsafeMarkupAndOversizedContent(t *testing.T) 
 		}
 	}
 }
+
+func TestNewsletterPreheaderIsHiddenPlainOpeningText(t *testing.T) {
+	md := "## Hello\n\nThis is **bold** & [linked](https://example.com) text. " + strings.Repeat("More words here. ", 20)
+	pre := Preheader(md, "https://example.com")
+	if !strings.HasPrefix(pre, "Hello This is bold & linked text.") || !strings.HasSuffix(pre, "…") || len([]rune(pre)) > 141 || strings.Contains(pre, "<") {
+		t.Fatalf("unexpected preheader %q", pre)
+	}
+	html, err := RenderNewsletter("Subject", md, "https://example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := strings.Index(html, `<div style="display:none`)
+	if start < 0 || start > strings.Index(html, "<h1") || !strings.Contains(html[start:], "Hello This is bold &amp; linked text.") {
+		t.Fatal("preheader is not hidden at the top of the email")
+	}
+	if got := Preheader("`{{ contact.SECRET }}` and {% raw %}", "https://example.com"); strings.ContainsAny(got, "{}") {
+		t.Fatalf("template expression in preheader: %q", got)
+	}
+	if got := Preheader("Short.", "https://example.com"); got != "Short." {
+		t.Fatalf("short preheader changed: %q", got)
+	}
+}

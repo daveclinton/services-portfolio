@@ -3,8 +3,10 @@ package sendy
 import (
 	"bytes"
 	"errors"
+	stdhtml "html"
 	"html/template"
 	"net/url"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 
@@ -40,11 +42,37 @@ func RenderNewsletter(subject, markdown, siteURL string) (string, error) {
 	}
 	body = strings.ReplaceAll(body, "<a ", `<a style="color:#ffffff;text-decoration:underline" `)
 	body = strings.ReplaceAll(body, "<img ", `<img style="max-width:100%;height:auto" `)
-	html, _, err := RenderNote(Note{Title: subject, SiteURL: siteURL, Campaign: true, UnsubscribeURL: unsubscribePlaceholder, Body: template.HTML(body)})
+	html, _, err := RenderNote(Note{Title: subject, SiteURL: siteURL, Campaign: true, UnsubscribeURL: unsubscribePlaceholder, Body: template.HTML(body), Preheader: preheaderFrom(body)})
 	if err == nil && len(html) > NewsletterHTMLLimit {
 		return "", errors.New("This email is too large; shorten it before sending")
 	}
 	return html, err
+}
+
+var markup = regexp.MustCompile(`<[^>]*>`)
+
+// Preheader returns the inbox summary for a newsletter, as the email uses it.
+func Preheader(markdown, siteURL string) string {
+	body, err := RenderMarkdown(markdown, siteURL)
+	if err != nil {
+		return ""
+	}
+	return preheaderFrom(body)
+}
+
+// preheaderFrom takes the opening words of the email, as Buttondown does by
+// default. Clients show roughly 40 to 140 characters.
+func preheaderFrom(body string) string {
+	// Braces are dropped so no provider template expression can form.
+	text := strings.Join(strings.Fields(strings.NewReplacer("{", "", "}", "").Replace(stdhtml.UnescapeString(markup.ReplaceAllString(body, " ")))), " ")
+	if utf8.RuneCountInString(text) <= 140 {
+		return text
+	}
+	runes := []rune(text)[:140]
+	if cut := strings.LastIndex(string(runes), " "); cut > 80 {
+		return string(runes)[:cut] + "…"
+	}
+	return string(runes) + "…"
 }
 
 // RenderMarkdown is the shared safe renderer for published posts and email.

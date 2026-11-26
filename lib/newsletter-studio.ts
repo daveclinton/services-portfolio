@@ -167,10 +167,10 @@ export async function studioSave(csrf: string, current: NewsletterDraft, subject
   if (result.revision !== current.revision + 1 || result.subject !== subject.trim() || result.markdown !== markdown) throw new Error("The latest changes were not confirmed as saved. Reload before sending.")
   return result
 }
-export async function studioPreview(csrf: string, current: NewsletterDraft): Promise<string> {
+export async function studioPreview(csrf: string, current: NewsletterDraft): Promise<{ html: string; preheader: string }> {
   const result = await request(`drafts/${current.id}/preview`, csrf, { revision: current.revision })
   if (typeof result.html !== "string" || !result.html || result.revision !== current.revision) throw new Error("Couldn’t preview the latest saved newsletter.")
-  return result.html
+  return { html: result.html, preheader: typeof result.preheader === "string" ? result.preheader : "" }
 }
 export async function studioMeta(): Promise<StudioMeta> {
   const result = await request("meta")
