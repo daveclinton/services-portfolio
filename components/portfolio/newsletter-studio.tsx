@@ -9,14 +9,16 @@ import { Markdown } from "@/components/prompt-kit/markdown"
 import { AdminShell } from "@/components/portfolio/admin-shell"
 import { DocumentActions } from "@/components/portfolio/document-actions"
 import { TablePager } from "@/components/portfolio/table-pager"
+import { SortHeader } from "@/components/portfolio/sort-header"
+import { EMPTY_QUERY, compareText, leaveDeskQuery, nextSort, readPage, readSort, setDeskQuery, type DeskQuery, type SortDir } from "@/lib/desk-url"
 import { SelectField } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { FileText, Mail, Plus, Info, LoaderCircle, X, ExternalLink, Send, Check, Monitor, Smartphone } from "lucide-react"
+import { FileText, Mail, Search, Plus, Info, LoaderCircle, X, ExternalLink, Send, Check, Monitor, Smartphone } from "lucide-react"
 import { site } from "@/lib/portfolio-data"
 import {
-  studioRecipients, studioContacts, studioBootstrap, studioCachedDesk, studioUpdateDesk, studioOpen, studioWarm, studioRemove, studioCreate, studioSave, studioPreview, studioMeta, studioAction, studioLogout, studioFromPost, studioPublish, studioUpload,
+  studioDraft, studioRecipients, studioContacts, studioBootstrap, studioCachedDesk, studioUpdateDesk, studioOpen, studioWarm, studioRemove, studioCreate, studioSave, studioPreview, studioMeta, studioAction, studioLogout, studioFromPost, studioPublish, studioUpload,
   studioLoginURL, nairobiSchedule, newsletterStateLabel, STUDIO_SUBJECT_LIMIT, STUDIO_BODY_LIMIT,
   type NewsletterDraft, type StudioSession, type StudioMeta, type PublishedStudioPost, type StudioRemoval, type AdminDesk, type StudioContact,
 } from "@/lib/newsletter-studio"
@@ -30,7 +32,11 @@ const surfaceClass = "glass-surface rounded-2xl border border-input p-2.5 focus-
 
 // Ghost's writing -> email preview/test -> delivery -> confirmation flow.
 // The portfolio's form controls and theme are reused throughout.
-export function NewsletterStudio({ section = "posts", initialPost }: { section?: "posts" | "newsletters"; initialPost?: string }) {
+const SORT_KEYS = ["title", "status", "date"] as const
+type SortKey = typeof SORT_KEYS[number]
+const sortDefault = (key: SortKey): SortDir => key === "date" ? "desc" : "asc"
+
+export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY_QUERY }: { section?: "posts" | "newsletters"; initialPost?: string; query?: DeskQuery }) {
   const router = useRouter()
   const [stage, setStage] = useState<Stage>("loading")
   const [session, setSession] = useState<StudioSession | null>(null)
@@ -50,7 +56,6 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
   const [subscribers, setSubscribers] = useState<StudioContact[] | null>(null)
   const [pickerQuery, setPickerQuery] = useState("")
   const [meta, setMeta] = useState<StudioMeta | null>(null)
-  const [page, setPage] = useState(0)
   const [selectedPost, setSelectedPost] = useState<string | null>(initialPost ?? null)
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop")
   const [previewMode, setPreviewMode] = useState<"post" | "email">("post")
@@ -65,6 +70,8 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
   const heading = useRef<HTMLHeadingElement>(null)
   const subjectInput = useRef<HTMLTextAreaElement>(null)
   const mounted = useRef(false)
+  // The post to start a newsletter from is read once, when the desk opens.
+  const startPost = useRef(initialPost)
   const actionPending = useRef(false)
   const tableScroll = useRef<HTMLDivElement>(null)
   // Lists changed on this screen win over responses that were already in flight.
@@ -91,12 +98,12 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
       if (shown) return
       shown = true
       currentRef.current = null; setCurrent(null)
-      setSelectedPost(initialPost ?? null)
-      setStage(section === "newsletters" && initialPost && posts.some((post) => post.slug === initialPost) ? "pick" : "list")
+      setSelectedPost(startPost.current ?? null)
+      setStage(section === "newsletters" && startPost.current && posts.some((post) => post.slug === startPost.current) ? "pick" : "list")
     }
     const cached = studioCachedDesk(section)
     // A just-published post may be newer than the remembered list.
-    if (cached && (!initialPost || cached.posts.some((post) => post.slug === initialPost))) void Promise.resolve(cached).then(show)
+    if (cached && (!startPost.current || cached.posts.some((post) => post.slug === startPost.current))) void Promise.resolve(cached).then(show)
     studioBootstrap(section).then((desk) => {
       show(desk)
       // Switching sections then needs no wait.
@@ -104,12 +111,40 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
       if (desk.session.authenticated && !studioCachedDesk(other)) void studioBootstrap(other).catch(() => undefined)
     }).catch((failure) => { if (mounted.current) { fail(failure); if (!shown) setStage("signin") } })
     return () => { mounted.current = false }
-  }, [fail, initialPost, section, bootAttempt])
+  }, [fail, section, bootAttempt])
 
   useEffect(() => {
     if (stage === "write" && !busy) { focusElement(subjectInput.current); if (subjectInput.current?.value === "Untitled post") subjectInput.current.select() }
     else if (stage !== "loading") focusElement(heading.current)
   }, [stage, busy])
+
+  // Back, Forward, reloads and shared links drive the desk through ?doc and ?view.
+  const docParam = query.get("doc")
+  const viewParam = query.get("view")
+  const ready = !["loading", "signin"].includes(stage)
+  useEffect(() => {
+    if (!ready || actionPending.current) return
+    const open = currentRef.current
+    const editable = open && ["draft", "error"].includes(open.state)
+    if (docParam && open?.id !== docParam) {
+      void work(async () => {
+        if (editable) await save()
+        let d: NewsletterDraft
+        try { d = await studioDraft(docParam) } catch (failure) { setDeskQuery({ doc: null, view: null }); throw failure }
+        const home = d.kind === "post" ? "posts" : "newsletters"
+        if (home !== section) { router.replace(`/admin/${home}?doc=${d.id}${viewParam ? `&view=${viewParam}` : ""}`); return }
+        if (open) put(open)
+        openRef.current(d, "none")
+        if (viewParam === "preview" && ["draft", "error"].includes(d.state)) await previewRef.current(false)
+      })
+    } else if (!docParam && open && stage !== "list") {
+      void work(closeRef.current)
+    } else if (docParam && open?.id === docParam) {
+      if (viewParam === "preview" && stage === "write") void work(() => previewRef.current(false))
+      else if (!viewParam && ["preview", "publish-url", "publish-summary", "publish-review", "delivery", "confirm"].includes(stage) && editable) setStage("write")
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the handlers are read through refs
+  }, [ready, docParam, viewParam, stage, section])
 
   const save = useCallback((): Promise<NewsletterDraft> => {
     const queued = saveQueue.current.catch(() => undefined).then(async () => {
@@ -154,11 +189,15 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
     setBusy(true); setError(""); setNotice("")
     try { await action() } catch (failure) { fail(failure) } finally { actionPending.current = false; if (mounted.current) setBusy(false) }
   }
-  async function backToList() {
+  async function closeDocument() {
     if (currentRef.current && ["draft", "error"].includes(currentRef.current.state)) await save()
     if (currentRef.current) put(currentRef.current)
     currentRef.current = null; setCurrent(null); setStage("list")
     refreshList()
+  }
+  async function backToList() {
+    await closeDocument()
+    leaveDeskQuery({ doc: null, view: null, post: null })
   }
   function replaceList(next: NewsletterDraft[]) {
     listVersion.current++
@@ -191,7 +230,7 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
       currentRef.current = null; setCurrent(null)
       if (result) put(result); else replaceList(drafts.filter((item) => item.id !== target.id))
       if (kind !== "discard") setPublishedPosts((posts) => posts.filter((post) => post.slug !== target.slug))
-      setStage("list")
+      setStage("list"); setDeskQuery({ doc: null, view: null })
       setNotice(kind === "delete" ? "Deleted." : kind === "unpublish" ? "Unpublished. The post is now a draft." : "Changes discarded.")
       if (result?.cache_invalidated === false) setNotice("Done. Public pages may take a moment to refresh.")
       refreshList()
@@ -199,7 +238,10 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
     return done
   }
   function warm(d: NewsletterDraft) { studioWarm(d); void loadEditor() }
-  function open(d: NewsletterDraft) {
+  // Each open document has its own address, so a post and a newsletter are
+  // never confused and Back returns to the list.
+  function open(d: NewsletterDraft, history: "push" | "replace" | "none" = "push") {
+    if (history !== "none") setDeskQuery({ doc: d.id, view: null, post: null }, history)
     accept(d); text.current = { subject: d.subject, markdown: d.markdown }; setSubject(d.subject); setMarkdown(d.markdown)
     setSaved("saved"); setError(""); setNotice(""); setStage(["draft", "error"].includes(d.state) ? "write" : "outcome")
   }
@@ -225,12 +267,14 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
   async function logout() {
     if (currentRef.current && ["draft", "error"].includes(currentRef.current.state)) await save()
     await studioLogout(session!.csrf)
+    setDeskQuery({ doc: null, view: null })
     currentRef.current = null; setCurrent(null); setDrafts([]); setSubject(""); setMarkdown(""); setHTML(""); setMeta(null)
     setSession({ configured: true, authenticated: false, csrf: "", login: "" }); setStage("signin")
   }
-  async function preview() {
+  async function preview(record = true) {
     await save()
     setHTML(""); setMeta(null); setPreviewMode("post"); setStage("preview")
+    if (record && currentRef.current) setDeskQuery({ doc: currentRef.current.id, view: "preview" }, "push")
     if (section === "newsletters") await previewEmail()
   }
   async function preparePublish() {
@@ -279,19 +323,27 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
     // A successful test is shown on the preview itself, beside the email.
     if (!(kind === "test" && result.state === "draft" && result.tested_revision === result.revision)) { setStage("outcome"); if (result.last_error) setError(result.last_error) }
   }
+  const openRef = useRef(open); openRef.current = open
+  const previewRef = useRef(preview); previewRef.current = preview
+  const closeRef = useRef(closeDocument); closeRef.current = closeDocument
   const title = { loading: section === "posts" ? "Posts" : "Newsletters", signin: "Sign in", list: section === "posts" ? "Posts" : "Newsletters", pick: "New newsletter", write: subject || "Untitled post", preview: section === "posts" ? "Post preview" : "Newsletter preview", delivery: "Email delivery", confirm: "Review delivery", outcome: current ? newsletterStateLabel(current.state) : "Post", "publish-url":"Choose a post URL", "publish-summary":"Add a summary", "publish-review":"Review publication", published:"Post published" }[stage]
   const formatDate = (value: string) => new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Nairobi" }).format(new Date(value)) + " EAT"
   const statusOf = (d: NewsletterDraft) => section === "newsletters" ? newsletterStateLabel(d.state) : !d.published_revision ? "Draft" : d.published_revision < d.revision ? "Unpublished changes" : "Published"
   const publishedDates = new Map(publishedPosts.map((post) => [post.slug, post.date]))
   // A published article is dated by its publication, everything else by its last edit.
   const dateOf = (d: NewsletterDraft) => d.published_revision && d.published_revision === d.revision && d.slug ? publishedDates.get(d.slug) ?? d.updated_at : d.updated_at
-  const rows = [...drafts].sort((a, b) => Date.parse(dateOf(b)) - Date.parse(dateOf(a)))
+  const sort = readSort(query, SORT_KEYS, "date", sortDefault)
+  const search = query.get("q") ?? ""
+  const needle = search.trim().toLowerCase()
+  const order = (a: NewsletterDraft, b: NewsletterDraft) => sort.key === "title" ? compareText(a.subject, b.subject) : sort.key === "status" ? compareText(statusOf(a), statusOf(b)) || Date.parse(dateOf(b)) - Date.parse(dateOf(a)) : Date.parse(dateOf(a)) - Date.parse(dateOf(b))
+  const rows = drafts.filter((d) => !needle || d.subject.toLowerCase().includes(needle)).sort((a, b) => sort.dir === "asc" ? order(a, b) : order(b, a))
+  const page = readPage(query)
   const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE))
   const currentPage = Math.min(page, pages - 1)
   const firstRow = currentPage * PAGE_SIZE
   const visibleRows = rows.slice(firstRow, firstRow + PAGE_SIZE)
   const listing = stage === "list" || stage === "loading"
-  function turnPage(next: number) { setPage(next); if (tableScroll.current) tableScroll.current.scrollTop = 0 }
+  function turnPage(next: number) { setDeskQuery({ page: next > 0 ? String(next + 1) : null }); if (tableScroll.current) tableScroll.current.scrollTop = 0 }
   const reach = audience === "all" ? meta?.subscribers ?? 0 : picked.length
   const scheduleLabel = (value: string) => { try { return formatDate(new Date(`${value}:00+03:00`).toISOString()) } catch { return value } }
   const pickedPost = publishedPosts.find((post) => post.slug === selectedPost)
@@ -299,7 +351,7 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
   return (
     <AdminShell section={section} title={title} session={session} loading={stage === "loading"} busy={busy} editing={stage === "write" || listing} onNavigate={navigate} onLogout={() => void work(logout)} actions={<>
       {stage === "write" ? <Button size="sm" disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(preview)}>Preview</Button> : null}
-      {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => setStage("write")}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(preparePublish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : meta ? <><Button size="sm" variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}><Send />Send test</Button><Button size="sm" disabled={busy} onClick={openDelivery}>Continue</Button></> : null}</> : null}
+      {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setStage("write"); leaveDeskQuery({ view: null }) }}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(preparePublish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : meta ? <><Button size="sm" variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}><Send />Send test</Button><Button size="sm" disabled={busy} onClick={openDelivery}>Continue</Button></> : null}</> : null}
       {!["loading","signin","list"].includes(stage) ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" disabled={busy} aria-label="Save and close" onClick={() => void work(backToList)} />}><X /></TooltipTrigger><TooltipContent>Save and close</TooltipContent></Tooltip> : null}
       {stage === "list" ? <>{error ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void work(backToList)}>Reload</Button> : null}<Button size="sm" disabled={busy} onClick={() => void work(section === "posts" ? newPost : newNewsletter)}><Plus />{section === "posts" ? "New post" : "New newsletter"}</Button></> : null}
       {["write", "preview", "published"].includes(stage) && current ? <DocumentActions document={current} busy={busy} onNewsletter={() => void navigate(`/admin/newsletters?post=${encodeURIComponent(current.slug!)}`)} onRemove={(kind) => remove(current, kind)} /> : null}
@@ -316,8 +368,15 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
         {session?.configured !== false ? <Button className="w-fit" nativeButton={false} render={<a href={studioLoginURL} />}>Continue with GitHub</Button> : null}
         {error && !session ? <Button className="w-fit" variant="outline" onClick={()=>{setError("");setStage("loading");setBootAttempt((attempt)=>attempt+1)}}>Retry loading</Button> : null}
       </div> : null}
+      {stage === "list" ? <div className="flex flex-wrap items-center justify-between gap-3">
+        <label className="glass-surface flex w-full max-w-sm items-center gap-2 rounded-lg border border-input px-2.5 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
+          <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+          <span className="sr-only">{section === "posts" ? "Search posts by title" : "Search newsletters by subject"}</span>
+          <input type="search" className="chat-input h-8 min-w-0 flex-1 bg-transparent text-caption text-foreground outline-none" placeholder={section === "posts" ? "Search posts" : "Search newsletters"} value={search} onChange={(event) => setDeskQuery({ q: event.target.value, page: null })} />
+        </label>
+      </div> : null}
       {stage === "list" ? <div className="admin-table-frame">
-        <div ref={tableScroll} className="admin-table-scroll" role="region" aria-label={section === "posts" ? "All posts" : "All newsletters"} tabIndex={0}><table className="admin-table"><thead><tr><th scope="col">Title</th><th scope="col">Status</th><th scope="col">Date</th><th scope="col"><span className="sr-only">Actions</span></th></tr></thead><tbody>
+        <div ref={tableScroll} className="admin-table-scroll" role="region" aria-label={section === "posts" ? "All posts" : "All newsletters"} tabIndex={0}><table className="admin-table"><thead><tr>{(["title", "status", "date"] as const).map((key) => <SortHeader key={key} label={{ title: "Title", status: "Status", date: "Date" }[key]} active={sort.key === key} dir={sort.dir} onSort={() => setDeskQuery(nextSort(sort, key, "date", sortDefault))} />)}<th scope="col"><span className="sr-only">Actions</span></th></tr></thead><tbody>
           {visibleRows.map((row) => {
             const date = dateOf(row)
             return <tr key={row.id}>
@@ -327,7 +386,7 @@ export function NewsletterStudio({ section = "posts", initialPost }: { section?:
               <td className="text-right"><DocumentActions document={row} busy={busy} onOpen={() => void work(async () => open(await studioOpen(row)))} onNewsletter={() => void navigate(`/admin/newsletters?post=${encodeURIComponent(row.slug!)}`)} onRemove={(kind) => remove(row, kind)} /></td>
             </tr>
           })}
-          {rows.length === 0 ? <tr><td colSpan={4}><div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">{section === "posts" ? <FileText className="size-6" /> : <Mail className="size-6" />}<p>{section === "posts" ? "No posts yet" : "No newsletters yet"}</p></div></td></tr> : null}
+          {rows.length === 0 ? <tr><td colSpan={4}><div className="flex flex-col items-center gap-3 py-8 text-muted-foreground">{section === "posts" ? <FileText className="size-6" /> : <Mail className="size-6" />}<p>{needle ? "Nothing matches that search" : section === "posts" ? "No posts yet" : "No newsletters yet"}</p></div></td></tr> : null}
         </tbody></table></div>
         <TablePager first={firstRow} shown={visibleRows.length} total={rows.length} page={currentPage} pages={pages} onPage={turnPage} />
       </div> : null}

@@ -495,3 +495,23 @@ test("recipient choices must come back exactly as chosen", async (t) => {
   body = { ...studioDraft, recipients: null }
   await assert.rejects(() => studioRecipients("csrf", studioDraft, ["a@example.com"]), /not confirmed/)
 })
+
+test("table sort settings read safely from the address and keep defaults out of it", () => {
+  const { readSort, readPage, nextSort } = require("../lib/desk-url.ts")
+  const keys = ["email", "status", "date"], dir = (key) => key === "date" ? "desc" : "asc"
+  assert.deepEqual(readSort(new URLSearchParams("sort=email&dir=desc"), keys, "date", dir), { key: "email", dir: "desc" })
+  assert.deepEqual(readSort(new URLSearchParams("sort=password&dir=sideways"), keys, "date", dir), { key: "date", dir: "desc" })
+  assert.equal(readPage(new URLSearchParams("page=-4")), 0)
+  assert.equal(readPage(new URLSearchParams("page=3")), 2)
+  assert.deepEqual(nextSort({ key: "date", dir: "desc" }, "email", "date", dir), { sort: "email", dir: null, page: null })
+  assert.deepEqual(nextSort({ key: "date", dir: "desc" }, "date", "date", dir), { sort: "date", dir: "asc", page: null })
+  assert.deepEqual(nextSort({ key: "date", dir: "asc" }, "date", "date", dir), { sort: null, dir: null, page: null })
+})
+
+test("sortable headers announce only the sorted column", () => {
+  const { SortHeader } = require("../components/portfolio/sort-header.tsx")
+  const on = renderToStaticMarkup(React.createElement("tr", null, React.createElement(SortHeader, { label: "Email", active: true, dir: "asc", onSort() {} })))
+  const off = renderToStaticMarkup(React.createElement("tr", null, React.createElement(SortHeader, { label: "Date", active: false, dir: "asc", onSort() {} })))
+  assert.match(on, /<th scope="col" aria-sort="ascending"><button type="button"/)
+  assert(!off.includes("aria-sort"))
+})
