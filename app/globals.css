@@ -325,7 +325,12 @@ dialog[open] {
 
 .admin-editor-scroll {
   @apply min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-8;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
+}
+
+.admin-editor-scroll::-webkit-scrollbar,
+.admin-live-preview::-webkit-scrollbar {
+  display: none;
 }
 
 /* Draft preview tabs say plainly that they are not the live page. */
@@ -350,7 +355,7 @@ dialog[open] {
 .admin-live-preview {
   @apply hidden min-h-0 min-w-0 overflow-y-auto overscroll-contain rounded-lg;
   container: live / inline-size;
-  scrollbar-gutter: stable;
+  scrollbar-width: none;
 }
 
 @container write (min-width: 56rem) {
@@ -380,16 +385,6 @@ dialog[open] {
 
 .admin-live-preview .live-page .signals {
   font-size: clamp(1.125rem, 4.2cqi, 2.05rem);
-}
-
-/* The blog pins its next-section dot to the window; here it rides the pane's
-   bottom edge, in the desk's text colour so it shows in light and dark. */
-.admin-live-preview .live-page .signals-bar {
-  position: sticky;
-}
-
-.admin-live-preview .live-page .signals-dot {
-  background: var(--foreground);
 }
 
 @container live (max-width: 30rem) {
@@ -493,9 +488,46 @@ dialog[open] {
   font-family: var(--font-display), system-ui, sans-serif;
 }
 
-/* Individual raised controls use the desk's existing button surfaces and shadow. */
+.writing-editor {
+  container: writing / inline-size;
+}
+
+/* Keep the controls on one line; secondary actions use the existing menu when
+   the editor pane is narrow, including beside a live preview. */
 .writing-toolbar {
-  @apply sticky top-0 z-10 flex flex-wrap items-center gap-2 bg-background py-2.5;
+  @apply sticky top-0 z-10 flex min-w-0 max-w-full flex-nowrap items-center gap-1 overflow-x-auto overscroll-x-contain bg-background py-2.5;
+}
+
+.writing-toolbar button {
+  @apply border-0 bg-transparent shadow-none hover:bg-transparent aria-expanded:bg-transparent dark:hover:bg-transparent;
+}
+
+.writing-toolbar :is([aria-pressed="true"], [data-active]) {
+  @apply text-primary;
+}
+
+.writing-toolbar-more {
+  @apply hidden;
+}
+
+@container writing (max-width: 40rem) {
+  .writing-toolbar-markdown .writing-toolbar-secondary {
+    @apply hidden;
+  }
+
+  .writing-toolbar-markdown .writing-toolbar-more {
+    @apply inline-flex;
+  }
+}
+
+@container writing (max-width: 30rem) {
+  .writing-toolbar-rich .writing-toolbar-secondary {
+    @apply hidden;
+  }
+
+  .writing-toolbar-rich .writing-toolbar-more {
+    @apply inline-flex;
+  }
 }
 
 .writing-block-menu {

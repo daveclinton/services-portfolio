@@ -1,6 +1,7 @@
 "use client"
 
 import { Select as SelectPrimitive } from "@base-ui/react/select"
+import type { ReactNode } from "react"
 import { Check, ChevronDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -15,15 +16,17 @@ type Props = {
   ariaLabel?: string
   className?: string
   variant?: "outline" | "ghost"
+  icon?: ReactNode
 }
 
 // Base UI owns focus, typeahead, keyboard navigation, and popup positioning.
 // https://base-ui.com/react/components/select
-export function SelectField({ id, value, options, onValueChange, disabled, placeholder, ariaLabel, className, variant = "outline" }: Props) {
+export function SelectField({ id, value, options, onValueChange, disabled, placeholder, ariaLabel, className, variant = "outline", icon }: Props) {
   return <SelectPrimitive.Root items={options} value={value} onValueChange={onValueChange} disabled={disabled}>
-    <SelectPrimitive.Trigger id={id} aria-label={ariaLabel} render={<Button variant={variant} className={cn("min-w-0 justify-between gap-2 text-caption", className)} />}>
-      <SelectPrimitive.Value className="truncate" placeholder={placeholder} />
-      <SelectPrimitive.Icon><ChevronDown className="size-4 shrink-0" /></SelectPrimitive.Icon>
+    <SelectPrimitive.Trigger id={id} aria-label={ariaLabel} render={<Button variant={variant} size={icon ? "icon" : "default"} className={cn(icon ? "text-caption" : "min-w-0 justify-between gap-2 text-caption", className)} />}>
+      {icon}
+      <SelectPrimitive.Value className={icon ? "sr-only" : "truncate"} placeholder={placeholder} />
+      {icon ? null : <SelectPrimitive.Icon><ChevronDown className="size-4 shrink-0" /></SelectPrimitive.Icon>}
     </SelectPrimitive.Trigger>
     <SelectPrimitive.Portal>
       <SelectPrimitive.Positioner align="start" sideOffset={4} alignItemWithTrigger={false} className="z-50">

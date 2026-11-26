@@ -4,15 +4,15 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type Comp
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react"
 import { BubbleMenu } from "@tiptap/react/menus"
 import DragHandle from "@tiptap/extension-drag-handle-react"
-import { Popover } from "@base-ui/react/popover"
+import { Menu } from "@base-ui/react/menu"
 import { Tabs } from "@base-ui/react/tabs"
-import { Bold, Italic, Code, Link, ImagePlus, Plus, GripVertical, Undo2, Redo2, Unlink, Trash2, Info, Upload, LoaderCircle, FileCode, PenLine, Heading, Strikethrough, Quote, List, ListOrdered, ListChecks } from "lucide-react"
+import { Bold, Italic, Code, Link, ImagePlus, GripVertical, Undo2, Redo2, Unlink, Trash2, Info, Upload, LoaderCircle, FileCode, PenLine, Heading, Strikethrough, Quote, List, ListOrdered, ListChecks, MoreHorizontal, Eye, Type } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SelectField } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { applyWritingBlock, writingBlocks, newsletterEditorExtensions, newsletterRichTextIssue, formatMarkdown, newsletterImageMarkdown, type MarkdownFormat } from "@/lib/newsletter-editor"
-import { createWritingSlash, WritingBlockLabel } from "@/components/portfolio/newsletter-command-menu"
+import { newsletterEditorExtensions, newsletterRichTextIssue, formatMarkdown, newsletterImageMarkdown, type MarkdownFormat } from "@/lib/newsletter-editor"
+import { createWritingSlash } from "@/components/portfolio/newsletter-command-menu"
 import { STUDIO_BODY_LIMIT, studioImageURL } from "@/lib/newsletter-studio"
 import { DEFAULT_FRAME, FRAME_IDS, IMAGE_FRAMES, frameOf, withFrame, withoutFrame, type ImageFrame } from "@/lib/image-frames"
 import { FramedImage } from "@/components/portfolio/framed-image"
@@ -31,10 +31,10 @@ export function NewsletterEditor({ value, disabled, onChange, onUpload, children
   // The switch sits in the sticky formatting bar at the top, reachable at any
   // scroll position, rather than after the end of a long article.
   const modeSwitch = mode === "rich"
-    ? <Button variant="outline" className="shadow-sm" disabled={disabled} onClick={() => setMode("markdown")}><FileCode /><span className="max-sm:sr-only">Edit Markdown</span></Button>
-    : <Button variant="outline" className="shadow-sm" disabled={disabled || !!issue} onClick={() => setMode("rich")}><PenLine /><span className="max-sm:sr-only">Back to editor</span></Button>
+    ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" aria-label="Edit Markdown" disabled={disabled} onClick={() => setMode("markdown")} />}><FileCode /></TooltipTrigger><TooltipContent>Edit Markdown</TooltipContent></Tooltip>
+    : <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" aria-label="Back to editor" disabled={disabled || !!issue} onClick={() => setMode("rich")} />}><PenLine /></TooltipTrigger><TooltipContent>Back to editor</TooltipContent></Tooltip>
 
-  return <section className="flex min-w-0 flex-col gap-4" aria-label="Post content">
+  return <section className="writing-editor flex min-w-0 flex-col gap-4" aria-label="Post content">
     {mode === "rich" ? <RichTextEditor value={value} disabled={disabled} onChange={onChange} onUpload={onUpload} modeSwitch={modeSwitch}>{children}</RichTextEditor> : <MarkdownEditor value={value} disabled={disabled} onChange={onChange} onUpload={onUpload} modeSwitch={modeSwitch}>{children}</MarkdownEditor>}
     <p className="text-caption text-muted-foreground">{value.trim() ? value.trim().split(/\s+/).length : 0} words</p>
     {bytes > STUDIO_BODY_LIMIT ? <p role="alert" className="text-caption text-destructive">This draft is too long to save. Remove {bytes - STUDIO_BODY_LIMIT} bytes to continue.</p> : null}
@@ -58,6 +58,16 @@ const markdownTools: { format: MarkdownFormat; label: string; icon: ComponentTyp
   { format: "orderedList", label: "Numbered list", icon: ListOrdered },
   { format: "taskList", label: "Task list", icon: ListChecks },
 ]
+
+// Tiptap's compact toolbar approach: keep primary controls visible and move
+// secondary actions into the app's existing menu on narrow editor panes.
+// https://tiptap.dev/docs/ui-components/templates/simple-editor
+function WritingMore({ children }: { children: ReactNode }) {
+  return <Menu.Root>
+    <Tooltip><TooltipTrigger render={<Menu.Trigger className="writing-toolbar-more" render={<Button variant="ghost" size="icon" aria-label="More formatting tools" />} />}><MoreHorizontal /></TooltipTrigger><TooltipContent>More formatting tools</TooltipContent></Tooltip>
+    <Menu.Portal><Menu.Positioner side="bottom" align="end" sideOffset={4} className="z-50"><Menu.Popup className="writing-block-menu" finalFocus={false}>{children}</Menu.Popup></Menu.Positioner></Menu.Portal>
+  </Menu.Root>
+}
 
 function MarkdownEditor({ value, disabled, onChange, onUpload, modeSwitch, children }: Props) {
   const id = useId()
@@ -118,16 +128,17 @@ function MarkdownEditor({ value, disabled, onChange, onUpload, modeSwitch, child
     }
   }}>
     <TooltipProvider delay={300}>
-      <div className="writing-toolbar" role="group" aria-label="Markdown formatting">
-        <Tabs.List aria-label="Markdown view" className="flex items-center gap-1">
-          <Tabs.Tab value="write" render={<Button variant={tab === "write" ? "secondary" : "outline"} className="shadow-sm" />}>Write</Tabs.Tab>
-          <Tabs.Tab value="preview" render={<Button variant={tab === "preview" ? "secondary" : "outline"} className="shadow-sm" />}>Preview</Tabs.Tab>
+      <div className="writing-toolbar writing-toolbar-markdown" role="group" aria-label="Markdown formatting">
+        <Tabs.List aria-label="Markdown view" className="flex shrink-0 items-center gap-1">
+          <Tooltip><TooltipTrigger render={<Tabs.Tab value="write" aria-label="Write" render={<Button variant="ghost" size="icon" />} />}><FileCode /></TooltipTrigger><TooltipContent>Write</TooltipContent></Tooltip>
+          <Tooltip><TooltipTrigger render={<Tabs.Tab value="preview" aria-label="Preview" render={<Button variant="ghost" size="icon" />} />}><Eye /></TooltipTrigger><TooltipContent>Preview</TooltipContent></Tooltip>
         </Tabs.List>
         {markdownTools.map(({ format: kind, label, icon: Icon }) => <Tooltip key={kind}>
-          <TooltipTrigger render={<Button size="icon" variant="outline" className="shadow-sm" aria-label={label} disabled={locked || tab !== "write"} onMouseDown={(event) => event.preventDefault()} onClick={() => format(kind)} />}><Icon /></TooltipTrigger>
+          <TooltipTrigger render={<Button size="icon" variant="ghost" className={["bold", "italic", "link"].includes(kind) ? undefined : "writing-toolbar-secondary"} aria-label={label} disabled={locked || tab !== "write"} onMouseDown={(event) => event.preventDefault()} onClick={() => format(kind)} />}><Icon /></TooltipTrigger>
           <TooltipContent>{label}</TooltipContent>
         </Tooltip>)}
-        <div className="ml-auto">{modeSwitch}</div>
+        <WritingMore>{markdownTools.filter(({ format }) => !["bold", "italic", "link"].includes(format)).map(({ format: kind, label, icon: Icon }) => <Menu.Item key={kind} className="admin-menu-item" disabled={locked || tab !== "write"} onClick={() => format(kind)}><Icon className="size-4" />{label}</Menu.Item>)}</WritingMore>
+        <div className="ml-auto shrink-0">{modeSwitch}</div>
       </div>
     </TooltipProvider>
     {children}
@@ -182,7 +193,6 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch, child
   const uploadVersion = useRef(0)
   const [uploading, setUploading] = useState(false)
   const extensions = useMemo(() => [...newsletterEditorExtensions, createWritingSlash(() => imageAction.current?.())], [])
-  const [blockPicker, setBlockPicker] = useState(false)
   const [blockPosition, setBlockPosition] = useState(-1)
   const [insert, setInsert] = useState<"link" | "image" | null>(null)
   const [url, setURL] = useState("")
@@ -308,36 +318,30 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch, child
 
   function formatButtons(bubble = false) {
     return controls.filter((control) => !bubble || !["Undo", "Redo"].includes(control.label)).map(({ label, icon: Icon, active, enabled, run }) => <Tooltip key={label}>
-      <TooltipTrigger render={<Button size="icon" variant={active ? "default" : bubble ? "ghost" : "outline"} className={bubble ? undefined : "shadow-sm"} aria-label={label} aria-pressed={active} disabled={!editor || disabled || enabled === false} onMouseDown={(event) => event.preventDefault()} onClick={run} />}><Icon /></TooltipTrigger>
+      <TooltipTrigger render={<Button size="icon" variant="ghost" className={bubble ? active ? "text-primary" : undefined : ["Undo", "Redo"].includes(label) ? "writing-toolbar-secondary" : undefined} aria-label={label} aria-pressed={active} disabled={!editor || disabled || enabled === false} onMouseDown={(event) => event.preventDefault()} onClick={run} />}><Icon /></TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>)
   }
 
   return <div className="relative min-w-0">
     <TooltipProvider delay={300}>
-      <div className="writing-toolbar" role="group" aria-label="Text formatting">
+      <div className="writing-toolbar writing-toolbar-rich" role="group" aria-label="Text formatting">
         <label htmlFor={`${id}-style`} className="sr-only">Text style</label>
-        <SelectField id={`${id}-style`} ariaLabel="Text style" className="shadow-sm" disabled={!editor || disabled} value={state?.heading ?? "paragraph"} onValueChange={(value) => {
+        <SelectField id={`${id}-style`} ariaLabel="Text style" variant="ghost" icon={state?.heading && state.heading !== "paragraph" ? <Heading /> : <Type />} disabled={!editor || disabled} value={state?.heading ?? "paragraph"} onValueChange={(value) => {
           if (value === "paragraph") editor?.chain().focus().setParagraph().run()
           else if (value) editor?.chain().focus().setHeading({ level: Number(value) as 1 | 2 | 3 | 4 | 5 | 6 }).run()
         }} options={[{ value: "paragraph", label: "Paragraph" }, ...[1, 2, 3, 4, 5, 6].map((level) => ({ value: String(level), label: `Heading ${level}` }))]} />
         {formatButtons()}
-        <Button variant={state?.link ? "default" : "outline"} className="shadow-sm" disabled={!editor || disabled} onClick={(event) => openInsert("link", event.currentTarget)}><Link />Link</Button>
-        <Button ref={imageTrigger} variant={state?.image ? "default" : "outline"} className="shadow-sm" disabled={!editor || disabled} onClick={(event) => openInsert("image", event.currentTarget)}><ImagePlus />Image</Button>
-        <Popover.Root open={blockPicker} onOpenChange={setBlockPicker}>
-          <Popover.Trigger render={<Button variant="outline" className="shadow-sm" disabled={!editor || disabled} />}><Plus />Insert block</Popover.Trigger>
-          <Popover.Portal><Popover.Positioner side="bottom" align="start" sideOffset={4} className="z-50"><Popover.Popup className="writing-block-menu" finalFocus={false}>
-            <Popover.Title className="px-2.5 py-2 text-caption text-muted-foreground">Add a block</Popover.Title>
-            {writingBlocks.map((item) => <button key={item.id} type="button" className="flex w-full items-center gap-3 rounded-lg p-2.5 text-left hover:bg-muted focus-visible:bg-muted" onClick={() => {
-              setBlockPicker(false)
-              if (item.id === "image") openInsert("image", imageTrigger.current)
-              else if (editor) { editor.commands.focus(); applyWritingBlock(editor, item.id) }
-            }}><WritingBlockLabel item={item} /></button>)}
-          </Popover.Popup></Popover.Positioner></Popover.Portal>
-        </Popover.Root>
-        {state?.link ? <Button variant="outline" className="shadow-sm" aria-label="Remove link" disabled={disabled} onClick={() => editor?.chain().focus().extendMarkRange("link").unsetLink().run()}><Unlink />Remove link</Button> : null}
-        <div className="ml-auto flex items-center gap-1">{modeSwitch}</div>
-        <Tooltip><TooltipTrigger render={<Button variant="outline" className="shadow-sm" size="icon" aria-label="Editor help" />}><Info /></TooltipTrigger><TooltipContent>Type / to insert blocks. Select text to format it. Drag the handle to reorder.</TooltipContent></Tooltip>
+        <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" aria-label="Link" aria-pressed={state?.link} disabled={!editor || disabled} onClick={(event) => openInsert("link", event.currentTarget)} />}><Link /></TooltipTrigger><TooltipContent>Link</TooltipContent></Tooltip>
+        <Tooltip><TooltipTrigger render={<Button ref={imageTrigger} variant="ghost" size="icon" className="writing-toolbar-secondary" aria-label="Image" aria-pressed={state?.image} disabled={!editor || disabled} onClick={(event) => openInsert("image", event.currentTarget)} />}><ImagePlus /></TooltipTrigger><TooltipContent>Image</TooltipContent></Tooltip>
+        {state?.link ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" className="writing-toolbar-secondary" aria-label="Remove link" disabled={disabled} onClick={() => editor?.chain().focus().extendMarkRange("link").unsetLink().run()} />}><Unlink /></TooltipTrigger><TooltipContent>Remove link</TooltipContent></Tooltip> : null}
+        <WritingMore>
+          {controls.filter(({ label }) => ["Undo", "Redo"].includes(label)).map(({ label, icon: Icon, enabled, run }) => <Menu.Item key={label} className="admin-menu-item" disabled={!editor || disabled || enabled === false} onClick={run}><Icon className="size-4" />{label}</Menu.Item>)}
+          <Menu.Item className="admin-menu-item" disabled={!editor || disabled} onClick={() => openInsert("image", null)}><ImagePlus className="size-4" />Image</Menu.Item>
+          {state?.link ? <Menu.Item className="admin-menu-item" disabled={disabled} onClick={() => editor?.chain().focus().extendMarkRange("link").unsetLink().run()}><Unlink className="size-4" />Remove link</Menu.Item> : null}
+        </WritingMore>
+        <div className="ml-auto shrink-0">{modeSwitch}</div>
+        <Tooltip><TooltipTrigger render={<Button variant="ghost" className="writing-toolbar-secondary" size="icon" aria-label="Editor help" />}><Info /></TooltipTrigger><TooltipContent>Type / to insert blocks. Select text to format it. Drag the handle to reorder.</TooltipContent></Tooltip>
       </div>
       {editor ? <>
         <BubbleMenu editor={editor} pluginKey="writing-format-menu" className="writing-floating-toolbar" options={{ placement: "top" }} shouldShow={({ editor, state, view }) => editor.isEditable && (view.hasFocus() || !!document.activeElement?.closest(".writing-floating-toolbar")) && !state.selection.empty && !editor.isActive("image")}>

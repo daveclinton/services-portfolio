@@ -26,7 +26,7 @@ export const LiveArticle = forwardRef<HTMLElement, Props>(function LiveArticle({
           <p className="signal-meta mt-4"><time dateTime={day}>{formatPostDate(day)}</time> · {minutes} min read</p>
           {liveDescription.trim() ? <p className="signal-meta mt-4">{liveDescription}</p> : null}
         </header>
-        {sections.length ? <Signals id="live-article" addressMode="none" changeTone={false} listPath="" basePath="" footer={null}
+        {sections.length ? <Signals id="live-article" addressMode="none" changeTone={false} showNext={false} listPath="" basePath="" footer={null}
           items={sections.map((section) => ({ slug: section.id, title: section.title, body: <div className="blog-prose"><PostMarkdown markdown={section.markdown} /></div> }))} />
           : <p className="signal-meta mt-8">Start writing to see the article here.</p>}
       </article>

@@ -325,6 +325,7 @@ test("the editor and live view have independent scroll regions", async () => {
   for (const selector of ["admin-editor-scroll", "admin-live-preview"]) {
     const rule = css.match(new RegExp(`\\.${selector} \\{([^}]+)\\}`))[1]
     assert(rule.includes("overflow-y-auto") && rule.includes("overscroll-contain"), `${selector} contains its own scrolling`)
+    assert(rule.includes("scrollbar-width: none"), `${selector} scrolls without a visible scrollbar`)
   }
 })
 
