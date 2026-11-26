@@ -84,7 +84,7 @@ export function ContactsDesk({ query = EMPTY_QUERY }: { query?: DeskQuery }) {
               {rows.length === 0 ? <tr><td colSpan={3}><div className="flex flex-col items-center gap-3 py-8 text-muted-foreground"><Users className="size-6" /><p>{needle ? "No contacts match that search" : "No contacts yet"}</p></div></td></tr> : null}
             </tbody></table></div>
             <TablePager first={first} shown={visible.length} total={rows.length} page={current} pages={pages} onPage={(next) => { setDeskQuery({ page: next > 0 ? String(next + 1) : null }); if (scroller.current) scroller.current.scrollTop = 0 }} />
-          </> : <div role="status" aria-label="Loading contacts" className="min-h-0 flex-1 overflow-hidden px-4">{[0, 1, 2, 3, 4, 5, 6, 7].map((row) => <div key={row} className="flex items-center gap-4 border-b border-border py-4 last:border-0"><Skeleton className="h-4 flex-1" /><Skeleton className="h-5 w-24" /><Skeleton className="hidden h-4 w-24 sm:block" /></div>)}</div>}
+          </> : <div role="status" aria-label="Loading contacts" className="min-h-0 flex-1 overflow-hidden px-4">{[0, 1, 2, 3, 4, 5, 6, 7].map((row) => <div key={row} className="flex items-center gap-4 py-4"><Skeleton className="h-4 flex-1" /><Skeleton className="h-5 w-24" /><Skeleton className="hidden h-4 w-24 sm:block" /></div>)}</div>}
         </div>
       </> : null}
     </article>

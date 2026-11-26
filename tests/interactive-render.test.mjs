@@ -530,3 +530,34 @@ test("phones keep document actions in the header and the date beside each title"
   const list = renderToStaticMarkup(React.createElement(AdminShell, { section: "posts", title: "Posts", session: { authenticated: true, login: "owner" }, loading: false, busy: false, onNavigate: async () => {}, onLogout() {} }, "Body"))
   assert(!/max-sm:sr-only[^>]*>Posts/.test(list), "list pages keep their title on phones")
 })
+
+test("Markdown editing keeps its switch in the top bar and drops the separate formatted preview", () => {
+  const { NewsletterEditor } = require("../components/portfolio/newsletter-editor.tsx")
+  const html = renderToStaticMarkup(React.createElement(NewsletterEditor, { value: "<div>raw</div>", disabled: false, onChange() {} }))
+  assert(html.includes('aria-label="Markdown"'), "Markdown mode has its own sticky bar")
+  assert(html.indexOf("Back to editor") < html.indexOf("<textarea"), "the switch comes before the text, not after it")
+  assert.match(html, /disabled=""[^>]*>[^]*Back to editor/, "raw HTML keeps the draft in Markdown until it is removed")
+  assert(html.includes("raw HTML"))
+  assert(!html.includes("Formatted preview"))
+})
+
+test("the desktop sidebar collapses to icons and keeps labels for assistive technology", () => {
+  const html = renderToStaticMarkup(React.createElement(AdminShell, { section: "posts", session: { authenticated: true, login: "owner" }, loading: false, busy: false, onNavigate: async () => {}, onLogout() {} }, "Body"))
+  assert.match(html, /aria-label="Collapse sidebar" aria-controls="admin-sidebar" aria-expanded="true"/)
+  assert(html.includes('id="admin-sidebar"'))
+  assert.match(html, /<span class="admin-sidebar-text">Posts<\/span>/)
+  const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+  assert.match(css, /\[data-desk-sidebar="collapsed"\] \.admin-sidebar \.admin-sidebar-text \{\s*@apply sr-only;/)
+  const layout = readFileSync(new URL("../app/(desk)/admin/layout.tsx", import.meta.url), "utf8")
+  assert(layout.includes('localStorage.getItem("desk-sidebar")'), "the saved width applies before the desk paints")
+})
+
+test("the draft preview page uses the public article layout and says it is a preview", () => {
+  const { DraftPreview } = require("../components/portfolio/draft-preview.tsx")
+  const { PathnameContext } = require("next/dist/shared/lib/hooks-client-context.shared-runtime.js")
+  const html = renderToStaticMarkup(React.createElement(AppRouterContext.Provider, { value: { push() {}, prefetch() {} } }, React.createElement(PathnameContext.Provider, { value: "/p/a5cd8282-68f1-4b4a-9c19-000000000001" }, React.createElement(DraftPreview, { id: "a5cd8282-68f1-4b4a-9c19-000000000001" }))))
+  assert(html.includes('class="preview-banner"'))
+  assert(html.includes("Not published yet"))
+  assert(html.includes('class="page numbered"'))
+  assert(html.includes('aria-label="Loading preview"'))
+})

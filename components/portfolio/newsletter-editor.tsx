@@ -1,22 +1,21 @@
 "use client"
 
-import { useEffect, useId, useMemo, useRef, useState, type ComponentType } from "react"
+import { useEffect, useId, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react"
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react"
 import { BubbleMenu } from "@tiptap/react/menus"
 import DragHandle from "@tiptap/extension-drag-handle-react"
 import { Popover } from "@base-ui/react/popover"
-import { Bold, Italic, Code, Link, ImagePlus, Plus, GripVertical, Undo2, Redo2, Unlink, Trash2, Info, Upload, LoaderCircle } from "lucide-react"
+import { Bold, Italic, Code, Link, ImagePlus, Plus, GripVertical, Undo2, Redo2, Unlink, Trash2, Info, Upload, LoaderCircle, FileCode, PenLine } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SelectField } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Markdown } from "@/components/prompt-kit/markdown"
 import { applyWritingBlock, writingBlocks, newsletterEditorExtensions, newsletterRichTextIssue } from "@/lib/newsletter-editor"
 import { createWritingSlash, WritingBlockLabel } from "@/components/portfolio/newsletter-command-menu"
 import { STUDIO_BODY_LIMIT, studioImageURL } from "@/lib/newsletter-studio"
 import { focusElement } from "@/lib/scroll"
 
-type Props = { value: string; disabled: boolean; onChange: (value: string) => void; onUpload?: (file: File) => Promise<string> }
+type Props = { value: string; disabled: boolean; onChange: (value: string) => void; onUpload?: (file: File) => Promise<string>; modeSwitch?: ReactNode }
 
 // Novel's document canvas, slash commands, contextual formatting, and handles.
 // https://github.com/steven-tey/novel/tree/main/apps/web/components/tailwind
@@ -25,22 +24,29 @@ export function NewsletterEditor({ value, disabled, onChange, onUpload }: Props)
   const issue = newsletterRichTextIssue(value)
   const bytes = new TextEncoder().encode(value).length
 
+  // The switch sits in the sticky formatting bar at the top, reachable at any
+  // scroll position, rather than after the end of a long article.
+  const modeSwitch = mode === "rich"
+    ? <Button variant="ghost" disabled={disabled} onClick={() => setMode("markdown")}><FileCode /><span className="max-sm:sr-only">Edit Markdown</span></Button>
+    : <Button variant="ghost" disabled={disabled || !!issue} onClick={() => setMode("rich")}><PenLine /><span className="max-sm:sr-only">Back to editor</span></Button>
+
   return <section className="flex min-w-0 flex-col gap-4" aria-label="Post content">
-    {issue ? <p className="text-caption text-muted-foreground">{issue}</p> : null}
-    {mode === "rich" ? <RichTextEditor value={value} disabled={disabled} onChange={onChange} onUpload={onUpload} /> : <>
+    {mode === "rich" ? <RichTextEditor value={value} disabled={disabled} onChange={onChange} onUpload={onUpload} modeSwitch={modeSwitch} /> : <>
+      <div className="glass-surface sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-lg px-2.5 py-2.5" role="group" aria-label="Markdown">
+        <p className="text-caption text-muted-foreground">Markdown</p>
+        <div className="ml-auto">{modeSwitch}</div>
+      </div>
+      {issue ? <p role="status" className="text-caption text-muted-foreground">{issue}</p> : null}
       <label htmlFor="newsletter-markdown" className="sr-only">Post Markdown</label>
-      <textarea id="newsletter-markdown" rows={14} className="min-h-96 w-full resize-y rounded-2xl border border-input bg-background p-4 font-mono text-body outline-none focus-visible:ring-3 focus-visible:ring-ring/20" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
-      <details className="rounded-lg border border-border p-4"><summary className="cursor-pointer text-caption">Formatted preview</summary><Markdown className="mt-4">{value || "Your post will appear here."}</Markdown></details>
+      {/* Grows with the text, so the page scrolls once instead of a box inside it. */}
+      <textarea id="newsletter-markdown" rows={14} spellCheck className="min-h-96 w-full resize-none bg-transparent pl-8 font-mono text-body leading-7 outline-none [field-sizing:content]" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
     </>}
-    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
-      <p className="text-caption text-muted-foreground">{value.trim() ? value.trim().split(/\s+/).length : 0} words</p>
-      <Button size="sm" variant="ghost" disabled={disabled || (mode === "markdown" && !!issue)} onClick={() => setMode(mode === "rich" ? "markdown" : "rich")}>{mode === "rich" ? "Edit Markdown" : "Back to editor"}</Button>
-    </div>
+    <p className="text-caption text-muted-foreground">{value.trim() ? value.trim().split(/\s+/).length : 0} words</p>
     {bytes > STUDIO_BODY_LIMIT ? <p role="alert" className="text-caption text-destructive">This draft is too long to save. Remove {bytes - STUDIO_BODY_LIMIT} bytes to continue.</p> : null}
   </section>
 }
 
-function RichTextEditor({ value, disabled, onChange, onUpload }: Props) {
+function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch }: Props) {
   const id = useId()
   const [initial] = useState(value)
   const emitted = useRef(value)
@@ -203,7 +209,8 @@ function RichTextEditor({ value, disabled, onChange, onUpload }: Props) {
           </Popover.Popup></Popover.Positioner></Popover.Portal>
         </Popover.Root>
         {state?.link ? <Button variant="ghost" aria-label="Remove link" disabled={disabled} onClick={() => editor?.chain().focus().extendMarkRange("link").unsetLink().run()}><Unlink />Remove link</Button> : null}
-        <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" className="ml-auto" aria-label="Editor help" />}><Info /></TooltipTrigger><TooltipContent>Type / to insert blocks. Select text to format it. Drag the handle to reorder.</TooltipContent></Tooltip>
+        <div className="ml-auto flex items-center gap-1">{modeSwitch}</div>
+        <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" aria-label="Editor help" />}><Info /></TooltipTrigger><TooltipContent>Type / to insert blocks. Select text to format it. Drag the handle to reorder.</TooltipContent></Tooltip>
       </div>
       {editor ? <>
         <BubbleMenu editor={editor} pluginKey="writing-format-menu" className="writing-floating-toolbar" options={{ placement: "top" }} shouldShow={({ editor, state, view }) => editor.isEditable && (view.hasFocus() || !!document.activeElement?.closest(".writing-floating-toolbar")) && !state.selection.empty && !editor.isActive("image")}>

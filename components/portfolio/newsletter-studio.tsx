@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useDeferredValue, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -15,11 +15,11 @@ import { SelectField } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { FileText, Mail, Search, PenLine, Columns2, BookOpen, Plus, Info, LoaderCircle, X, ExternalLink, Send, Check, Monitor, Smartphone } from "lucide-react"
+import { FileText, Mail, Search, Plus, Info, LoaderCircle, X, ExternalLink, Send, Check, Monitor, Smartphone } from "lucide-react"
 import { site } from "@/lib/portfolio-data"
 import {
   studioDraft, studioRecipients, studioContacts, studioBootstrap, studioCachedDesk, studioUpdateDesk, studioOpen, studioWarm, studioRemove, studioCreate, studioSave, studioPreview, studioMeta, studioAction, studioLogout, studioFromPost, studioPublish, studioUpload,
-  studioLoginURL, nairobiSchedule, newsletterStateLabel, STUDIO_SUBJECT_LIMIT, STUDIO_BODY_LIMIT,
+  studioLoginURL, announceSaved, previewPath, nairobiSchedule, newsletterStateLabel, STUDIO_SUBJECT_LIMIT, STUDIO_BODY_LIMIT,
   type NewsletterDraft, type StudioSession, type StudioMeta, type PublishedStudioPost, type StudioRemoval, type AdminDesk, type StudioContact,
 } from "@/lib/newsletter-studio"
 
@@ -35,9 +35,6 @@ const surfaceClass = "glass-surface rounded-2xl border border-input p-2.5 focus-
 const SORT_KEYS = ["title", "status", "date"] as const
 type SortKey = typeof SORT_KEYS[number]
 const sortDefault = (key: SortKey): SortDir => key === "date" ? "desc" : "asc"
-// Two readable columns need about 56rem; narrower screens switch between them.
-const SPLIT_MIN_WIDTH = 896
-type Pane = "write" | "split" | "preview"
 
 export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY_QUERY }: { section?: "posts" | "newsletters"; initialPost?: string; query?: DeskQuery }) {
   const router = useRouter()
@@ -77,11 +74,6 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const startPost = useRef(initialPost)
   const actionPending = useRef(false)
   const tableScroll = useRef<HTMLDivElement>(null)
-  const writeArea = useRef<HTMLDivElement>(null)
-  const [wide, setWide] = useState(true)
-  // The live view trails typing slightly so long articles never slow the editor.
-  const liveSubject = useDeferredValue(subject)
-  const liveMarkdown = useDeferredValue(markdown)
   // Lists changed on this screen win over responses that were already in flight.
   const listVersion = useRef(0)
 
@@ -126,16 +118,6 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
     else if (stage !== "loading") focusElement(heading.current)
   }, [stage, busy])
 
-  // Split needs room for two readable columns, measured on the desk itself
-  // rather than the window, since the sidebar takes part of the screen.
-  useEffect(() => {
-    const area = writeArea.current
-    if (stage !== "write" || !area || typeof ResizeObserver === "undefined") return
-    const observer = new ResizeObserver(([entry]) => setWide(entry.contentRect.width >= SPLIT_MIN_WIDTH))
-    observer.observe(area)
-    return () => observer.disconnect()
-  }, [stage])
-
   // Back, Forward, reloads and shared links drive the desk through ?doc and ?view.
   const docParam = query.get("doc")
   const viewParam = query.get("view")
@@ -153,13 +135,14 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
         if (home !== section) { router.replace(`/admin/${home}?doc=${d.id}${viewParam ? `&view=${viewParam}` : ""}`); return }
         if (open) put(open)
         openRef.current(d, "none")
-        if (viewParam === "preview" && ["draft", "error"].includes(d.state)) await previewRef.current(false)
+        if (viewParam === "preview" && section === "newsletters" && ["draft", "error"].includes(d.state)) await previewRef.current(false)
       })
     } else if (!docParam && open && stage !== "list") {
       void work(closeRef.current)
     } else if (docParam && open?.id === docParam) {
-      if (viewParam === "preview" && stage === "write") void work(() => previewRef.current(false))
-      else if (!viewParam && ["preview", "publish-url", "publish-summary", "publish-review", "delivery", "confirm"].includes(stage) && editable) setStage("write")
+      if (viewParam === "preview" && section === "posts") setDeskQuery({ view: null })
+      else if (viewParam === "preview" && stage === "write") void work(() => previewRef.current(false))
+      else if (!viewParam && ["preview", "delivery", "confirm"].includes(stage) && editable) setStage("write")
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the handlers are read through refs
   }, [ready, docParam, viewParam, stage, section])
@@ -175,6 +158,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
         const result = await studioSave(session.csrf, draft, snapshot.subject, snapshot.markdown)
         if (!mounted.current || currentRef.current?.id !== draft.id) throw new Error("Reopen this draft before continuing.")
         accept(result)
+        announceSaved(result.id)
         setSaved(text.current.subject.trim() === result.subject && text.current.markdown === result.markdown ? "saved" : "unsaved")
         return result
       } catch (failure) { if (mounted.current) setSaved("error"); throw failure }
@@ -295,6 +279,20 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
     if (record && currentRef.current) setDeskQuery({ doc: currentRef.current.id, view: "preview" }, "push")
     if (section === "newsletters") await previewEmail()
   }
+  // Ghost's Preview: the real public layout in its own tab. The tab opens during
+  // the click so browsers allow it, then loads once the latest text is saved.
+  function openPreviewTab() {
+    const draft = currentRef.current
+    if (!draft) return
+    const tab = window.open("", "_blank")
+    void work(async () => {
+      try {
+        await save()
+        if (tab) { tab.opener = null; tab.location.href = previewPath(draft.id) }
+        else setNotice("Your browser blocked the preview tab. Allow pop-ups for this site, or open the preview link.")
+      } catch (failure) { tab?.close(); throw failure }
+    })
+  }
   async function preparePublish() {
     const draft=await save()
     setSlug(draft.slug || draft.subject.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0,160).replace(/-$/,""))
@@ -350,11 +348,6 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const publishedDates = new Map(publishedPosts.map((post) => [post.slug, post.date]))
   // A published article is dated by its publication, everything else by its last edit.
   const dateOf = (d: NewsletterDraft) => d.published_revision && d.published_revision === d.revision && d.slug ? publishedDates.get(d.slug) ?? d.updated_at : d.updated_at
-  // Split is the default; the choice lives in ?pane so it survives reloads.
-  const requestedPane = query.get("pane")
-  const chosenPane: Pane = requestedPane === "write" || requestedPane === "preview" ? requestedPane : "split"
-  const pane: Pane = chosenPane === "split" && !wide ? "write" : chosenPane
-  const choosePane = (next: Pane) => setDeskQuery({ pane: next === "split" || (next === "write" && !wide && chosenPane === "split") ? null : next })
   const sort = readSort(query, SORT_KEYS, "date", sortDefault)
   const search = query.get("q") ?? ""
   const needle = search.trim().toLowerCase()
@@ -374,8 +367,9 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
 
   return (
     <AdminShell section={section} title={title} session={session} loading={stage === "loading"} busy={busy} editing={stage === "write" || listing} compactTitle={!listing && stage !== "signin"} onNavigate={navigate} onLogout={() => void work(logout)} actions={<>
-      {stage === "write" ? <Button size="sm" disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(preview)}>Preview</Button> : null}
-      {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setStage("write"); leaveDeskQuery({ view: null }) }}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(preparePublish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : meta ? <><Button size="sm" variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}><Send /><span className="max-sm:sr-only">Send test</span></Button><Button size="sm" disabled={busy} onClick={openDelivery}>Continue</Button></> : null}</> : null}
+      {stage === "write" && section === "posts" ? <><Button size="sm" variant="outline" disabled={busy || !current} onClick={openPreviewTab}><ExternalLink /><span className="max-sm:sr-only">Preview</span><span className="sr-only"> (opens in a new tab)</span></Button><Button size="sm" disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(preparePublish)}>{current?.published_revision ? "Update" : "Publish"}</Button></> : null}
+      {stage === "write" && section === "newsletters" ? <Button size="sm" disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(preview)}>Preview</Button> : null}
+      {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setStage("write"); leaveDeskQuery({ view: null }) }}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(preparePublish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : meta ? <><Button size="sm" variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}><Send />Send test</Button><Button size="sm" disabled={busy} onClick={openDelivery}>Continue</Button></> : null}</> : null}
       {!["loading","signin","list"].includes(stage) ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" disabled={busy} aria-label="Save and close" onClick={() => void work(backToList)} />}><X /></TooltipTrigger><TooltipContent>Save and close</TooltipContent></Tooltip> : null}
       {stage === "list" ? <>{error ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void work(backToList)}>Reload</Button> : null}<Button size="sm" disabled={busy} onClick={() => void work(section === "posts" ? newPost : newNewsletter)}><Plus />{section === "posts" ? "New post" : "New newsletter"}</Button></> : null}
       {["write", "preview", "published"].includes(stage) && current ? <DocumentActions document={current} busy={busy} onNewsletter={() => void navigate(`/admin/newsletters?post=${encodeURIComponent(current.slug!)}`)} onRemove={(kind) => remove(current, kind)} /> : null}
@@ -385,7 +379,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
       {error ? <p role="alert" className="text-body text-destructive">{error}</p> : null}
       {notice ? <p role="status" className="text-body">{notice}</p> : null}
       {stage === "loading" ? <section role="status" aria-label={section === "posts" ? "Loading posts" : "Loading newsletters"} className="admin-table-frame">
-        <div className="min-h-0 flex-1 overflow-hidden px-4">{[0, 1, 2, 3, 4, 5, 6, 7].map((row) => <div key={row} className="flex items-center gap-4 border-b border-border py-4 last:border-0"><Skeleton className="h-4 flex-1" /><Skeleton className="h-5 w-16" /><Skeleton className="hidden h-4 w-24 sm:block" /></div>)}</div>
+        <div className="min-h-0 flex-1 overflow-hidden px-4">{[0, 1, 2, 3, 4, 5, 6, 7].map((row) => <div key={row} className="flex items-center gap-4 py-4"><Skeleton className="h-4 flex-1" /><Skeleton className="h-5 w-16" /><Skeleton className="hidden h-4 w-24 sm:block" /></div>)}</div>
       </section> : null}
       {stage === "signin" ? <div className="flex flex-col gap-4">
         <p className="text-body">{session?.configured === false ? "This writing desk hasn’t been enabled yet." : "Sign in to work on your posts."}</p>
@@ -423,30 +417,15 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
       </form> : null}
       {stage === "write" ? <>
         <div className="flex flex-wrap items-center justify-between gap-2 text-caption text-muted-foreground">
-          <div className="flex min-w-0 flex-wrap items-center gap-3">
-            {/* The view switch sits with the document status, right above the panes it controls. */}
-            <div className="flex gap-1" role="group" aria-label="Editor layout">
-              <Button size="sm" variant={pane === "write" ? "secondary" : "ghost"} aria-pressed={pane === "write"} onClick={() => choosePane("write")}><PenLine />Write</Button>
-              {wide ? <Button size="sm" variant={pane === "split" ? "secondary" : "ghost"} aria-pressed={pane === "split"} onClick={() => choosePane("split")}><Columns2 />Split</Button> : null}
-              <Button size="sm" variant={pane === "preview" ? "secondary" : "ghost"} aria-pressed={pane === "preview"} onClick={() => choosePane("preview")}><BookOpen />Live view</Button>
-            </div>
-            <p className="max-sm:hidden">{section === "posts" ? current?.published_revision ? "Published · Editing draft" : "Draft post" : "Draft newsletter"}</p>
-          </div>
+          <p>{section === "posts" ? current?.published_revision ? "Published · Editing draft" : "Draft post" : "Draft newsletter"}</p>
           <div className="flex items-center gap-2">{saved === "saving" ? <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" /> : null}<p role="status">{saved === "saving" ? "Saving…" : saved === "error" ? "Changes not saved" : dirty ? "Unsaved changes" : "Saved"}</p>{saved === "error" ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void work(async () => { await save() })}>Retry save</Button> : null}</div>
         </div>
-        <div ref={writeArea} className="admin-write-area">
-        {/* The editor stays mounted while hidden, so its undo history survives. */}
-        <div className={pane === "preview" ? "hidden" : "admin-editor-scroll"} role="region" aria-label="Article editor" tabIndex={0}>
+        <div className="admin-editor-scroll" role="region" aria-label="Article editor" tabIndex={0}>
         <div className="flex flex-col gap-2">
           <label htmlFor="post-title" className="sr-only">Post title</label>
           <textarea ref={subjectInput} id="post-title" rows={2} className="studio-title w-full resize-none bg-transparent pl-8 font-bold text-foreground outline-none" value={subject} required maxLength={STUDIO_SUBJECT_LIMIT} disabled={busy} placeholder="Untitled post" onChange={(event) => { const value = event.target.value.replace(/[\r\n]+/g, " "); text.current.subject = value; setSubject(value); setSaved("unsaved") }} />
         </div>
         <NewsletterEditor key={current?.id} value={markdown} disabled={busy} onUpload={(file) => studioUpload(session!.csrf,file)} onChange={(value) => { text.current.markdown = value; setMarkdown(value); setSaved("unsaved") }} />
-        </div>
-        {pane !== "write" ? <section className="admin-live-preview" aria-label="Live view" tabIndex={0}>
-          <h2 className="studio-title font-bold">{liveSubject || "Untitled post"}</h2>
-          {liveMarkdown.trim() ? <Markdown className="mt-6">{liveMarkdown}</Markdown> : <p className="mt-6 text-body text-muted-foreground">Start writing to see it here.</p>}
-        </section> : null}
         </div>
       </> : null}
       {stage === "preview" ? <>
@@ -470,7 +449,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
       {stage === "publish-url" || stage === "publish-summary" ? <form className="flex max-w-(--measure) flex-col gap-6" onSubmit={(event)=>{event.preventDefault();setStage(stage==="publish-url" ? "publish-summary" : "publish-review")}}>
         <p className="text-caption text-muted-foreground">{stage==="publish-url" ? "1" : "2"} of 3</p>
         {stage==="publish-url" ? <><label htmlFor="post-slug" className="text-body">Post URL</label><div className={surfaceClass}><input id="post-slug" className={inputClass} value={slug} onChange={(event)=>setSlug(event.target.value)} required maxLength={160} pattern="[a-z0-9]+(-[a-z0-9]+)*" autoCapitalize="none" autoCorrect="off" spellCheck={false} disabled={busy}/></div><p className="break-all text-caption text-muted-foreground">{site.url}/blog/{slug}</p></> : <><label htmlFor="post-summary" className="text-body">Summary</label><div className={surfaceClass}><textarea id="post-summary" className={inputClass} rows={4} value={description} onChange={(event)=>setDescription(event.target.value)} required maxLength={300} disabled={busy}/></div><p className="text-caption text-muted-foreground">{description.length}/300</p></>}
-        <div className="flex gap-2"><Button type="submit" disabled={busy || (stage==="publish-summary" && !description.trim())}>{stage==="publish-url" ? "Next" : "Review"}</Button><Button type="button" variant="ghost" onClick={()=>setStage(stage==="publish-summary" && !current?.slug ? "publish-url" : "preview")}>Back</Button></div>
+        <div className="flex gap-2"><Button type="submit" disabled={busy || (stage==="publish-summary" && !description.trim())}>{stage==="publish-url" ? "Next" : "Review"}</Button><Button type="button" variant="ghost" onClick={()=>setStage(stage==="publish-summary" && !current?.slug ? "publish-url" : "write")}>Back</Button></div>
       </form> : null}
       {stage === "publish-review" ? <div className="flex max-w-(--measure) flex-col gap-6">
         <p className="text-caption text-muted-foreground">3 of 3</p><h2 className="text-title font-semibold">{subject}</h2><p className="text-body">{description}</p><p className="break-all text-caption text-muted-foreground">{site.url}/blog/{slug}</p>

@@ -10,8 +10,8 @@ const published = { slug: "a-published-post", title: "An existing article", desc
 const baseDraft = { id: "a5cd8282-68f1-4b4a-9c19-000000000001", subject: published.title, markdown: "", revision: 1, state: "draft", campaign_id: 0, scheduled_at: null, tested_revision: 0, last_error: "", updated_at: "2026-11-25T09:00:00Z" }
 const settle = () => new Promise((resolve) => setImmediate(resolve))
 
-function desk({ failSave = false, section = "newsletters", drafts = [], cached, failRemove = false, allowSend = false, search = "", openDraft, width } = {}) {
-  const slots = [], effects = [], calls = [], host = new Map()
+function desk({ failSave = false, section = "newsletters", drafts = [], cached, failRemove = false, allowSend = false, search = "", openDraft, width, blockPopups = false } = {}) {
+  const slots = [], effects = [], calls = [], host = new Map(), announced = []
   let cursor = 0, pending = [], tree, nodes = []
   const same = (a, b) => a && b && a.length === b.length && a.every((item, index) => item === b[index])
   const hooks = {
@@ -22,6 +22,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     useEffect(callback, deps) { const index = cursor++; if (!same(effects[index]?.deps, deps)) { effects[index]?.cleanup?.(); effects[index] = { deps }; pending.push(() => { effects[index].cleanup = callback() }) } },
   }
   const api = {
+    announceSaved: (id) => announced.push(id), previewPath: (id) => `/p/${id}`,
     STUDIO_SUBJECT_LIMIT: 180, STUDIO_BODY_LIMIT: 40_000,
     studioBootstrap: async () => ({session:{ authenticated: true, configured: true, csrf: "owner-csrf", login: "owner" },drafts,posts:[published]}),
     studioCachedDesk: () => cached, studioUpdateDesk: (_section, list) => { cached = undefined; calls.push(["list", list.map((item) => item.id)]) }, studioWarm() {}, studioOpen: async (row) => row,
@@ -60,7 +61,8 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     replaceState(_s, _t, url) { entries[at] = url.split("?")[1] ?? "" },
     back() { if (at > 0) { at--; listeners.forEach((listener) => listener()) } },
   }
-  const window = { location, history, addEventListener(type, listener) { if (type === "popstate") listeners.push(listener) }, removeEventListener() {} }
+  const tabs = []
+  const window = { location, history, open: (url, target) => { const tab = { opened: [url, target], opener: "desk", location: { href: "" }, closed: false, close() { this.closed = true } }; if (!blockPopups) tabs.push(tab); return blockPopups ? null : tab }, addEventListener(type, listener) { if (type === "popstate") listeners.push(listener) }, removeEventListener() {} }
   const urlExports = {}
   vm.runInNewContext(ts.transpileModule(readFileSync(new URL("../lib/desk-url.ts", import.meta.url), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText, { exports: urlExports, window, URLSearchParams, Intl, Number, Math })
   modules["@/lib/desk-url"] = urlExports
@@ -102,6 +104,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     checkbox:(email)=>nodes.find((node)=>node.type==="input"&&node.props.type==="checkbox"&&text(nodes[nodes.indexOf(node)+1]?.props?.children)===email),
     checkboxes:()=>nodes.filter((node)=>node.type==="input"&&node.props.type==="checkbox").length,
     pressed:()=>nodes.filter((node)=>node.type==="button"&&node.props["aria-pressed"]).map((node)=>text(node.props.children)),
+    tabs:()=>tabs, announced:()=>announced,
     url:()=>entries[at], history:()=>[...entries], back(){ history.back(); render() },
     sortBy:(label)=>nodes.find((node)=>node.type==="sort-header"&&node.props.label===label).props.onSort(),
     sortState:()=>nodes.filter((node)=>node.type==="sort-header").map((node)=>`${node.props.label}:${node.props.active?node.props.dir:"-"}`).join(" "),
@@ -143,9 +146,13 @@ test("post preview lives in the top bar, the document has its own scroll region,
  ui.input("post-title","An article");ui.edit("A draft body")
  assert(ui.header(),"editor controls must be passed to the shell header")
  assert.equal(ui.node("Article editor").props.className,"admin-editor-scroll")
- ui.click("Preview");await ui.flush()
+ ui.headerButton("Preview").props.onClick();await ui.flush();await ui.flush()
+ assert.equal(ui.tabs()[0].location.href,`/p/${baseDraft.id}`,"preview opens the public layout in a new tab")
+ assert.equal(ui.tabs()[0].opener,null,"the preview tab cannot reach back into the desk")
+ assert.deepEqual([...ui.announced()],[baseDraft.id],"saving tells open preview tabs to reload")
+ assert.deepEqual(ui.tabs()[0].opened,["","_blank"],"the tab opens during the click so it is not blocked")
  assert(!ui.calls.some((call)=>call[0]==="publish"),"preview must not publish")
- ui.click("Publish");await ui.flush();ui.submit();await ui.flush()
+ ui.headerButton("Publish").props.onClick();await ui.flush();await ui.flush();ui.submit();await ui.flush()
  ui.input("post-summary","A useful summary.");ui.submit();await ui.flush()
  assert(!ui.calls.some((call)=>call[0]==="publish"),"review must precede publication")
  ui.click("Publish post");await ui.flush()
@@ -229,7 +236,8 @@ test("choosing selected contacts saves them before the final confirmation and se
 })
 
 test("opening a document records it in the address, and Back returns to the list", async () => {
-  const ui = desk({ section: "posts", drafts: [row(1), row(2)] }); await ui.flush()
+  const letters = [row(1, { kind: "newsletter" }), row(2, { kind: "newsletter" })]
+  const ui = desk({ section: "newsletters", drafts: letters }); await ui.flush()
   await ui.rows()[0].onOpen(); await ui.flush()
   assert.equal(ui.url(), `doc=${row(1).id}`)
   ui.edit("Changed body"); ui.click("Preview"); await ui.flush()
@@ -239,7 +247,7 @@ test("opening a document records it in the address, and Back returns to the list
   assert(ui.has("Preview"), "Back from the preview returns to writing")
   ui.back(); await ui.flush(); await ui.flush()
   assert.equal(ui.url(), "")
-  assert(ui.has("New post"), "Back from writing returns to the list")
+  assert(ui.has("New newsletter"), "Back from writing returns to the list")
   assert(ui.calls.some((call) => call[0] === "save"), "leaving saves the draft")
 })
 
@@ -278,26 +286,14 @@ test("search, sort and page live in the address without adding history entries",
   assert.equal(linked.sortState(), "Title:- Status:- Date:desc", "an unknown sort falls back to the default")
 })
 
-test("writing opens beside a live view, and narrow desks switch between them", async () => {
-  const ui = desk({ section: "posts", width: 1200 }); await ui.flush()
+test("a blocked preview tab is explained, and post links to the old preview step stay on writing", async () => {
+  const ui = desk({ section: "posts", blockPopups: true }); await ui.flush()
   ui.click("New post"); await ui.flush()
-  ui.input("post-title", "Live title"); ui.edit("A **live** paragraph"); await ui.flush()
-  assert.deepEqual(ui.pressed(), ["Split"])
-  const live = ui.node("Live view")
-  assert(live, "split shows the live view by default")
-  assert(ui.text().includes("Live title") && ui.text().includes("A **live** paragraph"), "the live view follows the draft")
-  ui.click("Live view"); await ui.flush()
-  assert.equal(ui.url().split("&").find((part) => part.startsWith("pane=")), "pane=preview")
-  assert.equal(ui.node("Article editor").props.className, "hidden", "the editor stays mounted, so undo history survives")
-  ui.click("Split"); await ui.flush()
-  assert(!ui.url().includes("pane="), "the default layout stays out of the address")
-
-  const narrow = desk({ section: "posts", width: 600 }); await narrow.flush()
-  narrow.click("New post"); await narrow.flush(); await narrow.flush()
-  assert(!narrow.has("Split"), "two columns are not offered without room for them")
-  assert.deepEqual(narrow.pressed(), ["Write"])
-  assert(!narrow.node("Live view"), "narrow desks start on the editor")
-  narrow.click("Live view"); await narrow.flush()
-  assert(narrow.node("Live view"))
-  assert.deepEqual(narrow.pressed(), ["Live view"])
+  ui.headerButton("Preview").props.onClick(); await ui.flush()
+  assert(ui.text().includes("Your browser blocked the preview tab"))
+  const post = row(7)
+  const linked = desk({ section: "posts", drafts: [post], search: `doc=${post.id}&view=preview`, openDraft: (id) => id === post.id ? post : null })
+  await linked.flush(); await linked.flush(); await linked.flush()
+  assert.equal(linked.url(), `doc=${post.id}`)
+  assert(linked.headerButton("Publish"), "the post opens for writing with Publish at hand")
 })
