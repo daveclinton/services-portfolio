@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"github.com/daveclinton/portfolio/backend/internal/sendy"
 )
 
 func TestPublishedSnapshotSurvivesAutosavesAndCreatesNewsletterOnServer(t *testing.T) {
@@ -41,7 +43,7 @@ func TestPublishedSnapshotSurvivesAutosavesAndCreatesNewsletterOnServer(t *testi
 		t.Fatal("autosave changed public content")
 	}
 	newsletter := decodeDraft(t, f.request("POST", "/admin/newsletters/from-post", map[string]any{"slug": "new-article"}))
-	if newsletter.Kind != "newsletter" || newsletter.Subject != "A new article" || !strings.Contains(newsletter.Markdown, "/blog/new-article>") {
+	if newsletter.Kind != "newsletter" || newsletter.Subject != "A new article" || !strings.HasPrefix(newsletter.Markdown, "## First\n\nPublished **body**.") || !strings.Contains(newsletter.Markdown, "/blog/new-article>") {
 		t.Fatalf("invalid newsletter: %+v", newsletter)
 	}
 	if f.mail.sends != 0 || f.mail.creates != 0 {
@@ -174,5 +176,40 @@ func TestUploadsRequireOwnerAndCSRFAndAreDurableImmutableRasterAssets(t *testing
 	f.handler.ServeHTTP(w, r)
 	if w.Code != 304 || w.Body.Len() != 0 {
 		t.Fatal("image was downloaded again despite matching ETag")
+	}
+}
+
+func TestEmailFromPostTurnsWidgetsIntoLinks(t *testing.T) {
+	post := "Intro\n\n```portfolio-widget\n{\"name\":\"YouTubePreview\",\"props\":{\"videoId\":\"dQw4w9WgXcQ\",\"title\":\"A [talk]\"}}\n```\n\n```portfolio-widget\n{\"name\":\"AskAiChat\",\"props\":{\"embedded\":true}}\n```\n\nEnd"
+	got := emailFromPost(post, "Summary", "https://site.test/blog/a")
+	for _, want := range []string{"Intro", "[Watch A talk on YouTube](<https://www.youtube.com/watch?v=dQw4w9WgXcQ>)", "[View this part on the web](<https://site.test/blog/a>)", "End", "[Read this on the web](<https://site.test/blog/a>)"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in %s", want, got)
+		}
+	}
+	if strings.Contains(got, "portfolio-widget") {
+		t.Fatal("widget source left in email")
+	}
+	if _, err := sendy.RenderNewsletter("A", got, "https://site.test"); err != nil {
+		t.Fatal(err)
+	}
+	if long := emailFromPost(strings.Repeat("x", sendy.NewsletterBodyLimit), "Summary", "u"); long != "Summary\n\n[Read the post](<u>)" {
+		t.Fatal("oversized post not shortened")
+	}
+}
+
+func TestEveryImportedPostMakesASendableNewsletter(t *testing.T) {
+	var posts []Post
+	if err := json.Unmarshal(importedPosts, &posts); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range posts {
+		body := emailFromPost(p.Markdown, p.Description, "https://site.test/blog/"+p.Slug)
+		if strings.Contains(body, "portfolio-widget") || !strings.Contains(body, "Read this on the web") {
+			t.Fatalf("%s: incomplete email body", p.Slug)
+		}
+		if _, err := sendy.RenderNewsletter(p.Title, body, "https://site.test"); err != nil {
+			t.Fatalf("%s: %v", p.Slug, err)
+		}
 	}
 }

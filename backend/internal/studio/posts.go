@@ -212,20 +212,52 @@ func (s *Service) newsletterFromPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	slug, _ := body["slug"].(string)
-	var title, description string
-	err := s.db.QueryRow(r.Context(), `SELECT title,description FROM studio_posts WHERE slug=$1`, slug).Scan(&title, &description)
+	var title, description, markdown string
+	err := s.db.QueryRow(r.Context(), `SELECT title,description,markdown FROM studio_posts WHERE slug=$1`, slug).Scan(&title, &description, &markdown)
 	if err != nil {
 		draftFailure(w, err)
 		return
 	}
-	markdown := description + "\n\n[Read the post](<" + s.cfg.SiteURL + "/blog/" + slug + ">)"
-	d, err := scanDraft(s.db.QueryRow(r.Context(), `INSERT INTO newsletter_studio_drafts(id,subject,markdown,kind) VALUES($1::text::uuid,$2,$3,'newsletter') RETURNING `+draftColumns, httpx.NewUUID(), title, markdown))
+	d, err := scanDraft(s.db.QueryRow(r.Context(), `INSERT INTO newsletter_studio_drafts(id,subject,markdown,kind) VALUES($1::text::uuid,$2,$3,'newsletter') RETURNING `+draftColumns, httpx.NewUUID(), title, emailFromPost(markdown, description, s.cfg.SiteURL+"/blog/"+slug)))
 	if err != nil {
 		draftFailure(w, err)
 		return
 	}
 	httpx.WriteJSON(w, 201, d)
 }
+
+var widgetFence = regexp.MustCompile("(?s)```portfolio-widget\\n(.*?)\\n```")
+
+// emailFromPost copies the whole article into the newsletter, as Ghost sends a
+// post's full content. Email cannot run interactive blocks, so each becomes a
+// link: videos to YouTube, everything else to the article.
+func emailFromPost(markdown, description, url string) string {
+	markdown = widgetFence.ReplaceAllStringFunc(markdown, func(block string) string {
+		var widget struct {
+			Name  string `json:"name"`
+			Props struct {
+				VideoID string `json:"videoId"`
+				Title   string `json:"title"`
+			} `json:"props"`
+		}
+		_ = json.Unmarshal([]byte(widgetFence.FindStringSubmatch(block)[1]), &widget)
+		if widget.Name == "YouTubePreview" && youtubeID.MatchString(widget.Props.VideoID) {
+			title := strings.NewReplacer("[", "", "]", "").Replace(widget.Props.Title)
+			if title == "" {
+				title = "the video"
+			}
+			return "[Watch " + title + " on YouTube](<https://www.youtube.com/watch?v=" + widget.Props.VideoID + ">)"
+		}
+		return "[View this part on the web](<" + url + ">)"
+	})
+	full := strings.TrimSpace(markdown) + "\n\n[Read this on the web](<" + url + ">)"
+	if len(full) > sendy.NewsletterBodyLimit {
+		return description + "\n\n[Read the post](<" + url + ">)"
+	}
+	return full
+}
+
+var youtubeID = regexp.MustCompile(`^[a-zA-Z0-9_-]{11}$`)
 
 func publicJSON(w http.ResponseWriter, r *http.Request, value any) {
 	data, err := json.Marshal(value)
