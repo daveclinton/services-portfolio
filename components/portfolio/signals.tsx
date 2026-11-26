@@ -35,7 +35,8 @@ export function Signals({ id, items, listPath, basePath, initial, addressMode = 
   /** The item this page was opened on. */
   initial?: number
   /** Articles keep their canonical page and link to individual sections by hash. */
-  addressMode?: "path" | "hash"
+  /** "none": a preview inside another page; opening a section leaves the address alone. */
+  addressMode?: "path" | "hash" | "none"
   /** Articles keep the same page color as readers move between sections. */
   changeTone?: boolean
   footer: ReactNode
@@ -77,6 +78,7 @@ export function Signals({ id, items, listPath, basePath, initial, addressMode = 
   // Put the open item in the address bar, ready to share. Some phones share the
   // canonical link instead, so it has to match.
   function address(index: number | null) {
+    if (addressMode === "none") return
     if (addressMode === "hash") {
       const url = new URL(window.location.href)
       url.hash = index === null ? "" : items[index].slug
@@ -103,6 +105,7 @@ export function Signals({ id, items, listPath, basePath, initial, addressMode = 
         list.current?.querySelectorAll<HTMLDetailsElement>(":scope > li > details").forEach((entry) => { entry.open = false })
       }
     }
+    if (addressMode === "none") return
     if (window.location.hash) fromHash()
     else if (initial !== undefined) {
       remember(initial)

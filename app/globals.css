@@ -371,21 +371,29 @@ dialog[open] {
 
 /* The public page sizes its titles from the window (2.56vw at full width).
    The live column is a fraction of the window, so it sizes from itself. */
-.admin-live-preview .live-tone {
+/* The blog's article layout in the desk's own colours. */
+.admin-live-preview .live-page {
   min-height: 100%;
   padding: 1rem clamp(0.9375rem, 3cqi, 1.5rem) 4rem;
+  font-family: var(--font-display), system-ui, sans-serif;
 }
 
-.admin-live-preview .live-tone .signals {
+.admin-live-preview .live-page .signals {
   font-size: clamp(1.125rem, 4.2cqi, 2.05rem);
 }
 
-.admin-live-preview .live-tone .signals > ol > li > details > summary {
-  cursor: default;
+/* The blog pins its next-section dot to the window; here it rides the pane's
+   bottom edge, in the desk's text colour so it shows in light and dark. */
+.admin-live-preview .live-page .signals-bar {
+  position: sticky;
+}
+
+.admin-live-preview .live-page .signals-dot {
+  background: var(--foreground);
 }
 
 @container live (max-width: 30rem) {
-  .admin-live-preview .live-tone {
+  .admin-live-preview .live-page {
     font-size: 1rem;
   }
 }
@@ -755,12 +763,7 @@ html[data-tone="3"] { --tone: #6a3fb5; }
 html[data-tone="4"] { --tone: #a8480c; }
 html[data-tone="5"] { --tone: #0d7077; }
 
-/* The desk's live view carries the default page tone on its own, without
-   changing the desk's neutral theme. */
-.live-tone { --tone: #1557c0; }
-
-html[data-tone],
-.live-tone {
+html[data-tone] {
   color-scheme: dark;
   --background: var(--tone);
   --foreground: #fff;
@@ -780,11 +783,11 @@ html[data-tone] body {
   transition: background-color 250ms ease;
 }
 
-:is(html[data-tone], .live-tone) .blog-prose pre {
+html[data-tone] .blog-prose pre {
   background: color-mix(in srgb, var(--tone) 25%, #101010);
 }
 
-:is(html[data-tone], .live-tone) .blog-prose pre code span {
+html[data-tone] .blog-prose pre code span {
   color: var(--shiki-dark);
 }
 

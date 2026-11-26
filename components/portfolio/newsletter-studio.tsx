@@ -20,7 +20,7 @@ import { FileText, Mail, Search, Plus, Info, LoaderCircle, X, ExternalLink, Send
 import { site } from "@/lib/portfolio-data"
 import {
   studioDraft, studioRecipients, studioContacts, studioBootstrap, studioCachedDesk, studioUpdateDesk, studioOpen, studioWarm, studioRemove, studioCreate, studioSave, studioPreview, studioMeta, studioAction, studioLogout, studioFromPost, studioPublish, studioUpload,
-  studioLoginURL, announceSaved, previewPath, nairobiSchedule, newsletterStateLabel, STUDIO_SUBJECT_LIMIT, STUDIO_BODY_LIMIT,
+  studioLoginURL, announceSaved, previewPath, nairobiSchedule, newsletterStateLabel, STUDIO_SUBJECT_LIMIT, STUDIO_BODY_LIMIT, STUDIO_SUMMARY_LIMIT,
   type NewsletterDraft, type StudioSession, type StudioMeta, type PublishedStudioPost, type StudioRemoval, type AdminDesk, type StudioContact,
 } from "@/lib/newsletter-studio"
 
@@ -49,6 +49,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const [current, setCurrent] = useState<NewsletterDraft | null>(null)
   const [subject, setSubject] = useState("")
   const [markdown, setMarkdown] = useState("")
+  const [summary, setSummary] = useState("")
   const [saved, setSaved] = useState<"saved" | "saving" | "unsaved" | "error">("saved")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
@@ -69,7 +70,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const [description, setDescription] = useState("")
   const [bootAttempt,setBootAttempt]=useState(0)
   const currentRef = useRef<NewsletterDraft | null>(null)
-  const text = useRef({ subject: "", markdown: "" })
+  const text = useRef({ subject: "", markdown: "", summary: "" })
   const saveQueue = useRef<Promise<unknown>>(Promise.resolve())
   const heading = useRef<HTMLHeadingElement>(null)
   const subjectInput = useRef<HTMLTextAreaElement>(null)
@@ -163,43 +164,45 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the handlers are read through refs
   }, [ready, docParam, viewParam, stage, section])
 
+  // Posts carry a summary with the title and body; newsletters do not.
+  const matches = useCallback((d: NewsletterDraft, t: { subject: string; markdown: string; summary: string }) => t.subject.trim() === d.subject && t.markdown === d.markdown && (section !== "posts" || t.summary.trim() === (d.description ?? "")), [section])
   const save = useCallback((): Promise<NewsletterDraft> => {
     const queued = saveQueue.current.catch(() => undefined).then(async () => {
       const draft = currentRef.current
       if (!draft || !session?.csrf) throw new Error("Reopen your draft before continuing.")
       const snapshot = { ...text.current, subject: text.current.subject.trim() }
-      if (snapshot.subject === draft.subject && snapshot.markdown === draft.markdown) return draft
+      if (matches(draft, snapshot)) return draft
       setSaved("saving")
       try {
-        const result = await studioSave(session.csrf, draft, snapshot.subject, snapshot.markdown)
+        const result = await studioSave(session.csrf, draft, snapshot.subject, snapshot.markdown, section === "posts" ? snapshot.summary.trim() : undefined)
         if (!mounted.current || currentRef.current?.id !== draft.id) throw new Error("Reopen this draft before continuing.")
         accept(result)
         announceSaved(result.id)
-        setSaved(text.current.subject.trim() === result.subject && text.current.markdown === result.markdown ? "saved" : "unsaved")
+        setSaved(matches(result, text.current) ? "saved" : "unsaved")
         return result
       } catch (failure) { if (mounted.current) setSaved("error"); throw failure }
     })
     saveQueue.current = queued
     return queued
-  }, [session, accept])
+  }, [session, accept, matches, section])
 
   useEffect(() => {
-    if (busy || stage !== "write" || !current || !["draft", "error"].includes(current.state) || (subject.trim() === current.subject && markdown === current.markdown)) return
+    if (busy || stage !== "write" || !current || !["draft", "error"].includes(current.state) || matches(current, { subject, markdown, summary })) return
     const timer = setTimeout(() => { void save().catch(fail) }, 750)
     return () => clearTimeout(timer)
-  }, [busy, stage, subject, markdown, current, save, fail])
+  }, [busy, stage, subject, markdown, summary, current, save, fail, matches])
 
-  const dirty = current !== null && (subject.trim() !== current.subject || markdown !== current.markdown)
+  const dirty = current !== null && !matches(current, { subject, markdown, summary })
   useEffect(() => {
     if (!dirty) return
     const warn = (event: BeforeUnloadEvent) => {
       const latest = currentRef.current
-      if (latest && text.current.subject.trim() === latest.subject && text.current.markdown === latest.markdown) return
+      if (latest && matches(latest, text.current)) return
       event.preventDefault(); event.returnValue = ""
     }
     window.addEventListener("beforeunload", warn)
     return () => window.removeEventListener("beforeunload", warn)
-  }, [dirty])
+  }, [dirty, matches])
 
   async function work(action: () => Promise<void>) {
     if (actionPending.current) return
@@ -260,7 +263,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   // never confused and Back returns to the list.
   function open(d: NewsletterDraft, history: "push" | "replace" | "none" = "push") {
     if (history !== "none") setDeskQuery({ doc: d.id, view: null, post: null }, history)
-    accept(d); text.current = { subject: d.subject, markdown: d.markdown }; setSubject(d.subject); setMarkdown(d.markdown)
+    accept(d); text.current = { subject: d.subject, markdown: d.markdown, summary: d.description ?? "" }; setSubject(d.subject); setMarkdown(d.markdown); setSummary(d.description ?? "")
     setSaved("saved"); setError(""); setNotice(""); setStage(["draft", "error"].includes(d.state) ? "write" : "outcome")
   }
   async function newPost() {
@@ -318,6 +321,8 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   async function publish() {
     const draft=await save()
     const published = await studioPublish(session!.csrf,draft,slug,description)
+    // The summary confirmed at publication becomes the editor's summary.
+    text.current.summary = published.description ?? ""; setSummary(published.description ?? "")
     accept(published); put(published)
     setStage("published")
   }
@@ -351,7 +356,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
     if (!currentRef.current || !session?.csrf) return
     const result = await studioAction(session.csrf, currentRef.current, kind, kind === "schedule" ? nairobiSchedule(schedule) : undefined)
     accept(result)
-    text.current = { subject: result.subject, markdown: result.markdown }; setSubject(result.subject); setMarkdown(result.markdown)
+    text.current = { subject: result.subject, markdown: result.markdown, summary: result.description ?? "" }; setSubject(result.subject); setMarkdown(result.markdown); setSummary(result.description ?? "")
     // A successful test is shown on the preview itself, beside the email.
     if (!(kind === "test" && result.state === "draft" && result.tested_revision === result.revision)) { setStage("outcome"); if (result.last_error) setError(result.last_error) }
   }
@@ -448,10 +453,13 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
         <div className="flex flex-col gap-2">
           <label htmlFor="post-title" className="sr-only">Post title</label>
           <textarea ref={subjectInput} id="post-title" rows={2} className="studio-title w-full resize-none bg-transparent pl-8 font-bold text-foreground outline-none" value={subject} required maxLength={STUDIO_SUBJECT_LIMIT} disabled={busy} placeholder="Untitled post" onChange={(event) => { const value = event.target.value.replace(/[\r\n]+/g, " "); text.current.subject = value; setSubject(value); setSaved("unsaved") }} />
+          {/* The summary readers see under the title, as Medium and Ghost place a subtitle. */}
+          {section === "posts" ? <><label htmlFor="post-summary-line" className="sr-only">Summary</label>
+          <textarea id="post-summary-line" rows={1} className="w-full resize-none bg-transparent pl-8 text-title text-muted-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground/70" placeholder="Add a summary readers see under the title" maxLength={STUDIO_SUMMARY_LIMIT} disabled={busy} value={summary} onChange={(event) => { const value = event.target.value.replace(/[\r\n]+/g, " "); text.current.summary = value; setSummary(value); setSaved("unsaved") }} /></> : null}
         </div>
         <NewsletterEditor key={current?.id} value={markdown} disabled={busy} onUpload={(file) => studioUpload(session!.csrf,file)} onChange={(value) => { text.current.markdown = value; setMarkdown(value); setSaved("unsaved") }} />
         </div>
-        {roomy ? <LiveArticle ref={livePane} subject={subject} markdown={markdown} description={current?.description} date={current?.slug ? publishedPosts.find((post) => post.slug === current.slug)?.date : undefined} /> : null}
+        {roomy ? <LiveArticle ref={livePane} subject={subject} markdown={markdown} description={summary} date={current?.slug ? publishedPosts.find((post) => post.slug === current.slug)?.date : undefined} /> : null}
         </div>
         </div>
       </> : null}
