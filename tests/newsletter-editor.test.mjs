@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs"
 import { marked } from "marked"
 import { MarkdownManager } from "@tiptap/markdown"
 import { Editor, getSchema } from "@tiptap/react"
-import { applyWritingBlock, writingBlocks, newsletterEditorExtensions, newsletterRichTextIssue } from "../lib/newsletter-editor.ts"
+import { applyWritingBlock, writingBlocks, newsletterEditorExtensions, newsletterRichTextIssue, formatMarkdown, newsletterImageMarkdown } from "../lib/newsletter-editor.ts"
 
 // Exercise the real parser, serializer, and ProseMirror schema without a DOM or
 // browser. These are the boundaries between the new UI and existing saved mail.
@@ -131,4 +131,69 @@ test("an image's frame survives the editor, Markdown and reopening", () => {
     assert.equal(document.content[0].content[0].attrs.src, `https://res.cloudinary.com/my-cloud/image/upload/v17/blog/c.png#frame=${frame}`)
     assert(output.includes(`#frame=${frame}`), frame)
   }
+})
+
+function formatted(source, start, end, kind) {
+  const edit = formatMarkdown(source, start, end, kind)
+  const value = source.slice(0, edit.start) + edit.text + source.slice(edit.end)
+  assert(edit.selectionStart >= 0 && edit.selectionEnd <= value.length, "selection stays inside the edited draft")
+  return { value, selected: value.slice(edit.selectionStart, edit.selectionEnd), ...edit }
+}
+
+test("Markdown formatting preserves surrounding prose, selects the content, and toggles off", () => {
+  for (const kind of ["bold", "italic", "strikethrough", "code"]) {
+    const result = formatted("Before hello after", 7, 12, kind)
+    assert.equal(result.selected, "hello")
+    assert(result.value.startsWith("Before ") && result.value.endsWith(" after"))
+    assert.equal(formatted(result.value, result.selectionStart, result.selectionEnd, kind).value, "Before hello after")
+    assert.equal(formatted(result.value, result.start, result.start + result.text.length, kind).value, "Before hello after")
+  }
+  const empty = formatted("Draft", 5, 5, "bold")
+  assert.equal(empty.value, "Draft****")
+  assert.equal(empty.selectionStart, 7)
+})
+
+test("Markdown block commands expand to complete lines without changing the following paragraph", () => {
+  const source = "Before\nFirst\nSecond\nAfter"
+  for (const [kind, expected] of [["heading", "### First\n### Second"], ["quote", "> First\n> Second"], ["bulletList", "- First\n- Second"], ["orderedList", "1. First\n2. Second"], ["taskList", "- [ ] First\n- [ ] Second"]]) {
+    const result = formatted(source, 9, 20, kind)
+    assert.equal(result.value, `Before\n${expected}\nAfter`)
+    assert.equal(formatted(result.value, result.selectionStart, result.selectionEnd, kind).value, source)
+    roundtrip(result.value)
+  }
+  assert.equal(formatted("\nAfter", 0, 0, "quote").value, "> \nAfter")
+  assert.equal(formatted("  First\n  Second", 3, 16, "bulletList").value, "  - First\n  - Second")
+  assert.equal(formatted("- [ ] First\n- [x] Second", 0, 24, "bulletList").value, "- First\n- Second")
+  assert.equal(formatted("- First\n- Second", 0, 16, "orderedList").value, "1. First\n2. Second")
+})
+
+test("Markdown links and images select the URL placeholder for immediate replacement", () => {
+  for (const kind of ["link", "image"]) {
+    const result = formatted("Before label after", 7, 12, kind)
+    assert.equal(result.value, `Before ${kind === "image" ? "!" : ""}[label](url) after`)
+    assert.equal(result.selected, "url")
+    const address = "https://example.com"
+    const linked = formatted(address, 0, address.length, kind)
+    assert.equal(linked.value, `${kind === "image" ? "!" : ""}[](${address})`)
+    assert.equal(linked.selectionStart, kind === "image" ? 2 : 1)
+  }
+})
+
+test("Markdown code formatting retains embedded backticks and multiline source", () => {
+  for (const source of ["a `quoted` name", "First\nSecond", "First\n```js\ncode\n```\nLast"]) {
+    const result = formatted(source, 0, source.length, "code")
+    assert.equal(result.selected, source)
+    assert.equal(formatted(result.value, 0, result.value.length, "code").value, source)
+    const tokens = marked.lexer(result.value)
+    if (source.includes("\n")) assert.equal(tokens[0].text, source)
+    else assert.equal(tokens[0].tokens[0].text, source)
+  }
+})
+
+test("Markdown image attachments reuse the rich editor serializer and preserve escaped descriptions", () => {
+  const address = "https://example.com/a_(2).png#frame=landscape"
+  const alt = "A [draft] \\ image"
+  const { document } = roundtrip(newsletterImageMarkdown(address, alt))
+  assert.equal(document.content[0].content[0].attrs.src, address)
+  assert.equal(document.content[0].content[0].attrs.alt, alt)
 })

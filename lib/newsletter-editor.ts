@@ -22,6 +22,79 @@ export const writingBlocks = [
 ] as const
 export type WritingBlock = typeof writingBlocks[number]
 
+export type MarkdownFormat = "bold" | "italic" | "strikethrough" | "heading" | "quote" | "code" | "link" | "image" | "bulletList" | "orderedList" | "taskList"
+
+// GitHub's selection-based toolbar: return a replacement range so the textarea
+// can insert it through native editing, retaining its undo history.
+// https://github.com/github/markdown-toolbar-element
+export function formatMarkdown(source: string, start: number, end: number, format: MarkdownFormat) {
+  let selected = source.slice(start, end)
+  let text: string
+  let selectionStart = start
+  let selectionEnd = end
+  if (["heading", "quote", "bulletList", "orderedList", "taskList"].includes(format)) {
+    start = start === 0 ? 0 : source.lastIndexOf("\n", start - 1) + 1
+    const lineEnd = end > start && source[end - 1] === "\n" ? end - 1 : end
+    const nextBreak = source.indexOf("\n", lineEnd)
+    end = nextBreak < 0 ? source.length : nextBreak
+    const lines = source.slice(start, end).split("\n")
+    const pattern = format === "heading" ? /^#{1,6} / : format === "quote" ? /^> / : format === "bulletList" ? /^[-+*] (?!\[[ xX]\] )/ : format === "orderedList" ? /^\d+\. / : /^- \[[ xX]\] /
+    const remove = lines.every((line) => pattern.test(line.trimStart()))
+    text = lines.map((line, index) => {
+      const indent = line.match(/^\s*/)?.[0] ?? ""
+      const body = line.slice(indent.length)
+      if (remove) return indent + body.replace(pattern, "")
+      const prefix = format === "heading" ? "### " : format === "quote" ? "> " : format === "orderedList" ? `${index + 1}. ` : format === "taskList" ? "- [ ] " : "- "
+      const clean = ["bulletList", "orderedList", "taskList"].includes(format) ? body.replace(/^(?:[-+*] \[[ xX]\] |[-+*] |\d+\. )/, "") : body.replace(pattern, "")
+      return indent + prefix + clean
+    }).join("\n")
+    selectionStart = start; selectionEnd = start + text.length
+  } else if (format === "link" || format === "image") {
+    const isURL = /^https?:\/\/\S+$/.test(selected)
+    const label = isURL ? "" : selected
+    const prefix = format === "image" ? "![" : "["
+    text = `${prefix}${label}](${isURL ? selected : "url"})`
+    selectionStart = isURL ? start + prefix.length : start + prefix.length + label.length + 2
+    selectionEnd = isURL ? selectionStart : selectionStart + 3
+  } else {
+    const marker = format === "bold" ? "**" : format === "italic" ? "_" : format === "strikethrough" ? "~~" : "`"
+    let prefix = marker, suffix = marker
+    if (format === "code" && selected.includes("\n")) {
+      const fence = "`".repeat(Math.max(3, ...Array.from(selected.matchAll(/`+/g), (match) => match[0].length + 1)))
+      // A selected fenced block toggles back to source, like an inline mark.
+      const wrapped = selected.match(/^(`{3,})\n([\s\S]*)\n\1$/)
+      if (wrapped) { prefix = `${wrapped[1]}\n`; suffix = `\n${wrapped[1]}` }
+      else { prefix = `${fence}\n`; suffix = `\n${fence}` }
+    }
+    else if (format === "code" && selected.includes("`")) {
+      const wrapped = selected.match(/^(`+)( ?)([\s\S]*?)\2\1$/)
+      if (wrapped) { prefix = wrapped[1] + wrapped[2]; suffix = wrapped[2] + wrapped[1] }
+      else {
+        const longest = Math.max(...Array.from(selected.matchAll(/`+/g), (match) => match[0].length))
+        prefix = "`".repeat(longest + 1) + " "; suffix = " " + "`".repeat(longest + 1)
+      }
+    }
+    if (selected.startsWith(prefix) && selected.endsWith(suffix) && selected.length >= prefix.length + suffix.length) {
+      selected = selected.slice(prefix.length, -suffix.length)
+      text = selected; selectionStart = start; selectionEnd = start + text.length
+    } else if (source.slice(Math.max(0, start - prefix.length), start) === prefix && source.slice(end, end + suffix.length) === suffix) {
+      start -= prefix.length; end += suffix.length
+      text = selected; selectionStart = start; selectionEnd = start + text.length
+    } else {
+      text = prefix + selected + suffix
+      selectionStart = start + prefix.length; selectionEnd = selectionStart + selected.length
+    }
+  }
+  return { start, end, text, selectionStart, selectionEnd }
+}
+
+export function newsletterImageMarkdown(src: string, alt = "", title = "") {
+  const label = alt.replace(/[\\\[\]]/g, "\\$&").replace(/\r?\n/g, " ")
+  const address = src.replace(/[<>\s]/g, encodeURIComponent)
+  const caption = title.replace(/[\\"]/g, "\\$&").replace(/\r?\n/g, " ")
+  return `![${label}](<${address}>${caption ? ` "${caption}"` : ""})`
+}
+
 // Commands shared by the insert menu, slash menu, and keyboard-accessible UI.
 export function applyWritingBlock(editor: Editor, id: WritingBlock["id"]): boolean {
   if (id === "paragraph") return editor.chain().clearNodes().setParagraph().run()
@@ -50,10 +123,7 @@ export const newsletterEditorExtensions = [
       return helpers.createNode("image", { src: token.href, title: token.title, alt })
     },
     renderMarkdown(node) {
-      const alt = String(node.attrs?.alt ?? "").replace(/[\\\[\]]/g, "\\$&").replace(/\r?\n/g, " ")
-      const src = String(node.attrs?.src ?? "").replace(/[<>\s]/g, encodeURIComponent)
-      const title = String(node.attrs?.title ?? "").replace(/[\\"]/g, "\\$&").replace(/\r?\n/g, " ")
-      return `![${alt}](<${src}>${title ? ` "${title}"` : ""})`
+      return newsletterImageMarkdown(String(node.attrs?.src ?? ""), String(node.attrs?.alt ?? ""), String(node.attrs?.title ?? ""))
     },
   // Inline, so an image inside a sentence keeps its place; on its own line it still stands alone.
   }).configure({ inline: true }),

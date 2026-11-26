@@ -587,14 +587,28 @@ test("phones keep document actions in the header and the date beside each title"
   assert(!/max-sm:sr-only[^>]*>Posts/.test(list), "list pages keep their title on phones")
 })
 
-test("Markdown editing keeps its switch in the top bar and drops the separate formatted preview", () => {
+test("Markdown uses GitHub's Write / Preview composer above the title and preserves source", () => {
   const { NewsletterEditor } = require("../components/portfolio/newsletter-editor.tsx")
-  const html = renderToStaticMarkup(React.createElement(NewsletterEditor, { value: "<div>raw</div>", disabled: false, onChange() {} }))
-  assert(html.includes('aria-label="Markdown"'), "Markdown mode has its own sticky bar")
+  const html = renderToStaticMarkup(React.createElement(NewsletterEditor, { value: "<div>raw</div>", disabled: false, onChange() {}, onUpload: async () => "https://example.com/image.png" }, React.createElement("h2", null, "Document title")))
+  assert(html.includes('aria-label="Markdown formatting"'), "Markdown mode has its own sticky bar")
+  assert.match(html, /role="tab"[^>]*>Write<\/button>/)
+  assert.match(html, /role="tab"[^>]*>Preview<\/button>/)
+  for (const label of ["Bold", "Italic", "Code", "Link", "Image", "Bullet list", "Numbered list", "Task list"]) assert(html.includes(`aria-label="${label}"`), label)
+  assert(html.indexOf("Back to editor") < html.indexOf("Document title"), "the toolbar comes before the title")
   assert(html.indexOf("Back to editor") < html.indexOf("<textarea"), "the switch comes before the text, not after it")
   assert.match(html, /disabled=""[^>]*>[^]*Back to editor/, "raw HTML keeps the draft in Markdown until it is removed")
   assert(html.includes("raw HTML"))
-  assert(!html.includes("Formatted preview"))
+  assert(html.includes("&lt;div&gt;raw&lt;/div&gt;"), "source is kept verbatim and escaped")
+  assert(html.includes("attach an image"))
+  assert(html.includes('role="tabpanel"'))
+})
+
+test("rich editing places its raised formatting controls before the title", () => {
+  const { NewsletterEditor } = require("../components/portfolio/newsletter-editor.tsx")
+  const html = renderToStaticMarkup(React.createElement(NewsletterEditor, { value: "A draft", disabled: false, onChange() {} }, React.createElement("h2", null, "Document title")))
+  assert(html.indexOf('aria-label="Text formatting"') < html.indexOf("Document title"))
+  assert(html.indexOf("Edit Markdown") < html.indexOf("Document title"))
+  assert.match(html, /border-border bg-background[^>]*shadow-sm/)
 })
 
 test("the desktop sidebar collapses to icons and keeps labels for assistive technology", () => {
