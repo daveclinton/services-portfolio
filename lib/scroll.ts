@@ -50,6 +50,10 @@ export function revealElement(element: HTMLElement | null, { block = "nearest", 
   if (!element?.isConnected || !element.getClientRects().length) return
   const bounds = updateViewportMetrics(element)
   if (!bounds) return
+  // Document editors and their sticky toolbars manage their own scrolling.
+  // Revealing the entire document on focus or click sends a long draft to its
+  // beginning, even when the clicked text is already visible in its pane.
+  if (element.closest("[data-native-scroll]")) return
   // Native scrollIntoView handles nested scrollers. Visibility includes their
   // clipping rectangles, so an input inside a dialog cannot look "visible"
   // merely because its document coordinates happen to be on screen.

@@ -133,7 +133,7 @@ function MarkdownEditor({ value, disabled, onChange, onUpload, modeSwitch }: Pro
     }
   }}>
     <TooltipProvider delay={300}>
-      <div className="writing-toolbar writing-toolbar-markdown" role="group" aria-label="Markdown formatting">
+      <div className="writing-toolbar writing-toolbar-markdown" data-native-scroll role="group" aria-label="Markdown formatting">
         <Tabs.List aria-label="Markdown view" className="flex shrink-0 items-center gap-1">
           <Tooltip><TooltipTrigger render={<Tabs.Tab value="write" aria-label="Write" render={<Button variant="ghost" size="icon" />} />}><FileCode /></TooltipTrigger><TooltipContent>Write</TooltipContent></Tooltip>
           <Tooltip><TooltipTrigger render={<Tabs.Tab value="preview" aria-label="Preview" render={<Button variant="ghost" size="icon" />} />}><Eye /></TooltipTrigger><TooltipContent>Preview</TooltipContent></Tooltip>
@@ -149,7 +149,7 @@ function MarkdownEditor({ value, disabled, onChange, onUpload, modeSwitch }: Pro
     {issue ? <p role="status" className="py-2 text-caption text-muted-foreground">{issue}</p> : null}
       <Tabs.Panel value="write" keepMounted className="pt-4">
         <label htmlFor={`${id}-markdown`} className="sr-only">Post Markdown</label>
-        <textarea ref={input} id={`${id}-markdown`} rows={14} spellCheck className="min-h-96 w-full resize-none bg-transparent font-mono text-body leading-7 outline-none [field-sizing:content]" placeholder="Write your post using Markdown…" value={value} disabled={disabled} readOnly={uploading} onChange={(event) => onChange(event.target.value)} onKeyDown={(event) => {
+        <textarea ref={input} id={`${id}-markdown`} data-native-scroll rows={14} spellCheck className="min-h-96 w-full resize-none bg-transparent font-mono text-body leading-7 outline-none [field-sizing:content]" placeholder="Write your post using Markdown…" value={value} disabled={disabled} readOnly={uploading} onChange={(event) => onChange(event.target.value)} onKeyDown={(event) => {
           if (!(event.metaKey || event.ctrlKey) || event.altKey) return
           const key = event.key.toLowerCase()
           const kind = event.shiftKey ? event.code === "Digit7" ? "orderedList" : event.code === "Digit8" ? "bulletList" : event.code === "Period" ? "quote" : null : ({ b: "bold", i: "italic", e: "code", k: "link" } as const)[key as "b" | "i" | "e" | "k"]
@@ -206,7 +206,7 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch, child
     shouldRerenderOnTransaction: false,
     editable: !disabled,
     editorProps: {
-      attributes: { class: "newsletter-editor blog-prose min-h-96 pb-6 outline-none", role: "textbox", "aria-label": "Post body", "aria-multiline": "true" },
+      attributes: { class: "newsletter-editor blog-prose min-h-96 pb-6 outline-none", role: "textbox", "aria-label": "Post body", "aria-multiline": "true", "data-native-scroll": "" },
       handleKeyDown: (_view, event) => {
         if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); linkAction.current?.(); return true }
         return false
@@ -322,7 +322,7 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch, child
 
   return <div className="relative min-w-0">
     <TooltipProvider delay={300}>
-      <div className="writing-toolbar writing-toolbar-rich" role="group" aria-label="Text formatting">
+      <div className="writing-toolbar writing-toolbar-rich" data-native-scroll role="group" aria-label="Text formatting">
         <label htmlFor={`${id}-style`} className="sr-only">Text style</label>
         <SelectField id={`${id}-style`} ariaLabel="Text style" variant="ghost" icon={state?.heading && state.heading !== "paragraph" ? <Heading /> : <Type />} disabled={!editor || disabled} value={state?.heading ?? "paragraph"} onValueChange={(value) => {
           if (value === "paragraph") editor?.chain().focus().setParagraph().run()

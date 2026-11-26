@@ -38,7 +38,11 @@ function platform(t, { height = 400, offsetTop = 0, reduced = false } = {}) {
     matches() { return this.editable ?? false }
     getBoundingClientRect() { return this.rect }
     getClientRects() { return this.isConnected ? [this.rect] : [] }
-    closest(selector) { return selector === "[data-focus-region]" ? this.region ?? null : this.modal ?? null }
+    closest(selector) {
+      if (selector === "[data-focus-region]") return this.region ?? null
+      if (selector === "[data-native-scroll]") return this.nativeScroll ? this : this.nativeScrollParent ?? null
+      return this.modal ?? null
+    }
     scrollIntoView(options) { this.calls.push(options) }
     focus(options) { this.focusCalls.push(options); doc.activeElement = this }
   }
@@ -210,6 +214,22 @@ test("the app-wide coordinator corrects keyboard resize but does not chase a rea
   p.dispatch("click", { target: input })
   p.flush()
   assert.equal(input.calls.length, 3, "tapping an already-focused email field must reveal it again")
+  for (const mode of ["rich text", "Markdown"]) {
+    const editor = new p.Element(-1200, 2400)
+    editor.editable = true; editor.nativeScroll = true
+    p.doc.activeElement = editor
+    p.dispatch("focusin", { target: editor })
+    p.dispatch("click", { target: editor })
+    p.flush()
+    assert.equal(editor.calls.length, 0, `${mode}: clicking partway through the draft must not scroll its whole field to the top`)
+    p.dispatch("viewport:resize"); p.flush(); p.flush()
+    assert.equal(editor.calls.length, 0, `${mode}: keyboard resize leaves the document's caret scrolling to its editor`)
+    const child = new p.Element(200, 220)
+    child.nativeScrollParent = editor
+    p.dispatch("focusin", { target: child }); p.flush()
+    assert.equal(child.calls.length, 0, `${mode}: focusing document contents also preserves the pane's position`)
+    assert(p.attributes.has("data-input-active"), "native editor focus still updates keyboard-related page state")
+  }
   p.doc.activeElement = p.doc.body
   p.dispatch("focusout")
   p.flush()

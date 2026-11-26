@@ -606,6 +606,7 @@ test("Markdown edits the whole document on an open canvas without separate title
   assert(!html.includes("Markdown is supported") && !html.includes("attach an image"))
   const field = html.match(/<textarea[^>]*>/)?.[0]
   assert(field && !/border-|rounded-|p-4/.test(field), "source has no input box treatment")
+  assert(field.includes("data-native-scroll"), "clicking Markdown must leave caret scrolling to the editor")
   assert(html.includes('role="tabpanel"'))
 })
 
@@ -620,6 +621,7 @@ test("rich editing keeps a single row of icon controls above the title and inser
   assert(mode?.includes("<svg") && !mode.includes("Edit Markdown"), "the mode switch shows only an accessible icon")
   const toolbar = html.slice(html.indexOf('class="writing-toolbar '), html.indexOf("Document title"))
   assert(!toolbar.includes("shadow-sm") && !toolbar.includes("border-border"))
+  assert(toolbar.includes("data-native-scroll"), "sticky toolbar focus must not reveal its original position at the draft's top")
   const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
   assert.match(css, /\.writing-toolbar \{[^}]*flex-nowrap[^}]*overflow-x-auto/)
   assert.match(css, /\.writing-toolbar button \{[^}]*border-0 bg-transparent shadow-none/)

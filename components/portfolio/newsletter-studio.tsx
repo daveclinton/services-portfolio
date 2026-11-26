@@ -17,14 +17,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { FileText, Mail, Search, Plus, Info, LoaderCircle, X, ExternalLink, Send, Check, Monitor, Smartphone } from "lucide-react"
-import { site } from "@/lib/portfolio-data"
 import {
   studioDraft, studioRecipients, studioContacts, studioBootstrap, studioCachedDesk, studioUpdateDesk, studioOpen, studioWarm, studioRemove, studioCreate, studioSave, studioPreview, studioMeta, studioAction, studioLogout, studioFromPost, studioPublish, studioUpload,
   studioLoginURL, announceSaved, previewPath, nairobiSchedule, newsletterStateLabel, STUDIO_SUBJECT_LIMIT, STUDIO_BODY_LIMIT, STUDIO_SUMMARY_LIMIT,
   type NewsletterDraft, type StudioSession, type StudioMeta, type PublishedStudioPost, type StudioRemoval, type AdminDesk, type StudioContact,
 } from "@/lib/newsletter-studio"
 
-type Stage = "loading" | "signin" | "list" | "pick" | "write" | "preview" | "delivery" | "confirm" | "outcome" | "publish-url" | "publish-summary" | "publish-review" | "published"
+type Stage = "loading" | "signin" | "list" | "pick" | "write" | "preview" | "delivery" | "confirm" | "outcome"
 const loadEditor = () => import("@/components/portfolio/newsletter-editor")
 const PAGE_SIZE = 20
 const NewsletterEditor = dynamic(() => loadEditor().then((module) => module.NewsletterEditor), { loading: () => <div role="status" aria-label="Loading editor" className="flex flex-col gap-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-96 w-full" /></div> })
@@ -67,7 +66,6 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const [later, setLater] = useState(false)
   const [schedule, setSchedule] = useState("")
   const [slug, setSlug] = useState("")
-  const [description, setDescription] = useState("")
   const [bootAttempt,setBootAttempt]=useState(0)
   const currentRef = useRef<NewsletterDraft | null>(null)
   const text = useRef({ subject: "", markdown: "", summary: "" })
@@ -81,6 +79,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const tableScroll = useRef<HTMLDivElement>(null)
   const writeArea = useRef<HTMLDivElement>(null)
   const pendingSubjectFocus = useRef(false)
+  const focusedView = useRef<string | null>(null)
   const attachSubjectInput = useCallback((element: HTMLTextAreaElement | null) => {
     subjectInput.current = element
     // The title now renders inside the lazy editor, which can mount after the
@@ -132,10 +131,15 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   }, [fail, section, bootAttempt])
 
   useEffect(() => {
-    pendingSubjectFocus.current = stage === "write" && !busy && !subjectInput.current
-    if (stage === "write" && !busy) { focusElement(subjectInput.current); if (subjectInput.current?.value === "Untitled post") subjectInput.current.select() }
+    const view = `${stage}:${current?.id ?? ""}`
+    // Focus once on entering a document or step. An action's busy/ready cycle
+    // must not pull an open draft back to its heading or title.
+    if (busy || focusedView.current === view) return
+    focusedView.current = view
+    pendingSubjectFocus.current = stage === "write" && !subjectInput.current
+    if (stage === "write") { focusElement(subjectInput.current); if (subjectInput.current?.value === "Untitled post") subjectInput.current.select() }
     else if (stage !== "loading") focusElement(heading.current)
-  }, [stage, busy])
+  }, [stage, busy, current?.id])
 
   // Measured on the desk itself, since the sidebar takes part of the window.
   useEffect(() => {
@@ -275,6 +279,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   function open(d: NewsletterDraft, history: "push" | "replace" | "none" = "push") {
     if (history !== "none") setDeskQuery({ doc: d.id, view: null, post: null }, history)
     accept(d); text.current = { subject: d.subject, markdown: d.markdown, summary: d.description ?? "" }; setSubject(d.subject); setMarkdown(d.markdown); setSummary(d.description ?? "")
+    setSlug(d.slug ?? "")
     setSaved("saved"); setError(""); setNotice(""); setStage(["draft", "error"].includes(d.state) ? "write" : "outcome")
   }
   async function newPost() {
@@ -323,19 +328,15 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
       } catch (failure) { tab?.close(); throw failure }
     })
   }
-  async function preparePublish() {
-    const draft=await save()
-    setSlug(draft.slug || draft.subject.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0,160).replace(/-$/,""))
-    setDescription(draft.description || "")
-    setStage(draft.slug ? "publish-summary" : "publish-url")
-  }
   async function publish() {
+    if (!text.current.summary.trim()) throw new Error("Add a summary in the editor before publishing.")
+    if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(postSlug) || postSlug.length > 160) throw new Error("Use lowercase words and dashes in the post URL.")
     const draft=await save()
-    const published = await studioPublish(session!.csrf,draft,slug,description)
-    // The summary confirmed at publication becomes the editor's summary.
+    const published = await studioPublish(session!.csrf,draft,draft.slug || postSlug,draft.description ?? "")
     text.current.summary = published.description ?? ""; setSummary(published.description ?? "")
     accept(published); put(published)
-    setStage("published")
+    setStage("write")
+    setNotice(`${draft.published_revision ? "Post updated." : "Post published."}${published.cache_invalidated === false ? " Public pages may take a moment to refresh." : ""}`)
   }
   async function previewEmail() {
     setPreviewMode("email")
@@ -374,7 +375,10 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const openRef = useRef(open); openRef.current = open
   const previewRef = useRef(preview); previewRef.current = preview
   const closeRef = useRef(closeDocument); closeRef.current = closeDocument
-  const title = { loading: section === "posts" ? "Posts" : "Newsletters", signin: "Sign in", list: section === "posts" ? "Posts" : "Newsletters", pick: "New newsletter", write: subject || "Untitled post", preview: section === "posts" ? "Post preview" : "Newsletter preview", delivery: "Email delivery", confirm: "Review delivery", outcome: current ? newsletterStateLabel(current.state) : "Post", "publish-url":"Choose a post URL", "publish-summary":"Add a summary", "publish-review":"Review publication", published:"Post published" }[stage]
+  const title = { loading: section === "posts" ? "Posts" : "Newsletters", signin: "Sign in", list: section === "posts" ? "Posts" : "Newsletters", pick: "New newsletter", write: subject || "Untitled post", preview: section === "posts" ? "Post preview" : "Newsletter preview", delivery: "Email delivery", confirm: "Review delivery", outcome: current ? newsletterStateLabel(current.state) : "Post" }[stage]
+  // Ghost's title-derived default URL, editable here until first publication.
+  // https://ghost.org/help/post-settings/
+  const postSlug = current?.slug || slug || subject.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0,160).replace(/-$/,"") || current?.id || ""
   const formatDate = (value: string) => new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeStyle: "short", timeZone: "Africa/Nairobi" }).format(new Date(value)) + " EAT"
   const statusOf = (d: NewsletterDraft) => section === "newsletters" ? newsletterStateLabel(d.state) : !d.published_revision ? "Draft" : d.published_revision < d.revision ? "Unpublished changes" : "Published"
   const publishedDates = new Map(publishedPosts.map((post) => [post.slug, post.date]))
@@ -399,12 +403,12 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
 
   return (
     <AdminShell section={section} title={title} session={session} loading={stage === "loading"} busy={busy} editing={stage === "write" || listing} compactTitle={!listing && stage !== "signin"} onNavigate={navigate} onLogout={() => void work(logout)} actions={<>
-      {stage === "write" && section === "posts" ? <><Button size="sm" variant="outline" disabled={busy || !current} onClick={openPreviewTab}><ExternalLink /><span className="max-sm:sr-only">Preview</span><span className="sr-only"> (opens in a new tab)</span></Button><Button size="sm" disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(preparePublish)}>{current?.published_revision ? "Update" : "Publish"}</Button></> : null}
+      {stage === "write" && section === "posts" ? <><Button size="sm" variant="outline" disabled={busy || !current} onClick={openPreviewTab}><ExternalLink /><span className="max-sm:sr-only">Preview</span><span className="sr-only"> (opens in a new tab)</span></Button><Button size="sm" disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(publish)}>{current?.published_revision ? "Update" : "Publish"}</Button></> : null}
       {stage === "write" && section === "newsletters" ? <Button size="sm" disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(preview)}>Preview</Button> : null}
-      {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setStage("write"); leaveDeskQuery({ view: null }) }}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(preparePublish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : meta ? <><Button size="sm" variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}><Send />Send test</Button><Button size="sm" disabled={busy} onClick={openDelivery}>Continue</Button></> : null}</> : null}
+      {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setStage("write"); leaveDeskQuery({ view: null }) }}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(publish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : meta ? <><Button size="sm" variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}><Send />Send test</Button><Button size="sm" disabled={busy} onClick={openDelivery}>Continue</Button></> : null}</> : null}
       {!["loading","signin","list"].includes(stage) ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" disabled={busy} aria-label="Save and close" onClick={() => void work(backToList)} />}><X /></TooltipTrigger><TooltipContent>Save and close</TooltipContent></Tooltip> : null}
       {stage === "list" ? <>{error ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void work(backToList)}>Reload</Button> : null}<Button size="sm" disabled={busy} onClick={() => void work(section === "posts" ? newPost : newNewsletter)}><Plus />{section === "posts" ? "New post" : "New newsletter"}</Button></> : null}
-      {["write", "preview", "published"].includes(stage) && current ? <DocumentActions document={current} busy={busy} onNewsletter={() => void navigate(`/admin/newsletters?post=${encodeURIComponent(current.slug!)}`)} onRemove={(kind) => remove(current, kind)} /> : null}
+      {["write", "preview"].includes(stage) && current ? <DocumentActions document={current} busy={busy} onNewsletter={() => void navigate(`/admin/newsletters?post=${encodeURIComponent(current.slug!)}`)} onRemove={(kind) => remove(current, kind)} /> : null}
     </>}>
       <article className={stage === "write" || listing ? "flex h-full min-h-0 min-w-0 flex-col gap-4" : "flex min-w-0 flex-col gap-6 pb-8"} aria-busy={busy}>
       <h1 className="sr-only" ref={heading} tabIndex={-1}>{title}</h1>
@@ -452,6 +456,10 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
           <p>{section === "posts" ? current?.published_revision ? "Published · Editing draft" : "Draft post" : "Draft newsletter"}</p>
           <div className="flex items-center gap-2">{saved === "saving" ? <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" /> : null}<p role="status">{saved === "saving" ? "Saving…" : saved === "error" ? "Changes not saved" : dirty ? "Unsaved changes" : "Saved"}</p>{saved === "error" ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void work(async () => { await save() })}>Retry save</Button> : null}</div>
         </div>
+        {section === "posts" ? <div className="flex min-w-0 items-center gap-2 text-caption text-muted-foreground">
+          <label htmlFor="post-slug" className="shrink-0">Post URL</label><span className="shrink-0">/blog/</span>
+          <input id="post-slug" className="chat-input min-h-8 min-w-0 flex-1 bg-transparent text-caption outline-none" value={postSlug} onChange={(event) => setSlug(event.target.value)} readOnly={!!current?.slug} disabled={busy} maxLength={160} pattern="[a-z0-9]+(-[a-z0-9]+)*" autoCapitalize="none" autoCorrect="off" spellCheck={false} />
+        </div> : null}
         <div ref={writeArea} className="admin-write-layout"><div className="admin-write-grid">
         <div className="admin-editor-scroll" role="region" aria-label="Article editor" tabIndex={0}>
         <NewsletterEditor key={current?.id} value={markdown} subject={subject} description={section === "posts" ? summary : undefined} disabled={busy} onUpload={(file) => studioUpload(session!.csrf,file)} onChange={(value) => { text.current.markdown = value; setMarkdown(value); setSaved("unsaved") }} onDocumentChange={(document) => {
@@ -489,16 +497,6 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
         <div className={device === "mobile" ? "mx-auto w-full max-w-sm" : "w-full"}><iframe title="Newsletter email preview" sandbox="" srcDoc={html} className="h-[70dvh] min-h-96 w-full rounded-lg border border-border" /></div>
         </> : <Button className="w-fit" variant="outline" disabled={busy} onClick={() => void work(previewEmail)}>Retry email preview</Button>}
       </> : null}
-      {stage === "publish-url" || stage === "publish-summary" ? <form className="flex max-w-(--measure) flex-col gap-6" onSubmit={(event)=>{event.preventDefault();setStage(stage==="publish-url" ? "publish-summary" : "publish-review")}}>
-        <p className="text-caption text-muted-foreground">{stage==="publish-url" ? "1" : "2"} of 3</p>
-        {stage==="publish-url" ? <><label htmlFor="post-slug" className="text-body">Post URL</label><div className={surfaceClass}><input id="post-slug" className={inputClass} value={slug} onChange={(event)=>setSlug(event.target.value)} required maxLength={160} pattern="[a-z0-9]+(-[a-z0-9]+)*" autoCapitalize="none" autoCorrect="off" spellCheck={false} disabled={busy}/></div><p className="break-all text-caption text-muted-foreground">{site.url}/blog/{slug}</p></> : <><label htmlFor="post-summary" className="text-body">Summary</label><div className={surfaceClass}><textarea id="post-summary" className={inputClass} rows={4} value={description} onChange={(event)=>setDescription(event.target.value)} required maxLength={300} disabled={busy}/></div><p className="text-caption text-muted-foreground">{description.length}/300</p></>}
-        <div className="flex gap-2"><Button type="submit" disabled={busy || (stage==="publish-summary" && !description.trim())}>{stage==="publish-url" ? "Next" : "Review"}</Button><Button type="button" variant="ghost" onClick={()=>setStage(stage==="publish-summary" && !current?.slug ? "publish-url" : "write")}>Back</Button></div>
-      </form> : null}
-      {stage === "publish-review" ? <div className="flex max-w-(--measure) flex-col gap-6">
-        <p className="text-caption text-muted-foreground">3 of 3</p><h2 className="text-title font-semibold">{subject}</h2><p className="text-body">{description}</p><p className="break-all text-caption text-muted-foreground">{site.url}/blog/{slug}</p>
-        <div className="flex gap-2"><Button disabled={busy} onClick={()=>void work(publish)}>{busy ? <LoaderCircle className="motion-safe:animate-spin"/> : null}{current?.published_revision ? "Confirm update" : "Publish post"}</Button><Button variant="ghost" disabled={busy} onClick={()=>setStage("publish-summary")}>Back</Button></div>
-      </div> : null}
-      {stage === "published" && current?.slug ? <div className="flex flex-col gap-4"><div className="flex items-center gap-2"><h2 className="text-title font-semibold">{current.subject}</h2>{current.cache_invalidated === false ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Public page refresh status"/>}><Info/></TooltipTrigger><TooltipContent>Published. Public pages will refresh through the cache; reload shortly if you see the previous version.</TooltipContent></Tooltip> : null}</div><div className="flex flex-wrap gap-2"><Button nativeButton={false} render={<a href={`/blog/${current.slug}`} target="_blank" rel="noreferrer"/>}><ExternalLink/>View post</Button><Button variant="outline" disabled={busy} onClick={()=>void navigate(`/admin/newsletters?post=${encodeURIComponent(current.slug!)}`)}><Mail/>Create newsletter</Button></div></div> : null}
       {stage === "delivery" && meta ? <form className="flex max-w-(--measure) flex-col gap-6" onSubmit={(event) => { event.preventDefault(); void work(confirmDelivery) }}>
         {/* Ghost's publish settings: recipients, then timing, then a one-line summary. */}
         <fieldset className="flex flex-col gap-3"><legend className="pb-3 text-body font-medium">Recipients</legend>
