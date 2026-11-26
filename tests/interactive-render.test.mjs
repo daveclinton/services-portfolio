@@ -515,3 +515,18 @@ test("sortable headers announce only the sorted column", () => {
   assert.match(on, /<th scope="col" aria-sort="ascending"><button type="button"/)
   assert(!off.includes("aria-sort"))
 })
+
+test("wide code and tables in rendered Markdown scroll inside themselves on small screens", () => {
+  const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+  const rule = (selector) => css.match(new RegExp(`${selector.replace(/[.*]/g, "\\$&")} \\{([^}]*)\\}`))?.[1] ?? ""
+  assert.match(rule(".chat-markdown pre"), /overflow-x: auto/)
+  assert.match(rule(".chat-markdown table"), /overflow-x: auto/)
+  assert.match(rule(".chat-markdown table"), /display: block/)
+})
+
+test("phones keep document actions in the header and the date beside each title", () => {
+  const html = renderToStaticMarkup(React.createElement(AdminShell, { section: "posts", title: "A long article title", compactTitle: true, session: { authenticated: true, login: "owner" }, loading: false, busy: false, onNavigate: async () => {}, onLogout() {} }, "Body"))
+  assert.match(html, /max-sm:sr-only[^>]*>A long article title/)
+  const list = renderToStaticMarkup(React.createElement(AdminShell, { section: "posts", title: "Posts", session: { authenticated: true, login: "owner" }, loading: false, busy: false, onNavigate: async () => {}, onLogout() {} }, "Body"))
+  assert(!/max-sm:sr-only[^>]*>Posts/.test(list), "list pages keep their title on phones")
+})

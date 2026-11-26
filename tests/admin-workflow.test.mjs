@@ -10,7 +10,7 @@ const published = { slug: "a-published-post", title: "An existing article", desc
 const baseDraft = { id: "a5cd8282-68f1-4b4a-9c19-000000000001", subject: published.title, markdown: "", revision: 1, state: "draft", campaign_id: 0, scheduled_at: null, tested_revision: 0, last_error: "", updated_at: "2026-11-25T09:00:00Z" }
 const settle = () => new Promise((resolve) => setImmediate(resolve))
 
-function desk({ failSave = false, section = "newsletters", drafts = [], cached, failRemove = false, allowSend = false, search = "", openDraft } = {}) {
+function desk({ failSave = false, section = "newsletters", drafts = [], cached, failRemove = false, allowSend = false, search = "", openDraft, width } = {}) {
   const slots = [], effects = [], calls = [], host = new Map()
   let cursor = 0, pending = [], tree, nodes = []
   const same = (a, b) => a && b && a.length === b.length && a.every((item, index) => item === b[index])
@@ -18,6 +18,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     useState(initial) { const index = cursor++; if (!(index in slots)) slots[index] = typeof initial === "function" ? initial() : initial; return [slots[index], (value) => { slots[index] = typeof value === "function" ? value(slots[index]) : value }] },
     useRef(current) { return slots[cursor++] ??= { current } },
     useCallback(callback, deps) { const index = cursor++; if (!same(slots[index]?.deps, deps)) slots[index] = { callback, deps }; return slots[index].callback },
+    useDeferredValue: (value) => value,
     useEffect(callback, deps) { const index = cursor++; if (!same(effects[index]?.deps, deps)) { effects[index]?.cleanup?.(); effects[index] = { deps }; pending.push(() => { effects[index].cleanup = callback() }) } },
   }
   const api = {
@@ -65,7 +66,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
   modules["@/lib/desk-url"] = urlExports
   const exports = {}
   const source = ts.transpileModule(readFileSync(new URL("../components/portfolio/newsletter-studio.tsx", import.meta.url), "utf8"), { compilerOptions: { jsx: ts.JsxEmit.ReactJSX, module: ts.ModuleKind.CommonJS } }).outputText
-  vm.runInNewContext(source, { exports, TextEncoder, URLSearchParams, setTimeout: () => 1, clearTimeout() {}, window, require(name) { assert(name in modules, name); return modules[name] } })
+  vm.runInNewContext(source, { ResizeObserver: width ? class { constructor(callback) { this.callback = callback } observe() { this.callback([{ contentRect: { width } }]) } disconnect() {} } : undefined, exports, TextEncoder, URLSearchParams, setTimeout: () => 1, clearTimeout() {}, window, require(name) { assert(name in modules, name); return modules[name] } })
   const props = { section }
   function render() {
     props.query = new URLSearchParams(location.search)
@@ -100,6 +101,7 @@ function desk({ failSave = false, section = "newsletters", drafts = [], cached, 
     rows:()=>nodes.filter((node)=>node.type==="document-actions").map((node)=>node.props),
     checkbox:(email)=>nodes.find((node)=>node.type==="input"&&node.props.type==="checkbox"&&text(nodes[nodes.indexOf(node)+1]?.props?.children)===email),
     checkboxes:()=>nodes.filter((node)=>node.type==="input"&&node.props.type==="checkbox").length,
+    pressed:()=>nodes.filter((node)=>node.type==="button"&&node.props["aria-pressed"]).map((node)=>text(node.props.children)),
     url:()=>entries[at], history:()=>[...entries], back(){ history.back(); render() },
     sortBy:(label)=>nodes.find((node)=>node.type==="sort-header"&&node.props.label===label).props.onSort(),
     sortState:()=>nodes.filter((node)=>node.type==="sort-header").map((node)=>`${node.props.label}:${node.props.active?node.props.dir:"-"}`).join(" "),
@@ -274,4 +276,28 @@ test("search, sort and page live in the address without adding history entries",
   const linked = desk({ section: "posts", drafts: Array.from({ length: 30 }, (_, i) => row(i + 1)), search: "page=2&sort=bogus" }); await linked.flush()
   assert.equal(linked.pager().page, 1, "a page in a link is honoured")
   assert.equal(linked.sortState(), "Title:- Status:- Date:desc", "an unknown sort falls back to the default")
+})
+
+test("writing opens beside a live view, and narrow desks switch between them", async () => {
+  const ui = desk({ section: "posts", width: 1200 }); await ui.flush()
+  ui.click("New post"); await ui.flush()
+  ui.input("post-title", "Live title"); ui.edit("A **live** paragraph"); await ui.flush()
+  assert.deepEqual(ui.pressed(), ["Split"])
+  const live = ui.node("Live view")
+  assert(live, "split shows the live view by default")
+  assert(ui.text().includes("Live title") && ui.text().includes("A **live** paragraph"), "the live view follows the draft")
+  ui.click("Live view"); await ui.flush()
+  assert.equal(ui.url().split("&").find((part) => part.startsWith("pane=")), "pane=preview")
+  assert.equal(ui.node("Article editor").props.className, "hidden", "the editor stays mounted, so undo history survives")
+  ui.click("Split"); await ui.flush()
+  assert(!ui.url().includes("pane="), "the default layout stays out of the address")
+
+  const narrow = desk({ section: "posts", width: 600 }); await narrow.flush()
+  narrow.click("New post"); await narrow.flush(); await narrow.flush()
+  assert(!narrow.has("Split"), "two columns are not offered without room for them")
+  assert.deepEqual(narrow.pressed(), ["Write"])
+  assert(!narrow.node("Live view"), "narrow desks start on the editor")
+  narrow.click("Live view"); await narrow.flush()
+  assert(narrow.node("Live view"))
+  assert.deepEqual(narrow.pressed(), ["Live view"])
 })

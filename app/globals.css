@@ -307,8 +307,22 @@ dialog[open] {
 }
 
 .admin-editor-scroll {
-  @apply min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-8;
+  @apply min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-8;
   scrollbar-gutter: stable;
+}
+
+/* HackMD-style Both mode: writing and a live reading view side by side. */
+.admin-write-area {
+  @apply flex min-h-0 flex-1 gap-6;
+}
+
+.admin-live-preview {
+  @apply min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain border-border px-2 pb-8;
+  scrollbar-gutter: stable;
+}
+
+.admin-write-area > .admin-editor-scroll + .admin-live-preview {
+  @apply border-l pl-6;
 }
 
 .admin-menu-item {
@@ -1196,7 +1210,9 @@ html:has(.numbered) body {
   font-family: var(--font-mono);
   font-size: 0.875em;
 }
+/* Wide code and tables scroll inside themselves instead of widening the page. */
 .chat-markdown pre {
+  overflow-x: auto;
   border-radius: var(--radius-lg);
   background: var(--muted);
   padding: 0.75rem 1rem;
@@ -1206,6 +1222,8 @@ html:has(.numbered) body {
   padding: 0;
 }
 .chat-markdown table {
+  display: block;
+  overflow-x: auto;
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-caption);
