@@ -1,5 +1,8 @@
 import StarterKit from "@tiptap/starter-kit"
 import Image from "@tiptap/extension-image"
+import { TableKit } from "@tiptap/extension-table"
+import Paragraph from "@tiptap/extension-paragraph"
+import { TaskItem, TaskList } from "@tiptap/extension-list"
 import { Markdown } from "@tiptap/markdown"
 import { Placeholder } from "@tiptap/extensions"
 import { marked } from "marked"
@@ -31,13 +34,14 @@ export function applyWritingBlock(editor: Editor, id: WritingBlock["id"]): boole
   return false // Images open the existing media form before inserting content.
 }
 
-// Keep the first release within the existing Go renderer's CommonMark schema.
+// GitHub-flavoured Markdown, matching the Go renderer's Table, Strikethrough and
+// TaskList extensions, so switching between the editor and Markdown loses nothing.
 // https://tiptap.dev/docs/editor/markdown/getting-started/basic-usage
 // https://tiptap.dev/docs/editor/markdown/advanced-usage/custom-serializing
 export const newsletterEditorExtensions = [
   StarterKit.configure({
+    paragraph: false,
     underline: false,
-    strike: false,
     link: { openOnClick: false, autolink: false, defaultProtocol: "https" },
   }),
   Image.extend({
@@ -51,8 +55,21 @@ export const newsletterEditorExtensions = [
       const title = String(node.attrs?.title ?? "").replace(/[\\"]/g, "\\$&").replace(/\r?\n/g, " ")
       return `![${alt}](<${src}>${title ? ` "${title}"` : ""})`
     },
-  }).configure({ HTMLAttributes: { class: "my-4 h-auto max-w-full rounded-lg" } }),
-  Markdown.configure({ markedOptions: { gfm: false } }),
+  // Inline, so an image inside a sentence keeps its place; on its own line it still stands alone.
+  }).configure({ inline: true, HTMLAttributes: { class: "my-4 inline-block h-auto max-w-full rounded-lg align-middle" } }),
+  // Tiptap unwraps a paragraph holding only an image into a block image. Images
+  // are inline here, so they stay inside their paragraph instead.
+  Paragraph.extend({
+    parseMarkdown(token, helpers) {
+      const tokens = token.tokens ?? []
+      if (tokens.length === 1 && tokens[0].type === "image") return helpers.createNode("paragraph", undefined, helpers.parseInline(tokens))
+      return this.parent ? this.parent(token, helpers) : helpers.createNode("paragraph", undefined, helpers.parseInline(tokens))
+    },
+  }),
+  TableKit.configure({ table: { resizable: false } }),
+  TaskList,
+  TaskItem.configure({ nested: true }),
+  Markdown.configure({ markedOptions: { gfm: true } }),
   Placeholder.configure({ placeholder: ({ node }) => node.type.name === "heading" ? "Heading" : "Write something, or type / for blocks…" }),
 ]
 
@@ -61,12 +78,8 @@ export const newsletterEditorExtensions = [
 export function newsletterRichTextIssue(source: string): string | null {
   let issue: string | null = null
   marked.walkTokens(marked.lexer(source), (token) => {
-    if (["html", "table", "del"].includes(token.type) || (token.type === "list_item" && token.task)) {
-      issue = "This draft uses formatting that is currently available in Markdown mode. Keep editing there to preserve it."
-    }
-    if ("tokens" in token && token.tokens?.some((inline) => inline.type === "image") && (token.tokens.length > 1 || token.type !== "paragraph")) {
-      issue = "This draft has images within text. Keep editing in Markdown mode to preserve their placement."
-    }
+    // Raw HTML is the one thing the editor cannot hold; the site never renders it either.
+    if (token.type === "html") issue = "This draft contains raw HTML, which the site does not publish. Remove it in Markdown to use the editor."
   })
   return issue
 }

@@ -143,6 +143,14 @@ export async function studioRemove(csrf: string, current: NewsletterDraft, actio
   if (updated.id !== current.id || (action === "unpublish" ? updated.published_revision !== 0 : updated.published_revision !== updated.revision)) throw new Error("The change was not confirmed. Reload to check this post.")
   return updated
 }
+// The desk tells open preview tabs when a draft is saved, so they reload.
+export const PREVIEW_CHANNEL = "writing-desk-preview"
+export function announceSaved(id: string) {
+  if (typeof BroadcastChannel === "undefined") return
+  const channel = new BroadcastChannel(PREVIEW_CHANNEL)
+  channel.postMessage({ id }); channel.close()
+}
+export const previewPath = (id: string) => `/p/${id}`
 export async function studioDraft(id: string): Promise<NewsletterDraft> { return draft(await request(`drafts/${id}`)) }
 export async function studioFromPost(csrf: string, slug: string): Promise<NewsletterDraft> { return draft(await request("from-post", csrf, { slug })) }
 export async function studioPublish(csrf: string, current: NewsletterDraft, slug: string, description: string): Promise<NewsletterDraft> {

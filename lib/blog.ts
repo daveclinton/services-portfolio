@@ -84,11 +84,4 @@ export const getPosts=cache(async ():Promise<Post[]>=>{
   return [...posts.values()].sort((a,b)=>b.date.localeCompare(a.date))
 })
 
-export function formatPostDate(date: string, month: "short" | "long" = "long") {
-  return new Date(`${date}T00:00:00Z`).toLocaleDateString("en-US", {
-    year: "numeric",
-    month,
-    day: "numeric",
-    timeZone: "UTC",
-  })
-}
+export { formatPostDate } from "./blog-format"

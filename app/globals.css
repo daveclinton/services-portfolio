@@ -267,7 +267,24 @@ dialog[open] {
 }
 
 .admin-sidebar {
-  @apply hidden min-h-0 w-64 shrink-0 flex-col text-sidebar-foreground md:flex;
+  @apply hidden min-h-0 w-64 shrink-0 flex-col overflow-hidden text-sidebar-foreground md:flex motion-safe:transition-[width] motion-safe:duration-200;
+}
+
+/* Collapsed: an icon rail. Labels stay available to assistive technology. */
+[data-desk-sidebar="collapsed"] .admin-sidebar {
+  @apply w-16;
+}
+
+[data-desk-sidebar="collapsed"] .admin-sidebar .admin-sidebar-text {
+  @apply sr-only;
+}
+
+[data-desk-sidebar="collapsed"] .admin-sidebar .admin-sidebar-group {
+  @apply invisible h-2 p-0;
+}
+
+[data-desk-sidebar="collapsed"] .admin-sidebar :is(.admin-nav-link, [aria-label="Open profile menu"]) {
+  @apply justify-center px-0;
 }
 
 .admin-mobile-sidebar {
@@ -311,18 +328,10 @@ dialog[open] {
   scrollbar-gutter: stable;
 }
 
-/* HackMD-style Both mode: writing and a live reading view side by side. */
-.admin-write-area {
-  @apply flex min-h-0 flex-1 gap-6;
-}
-
-.admin-live-preview {
-  @apply min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain border-border px-2 pb-8;
-  scrollbar-gutter: stable;
-}
-
-.admin-write-area > .admin-editor-scroll + .admin-live-preview {
-  @apply border-l pl-6;
+/* Draft preview tabs say plainly that they are not the live page. */
+.preview-banner {
+  @apply sticky top-0 z-50 bg-foreground px-4 py-2 text-center text-caption text-background;
+  font-family: var(--font-display), system-ui, sans-serif;
 }
 
 .admin-menu-item {
@@ -330,7 +339,7 @@ dialog[open] {
 }
 
 .admin-table-frame {
-  @apply flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border;
+  @apply flex min-h-0 flex-1 flex-col overflow-hidden;
 }
 
 .admin-table-scroll {
@@ -338,7 +347,7 @@ dialog[open] {
 }
 
 .admin-table-footer {
-  @apply flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-2 text-caption text-muted-foreground;
+  @apply flex shrink-0 flex-wrap items-center justify-between gap-2 px-4 py-2 text-caption text-muted-foreground;
 }
 
 .admin-dialog {
@@ -353,11 +362,25 @@ dialog[open] {
 }
 
 .admin-table th {
-  @apply sticky top-0 z-10 bg-background border-b border-border px-4 py-3 font-medium text-muted-foreground;
+  @apply sticky top-0 z-10 bg-background px-4 py-3 font-medium text-muted-foreground;
 }
 
+/* No rules between rows: spacing separates them, and a soft highlight follows
+   the pointer or keyboard so a row stays easy to track across columns. */
 .admin-table td {
-  @apply border-b border-border px-4 py-4;
+  @apply px-4 py-4;
+}
+
+.admin-table td:first-child {
+  @apply rounded-l-lg;
+}
+
+.admin-table td:last-child {
+  @apply rounded-r-lg;
+}
+
+.admin-table tbody tr:is(:hover, :focus-within) > td {
+  @apply bg-muted/60;
 }
 
 .admin-sort-button {
@@ -980,6 +1003,23 @@ html:has(.numbered) body {
   height: 0;
   pointer-events: none;
   color: var(--muted-foreground);
+}
+
+/* Checklists: Tiptap renders a checkbox label beside each item's content. */
+.newsletter-editor ul[data-type="taskList"] {
+  @apply list-none pl-0;
+}
+
+.newsletter-editor ul[data-type="taskList"] li {
+  @apply flex items-start gap-2;
+}
+
+.newsletter-editor ul[data-type="taskList"] li > label {
+  @apply mt-1.5 shrink-0;
+}
+
+.newsletter-editor ul[data-type="taskList"] li > div {
+  @apply min-w-0 flex-1;
 }
 
 .newsletter-editor .ProseMirror-selectednode {
