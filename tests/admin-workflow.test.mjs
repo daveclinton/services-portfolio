@@ -316,13 +316,16 @@ test("the editor and its live view sit side by side, with no layout switch to ma
   assert(narrow.headerButton("Preview"), "the full preview stays one click away")
 })
 
-test("scrolling the editor carries the live view to the same place", async () => {
+test("the editor and live view have independent scroll regions", async () => {
   const ui = desk({ section: "posts", width: 1200 }); await ui.flush()
   ui.click("New post"); await ui.flush()
-  const live = { scrollTop: 0, scrollHeight: 3000, clientHeight: 1000 }
-  ui.nodeOfType("live-article").props.ref.current = live
-  ui.node("Article editor").props.onScroll({ currentTarget: { scrollTop: 500, scrollHeight: 2000, clientHeight: 1000 } })
-  assert.equal(live.scrollTop, 1000, "half way down the editor is half way down the article")
+  assert.equal(ui.node("Article editor").props.onScroll, undefined, "editor scrolling must not move the preview")
+  assert.equal(ui.nodeOfType("live-article").props.onScroll, undefined, "preview scrolling must not move the editor")
+  const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
+  for (const selector of ["admin-editor-scroll", "admin-live-preview"]) {
+    const rule = css.match(new RegExp(`\\.${selector} \\{([^}]+)\\}`))[1]
+    assert(rule.includes("overflow-y-auto") && rule.includes("overscroll-contain"), `${selector} contains its own scrolling`)
+  }
 })
 
 test("posts have a summary under the title that saves with the draft and shows in the live view", async () => {

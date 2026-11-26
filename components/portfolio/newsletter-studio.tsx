@@ -80,7 +80,17 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const actionPending = useRef(false)
   const tableScroll = useRef<HTMLDivElement>(null)
   const writeArea = useRef<HTMLDivElement>(null)
-  const livePane = useRef<HTMLElement>(null)
+  const pendingSubjectFocus = useRef(false)
+  const attachSubjectInput = useCallback((element: HTMLTextAreaElement | null) => {
+    subjectInput.current = element
+    // The title now renders inside the lazy editor, which can mount after the
+    // writing stage's focus effect. Fulfil that pending focus when it arrives.
+    if (element && pendingSubjectFocus.current) {
+      pendingSubjectFocus.current = false
+      focusElement(element)
+      if (element.value === "Untitled post") element.select()
+    }
+  }, [])
   const [roomy, setRoomy] = useState(true)
   // Lists changed on this screen win over responses that were already in flight.
   const listVersion = useRef(0)
@@ -122,6 +132,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   }, [fail, section, bootAttempt])
 
   useEffect(() => {
+    pendingSubjectFocus.current = stage === "write" && !busy && !subjectInput.current
     if (stage === "write" && !busy) { focusElement(subjectInput.current); if (subjectInput.current?.value === "Untitled post") subjectInput.current.select() }
     else if (stage !== "loading") focusElement(heading.current)
   }, [stage, busy])
@@ -442,24 +453,18 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
           <div className="flex items-center gap-2">{saved === "saving" ? <LoaderCircle className="size-4 motion-safe:animate-spin" aria-hidden="true" /> : null}<p role="status">{saved === "saving" ? "Saving…" : saved === "error" ? "Changes not saved" : dirty ? "Unsaved changes" : "Saved"}</p>{saved === "error" ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void work(async () => { await save() })}>Retry save</Button> : null}</div>
         </div>
         <div ref={writeArea} className="admin-write-layout"><div className="admin-write-grid">
-        {/* The live view follows the editor's scroll position by proportion, as
-            Joplin does; exact line mapping drifts around images. */}
-        <div className="admin-editor-scroll" role="region" aria-label="Article editor" tabIndex={0} onScroll={(event) => {
-          const editor = event.currentTarget, live = livePane.current
-          if (!live) return
-          const range = editor.scrollHeight - editor.clientHeight
-          live.scrollTop = range > 0 ? (editor.scrollTop / range) * (live.scrollHeight - live.clientHeight) : 0
-        }}>
+        <div className="admin-editor-scroll" role="region" aria-label="Article editor" tabIndex={0}>
+        <NewsletterEditor key={current?.id} value={markdown} disabled={busy} onUpload={(file) => studioUpload(session!.csrf,file)} onChange={(value) => { text.current.markdown = value; setMarkdown(value); setSaved("unsaved") }}>
         <div className="flex flex-col gap-2">
           <label htmlFor="post-title" className="sr-only">Post title</label>
-          <textarea ref={subjectInput} id="post-title" rows={2} className="studio-title w-full resize-none bg-transparent pl-8 font-bold text-foreground outline-none" value={subject} required maxLength={STUDIO_SUBJECT_LIMIT} disabled={busy} placeholder="Untitled post" onChange={(event) => { const value = event.target.value.replace(/[\r\n]+/g, " "); text.current.subject = value; setSubject(value); setSaved("unsaved") }} />
+          <textarea ref={attachSubjectInput} id="post-title" rows={2} className="studio-title w-full resize-none bg-transparent pl-8 font-bold text-foreground outline-none" value={subject} required maxLength={STUDIO_SUBJECT_LIMIT} disabled={busy} placeholder="Untitled post" onChange={(event) => { const value = event.target.value.replace(/[\r\n]+/g, " "); text.current.subject = value; setSubject(value); setSaved("unsaved") }} />
           {/* The summary readers see under the title, as Medium and Ghost place a subtitle. */}
           {section === "posts" ? <><label htmlFor="post-summary-line" className="sr-only">Summary</label>
           <textarea id="post-summary-line" rows={1} className="w-full resize-none bg-transparent pl-8 text-title text-muted-foreground outline-none [field-sizing:content] placeholder:text-muted-foreground/70" placeholder="Add a summary readers see under the title" maxLength={STUDIO_SUMMARY_LIMIT} disabled={busy} value={summary} onChange={(event) => { const value = event.target.value.replace(/[\r\n]+/g, " "); text.current.summary = value; setSummary(value); setSaved("unsaved") }} /></> : null}
         </div>
-        <NewsletterEditor key={current?.id} value={markdown} disabled={busy} onUpload={(file) => studioUpload(session!.csrf,file)} onChange={(value) => { text.current.markdown = value; setMarkdown(value); setSaved("unsaved") }} />
+        </NewsletterEditor>
         </div>
-        {roomy ? <LiveArticle ref={livePane} subject={subject} markdown={markdown} description={summary} date={current?.slug ? publishedPosts.find((post) => post.slug === current.slug)?.date : undefined} /> : null}
+        {roomy ? <LiveArticle subject={subject} markdown={markdown} description={summary} date={current?.slug ? publishedPosts.find((post) => post.slug === current.slug)?.date : undefined} /> : null}
         </div>
         </div>
       </> : null}

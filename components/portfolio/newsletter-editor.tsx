@@ -1,27 +1,29 @@
 "use client"
 
-import { useEffect, useId, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react"
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react"
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react"
 import { BubbleMenu } from "@tiptap/react/menus"
 import DragHandle from "@tiptap/extension-drag-handle-react"
 import { Popover } from "@base-ui/react/popover"
-import { Bold, Italic, Code, Link, ImagePlus, Plus, GripVertical, Undo2, Redo2, Unlink, Trash2, Info, Upload, LoaderCircle, FileCode, PenLine } from "lucide-react"
+import { Tabs } from "@base-ui/react/tabs"
+import { Bold, Italic, Code, Link, ImagePlus, Plus, GripVertical, Undo2, Redo2, Unlink, Trash2, Info, Upload, LoaderCircle, FileCode, PenLine, Heading, Strikethrough, Quote, List, ListOrdered, ListChecks } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SelectField } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { applyWritingBlock, writingBlocks, newsletterEditorExtensions, newsletterRichTextIssue } from "@/lib/newsletter-editor"
+import { applyWritingBlock, writingBlocks, newsletterEditorExtensions, newsletterRichTextIssue, formatMarkdown, newsletterImageMarkdown, type MarkdownFormat } from "@/lib/newsletter-editor"
 import { createWritingSlash, WritingBlockLabel } from "@/components/portfolio/newsletter-command-menu"
 import { STUDIO_BODY_LIMIT, studioImageURL } from "@/lib/newsletter-studio"
 import { DEFAULT_FRAME, FRAME_IDS, IMAGE_FRAMES, frameOf, withFrame, withoutFrame, type ImageFrame } from "@/lib/image-frames"
 import { FramedImage } from "@/components/portfolio/framed-image"
+import { PostMarkdown } from "@/components/portfolio/published-post-content"
 import { focusElement } from "@/lib/scroll"
 
-type Props = { value: string; disabled: boolean; onChange: (value: string) => void; onUpload?: (file: File) => Promise<string>; modeSwitch?: ReactNode }
+type Props = { value: string; disabled: boolean; onChange: (value: string) => void; onUpload?: (file: File) => Promise<string>; modeSwitch?: ReactNode; children?: ReactNode }
 
 // Novel's document canvas, slash commands, contextual formatting, and handles.
 // https://github.com/steven-tey/novel/tree/main/apps/web/components/tailwind
-export function NewsletterEditor({ value, disabled, onChange, onUpload }: Props) {
+export function NewsletterEditor({ value, disabled, onChange, onUpload, children }: Props) {
   const [mode, setMode] = useState<"rich" | "markdown">(() => newsletterRichTextIssue(value) ? "markdown" : "rich")
   const issue = newsletterRichTextIssue(value)
   const bytes = new TextEncoder().encode(value).length
@@ -29,26 +31,144 @@ export function NewsletterEditor({ value, disabled, onChange, onUpload }: Props)
   // The switch sits in the sticky formatting bar at the top, reachable at any
   // scroll position, rather than after the end of a long article.
   const modeSwitch = mode === "rich"
-    ? <Button variant="ghost" disabled={disabled} onClick={() => setMode("markdown")}><FileCode /><span className="max-sm:sr-only">Edit Markdown</span></Button>
-    : <Button variant="ghost" disabled={disabled || !!issue} onClick={() => setMode("rich")}><PenLine /><span className="max-sm:sr-only">Back to editor</span></Button>
+    ? <Button variant="outline" className="shadow-sm" disabled={disabled} onClick={() => setMode("markdown")}><FileCode /><span className="max-sm:sr-only">Edit Markdown</span></Button>
+    : <Button variant="outline" className="shadow-sm" disabled={disabled || !!issue} onClick={() => setMode("rich")}><PenLine /><span className="max-sm:sr-only">Back to editor</span></Button>
 
   return <section className="flex min-w-0 flex-col gap-4" aria-label="Post content">
-    {mode === "rich" ? <RichTextEditor value={value} disabled={disabled} onChange={onChange} onUpload={onUpload} modeSwitch={modeSwitch} /> : <>
-      <div className="glass-surface sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-lg px-2.5 py-2.5" role="group" aria-label="Markdown">
-        <p className="text-caption text-muted-foreground">Markdown</p>
-        <div className="ml-auto">{modeSwitch}</div>
-      </div>
-      {issue ? <p role="status" className="text-caption text-muted-foreground">{issue}</p> : null}
-      <label htmlFor="newsletter-markdown" className="sr-only">Post Markdown</label>
-      {/* Grows with the text, so the page scrolls once instead of a box inside it. */}
-      <textarea id="newsletter-markdown" rows={14} spellCheck className="min-h-96 w-full resize-none bg-transparent pl-8 font-mono text-body leading-7 outline-none [field-sizing:content]" value={value} disabled={disabled} onChange={(event) => onChange(event.target.value)} />
-    </>}
+    {mode === "rich" ? <RichTextEditor value={value} disabled={disabled} onChange={onChange} onUpload={onUpload} modeSwitch={modeSwitch}>{children}</RichTextEditor> : <MarkdownEditor value={value} disabled={disabled} onChange={onChange} onUpload={onUpload} modeSwitch={modeSwitch}>{children}</MarkdownEditor>}
     <p className="text-caption text-muted-foreground">{value.trim() ? value.trim().split(/\s+/).length : 0} words</p>
     {bytes > STUDIO_BODY_LIMIT ? <p role="alert" className="text-caption text-destructive">This draft is too long to save. Remove {bytes - STUDIO_BODY_LIMIT} bytes to continue.</p> : null}
   </section>
 }
 
-function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch }: Props) {
+// GitHub's Write / Preview composer and selection-based formatting, using this
+// app's controls, renderer, upload service, and theme.
+// https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/about-writing-and-formatting-on-github
+// https://docs.github.com/en/get-started/accessibility/keyboard-shortcuts#comments
+const markdownTools: { format: MarkdownFormat; label: string; icon: ComponentType<{ className?: string }> }[] = [
+  { format: "heading", label: "Heading", icon: Heading },
+  { format: "bold", label: "Bold", icon: Bold },
+  { format: "italic", label: "Italic", icon: Italic },
+  { format: "strikethrough", label: "Strikethrough", icon: Strikethrough },
+  { format: "quote", label: "Quote", icon: Quote },
+  { format: "code", label: "Code", icon: Code },
+  { format: "link", label: "Link", icon: Link },
+  { format: "image", label: "Image", icon: ImagePlus },
+  { format: "bulletList", label: "Bullet list", icon: List },
+  { format: "orderedList", label: "Numbered list", icon: ListOrdered },
+  { format: "taskList", label: "Task list", icon: ListChecks },
+]
+
+function MarkdownEditor({ value, disabled, onChange, onUpload, modeSwitch, children }: Props) {
+  const id = useId()
+  const input = useRef<HTMLTextAreaElement>(null)
+  const fileInput = useRef<HTMLInputElement>(null)
+  const selection = useRef<{ selectionStart: number; selectionEnd: number } | null>(null)
+  const uploadVersion = useRef(0)
+  const [tab, setTab] = useState("write")
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState("")
+  const locked = disabled || uploading
+  const issue = newsletterRichTextIssue(value)
+  useEffect(() => () => { uploadVersion.current++ }, [])
+  useLayoutEffect(() => {
+    if (selection.current && input.current) {
+      input.current.setSelectionRange(selection.current.selectionStart, selection.current.selectionEnd)
+      selection.current = null
+    }
+  }, [value])
+
+  function replace(edit: ReturnType<typeof formatMarkdown>) {
+    const field = input.current
+    if (!field) return
+    field.focus({ preventScroll: true })
+    field.setSelectionRange(edit.start, edit.end)
+    // GitHub uses native insertText to keep toolbar actions in the same undo
+    // history as typing. setRangeText covers engines without that command.
+    if (!document.execCommand?.("insertText", false, edit.text)) field.setRangeText(edit.text, edit.start, edit.end, "end")
+    selection.current = edit
+    onChange(field.value)
+    field.setSelectionRange(edit.selectionStart, edit.selectionEnd)
+  }
+  function format(kind: MarkdownFormat) {
+    const field = input.current
+    if (!field || locked || tab !== "write") return
+    replace(formatMarkdown(field.value, field.selectionStart, field.selectionEnd, kind))
+  }
+  async function upload(file: File) {
+    const field = input.current
+    if (!field || !onUpload || locked || tab !== "write") return
+    const source = field.value, start = field.selectionStart, end = field.selectionEnd
+    const version = ++uploadVersion.current
+    setUploading(true); setError("")
+    try {
+      const address = await onUpload(file)
+      if (version !== uploadVersion.current) return
+      if (input.current?.value !== source) throw new Error("The draft changed during upload. Please insert the image again.")
+      const text = newsletterImageMarkdown(withFrame(address, DEFAULT_FRAME), source.slice(start, end))
+      replace({ start, end, text, selectionStart: start + 2, selectionEnd: start + 2 + source.slice(start, end).length })
+    } catch (failure) {
+      if (version === uploadVersion.current) setError(failure instanceof Error ? failure.message : "Upload failed. Please try again.")
+    } finally { if (version === uploadVersion.current) setUploading(false) }
+  }
+
+  return <Tabs.Root value={tab} onValueChange={setTab} className="min-w-0" onKeyDown={(event) => {
+    if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key.toLowerCase() === "p") {
+      event.preventDefault(); setTab(tab === "write" ? "preview" : "write")
+    }
+  }}>
+    <TooltipProvider delay={300}>
+      <div className="writing-toolbar" role="group" aria-label="Markdown formatting">
+        <Tabs.List aria-label="Markdown view" className="flex items-center gap-1">
+          <Tabs.Tab value="write" render={<Button variant={tab === "write" ? "secondary" : "outline"} className="shadow-sm" />}>Write</Tabs.Tab>
+          <Tabs.Tab value="preview" render={<Button variant={tab === "preview" ? "secondary" : "outline"} className="shadow-sm" />}>Preview</Tabs.Tab>
+        </Tabs.List>
+        {markdownTools.map(({ format: kind, label, icon: Icon }) => <Tooltip key={kind}>
+          <TooltipTrigger render={<Button size="icon" variant="outline" className="shadow-sm" aria-label={label} disabled={locked || tab !== "write"} onMouseDown={(event) => event.preventDefault()} onClick={() => format(kind)} />}><Icon /></TooltipTrigger>
+          <TooltipContent>{label}</TooltipContent>
+        </Tooltip>)}
+        <div className="ml-auto">{modeSwitch}</div>
+      </div>
+    </TooltipProvider>
+    {children}
+    {issue ? <p role="status" className="py-2 text-caption text-muted-foreground">{issue}</p> : null}
+    <div className="mt-4 rounded-lg border border-border bg-background focus-within:border-ring">
+      <Tabs.Panel value="write" keepMounted>
+        <label htmlFor={`${id}-markdown`} className="sr-only">Post Markdown</label>
+        <textarea ref={input} id={`${id}-markdown`} rows={14} spellCheck className="min-h-96 w-full resize-y rounded-lg bg-transparent p-4 font-mono text-body leading-7 outline-none [field-sizing:content]" placeholder="Write your post using Markdown…" value={value} disabled={disabled} readOnly={uploading} onChange={(event) => onChange(event.target.value)} onKeyDown={(event) => {
+          if (!(event.metaKey || event.ctrlKey) || event.altKey) return
+          const key = event.key.toLowerCase()
+          const kind = event.shiftKey ? event.code === "Digit7" ? "orderedList" : event.code === "Digit8" ? "bulletList" : event.code === "Period" ? "quote" : null : ({ b: "bold", i: "italic", e: "code", k: "link" } as const)[key as "b" | "i" | "e" | "k"]
+          if (kind) { event.preventDefault(); format(kind) }
+        }} onPaste={(event) => {
+          const file = Array.from(event.clipboardData.files)[0]
+          if (file && onUpload) { event.preventDefault(); void upload(file); return }
+          const field = event.currentTarget, address = event.clipboardData.getData("text/plain").trim()
+          if (field.selectionStart !== field.selectionEnd && /^https?:\/\/\S+$/.test(address) && !locked) {
+            event.preventDefault()
+            const start = field.selectionStart, end = field.selectionEnd
+            const text = `[${field.value.slice(start, end)}](<${address.replace(/[<>]/g, encodeURIComponent)}>)`
+            replace({ start, end, text, selectionStart: start, selectionEnd: start + text.length })
+          }
+        }} onDragOver={(event) => { if (onUpload && event.dataTransfer.types.includes("Files")) event.preventDefault() }} onDrop={(event) => {
+          if (onUpload && event.dataTransfer.files.length) { event.preventDefault(); void upload(event.dataTransfer.files[0]) }
+        }} />
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border p-2.5 text-caption text-muted-foreground">
+          <a href="https://docs.github.com/en/get-started/writing-on-github/getting-started-with-writing-and-formatting-on-github/basic-writing-and-formatting-syntax" target="_blank" rel="noreferrer" className="admin-text-link">Markdown is supported</a>
+          {onUpload ? <Button variant="ghost" size="sm" disabled={locked} onMouseDown={(event) => event.preventDefault()} onClick={() => fileInput.current?.click()}>{uploading ? <LoaderCircle className="motion-safe:animate-spin" /> : <Upload />}{uploading ? "Uploading…" : "Paste, drop, or attach an image"}</Button> : null}
+          <input ref={fileInput} type="file" accept="image/*" className="hidden" aria-label="Attach an image" disabled={locked} onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void upload(file) }} />
+        </div>
+      </Tabs.Panel>
+      <Tabs.Panel value="preview" className="min-h-96 p-4">
+        {value.trim() ? <div className="blog-prose"><PostMarkdown markdown={value} /></div> : <p className="text-body text-muted-foreground">Nothing to preview</p>}
+      </Tabs.Panel>
+    </div>
+    {uploading ? <p role="status" className="text-caption text-muted-foreground">Uploading image…</p> : null}
+    {error ? <p role="alert" className="text-caption text-destructive">{error}</p> : null}
+  </Tabs.Root>
+}
+
+function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch, children }: Props) {
   const id = useId()
   const [initial] = useState(value)
   const emitted = useRef(value)
@@ -188,24 +308,24 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch }: Pro
 
   function formatButtons(bubble = false) {
     return controls.filter((control) => !bubble || !["Undo", "Redo"].includes(control.label)).map(({ label, icon: Icon, active, enabled, run }) => <Tooltip key={label}>
-      <TooltipTrigger render={<Button size="icon" variant={active ? "default" : "ghost"} aria-label={label} aria-pressed={active} disabled={!editor || disabled || enabled === false} onMouseDown={(event) => event.preventDefault()} onClick={run} />}><Icon /></TooltipTrigger>
+      <TooltipTrigger render={<Button size="icon" variant={active ? "default" : bubble ? "ghost" : "outline"} className={bubble ? undefined : "shadow-sm"} aria-label={label} aria-pressed={active} disabled={!editor || disabled || enabled === false} onMouseDown={(event) => event.preventDefault()} onClick={run} />}><Icon /></TooltipTrigger>
       <TooltipContent>{label}</TooltipContent>
     </Tooltip>)
   }
 
   return <div className="relative min-w-0">
     <TooltipProvider delay={300}>
-      <div className="glass-surface sticky top-0 z-10 flex flex-wrap items-center gap-1 rounded-lg py-2.5" role="group" aria-label="Text formatting">
+      <div className="writing-toolbar" role="group" aria-label="Text formatting">
         <label htmlFor={`${id}-style`} className="sr-only">Text style</label>
-        <SelectField id={`${id}-style`} ariaLabel="Text style" variant="ghost" disabled={!editor || disabled} value={state?.heading ?? "paragraph"} onValueChange={(value) => {
+        <SelectField id={`${id}-style`} ariaLabel="Text style" className="shadow-sm" disabled={!editor || disabled} value={state?.heading ?? "paragraph"} onValueChange={(value) => {
           if (value === "paragraph") editor?.chain().focus().setParagraph().run()
           else if (value) editor?.chain().focus().setHeading({ level: Number(value) as 1 | 2 | 3 | 4 | 5 | 6 }).run()
         }} options={[{ value: "paragraph", label: "Paragraph" }, ...[1, 2, 3, 4, 5, 6].map((level) => ({ value: String(level), label: `Heading ${level}` }))]} />
         {formatButtons()}
-        <Button variant={state?.link ? "default" : "ghost"} disabled={!editor || disabled} onClick={(event) => openInsert("link", event.currentTarget)}><Link />Link</Button>
-        <Button ref={imageTrigger} variant={state?.image ? "default" : "ghost"} disabled={!editor || disabled} onClick={(event) => openInsert("image", event.currentTarget)}><ImagePlus />Image</Button>
+        <Button variant={state?.link ? "default" : "outline"} className="shadow-sm" disabled={!editor || disabled} onClick={(event) => openInsert("link", event.currentTarget)}><Link />Link</Button>
+        <Button ref={imageTrigger} variant={state?.image ? "default" : "outline"} className="shadow-sm" disabled={!editor || disabled} onClick={(event) => openInsert("image", event.currentTarget)}><ImagePlus />Image</Button>
         <Popover.Root open={blockPicker} onOpenChange={setBlockPicker}>
-          <Popover.Trigger render={<Button variant="ghost" disabled={!editor || disabled} />}><Plus />Insert block</Popover.Trigger>
+          <Popover.Trigger render={<Button variant="outline" className="shadow-sm" disabled={!editor || disabled} />}><Plus />Insert block</Popover.Trigger>
           <Popover.Portal><Popover.Positioner side="bottom" align="start" sideOffset={4} className="z-50"><Popover.Popup className="writing-block-menu" finalFocus={false}>
             <Popover.Title className="px-2.5 py-2 text-caption text-muted-foreground">Add a block</Popover.Title>
             {writingBlocks.map((item) => <button key={item.id} type="button" className="flex w-full items-center gap-3 rounded-lg p-2.5 text-left hover:bg-muted focus-visible:bg-muted" onClick={() => {
@@ -215,9 +335,9 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch }: Pro
             }}><WritingBlockLabel item={item} /></button>)}
           </Popover.Popup></Popover.Positioner></Popover.Portal>
         </Popover.Root>
-        {state?.link ? <Button variant="ghost" aria-label="Remove link" disabled={disabled} onClick={() => editor?.chain().focus().extendMarkRange("link").unsetLink().run()}><Unlink />Remove link</Button> : null}
+        {state?.link ? <Button variant="outline" className="shadow-sm" aria-label="Remove link" disabled={disabled} onClick={() => editor?.chain().focus().extendMarkRange("link").unsetLink().run()}><Unlink />Remove link</Button> : null}
         <div className="ml-auto flex items-center gap-1">{modeSwitch}</div>
-        <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" aria-label="Editor help" />}><Info /></TooltipTrigger><TooltipContent>Type / to insert blocks. Select text to format it. Drag the handle to reorder.</TooltipContent></Tooltip>
+        <Tooltip><TooltipTrigger render={<Button variant="outline" className="shadow-sm" size="icon" aria-label="Editor help" />}><Info /></TooltipTrigger><TooltipContent>Type / to insert blocks. Select text to format it. Drag the handle to reorder.</TooltipContent></Tooltip>
       </div>
       {editor ? <>
         <BubbleMenu editor={editor} pluginKey="writing-format-menu" className="writing-floating-toolbar" options={{ placement: "top" }} shouldShow={({ editor, state, view }) => editor.isEditable && (view.hasFocus() || !!document.activeElement?.closest(".writing-floating-toolbar")) && !state.selection.empty && !editor.isActive("image")}>
@@ -230,6 +350,7 @@ function RichTextEditor({ value, disabled, onChange, onUpload, modeSwitch }: Pro
         </BubbleMenu>
       </> : null}
     </TooltipProvider>
+    {children}
     {!editor ? <div role="status" aria-label="Loading editor" className="flex min-h-96 flex-col gap-4 py-6"><Skeleton className="h-6 w-3/4" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-1/2" /></div> : null}
     <EditorContent editor={editor} />
     {editor && !disabled ? <DragHandle editor={editor} className="writing-drag-handle" onNodeChange={({ pos }) => setBlockPosition(pos)}>
