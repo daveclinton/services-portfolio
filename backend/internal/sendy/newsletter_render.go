@@ -41,7 +41,7 @@ func RenderNewsletter(subject, markdown, siteURL string) (string, error) {
 	for _, tag := range []string{"p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "blockquote", "pre"} {
 		body = strings.ReplaceAll(body, "<"+tag+">", "<"+tag+` style="margin:0 0 24px;font-size:16px;line-height:1.6">`)
 	}
-	body = strings.ReplaceAll(body, "<a ", `<a style="color:#ffffff;text-decoration:underline" `)
+	body = strings.ReplaceAll(body, "<a ", `<a style="text-decoration:underline" `)
 	body = frameEmailImages(body)
 	html, _, err := RenderNote(Note{Title: subject, SiteURL: siteURL, Campaign: true, UnsubscribeURL: unsubscribePlaceholder, Body: template.HTML(body), Preheader: preheaderFrom(body)})
 	if err == nil && len(html) > NewsletterHTMLLimit {
