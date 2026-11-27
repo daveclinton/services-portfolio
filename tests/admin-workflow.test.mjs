@@ -37,9 +37,10 @@ function desk({ failSave = false, failPublish = false, section = "newsletters", 
     studioMeta: async () => ({ sender: { name: "Owner", email: "owner@example.com" }, test_email: "owner@example.com", subscribers: 1, audience: "Readers" }),
     studioAction: async (_csrf, draft, kind, when) => { calls.push([kind, when]); if (!allowSend) throw new Error("No email action expected"); return { ...draft, state: kind === "test" ? "draft" : kind === "schedule" ? "scheduled" : "sending", tested_revision: kind === "test" ? draft.revision : draft.tested_revision } },
     studioLogout: async () => { calls.push(["logout"]) },
-    StudioSignedOutError: class StudioSignedOutError extends Error {}, STUDIO_SIGNIN_PATH: "/admin/signin", studioSignInHref: () => { calls.push(["remember", location.pathname + location.search]); return "/admin/signin" },
+    StudioSignedOutError: class StudioSignedOutError extends Error {}, STUDIO_SIGNIN_PATH: "/admin/signin", studioSignInHref: () => `/admin/signin?next=${encodeURIComponent(location.pathname + location.search)}`,
     studioPublish: async (_csrf, draft,slug,description)=>{calls.push(["publish",draft.revision,slug,description]);if(failPublish)throw new Error("Publication failed. Try again.");return {...draft,slug,description,published_revision:draft.revision,cache_invalidated:true}},
     newsletterStateLabel: (state) => state,
+    nairobiSchedule: (value) => new Date(`${value}:00+03:00`).toISOString(),
   }
   // Next's router is one object for the life of the page.
   const router = { push: (href) => calls.push(["navigate", href]), replace: (href) => calls.push(["navigate-replace", href]) }
@@ -52,7 +53,7 @@ function desk({ failSave = false, failPublish = false, section = "newsletters", 
     "@/components/ui/skeleton": { Skeleton: "skeleton" }, "@/components/ui/select": { SelectField: "select-field" },
     "@/components/ui/toast": { toastManager: { add(options) { toasts.push(options); return options.id ?? String(toasts.length) } } },
     "@/components/ui/tooltip": { Tooltip: "tooltip", TooltipContent: "tooltip-content", TooltipTrigger: "tooltip-trigger" },
-    "@/components/portfolio/table-pager": { TablePager: "table-pager" }, "@/components/portfolio/live-article": { LiveArticle: "live-article" }, "@/components/portfolio/sort-header": { SortHeader: "sort-header" }, "@/components/portfolio/document-actions": { DocumentActions: "document-actions" }, "@/components/portfolio/admin-shell": { AdminShell: "shell" }, "@/components/portfolio/newsletter-editor": { NewsletterEditor: "editor" },
+    "@/components/portfolio/table-pager": { TablePager: "table-pager" }, "@/components/portfolio/send-drawer": { SendDrawer: "send-drawer" }, "@/components/portfolio/live-article": { LiveArticle: "live-article" }, "@/components/portfolio/sort-header": { SortHeader: "sort-header" }, "@/components/portfolio/document-actions": { DocumentActions: "document-actions" }, "@/components/portfolio/admin-shell": { AdminShell: "shell" }, "@/components/portfolio/newsletter-editor": { NewsletterEditor: "editor" },
     "@/components/prompt-kit/markdown": { Markdown: "markdown" }, "@/lib/portfolio-data": { site: { url: "https://example.com" } },
     "@/lib/newsletter-studio": api, "@/lib/scroll": { focusElement(element) { if (element) focused.push(element) } },
   }
@@ -126,6 +127,7 @@ function desk({ failSave = false, failPublish = false, section = "newsletters", 
     header:()=>tree.props.actions,
     navigate: (href) => tree.props.onNavigate(href),
     logout: () => tree.props.onLogout(),
+    drawer: () => nodes.find((node) => node.type === "send-drawer")?.props,
     toasts: () => toasts,
     setFailSave(value) { failSave = value },
     setFailPublish(value) { failPublish = value },
@@ -214,40 +216,51 @@ test("a remembered list is shown immediately on returning to a section", async (
   assert.equal(ui.rows().length, 2, "the fresh response replaces the remembered list")
 })
 
-test("a newsletter goes preview, test, recipients and timing, then an explicit confirmation", async () => {
+test("a newsletter is tested and sent from a drawer over its preview, with one confirmation", async () => {
   const ui = desk({ allowSend: true }); await ui.flush()
   ui.click("New newsletter"); await ui.flush(); ui.select(published.slug); ui.submit(); await ui.flush()
   ui.click("Preview"); await ui.flush(); await ui.flush()
   assert(ui.text().includes("All subscribers · 1"), "the inbox header names the audience")
   assert(ui.text().includes("Rendered email"), "the preview text is shown")
+  assert.equal(ui.drawer().open, false)
   ui.headerButton("Send test").props.onClick(); await ui.flush()
   assert.deepEqual(ui.calls.at(-1), ["test", undefined])
   assert(ui.text().includes("A test was sent to owner@example.com"))
-  ui.headerButton("Continue").props.onClick(); await ui.flush()
-  assert(ui.text().includes("Goes to 1 subscriber right now."))
-  assert(!ui.calls.some((call) => call[0] === "send"), "choosing settings never sends")
-  ui.submit(); await ui.flush()
-  assert(ui.text().includes("Ready to send?"))
-  ui.click("Send email, right now"); await ui.flush()
+  ui.headerButton("Send…").props.onClick(); await ui.flush()
+  const drawer = ui.drawer()
+  assert.equal(drawer.open, true, "sending opens over the preview instead of a new step")
+  assert(ui.text().includes("Rendered email"), "the preview stays on the page")
+  assert.equal(drawer.audience, "all"); assert.equal(drawer.later, false); assert.equal(drawer.tested, true)
+  assert(!ui.calls.some((call) => call[0] === "send"), "opening the drawer never sends")
+  drawer.onSend(); await ui.flush()
   assert.deepEqual(ui.calls.at(-1), ["send", undefined])
+  assert.equal(ui.drawer()?.open ?? false, false, "the drawer closes once the email is on its way")
 })
 
-test("choosing selected contacts saves them before the final confirmation and sends only after it", async () => {
+test("specific contacts come from confirmed subscribers and are saved before sending", async () => {
   const ui = desk({ allowSend: true }); await ui.flush()
   ui.click("New newsletter"); await ui.flush(); ui.select(published.slug); ui.submit(); await ui.flush()
   ui.click("Preview"); await ui.flush(); await ui.flush()
-  ui.headerButton("Continue").props.onClick(); await ui.flush()
-  ui.click("Selected contacts"); await ui.flush(); await ui.flush()
-  assert.equal(ui.checkboxes(), 2, "only confirmed subscribers can be picked")
-  assert(ui.text().includes("Choose at least one contact."))
-  ui.checkbox("b@example.com").props.onChange({ target: { checked: true } }); await ui.flush()
-  assert(ui.text().includes("Goes to 1 subscriber right now."))
-  ui.submit(); await ui.flush()
-  assert.equal(JSON.stringify(ui.calls.filter((call) => call[0] === "recipients")), JSON.stringify([["recipients", ["b@example.com"]]]))
-  assert(ui.text().includes("goes to 1 selected subscriber right now"))
-  assert(!ui.calls.some((call) => call[0] === "send"))
-  ui.click("Send email, right now"); await ui.flush()
-  assert.equal(ui.calls.at(-1)[0], "send")
+  ui.headerButton("Send…").props.onClick(); await ui.flush()
+  ui.drawer().onAudience("selected"); await ui.flush(); await ui.flush()
+  assert.deepEqual(ui.drawer().subscribers.map((contact) => contact.email), ["a@example.com", "b@example.com"], "only confirmed subscribers can be picked")
+  ui.drawer().onPicked(["b@example.com"]); await ui.flush()
+  assert(!ui.calls.some((call) => call[0] === "recipients" || call[0] === "send"), "choosing never saves or sends")
+  ui.drawer().onSend(); await ui.flush(); await ui.flush()
+  assert.deepEqual(ui.calls.filter((call) => call[0] === "recipients" || call[0] === "send").map((call) => call[0]), ["recipients", "send"])
+  assert.equal(JSON.stringify(ui.calls.find((call) => call[0] === "recipients")), JSON.stringify(["recipients", ["b@example.com"]]))
+})
+
+test("scheduling suggests tomorrow morning in Nairobi and schedules that time", async () => {
+  const ui = desk({ allowSend: true }); await ui.flush()
+  ui.click("New newsletter"); await ui.flush(); ui.select(published.slug); ui.submit(); await ui.flush()
+  ui.click("Preview"); await ui.flush(); await ui.flush()
+  ui.headerButton("Send…").props.onClick(); await ui.flush()
+  ui.drawer().onLater(true); await ui.flush()
+  const tomorrow = new Date(Date.now() + 27 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  assert.equal(ui.drawer().schedule, `${tomorrow}T09:00`)
+  ui.drawer().onSend(); await ui.flush()
+  assert.deepEqual(ui.calls.at(-1), ["schedule", new Date(`${tomorrow}T09:00:00+03:00`).toISOString()])
 })
 
 test("opening a document records it in the address, and Back returns to the list", async () => {
@@ -445,7 +458,7 @@ test("save and publication failures retain the draft in the editor and can be re
 
 test("a signed-out desk sends the owner to the sign-in page and remembers where they were", async () => {
   const ui = desk({ section: "posts", signedOut: true, search: "doc=a5cd8282-68f1-4b4a-9c19-000000000001" }); await ui.flush()
-  assert.deepEqual(ui.calls, [["remember", "/admin/posts?doc=a5cd8282-68f1-4b4a-9c19-000000000001"], ["navigate-replace", "/admin/signin"]])
+  assert.deepEqual(ui.calls, [["navigate-replace", "/admin/signin?next=%2Fadmin%2Fposts%3Fdoc%3Da5cd8282-68f1-4b4a-9c19-000000000001"]])
   assert.doesNotMatch(ui.text(), /Continue with GitHub/)
 })
 

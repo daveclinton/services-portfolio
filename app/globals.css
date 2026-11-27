@@ -262,6 +262,12 @@ dialog[open] {
   font-family: var(--font-display), system-ui, sans-serif;
 }
 
+/* Drawers, dialogs, menus and toasts render in portals outside .admin-site;
+   on desk pages they use the desk's typeface too. */
+body:has(.admin-site) {
+  font-family: var(--font-display), system-ui, sans-serif;
+}
+
 .admin-shell {
   @apply flex h-dvh overflow-hidden;
 }
