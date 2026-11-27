@@ -12,7 +12,35 @@ export const STUDIO_SUBJECT_LIMIT = 180
 export const STUDIO_BODY_LIMIT = 40_000
 // Matches the image formats allowed by the signed Cloudinary upload endpoint.
 export const STUDIO_IMAGE_ACCEPT = ".avif,.gif,.heic,.heif,.jpeg,.jpg,.png,.webp,image/avif,image/gif,image/heic,image/heif,image/jpeg,image/png,image/webp"
+export type StudioUploadOptions = { onProgress?: (progress: number | null) => void; signal?: AbortSignal }
 export const studioLoginURL = `${API_URL}/admin/newsletters/auth/login`
+
+// The owner's own sign-in page. Signed-out desks send the owner here and the
+// page returns them afterwards, as Ghost Admin does with /signin.
+export const STUDIO_SIGNIN_PATH = "/admin/signin"
+export const STUDIO_HOME_PATH = "/admin/posts"
+const SIGNIN_RETURN_KEY = "desk-signin-return"
+const returnable = (path: string | null): path is string => !!path && /^\/(admin|p)\//.test(path) && !path.startsWith(STUDIO_SIGNIN_PATH)
+/** Remembers where a signed-out owner was going; the latest attempt wins. */
+export function rememberSignInReturn(path: string) {
+  try { if (returnable(path)) sessionStorage.setItem(SIGNIN_RETURN_KEY, path) } catch {}
+}
+/** The page to open after signing in, cleared so it is used once. */
+export function takeSignInReturn(): string {
+  try {
+    const path = sessionStorage.getItem(SIGNIN_RETURN_KEY)
+    sessionStorage.removeItem(SIGNIN_RETURN_KEY)
+    return returnable(path) ? path : STUDIO_HOME_PATH
+  } catch { return STUDIO_HOME_PATH }
+}
+/** The sign-in page, remembering the current page to come back to. */
+export function studioSignInHref() {
+  if (typeof window !== "undefined") rememberSignInReturn(window.location.pathname + window.location.search)
+  return STUDIO_SIGNIN_PATH
+}
+
+/** A request refused because the owner's session has ended. */
+export class StudioSignedOutError extends Error {}
 
 export type PublishedStudioPost = { slug: string; title: string; description: string; date: string }
 
@@ -26,7 +54,9 @@ async function request(path: string, csrf?: string, body?: Record<string, unknow
     })
     const value: unknown = await response.json().catch(() => null)
     const result = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null
-    if (!response.ok) throw new Error(typeof result?.detail === "string" ? result.detail : "The dashboard request failed. Please try again.")
+    const detail = typeof result?.detail === "string" ? result.detail : "The dashboard request failed. Please try again."
+    if (response.status === 401) throw new StudioSignedOutError(detail)
+    if (!response.ok) throw new Error(detail)
     if (!result) throw new Error("The dashboard returned an incomplete response.")
     return result
   } catch (error) {
@@ -163,31 +193,74 @@ export async function studioPublish(csrf: string, current: NewsletterDraft, slug
 // Cloudinary when it is set up: the API signs, the browser uploads directly, so
 // large files never pass through the VPS. Otherwise PostgreSQL, as before.
 // https://cloudinary.com/documentation/authentication_signatures
-export async function studioUpload(csrf: string, file: File): Promise<string> {
+export async function studioUpload(csrf: string, file: File, options: StudioUploadOptions = {}): Promise<string> {
+  options.signal?.throwIfAborted()
   const signed = await request("media/sign", csrf, {})
-  if (signed.configured === true) return cloudinaryUpload(signed, file)
+  options.signal?.throwIfAborted()
+  if (signed.configured === true) return cloudinaryUpload(signed, file, options)
   if (!['image/png', 'image/jpeg', 'image/gif'].includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error("Choose a PNG, JPEG or GIF of up to 5 MB, or set up Cloudinary to upload any image.")
   const data=new FormData(); data.set("file", file)
-  const result=await request("media",csrf,data)
+  const response = options.onProgress ? await uploadRequest(`${API_URL}/admin/newsletters/media`, data, options, csrf) : null
+  if (response && !response.ok) throw new Error(typeof response.body?.detail === "string" ? response.body.detail : "The image could not be uploaded. Please try again.")
+  const result = response ? response.body : await request("media",csrf,data)
+  if (!result) throw new Error("Couldn’t confirm the uploaded image.")
   if(typeof result.url!=="string" || !studioImageURL(result.url)) throw new Error("Couldn’t confirm the uploaded image.")
   return result.url
 }
-async function cloudinaryUpload(signed: Record<string, unknown>, file: File): Promise<string> {
+async function cloudinaryUpload(signed: Record<string, unknown>, file: File, options: StudioUploadOptions): Promise<string> {
   const cloud = signed.cloud_name, key = signed.api_key, signature = signed.signature, params = signed.params as Record<string, unknown> | undefined
   if (typeof cloud !== "string" || !/^[a-z0-9_-]+$/i.test(cloud) || typeof key !== "string" || typeof signature !== "string" || !params || typeof params.public_id !== "string" || typeof params.folder !== "string") throw new Error("Couldn’t prepare the upload. Reload and try again.")
   const data = new FormData()
   data.set("file", file); data.set("api_key", key); data.set("signature", signature)
   for (const [name, value] of Object.entries(params)) data.set(name, String(value))
-  let response: Response
-  try { response = await fetch(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, { method: "POST", body: data, signal: AbortSignal.timeout(120_000) }) }
-  catch { throw new Error("The upload didn’t finish. Check your connection and try again.") }
-  const result = await response.json().catch(() => null) as { secure_url?: unknown; error?: { message?: unknown } } | null
+  const response = await uploadRequest(`https://api.cloudinary.com/v1_1/${cloud}/image/upload`, data, options)
+  const result = response.body as { secure_url?: unknown; error?: { message?: unknown } } | null
   if (!response.ok) throw new Error(typeof result?.error?.message === "string" ? `Cloudinary: ${result.error.message}` : "Cloudinary declined this image. Try another file.")
   // Only an address for this upload, in this account, is accepted back.
   const url = result?.secure_url
   const expected = `https://res.cloudinary.com/${cloud}/image/upload/`
   if (typeof url !== "string" || !url.startsWith(expected) || !new RegExp(`^v\\d+/${params.folder}/${params.public_id}\\.[a-z0-9]+$`).test(url.slice(expected.length))) throw new Error("Couldn’t confirm the uploaded image.")
   return url
+}
+
+// XHR exposes actual bytes sent; fetch remains available to non-UI callers.
+// https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest/upload
+async function uploadRequest(url: string, body: FormData, options: StudioUploadOptions, csrf?: string): Promise<{ ok: boolean; body: Record<string, unknown> | null }> {
+  if (!options.onProgress) {
+    try {
+      const response = await fetch(url, { method: "POST", body, signal: options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(120_000)]) : AbortSignal.timeout(120_000), ...(csrf ? { credentials: "include" as const, headers: { "X-CSRF-Token": csrf } } : {}) })
+      return { ok: response.ok, body: await response.json().catch(() => null) }
+    } catch (error) {
+      if (options.signal?.aborted) throw error
+      throw new Error("The upload didn’t finish. Check your connection and try again.")
+    }
+  }
+  options.signal?.throwIfAborted()
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest()
+    let settled = false
+    const abort = () => xhr.abort()
+    const finish = (failure?: Error) => {
+      if (settled) return
+      settled = true
+      options.signal?.removeEventListener("abort", abort)
+      if (failure) { reject(failure); return }
+      let result: Record<string, unknown> | null = null
+      try { const parsed: unknown = JSON.parse(xhr.responseText); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) result = parsed as Record<string, unknown> } catch {}
+      resolve({ ok: xhr.status >= 200 && xhr.status < 300, body: result })
+    }
+    xhr.upload.onprogress = (event) => { if (!settled) options.onProgress?.(event.lengthComputable ? Math.round(event.loaded / event.total * 100) : null) }
+    xhr.onload = () => finish()
+    xhr.onerror = () => finish(new Error("The upload didn’t finish. Check your connection and try again."))
+    xhr.ontimeout = () => finish(new Error("The image upload timed out. Please try again."))
+    xhr.onabort = () => finish(new DOMException("Image upload cancelled.", "AbortError"))
+    xhr.open("POST", url)
+    xhr.timeout = 120_000
+    if (csrf) { xhr.withCredentials = true; xhr.setRequestHeader("X-CSRF-Token", csrf) }
+    options.signal?.addEventListener("abort", abort, { once: true })
+    options.onProgress?.(0)
+    xhr.send(body)
+  })
 }
 export function studioImageURL(value: string): boolean {
   try {
@@ -223,7 +296,12 @@ export async function studioMeta(): Promise<StudioMeta> {
 export async function studioAction(csrf: string, current: NewsletterDraft, action: "test" | "send" | "schedule" | "cancel" | "refresh", scheduledAt?: string): Promise<NewsletterDraft> {
   return draft(await request(`drafts/${current.id}/${action}`, csrf, { revision: current.revision, ...(scheduledAt ? { scheduled_at: scheduledAt } : {}) }))
 }
-export async function studioLogout(csrf: string): Promise<void> { await request("logout", csrf, {}); studioForget() }
+// Works with an expired session too: the server always clears the cookie.
+export async function studioLogout(): Promise<void> {
+  await request("logout", "", {})
+  studioForget()
+  takeSignInReturn()
+}
 export function nairobiSchedule(value: string): string {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) throw new Error("Choose a date and time in Nairobi time.")
   const date = new Date(`${value}:00+03:00`)

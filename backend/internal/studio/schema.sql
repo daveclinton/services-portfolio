@@ -2,6 +2,8 @@ CREATE TABLE IF NOT EXISTS newsletter_studio_sessions (
  token_hash text PRIMARY KEY, github_id bigint NOT NULL, login text NOT NULL,
  expires_at timestamptz NOT NULL
 );
+-- Sessions slide: each day of use pushes expires_at out again, up to a fixed cap from created_at.
+ALTER TABLE newsletter_studio_sessions ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT NOW();
 CREATE TABLE IF NOT EXISTS newsletter_studio_oauth (
  state_hash text PRIMARY KEY, verifier text NOT NULL, expires_at timestamptz NOT NULL
 );

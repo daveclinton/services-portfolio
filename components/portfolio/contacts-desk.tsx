@@ -9,8 +9,9 @@ import { SortHeader } from "@/components/portfolio/sort-header"
 import { EMPTY_QUERY, compareText, nextSort, readPage, readSort, setDeskQuery, type DeskQuery, type SortDir } from "@/lib/desk-url"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { toastManager } from "@/components/ui/toast"
 import { Skeleton } from "@/components/ui/skeleton"
-import { studioBootstrap, studioContacts, studioLoginURL, studioLogout, type StudioContact, type StudioSession } from "@/lib/newsletter-studio"
+import { STUDIO_SIGNIN_PATH, studioBootstrap, studioContacts, studioLogout, studioSignInHref, type StudioContact, type StudioSession } from "@/lib/newsletter-studio"
 
 const PAGE_SIZE = 20
 const labels: Record<StudioContact["status"], string> = { subscribed: "Subscribed", pending: "Awaiting confirmation", suppressed: "Unsubscribed" }
@@ -31,18 +32,20 @@ export function ContactsDesk({ query = EMPTY_QUERY }: { query?: DeskQuery }) {
   const [busy, setBusy] = useState(false)
   const [attempt, setAttempt] = useState(0)
   const scroller = useRef<HTMLDivElement>(null)
+  useEffect(() => { if (error) toastManager.add({ id: "contacts-error", title: "Contacts action failed", description: error, type: "error", priority: "high", timeout: 0 }) }, [error])
 
   useEffect(() => {
     let live = true
     studioBootstrap("posts").then(async (desk) => {
       if (!live) return
       setSession(desk.session)
-      if (!desk.session.authenticated) return
+      // Signing in has its own page, which brings the owner back here.
+      if (!desk.session.authenticated) { router.replace(studioSignInHref()); return }
       const result = await studioContacts()
       if (live) { setContacts(result.contacts); setLimit(result.limit) }
     }).catch((failure) => { if (live) setError(failure instanceof Error ? failure.message : "Couldn’t load contacts.") })
     return () => { live = false }
-  }, [attempt])
+  }, [attempt, router])
 
   const search = query.get("q") ?? ""
   const needle = search.trim().toLowerCase()
@@ -55,18 +58,16 @@ export function ContactsDesk({ query = EMPTY_QUERY }: { query?: DeskQuery }) {
   const first = current * PAGE_SIZE
   const visible = rows.slice(first, first + PAGE_SIZE)
   const count = (status: StudioContact["status"]) => (contacts ?? []).filter((contact) => contact.status === status).length
-  const loading = !error && (!session || (session.authenticated && !contacts))
   const signedOut = session !== null && !session.authenticated
+  const loading = !error && (!session || signedOut || !contacts)
 
   return <AdminShell section="contacts" title="Contacts" session={session} loading={loading} busy={busy} editing onNavigate={async (href) => router.push(href)} onLogout={() => {
-    if (!session?.csrf) return
     setBusy(true)
-    studioLogout(session.csrf).then(() => { setContacts(null); setSession({ configured: true, authenticated: false, csrf: "", login: "" }) }).catch((failure) => setError(failure instanceof Error ? failure.message : "Couldn’t sign out.")).finally(() => setBusy(false))
+    studioLogout().then(() => { setContacts(null); router.replace(STUDIO_SIGNIN_PATH) }).catch((failure) => { setError(failure instanceof Error ? failure.message : "Couldn’t sign out."); setBusy(false) })
   }}>
     <article className="flex h-full min-h-0 min-w-0 flex-col gap-4" aria-busy={loading}>
       <h1 className="sr-only">Contacts</h1>
       {error ? <div className="flex items-center gap-3"><p role="alert" className="text-body text-destructive">{error}</p><Button variant="outline" size="sm" onClick={() => { setError(""); setAttempt((value) => value + 1) }}>Retry</Button></div> : null}
-      {signedOut ? <div className="flex flex-col gap-4"><p className="text-body">{session.configured ? "Sign in to see your contacts." : "This writing desk hasn’t been enabled yet."}</p>{session.configured ? <Button className="w-fit" nativeButton={false} render={<a href={studioLoginURL} />}>Continue with GitHub</Button> : null}</div> : null}
       {!signedOut && !error ? <>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <label className="glass-surface flex w-full max-w-sm items-center gap-2 rounded-lg border border-input px-2.5 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">

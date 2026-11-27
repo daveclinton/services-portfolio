@@ -50,8 +50,8 @@ const { AdminShell } = require("../components/portfolio/admin-shell.tsx")
 const { SelectField } = require("../components/ui/select.tsx")
 const { PublishedPostContent } = require("../components/portfolio/published-post-content.tsx")
 
-test("the writing shortcut redirects to Posts while preserving a failed login", async () => {
-  for (const [query, target] of [[{}, "/admin/posts"], [{ login: "failed" }, "/admin/posts?login=failed"]]) {
+test("the writing shortcut redirects to Posts, and a failed login to the sign-in page", async () => {
+  for (const [query, target] of [[{}, "/admin/posts"], [{ login: "failed" }, "/admin/signin?login=failed"]]) {
     await assert.rejects(() => LegacyStudioPage({ searchParams: Promise.resolve(query) }), (error) => error.digest?.includes(target))
   }
 })
@@ -338,7 +338,7 @@ test("with Cloudinary, any image goes straight to it with the signed parameters,
  await assert.rejects(() => studioUpload("csrf", huge), /Cloudinary: Invalid image file/)
 })
 
-test("every image is shown in one of the four frames, with Cloudinary cutting it to that frame", () => {
+test("every image is contained in a padded frame without cropping, with responsive Cloudinary derivatives", () => {
  const { framedSource, frameOf, withFrame } = require("../lib/image-frames.ts")
  const { FramedImage } = require("../components/portfolio/framed-image.tsx")
  const cloud = "https://res.cloudinary.com/my-cloud/image/upload/v17/blog/x.jpg"
@@ -346,7 +346,7 @@ test("every image is shown in one of the four frames, with Cloudinary cutting it
  assert.equal(frameOf(`${cloud}#frame=bogus`), "landscape")
  assert.equal(withFrame(`${cloud}#frame=wide`, "portrait"), `${cloud}#frame=portrait`)
  const wide = framedSource(`${cloud}#frame=wide`)
- assert.equal(wide.src, "https://res.cloudinary.com/my-cloud/image/upload/c_fill,ar_16:9,g_auto,w_960/f_auto,q_auto/v17/blog/x.jpg")
+ assert.equal(wide.src, "https://res.cloudinary.com/my-cloud/image/upload/c_pad,ar_16:9,b_transparent,w_960/f_auto,q_auto/v17/blog/x.jpg")
  assert.equal(wide.srcSet.split(", ").length, 5)
  assert.match(wide.srcSet, /w_1840\/f_auto,q_auto\/v17\/blog\/x\.jpg 1840w$/)
  assert.equal(wide.height / wide.width, 9 / 16, "space is reserved in the frame's shape")
@@ -360,14 +360,15 @@ test("every image is shown in one of the four frames, with Cloudinary cutting it
  assert.match(html, /class="framed-image"/)
  assert.match(html, /alt="A phone"/)
  const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8")
- for (const rule of [/\.framed-image\[data-frame="wide"\][^{]*\{\s*aspect-ratio: 16 \/ 9;/, /\[data-frame="square"\][^{]*\{\s*width: 66%;\s*aspect-ratio: 1 \/ 1;/, /\[data-frame="portrait"\][^{]*\{\s*width: 56%;\s*aspect-ratio: 4 \/ 5;/, /:is\(\.framed-image, \.blog-prose img, \.newsletter-editor img\) \{[^}]*aspect-ratio: 3 \/ 2;[^}]*object-fit: cover;/]) assert.match(css, rule)
+ for (const rule of [/\.framed-image\[data-frame="wide"\][^{]*\{\s*aspect-ratio: 16 \/ 9;/, /\[data-frame="square"\][^{]*\{\s*width: 66%;\s*aspect-ratio: 1 \/ 1;/, /\[data-frame="portrait"\][^{]*\{\s*width: 56%;\s*aspect-ratio: 4 \/ 5;/, /:is\(\.framed-image, \.blog-prose img, \.newsletter-editor img\) \{[^}]*aspect-ratio: 3 \/ 2;[^}]*object-fit: contain;/]) assert.match(css, rule)
+ assert.match(css, /bg-muted p-4 shadow-sm sm:p-6/, "the canvas reuses the theme and spacing tokens")
 })
 
 test("article Markdown renders its images framed on the public page, preview and live view", () => {
  const { PostMarkdown } = require("../components/portfolio/published-post-content.tsx")
  const html = renderToStaticMarkup(React.createElement(PostMarkdown, { markdown: "![Chart](https://res.cloudinary.com/my-cloud/image/upload/v17/blog/c.png#frame=wide)" }))
  assert.match(html, /data-frame="wide"/)
- assert.match(html, /srcSet="[^"]*c_fill,ar_16:9/i)
+ assert.match(html, /srcSet="[^"]*c_pad,ar_16:9/i)
 })
 
 test("publication requires acknowledgement of the saved revision",async(t)=>{

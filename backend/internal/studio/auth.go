@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -30,6 +31,20 @@ func (s *Service) ownerCookie() string {
 func (s *Service) cookie(name, value string, seconds int) *http.Cookie {
 	return &http.Cookie{Name: name, Value: value, Path: "/", MaxAge: seconds, HttpOnly: true, Secure: s.cfg.Production(), SameSite: http.SameSiteLaxMode}
 }
+
+// A session lasts sessionIdle past its last day of use, and never longer than
+// sessionLifetime after sign-in, so the owner stays signed in on a device they
+// use while a forgotten or stolen cookie still runs out.
+const (
+	sessionIdle     = 30 * 24 * time.Hour
+	sessionLifetime = 90 * 24 * time.Hour
+)
+
+// interval spells a duration as Postgres reads it.
+func interval(d time.Duration) string { return fmt.Sprintf("%d seconds", int64(d.Seconds())) }
+
+// The owner session for the request's cookie. A live session is pushed out to
+// sessionIdle again at most once a day, so reads do not write on every request.
 func (s *Service) owner(r *http.Request) (string, string, bool) {
 	if !s.cfg.NewsletterAdminEnabled {
 		return "", "", false
@@ -39,7 +54,16 @@ func (s *Service) owner(r *http.Request) (string, string, bool) {
 		return "", "", false
 	}
 	var login string
-	err = s.db.QueryRow(r.Context(), `SELECT login FROM newsletter_studio_sessions WHERE token_hash=$1 AND github_id=$2 AND expires_at>NOW()`, s.privacy.Hash("studio-session:"+cookie.Value), s.cfg.NewsletterGitHubOwnerID).Scan(&login)
+	err = s.db.QueryRow(r.Context(), `WITH live AS (
+  SELECT token_hash, login, expires_at, created_at FROM newsletter_studio_sessions
+  WHERE token_hash=$1 AND github_id=$2 AND expires_at>NOW()
+), renewed AS (
+  UPDATE newsletter_studio_sessions s SET expires_at=LEAST(live.created_at+$4::interval, NOW()+$3::interval)
+  FROM live WHERE s.token_hash=live.token_hash
+    AND live.expires_at < NOW()+$3::interval-INTERVAL '1 day'
+    AND live.expires_at < live.created_at+$4::interval
+)
+SELECT login FROM live`, s.privacy.Hash("studio-session:"+cookie.Value), s.cfg.NewsletterGitHubOwnerID, interval(sessionIdle), interval(sessionLifetime)).Scan(&login)
 	return login, s.privacy.Hash("studio-csrf:" + cookie.Value), err == nil
 }
 func (s *Service) sameOrigin(r *http.Request) bool { return r.Header.Get("Origin") == s.cfg.SiteURL }
@@ -99,7 +123,7 @@ func (s *Service) login(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Service) callback(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	failed := func() { http.Redirect(w, r, s.cfg.SiteURL+"/admin/newsletters?login=failed", http.StatusSeeOther) }
+	failed := func() { http.Redirect(w, r, s.cfg.SiteURL+"/admin/signin?login=failed", http.StatusSeeOther) }
 	if !s.cfg.NewsletterAdminEnabled {
 		http.Error(w, "Dashboard disabled", 403)
 		return
@@ -148,20 +172,34 @@ func (s *Service) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	// The GitHub access token is intentionally not persisted or sent to the browser.
 	session := randomToken()
-	_, err = s.db.Exec(ctx, `INSERT INTO newsletter_studio_sessions(token_hash,github_id,login,expires_at) VALUES($1,$2,$3,NOW()+INTERVAL '8 hours')`, s.privacy.Hash("studio-session:"+session), identity.ID, identity.Login)
+	_, err = s.db.Exec(ctx, `INSERT INTO newsletter_studio_sessions(token_hash,github_id,login,expires_at,created_at) VALUES($1,$2,$3,NOW()+$4::interval,NOW())`, s.privacy.Hash("studio-session:"+session), identity.ID, identity.Login, interval(sessionIdle))
 	if err != nil {
 		failed()
 		return
 	}
-	http.SetCookie(w, s.cookie(s.ownerCookie(), session, 8*60*60))
-	http.Redirect(w, r, s.cfg.SiteURL+"/admin/newsletters", http.StatusSeeOther)
+	// The cookie may outlive the idle window; the database decides when it ends.
+	http.SetCookie(w, s.cookie(s.ownerCookie(), session, int(sessionLifetime.Seconds())))
+	// The sign-in page sends the owner on to the page they were trying to open.
+	http.Redirect(w, r, s.cfg.SiteURL+"/admin/signin", http.StatusSeeOther)
 }
+
+// Signing out always ends with the browser signed out, even when the session
+// has already expired: an expired session must never leave the owner stuck in
+// a desk that cannot sign out. Only the same site may ask, so another site
+// cannot sign the owner out.
 func (s *Service) logout(w http.ResponseWriter, r *http.Request) {
-	cookie, _ := r.Cookie(s.ownerCookie())
-	_, err := s.db.Exec(r.Context(), `DELETE FROM newsletter_studio_sessions WHERE token_hash=$1`, s.privacy.Hash("studio-session:"+cookie.Value))
-	if err != nil {
-		httpx.Unavailable(w, "Could not sign out. Please try again.", 30)
+	w.Header().Set("Cache-Control", "no-store")
+	if !s.sameOrigin(r) {
+		httpx.WriteJSON(w, 403, httpx.Problem{Detail: "This dashboard request is not allowed."})
 		return
+	}
+	if cookie, err := r.Cookie(s.ownerCookie()); err == nil && cookie.Value != "" {
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+		if _, err := s.db.Exec(ctx, `DELETE FROM newsletter_studio_sessions WHERE token_hash=$1`, s.privacy.Hash("studio-session:"+cookie.Value)); err != nil {
+			httpx.Unavailable(w, "Could not sign out. Please try again.", 30)
+			return
+		}
 	}
 	http.SetCookie(w, s.cookie(s.ownerCookie(), "", -1))
 	httpx.WriteJSON(w, 200, map[string]bool{"ok": true})

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { toastManager } from "@/components/ui/toast"
 import { focusElement } from "@/lib/scroll"
 import { Markdown } from "@/components/prompt-kit/markdown"
 import { AdminShell } from "@/components/portfolio/admin-shell"
@@ -19,8 +20,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { FileText, Mail, Search, Plus, Info, LoaderCircle, X, ExternalLink, Send, Check, Monitor, Smartphone } from "lucide-react"
 import {
   studioDraft, studioRecipients, studioContacts, studioBootstrap, studioCachedDesk, studioUpdateDesk, studioOpen, studioWarm, studioRemove, studioCreate, studioSave, studioPreview, studioMeta, studioAction, studioLogout, studioFromPost, studioPublish, studioUpload,
-  studioLoginURL, announceSaved, previewPath, nairobiSchedule, newsletterStateLabel, STUDIO_SUBJECT_LIMIT, STUDIO_BODY_LIMIT, STUDIO_SUMMARY_LIMIT,
-  type NewsletterDraft, type StudioSession, type StudioMeta, type PublishedStudioPost, type StudioRemoval, type AdminDesk, type StudioContact,
+  studioSignInHref, StudioSignedOutError, STUDIO_SIGNIN_PATH, announceSaved, previewPath, nairobiSchedule, newsletterStateLabel, STUDIO_SUBJECT_LIMIT, STUDIO_BODY_LIMIT, STUDIO_SUMMARY_LIMIT,
+  type NewsletterDraft, type StudioSession, type StudioMeta, type PublishedStudioPost, type StudioRemoval, type AdminDesk, type StudioContact, type StudioUploadOptions,
 } from "@/lib/newsletter-studio"
 
 type Stage = "loading" | "signin" | "list" | "pick" | "write" | "preview" | "delivery" | "confirm" | "outcome"
@@ -52,7 +53,9 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const [saved, setSaved] = useState<"saved" | "saving" | "unsaved" | "error">("saved")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState("")
-  const [notice, setNotice] = useState("")
+  const setNotice = useCallback((message: string) => { if (message) toastManager.add({ id: "studio-notice", title: message, type: "success" }) }, [])
+  const [uploads, setUploads] = useState(0)
+  const pendingUploads = useRef(0)
   const [html, setHTML] = useState("")
   const [preheader, setPreheader] = useState("")
   const [audience, setAudience] = useState<"all" | "selected">("all")
@@ -95,7 +98,14 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const listVersion = useRef(0)
 
   const accept = useCallback((d: NewsletterDraft) => { currentRef.current = d; setCurrent(d) }, [])
-  const fail = useCallback((failure: unknown) => { setError(failure instanceof Error ? failure.message : "Something went wrong. Please try again.") }, [])
+  const fail = useCallback((failure: unknown) => {
+    const message = failure instanceof Error ? failure.message : "Something went wrong. Please try again."
+    setError(message)
+    // An ended session must not cost the open draft: sign in from another tab,
+    // then this one saves again.
+    if (failure instanceof StudioSignedOutError) toastManager.add({ id: "studio-error", title: "You’ve been signed out", description: "Your changes are still here. Sign in again in a new tab, then come back to save.", type: "error", priority: "high", timeout: 0, actionProps: { children: "Sign in", onClick: () => window.open(STUDIO_SIGNIN_PATH, "_blank") } })
+    else toastManager.add({ id: "studio-error", title: "Action failed", description: message, type: "error", priority: "high", timeout: 0 })
+  }, [])
 
   useEffect(() => {
     mounted.current = true
@@ -106,9 +116,8 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
       if (!owner.authenticated) {
         // Never replace an open document; its next save reports the expired session.
         if (shown && currentRef.current) return
-        setSession(owner)
-        if (new URLSearchParams(window.location.search).get("login") === "failed") setError("Sign-in wasn’t completed. Try your owner account.")
-        setStage("signin"); return
+        // Signing in has its own page, which brings the owner back here.
+        setSession(owner); setStage("signin"); router.replace(studioSignInHref()); return
       }
       setSession(owner)
       if (version === listVersion.current) { setDrafts(list); setPublishedPosts(posts) }
@@ -128,7 +137,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
       if (desk.session.authenticated && !studioCachedDesk(other)) void studioBootstrap(other).catch(() => undefined)
     }).catch((failure) => { if (mounted.current) { fail(failure); if (!shown) setStage("signin") } })
     return () => { mounted.current = false }
-  }, [fail, section, bootAttempt])
+  }, [fail, section, bootAttempt, router])
 
   useEffect(() => {
     const view = `${stage}:${current?.id ?? ""}`
@@ -207,12 +216,12 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
     return () => clearTimeout(timer)
   }, [busy, stage, subject, markdown, summary, current, save, fail, matches])
 
-  const dirty = current !== null && !matches(current, { subject, markdown, summary })
+  const dirty = current !== null && (uploads > 0 || !matches(current, { subject, markdown, summary }))
   useEffect(() => {
     if (!dirty) return
     const warn = (event: BeforeUnloadEvent) => {
       const latest = currentRef.current
-      if (latest && matches(latest, text.current)) return
+      if (!pendingUploads.current && latest && matches(latest, text.current)) return
       event.preventDefault(); event.returnValue = ""
     }
     window.addEventListener("beforeunload", warn)
@@ -221,9 +230,15 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
 
   async function work(action: () => Promise<void>) {
     if (actionPending.current) return
+    if (pendingUploads.current) { fail(new Error("Wait for image uploads to finish before publishing or leaving this draft.")); return }
     actionPending.current = true
     setBusy(true); setError(""); setNotice("")
     try { await action() } catch (failure) { fail(failure) } finally { actionPending.current = false; if (mounted.current) setBusy(false) }
+  }
+  async function upload(file: File, options?: StudioUploadOptions) {
+    pendingUploads.current++; setUploads(pendingUploads.current)
+    try { return await studioUpload(session!.csrf, file, options) }
+    finally { pendingUploads.current--; if (mounted.current) setUploads(pendingUploads.current) }
   }
   async function closeDocument() {
     if (currentRef.current && ["draft", "error"].includes(currentRef.current.state)) await save()
@@ -249,7 +264,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
     const version = listVersion.current
     studioBootstrap(section).then((desk) => {
       if (!mounted.current || version !== listVersion.current) return
-      if (!desk.session.authenticated) { if (!currentRef.current) { setSession(desk.session); setStage("signin") } return }
+      if (!desk.session.authenticated) { if (!currentRef.current) { setSession(desk.session); setStage("signin"); router.replace(studioSignInHref()) } return }
       setDrafts(desk.drafts); setPublishedPosts(desk.posts)
       void studioBootstrap(section === "posts" ? "newsletters" : "posts").catch(() => undefined)
     }).catch((failure) => { if (mounted.current) fail(failure) })
@@ -302,11 +317,15 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
     })
   }
   async function logout() {
-    if (currentRef.current && ["draft", "error"].includes(currentRef.current.state)) await save()
-    await studioLogout(session!.csrf)
-    setDeskQuery({ doc: null, view: null })
+    // Keep unsaved work when the save fails for any reason but an ended
+    // session, which has nothing left to save to.
+    if (currentRef.current && ["draft", "error"].includes(currentRef.current.state)) {
+      try { await save() } catch (failure) { if (!(failure instanceof StudioSignedOutError)) throw failure }
+    }
+    await studioLogout()
     currentRef.current = null; setCurrent(null); setDrafts([]); setSubject(""); setMarkdown(""); setHTML(""); setMeta(null)
     setSession({ configured: true, authenticated: false, csrf: "", login: "" }); setStage("signin")
+    router.replace(STUDIO_SIGNIN_PATH)
   }
   async function preview(record = true) {
     await save()
@@ -371,6 +390,8 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
     text.current = { subject: result.subject, markdown: result.markdown, summary: result.description ?? "" }; setSubject(result.subject); setMarkdown(result.markdown); setSummary(result.description ?? "")
     // A successful test is shown on the preview itself, beside the email.
     if (!(kind === "test" && result.state === "draft" && result.tested_revision === result.revision)) { setStage("outcome"); if (result.last_error) setError(result.last_error) }
+    if (result.last_error) fail(new Error(result.last_error))
+    else setNotice(kind === "test" ? "Test email sent." : `Newsletter status: ${newsletterStateLabel(result.state)}.`)
   }
   const openRef = useRef(open); openRef.current = open
   const previewRef = useRef(preview); previewRef.current = preview
@@ -403,7 +424,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
 
   return (
     <AdminShell section={section} title={title} session={session} loading={stage === "loading"} busy={busy} editing={stage === "write" || listing} compactTitle={!listing && stage !== "signin"} onNavigate={navigate} onLogout={() => void work(logout)} actions={<>
-      {stage === "write" && section === "posts" ? <><Button size="sm" variant="outline" disabled={busy || !current} onClick={openPreviewTab}><ExternalLink /><span className="max-sm:sr-only">Preview</span><span className="sr-only"> (opens in a new tab)</span></Button><Button size="sm" disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(publish)}>{current?.published_revision ? "Update" : "Publish"}</Button></> : null}
+      {stage === "write" && section === "posts" ? <><Button size="sm" variant="outline" disabled={busy || uploads > 0 || !current} onClick={openPreviewTab}><ExternalLink /><span className="max-sm:sr-only">Preview</span><span className="sr-only"> (opens in a new tab)</span></Button><Button size="sm" disabled={busy || uploads > 0 || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(publish)}>{current?.published_revision ? "Update" : "Publish"}</Button></> : null}
       {stage === "write" && section === "newsletters" ? <Button size="sm" disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(preview)}>Preview</Button> : null}
       {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setStage("write"); leaveDeskQuery({ view: null }) }}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(publish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : meta ? <><Button size="sm" variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}><Send />Send test</Button><Button size="sm" disabled={busy} onClick={openDelivery}>Continue</Button></> : null}</> : null}
       {!["loading","signin","list"].includes(stage) ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" disabled={busy} aria-label="Save and close" onClick={() => void work(backToList)} />}><X /></TooltipTrigger><TooltipContent>Save and close</TooltipContent></Tooltip> : null}
@@ -413,14 +434,12 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
       <article className={stage === "write" || listing ? "flex h-full min-h-0 min-w-0 flex-col gap-4" : "flex min-w-0 flex-col gap-6 pb-8"} aria-busy={busy}>
       <h1 className="sr-only" ref={heading} tabIndex={-1}>{title}</h1>
       {error ? <p role="alert" className="text-body text-destructive">{error}</p> : null}
-      {notice ? <p role="status" className="text-body">{notice}</p> : null}
       {stage === "loading" ? <section role="status" aria-label={section === "posts" ? "Loading posts" : "Loading newsletters"} className="admin-table-frame">
         <div className="min-h-0 flex-1 overflow-hidden px-4">{[0, 1, 2, 3, 4, 5, 6, 7].map((row) => <div key={row} className="flex items-center gap-4 py-4"><Skeleton className="h-4 flex-1" /><Skeleton className="h-5 w-16" /><Skeleton className="hidden h-4 w-24 sm:block" /></div>)}</div>
       </section> : null}
-      {stage === "signin" ? <div className="flex flex-col gap-4">
-        <p className="text-body">{session?.configured === false ? "This writing desk hasn’t been enabled yet." : "Sign in to work on your posts."}</p>
-        {session?.configured !== false ? <Button className="w-fit" nativeButton={false} render={<a href={studioLoginURL} />}>Continue with GitHub</Button> : null}
-        {error && !session ? <Button className="w-fit" variant="outline" onClick={()=>{setError("");setStage("loading");setBootAttempt((attempt)=>attempt+1)}}>Retry loading</Button> : null}
+      {stage === "signin" && !session ? <div className="flex flex-col gap-4">
+        <p className="text-body">The writing desk couldn’t be reached.</p>
+        <Button className="w-fit" variant="outline" onClick={()=>{setError("");setStage("loading");setBootAttempt((attempt)=>attempt+1)}}>Retry loading</Button>
       </div> : null}
       {stage === "list" ? <div className="flex flex-wrap items-center justify-between gap-3">
         <label className="glass-surface flex w-full max-w-sm items-center gap-2 rounded-lg border border-input px-2.5 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/20">
@@ -462,7 +481,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
         </div> : null}
         <div ref={writeArea} className="admin-write-layout"><div className="admin-write-grid">
         <div className="admin-editor-scroll" role="region" aria-label="Article editor" tabIndex={0}>
-        <NewsletterEditor key={current?.id} value={markdown} subject={subject} description={section === "posts" ? summary : undefined} disabled={busy} onUpload={(file) => studioUpload(session!.csrf,file)} onChange={(value) => { text.current.markdown = value; setMarkdown(value); setSaved("unsaved") }} onDocumentChange={(document) => {
+        <NewsletterEditor key={current?.id} value={markdown} subject={subject} description={section === "posts" ? summary : undefined} disabled={busy} onUpload={upload} onChange={(value) => { text.current.markdown = value; setMarkdown(value); setSaved("unsaved") }} onDocumentChange={(document) => {
           text.current = { subject: document.subject, summary: document.description ?? "", markdown: document.markdown }
           setSubject(document.subject); setSummary(document.description ?? ""); setMarkdown(document.markdown); setSaved("unsaved")
         }}>

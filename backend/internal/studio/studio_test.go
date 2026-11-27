@@ -241,6 +241,79 @@ func TestOwnerAuthorizationOriginCSRFAndLogout(t *testing.T) {
 	}
 }
 
+func TestSessionsSlideWithUseUpToTheirLifetime(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	hash := f.s.privacy.Hash("studio-session:" + f.token)
+	expiry := func() time.Duration {
+		var left time.Duration
+		if err := f.s.db.QueryRow(ctx, `SELECT EXTRACT(EPOCH FROM expires_at-NOW())::bigint * INTERVAL '1 second' FROM newsletter_studio_sessions WHERE token_hash=$1`, hash).Scan(&left); err != nil {
+			t.Fatal(err)
+		}
+		return left
+	}
+	// Used within the last day: nothing is written.
+	if _, err := f.s.db.Exec(ctx, `UPDATE newsletter_studio_sessions SET expires_at=NOW()+INTERVAL '29 days 12 hours', created_at=NOW() WHERE token_hash=$1`, hash); err != nil {
+		t.Fatal(err)
+	}
+	f.request("GET", "/admin/newsletters/session", nil)
+	if left := expiry(); left > 29*24*time.Hour+13*time.Hour {
+		t.Fatal("renewed more than once a day", left)
+	}
+	// Idle for days: a visit pushes expiry back out to the idle window.
+	if _, err := f.s.db.Exec(ctx, `UPDATE newsletter_studio_sessions SET expires_at=NOW()+INTERVAL '2 days' WHERE token_hash=$1`, hash); err != nil {
+		t.Fatal(err)
+	}
+	if w := f.request("GET", "/admin/newsletters/session", nil); !strings.Contains(w.Body.String(), `"authenticated":true`) {
+		t.Fatal("live session not recognized")
+	}
+	if left := expiry(); left < sessionIdle-time.Minute {
+		t.Fatal("used session was not extended", left)
+	}
+	// Near the lifetime cap: use cannot push expiry past it.
+	if _, err := f.s.db.Exec(ctx, `UPDATE newsletter_studio_sessions SET created_at=NOW()-INTERVAL '89 days', expires_at=NOW()+INTERVAL '2 hours' WHERE token_hash=$1`, hash); err != nil {
+		t.Fatal(err)
+	}
+	f.request("GET", "/admin/newsletters/session", nil)
+	if left := expiry(); left > 24*time.Hour+time.Minute || left < 23*time.Hour {
+		t.Fatal("session outlived its lifetime cap", left)
+	}
+	// Expired: not recognized, and not revived.
+	if _, err := f.s.db.Exec(ctx, `UPDATE newsletter_studio_sessions SET expires_at=NOW()-INTERVAL '1 second' WHERE token_hash=$1`, hash); err != nil {
+		t.Fatal(err)
+	}
+	if w := f.request("GET", "/admin/newsletters/session", nil); !strings.Contains(w.Body.String(), `"authenticated":false`) || expiry() > 0 {
+		t.Fatal("expired session came back")
+	}
+}
+
+func TestLogoutAlwaysSignsTheBrowserOut(t *testing.T) {
+	f := newFixture(t)
+	cleared := func(w *httptest.ResponseRecorder) bool {
+		for _, c := range w.Result().Cookies() {
+			if c.Name == f.s.ownerCookie() && c.MaxAge < 0 {
+				return true
+			}
+		}
+		return false
+	}
+	if _, err := f.s.db.Exec(context.Background(), `UPDATE newsletter_studio_sessions SET expires_at=NOW()-INTERVAL '1 second'`); err != nil {
+		t.Fatal(err)
+	}
+	if w := f.request("POST", "/admin/newsletters/logout", map[string]any{}); w.Code != 200 || !cleared(w) {
+		t.Fatal("expired session could not sign out", w.Code)
+	}
+	for _, origin := range []string{f.s.cfg.SiteURL, "https://other.test"} {
+		r := httptest.NewRequest("POST", "/admin/newsletters/logout", strings.NewReader(`{}`))
+		r.Header.Set("Origin", origin)
+		w := httptest.NewRecorder()
+		f.handler.ServeHTTP(w, r)
+		if want := map[bool]int{true: 200, false: 403}[origin == f.s.cfg.SiteURL]; w.Code != want {
+			t.Fatalf("logout from %s without a cookie: %d", origin, w.Code)
+		}
+	}
+}
+
 func TestGitHubLoginUsesPKCEOneTimeStateAndOwnerID(t *testing.T) {
 	f := newFixture(t)
 	exchanges := 0
@@ -290,13 +363,16 @@ func TestGitHubLoginUsesPKCEOneTimeStateAndOwnerID(t *testing.T) {
 	for _, c := range w.Result().Cookies() {
 		if c.Name == f.s.ownerCookie() && c.Value != "" {
 			authenticated = true
-			if !c.HttpOnly || c.MaxAge != 8*3600 {
+			if !c.HttpOnly || c.MaxAge != int(sessionLifetime.Seconds()) {
 				t.Fatal("weak session cookie")
 			}
 		}
 	}
 	if !authenticated {
 		t.Fatal("owner identity denied", w.Header())
+	}
+	if w.Header().Get("Location") != f.s.cfg.SiteURL+"/admin/signin" {
+		t.Fatal("sign-in did not return to the sign-in page", w.Header().Get("Location"))
 	}
 	_ = callback(cookie, state)
 	if exchanges != 1 {
