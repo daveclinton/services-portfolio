@@ -1,7 +1,7 @@
 import { framedSource } from "@/lib/image-frames"
 
-// One article image in its frame. Cloudinary images get a responsive set cut to
-// the frame; others are cropped to it by CSS (object-fit: cover).
+// A fixed canvas around the complete image, as in shots.so. Cloudinary pads
+// responsive derivatives; CSS contains other images in the same themed frame.
 export function FramedImage({ src, alt, onLoad, onError }: { src: string; alt?: string; onLoad?: () => void; onError?: () => void }) {
   const image = framedSource(src)
   // eslint-disable-next-line @next/next/no-img-element -- remote media with a known frame, not a Next asset

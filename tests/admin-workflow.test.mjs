@@ -10,8 +10,8 @@ const published = { slug: "a-published-post", title: "An existing article", desc
 const baseDraft = { id: "a5cd8282-68f1-4b4a-9c19-000000000001", subject: published.title, markdown: "", revision: 1, state: "draft", campaign_id: 0, scheduled_at: null, tested_revision: 0, last_error: "", updated_at: "2026-11-25T09:00:00Z" }
 const settle = () => new Promise((resolve) => setImmediate(resolve))
 
-function desk({ failSave = false, failPublish = false, section = "newsletters", drafts = [], cached, failRemove = false, allowSend = false, search = "", openDraft, width, blockPopups = false } = {}) {
-  const slots = [], effects = [], calls = [], host = new Map(), announced = [], summaries = [], focused = []
+function desk({ failSave = false, failPublish = false, section = "newsletters", drafts = [], cached, failRemove = false, allowSend = false, search = "", openDraft, width, blockPopups = false, signedOut = false } = {}) {
+  const slots = [], effects = [], calls = [], host = new Map(), announced = [], summaries = [], focused = [], toasts = []
   let cursor = 0, pending = [], tree, nodes = []
   const same = (a, b) => a && b && a.length === b.length && a.every((item, index) => item === b[index])
   const hooks = {
@@ -24,7 +24,7 @@ function desk({ failSave = false, failPublish = false, section = "newsletters", 
   const api = {
     announceSaved: (id) => announced.push(id), previewPath: (id) => `/p/${id}`,
     STUDIO_SUBJECT_LIMIT: 180, STUDIO_BODY_LIMIT: 40_000,
-    studioBootstrap: async () => ({session:{ authenticated: true, configured: true, csrf: "owner-csrf", login: "owner" },drafts,posts:[published]}),
+    studioBootstrap: async () => signedOut ? { session: { authenticated: false, configured: true, csrf: "", login: "" }, drafts: [], posts: [] } : ({session:{ authenticated: true, configured: true, csrf: "owner-csrf", login: "owner" },drafts,posts:[published]}),
     studioCachedDesk: () => cached, studioUpdateDesk: (_section, list) => { cached = undefined; calls.push(["list", list.map((item) => item.id)]) }, studioWarm() {}, studioOpen: async (row) => row,
     studioRemove: async (_csrf, row, action) => { calls.push([action, row.id, row.revision]); if (failRemove) throw new Error("Removal failed"); if (action === "delete") { drafts = drafts.filter((item) => item.id !== row.id); return null } return { ...row, published_revision: action === "unpublish" ? 0 : row.revision } },
     studioDraft: async (id) => { calls.push(["draft", id]); const found = openDraft?.(id); if (!found) throw new Error("Document not found."); return found },
@@ -32,21 +32,25 @@ function desk({ failSave = false, failPublish = false, section = "newsletters", 
     studioRecipients: async (_csrf, draft, recipients) => { calls.push(["recipients", recipients]); return { ...draft, recipients: recipients ? [...recipients].sort() : null } },
     studioFromPost: async (_csrf, slug) => {calls.push(["from-post",slug]);return {...baseDraft,markdown:`${published.description}\n\n[Read the post](<https://example.com/blog/${slug}>)`}},
     studioCreate: async (_csrf, subject, kind) => { calls.push(["create", subject, kind]); return { ...baseDraft, subject,kind } },
-    studioSave: async (_csrf, draft, subject, markdown, description) => { calls.push(["save", subject, markdown]); summaries.push(description); if (failSave) throw new Error("Save failed"); return { ...draft, subject, markdown, revision: draft.revision + 1, ...(description === undefined ? {} : { description }) } },
+    studioSave: async (_csrf, draft, subject, markdown, description) => { calls.push(["save", subject, markdown]); summaries.push(description); if (failSave === "signed-out") throw new api.StudioSignedOutError("Sign in to your newsletter dashboard."); if (failSave) throw new Error("Save failed"); return { ...draft, subject, markdown, revision: draft.revision + 1, ...(description === undefined ? {} : { description }) } },
     studioPreview: async () => { calls.push(["preview"]); return { html: "<p>Rendered email</p>", preheader: "Rendered email" } },
     studioMeta: async () => ({ sender: { name: "Owner", email: "owner@example.com" }, test_email: "owner@example.com", subscribers: 1, audience: "Readers" }),
     studioAction: async (_csrf, draft, kind, when) => { calls.push([kind, when]); if (!allowSend) throw new Error("No email action expected"); return { ...draft, state: kind === "test" ? "draft" : kind === "schedule" ? "scheduled" : "sending", tested_revision: kind === "test" ? draft.revision : draft.tested_revision } },
     studioLogout: async () => { calls.push(["logout"]) },
+    StudioSignedOutError: class StudioSignedOutError extends Error {}, STUDIO_SIGNIN_PATH: "/admin/signin", studioSignInHref: () => { calls.push(["remember", location.pathname + location.search]); return "/admin/signin" },
     studioPublish: async (_csrf, draft,slug,description)=>{calls.push(["publish",draft.revision,slug,description]);if(failPublish)throw new Error("Publication failed. Try again.");return {...draft,slug,description,published_revision:draft.revision,cache_invalidated:true}},
     newsletterStateLabel: (state) => state,
   }
+  // Next's router is one object for the life of the page.
+  const router = { push: (href) => calls.push(["navigate", href]), replace: (href) => calls.push(["navigate-replace", href]) }
   const jsx = (type, props) => ({ type, props: props ?? {} })
   const modules = {
     react: hooks, "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "fragment" },
-    "next/dynamic": {default:()=>"editor"}, "next/navigation": {useRouter:()=>({push:(href)=>calls.push(["navigate",href]),replace:(href)=>calls.push(["navigate-replace",href])})},
+    "next/dynamic": {default:()=>"editor"}, "next/navigation": {useRouter:()=>router},
     "lucide-react": new Proxy({}, { get: () => "svg" }),
     "@/components/ui/button": { Button: "button" }, "@/components/ui/badge": { Badge: "badge" },
     "@/components/ui/skeleton": { Skeleton: "skeleton" }, "@/components/ui/select": { SelectField: "select-field" },
+    "@/components/ui/toast": { toastManager: { add(options) { toasts.push(options); return options.id ?? String(toasts.length) } } },
     "@/components/ui/tooltip": { Tooltip: "tooltip", TooltipContent: "tooltip-content", TooltipTrigger: "tooltip-trigger" },
     "@/components/portfolio/table-pager": { TablePager: "table-pager" }, "@/components/portfolio/live-article": { LiveArticle: "live-article" }, "@/components/portfolio/sort-header": { SortHeader: "sort-header" }, "@/components/portfolio/document-actions": { DocumentActions: "document-actions" }, "@/components/portfolio/admin-shell": { AdminShell: "shell" }, "@/components/portfolio/newsletter-editor": { NewsletterEditor: "editor" },
     "@/components/prompt-kit/markdown": { Markdown: "markdown" }, "@/lib/portfolio-data": { site: { url: "https://example.com" } },
@@ -93,6 +97,7 @@ function desk({ failSave = false, failPublish = false, section = "newsletters", 
   return {
     calls,
     focused,
+    notices: () => toasts.map((toast) => `${toast.title ?? ""} ${toast.description ?? ""}`).join(" "),
     render,
     async flush() { await settle(); render() },
     click(label) { button(label).props.onClick() },
@@ -120,6 +125,8 @@ function desk({ failSave = false, failPublish = false, section = "newsletters", 
     button,
     header:()=>tree.props.actions,
     navigate: (href) => tree.props.onNavigate(href),
+    logout: () => tree.props.onLogout(),
+    toasts: () => toasts,
     setFailSave(value) { failSave = value },
     setFailPublish(value) { failPublish = value },
   }
@@ -163,7 +170,7 @@ test("preview and one-click publication stay in the editor and publish the saved
  assert.deepEqual(ui.calls.filter((call)=>call[0]==="publish").at(-1),["publish",2,"an-article","A useful summary."])
  assert(!ui.calls.some((call)=>call[0]==="send"))
  assert(ui.editor(),"publishing keeps the document mounted in the editor")
- assert(ui.text().includes("Post published."))
+ assert(ui.notices().includes("Post published."))
  assert(ui.headerButton("Update"),"the same header now offers Update")
  assert(!ui.nodeOfType("form"),"there is no URL, summary, review or success page")
 })
@@ -298,7 +305,7 @@ test("a blocked preview tab is explained, and post links to the old preview step
   const ui = desk({ section: "posts", blockPopups: true }); await ui.flush()
   ui.click("New post"); await ui.flush()
   ui.headerButton("Preview").props.onClick(); await ui.flush()
-  assert(ui.text().includes("Your browser blocked the preview tab"))
+  assert(ui.notices().includes("Your browser blocked the preview tab"))
   const post = row(7)
   const linked = desk({ section: "posts", drafts: [post], search: `doc=${post.id}&view=preview`, openDraft: (id) => id === post.id ? post : null })
   await linked.flush(); await linked.flush(); await linked.flush()
@@ -395,7 +402,7 @@ test("Update saves and publishes in place once, preserving the URL after a title
   await ui.flush(); await ui.flush()
   assert.deepEqual(ui.calls.filter((call) => call[0] === "publish"), [["publish", 2, "existing-url", "Updated summary"]])
   assert(ui.editor() && ui.node("Article editor"), "Update keeps the same writing view")
-  assert(ui.text().includes("Post updated."))
+  assert(ui.notices().includes("Post updated."))
   assert.equal(ui.inputValue("post-slug"), "existing-url")
   assert.equal(ui.focused.length, 0, "publishing must not bring the editor back to the title")
   assert(!ui.nodeOfType("form") && !ui.calls.some((call) => call[0] === "navigate"))
@@ -415,7 +422,7 @@ test("new posts can choose their URL in the editor and validation stays on that 
   ui.input("post-slug", "custom-post-url")
   ui.headerButton("Publish").props.onClick(); await ui.flush(); await ui.flush()
   assert.deepEqual(ui.calls.find((call) => call[0] === "publish"), ["publish", 2, "custom-post-url", "An existing summary"])
-  assert(ui.editor() && ui.text().includes("Post published."))
+  assert(ui.editor() && ui.notices().includes("Post published."))
 })
 
 test("save and publication failures retain the draft in the editor and can be retried there", async () => {
@@ -429,9 +436,46 @@ test("save and publication failures retain the draft in the editor and can be re
   assert(ui.editor() && ui.text().includes("Publication failed"))
   assert.equal(ui.editor().props.value, "Keep this body")
   assert.equal(ui.editor().props.description, "A summary")
-  assert(!ui.text().includes("Post published."))
+  assert(!ui.notices().includes("Post published."))
   ui.setFailPublish(false)
   ui.headerButton("Publish").props.onClick(); await ui.flush(); await ui.flush()
-  assert(ui.editor() && ui.text().includes("Post published."))
+  assert(ui.editor() && ui.notices().includes("Post published."))
   assert.equal(ui.calls.filter((call) => call[0] === "publish").length, 2)
+})
+
+test("a signed-out desk sends the owner to the sign-in page and remembers where they were", async () => {
+  const ui = desk({ section: "posts", signedOut: true, search: "doc=a5cd8282-68f1-4b4a-9c19-000000000001" }); await ui.flush()
+  assert.deepEqual(ui.calls, [["remember", "/admin/posts?doc=a5cd8282-68f1-4b4a-9c19-000000000001"], ["navigate-replace", "/admin/signin"]])
+  assert.doesNotMatch(ui.text(), /Continue with GitHub/)
+})
+
+test("signing out saves first, still signs out when the session already ended, and keeps work on other failures", async () => {
+  const open = async (failSave) => {
+    const ui = desk(); await ui.flush()
+    ui.click("New newsletter"); await ui.flush()
+    ui.select(published.slug); ui.submit(); await ui.flush()
+    ui.edit("Unsaved words"); ui.setFailSave(failSave)
+    ui.logout(); await ui.flush(); await ui.flush()
+    return ui
+  }
+  const ended = await open("signed-out")
+  assert.deepEqual(ended.calls.slice(-3).map((call) => call[0]), ["save", "logout", "navigate-replace"])
+  assert.deepEqual(ended.calls.at(-1), ["navigate-replace", "/admin/signin"])
+  const offline = await open(true)
+  assert.equal(offline.calls.some((call) => call[0] === "logout"), false)
+  assert.equal(offline.editor().props.value, "Unsaved words")
+  assert.match(offline.notices(), /Save failed/)
+})
+
+test("a save refused for an ended session keeps the draft and offers sign-in in a new tab", async () => {
+  const ui = desk(); await ui.flush()
+  ui.click("New newsletter"); await ui.flush()
+  ui.select(published.slug); ui.submit(); await ui.flush()
+  ui.edit("Unsaved words"); ui.setFailSave("signed-out")
+  ui.click("Preview"); await ui.flush()
+  const notice = ui.toasts().at(-1)
+  assert.equal(notice.title, "You’ve been signed out")
+  assert.equal(ui.editor().props.value, "Unsaved words")
+  notice.actionProps.onClick()
+  assert.deepEqual(ui.tabs().at(-1).opened, ["/admin/signin", "_blank"])
 })

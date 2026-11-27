@@ -8,6 +8,18 @@ import { Placeholder } from "@tiptap/extensions"
 import { marked } from "marked"
 import type { Editor } from "@tiptap/react"
 import type { NewsletterDraft } from "./newsletter-studio"
+import { Plugin, PluginKey, type SelectionBookmark } from "@tiptap/pm/state"
+
+export const imageUploadPositions = new PluginKey<Map<string, SelectionBookmark>>("image-upload-positions")
+
+// Textarea edits map pending insertions just as ProseMirror maps bookmarks.
+export function mapMarkdownPosition(previous: string, next: string, position: number): number {
+  let start = 0, before = previous.length, after = next.length
+  while (start < before && start < after && previous[start] === next[start]) start++
+  while (before > start && after > start && previous[before - 1] === next[after - 1]) { before--; after-- }
+  if (position < start) return position
+  return position > before ? position + next.length - previous.length : after
+}
 
 export type NewsletterDocument = Pick<NewsletterDraft, "subject" | "description" | "markdown">
 
@@ -143,6 +155,21 @@ export const newsletterEditorExtensions = [
     link: { openOnClick: false, autolink: false, defaultProtocol: "https" },
   }),
   Image.extend({
+    addProseMirrorPlugins() {
+      return [...(this.parent?.() ?? []), new Plugin({
+        key: imageUploadPositions,
+        state: {
+          init: () => new Map<string, SelectionBookmark>(),
+          apply(transaction, positions: Map<string, SelectionBookmark>) {
+            const mapped = new Map(Array.from(positions, ([id, bookmark]) => [id, bookmark.map(transaction.mapping)]))
+            const change = transaction.getMeta(imageUploadPositions) as { id: string; bookmark?: SelectionBookmark } | undefined
+            if (change?.bookmark) mapped.set(change.id, change.bookmark)
+            else if (change) mapped.delete(change.id)
+            return mapped
+          },
+        },
+      })]
+    },
     parseMarkdown(token, helpers) {
       const alt = token.tokens ? helpers.parseInline(token.tokens).map((node) => node.text ?? "").join("") : token.text
       return helpers.createNode("image", { src: token.href, title: token.title, alt })

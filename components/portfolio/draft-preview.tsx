@@ -1,12 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import Link from "next/link"
 import { SiteNav } from "@/components/portfolio/site-nav"
 import { PublishedPostContent } from "@/components/portfolio/published-post-content"
 import { NewsletterSignup } from "@/components/portfolio/newsletter-signup"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatPostDate } from "@/lib/blog-format"
-import { PREVIEW_CHANNEL, studioDraft, studioLoginURL, type NewsletterDraft } from "@/lib/newsletter-studio"
+import { PREVIEW_CHANNEL, studioDraft, studioSignInHref, STUDIO_SIGNIN_PATH, StudioSignedOutError, type NewsletterDraft } from "@/lib/newsletter-studio"
 
 type State = { status: "loading" } | { status: "ready"; draft: NewsletterDraft } | { status: "failed"; message: string; signIn: boolean }
 const wordsPerMinute = 230
@@ -20,7 +21,7 @@ export function DraftPreview({ id }: { id: string }) {
   useEffect(() => {
     let live = true
     const load = () => studioDraft(id).then((draft) => { if (live) setState({ status: "ready", draft }) }).catch((failure: Error) => {
-      if (live) setState({ status: "failed", message: failure.message, signIn: /sign in/i.test(failure.message) })
+      if (live) setState({ status: "failed", message: failure.message, signIn: failure instanceof StudioSignedOutError })
     })
     void load()
     const channel = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel(PREVIEW_CHANNEL)
@@ -43,7 +44,7 @@ export function DraftPreview({ id }: { id: string }) {
       {state.status === "loading" ? <div role="status" aria-label="Loading preview" className="flex flex-col gap-4"><Skeleton className="h-10 w-3/4" /><Skeleton className="h-4 w-40" /><Skeleton className="h-64 w-full" /></div> : null}
       {state.status === "failed" ? <div className="flex flex-col gap-4">
         <p role="alert">{state.signIn ? "Sign in to the writing desk to preview drafts." : state.message}</p>
-        {state.signIn ? <a href={studioLoginURL}>Continue with GitHub</a> : <button type="button" className="w-fit underline" onClick={() => { setState({ status: "loading" }); setAttempt((value) => value + 1) }}>Try again</button>}
+        {state.signIn ? <Link href={STUDIO_SIGNIN_PATH} onClick={() => studioSignInHref()}>Sign in</Link> : <button type="button" className="w-fit underline" onClick={() => { setState({ status: "loading" }); setAttempt((value) => value + 1) }}>Try again</button>}
       </div> : null}
       {draft ? <article className="blog-post">
         <header className="signals">

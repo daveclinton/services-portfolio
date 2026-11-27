@@ -398,13 +398,14 @@ dialog[open] {
    narrower, so no image is taller than about 0.7 of the column's width.
    Images without a frame, including older articles, use Landscape. */
 :is(.framed-image, .blog-prose img, .newsletter-editor img) {
+  @apply border border-border bg-muted p-4 shadow-sm sm:p-6;
   display: block;
   width: 100%;
   max-width: 100%;
   height: auto;
   margin: 1.5rem auto;
   aspect-ratio: 3 / 2;
-  object-fit: cover;
+  object-fit: contain;
   border-radius: var(--radius-lg);
 }
 

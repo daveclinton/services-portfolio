@@ -6,6 +6,7 @@ import { site } from "@/lib/portfolio-data";
 import { toneScript } from "@/lib/tone";
 import { cn } from "@/lib/utils";
 import { ViewportFocus } from "@/components/portfolio/visible-viewport";
+import { Toaster } from "@/components/ui/toast";
 
 // A serif designed for reading on screens; the site is mostly long-form text.
 const reading = Source_Serif_4({
@@ -69,6 +70,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-dvh overflow-x-hidden bg-background text-foreground">
         <ViewportFocus />
+        <Toaster />
         <a href="#content" className="skip-link">
           Skip to content
         </a>

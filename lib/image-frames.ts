@@ -34,7 +34,7 @@ export function cloudinaryURL(src: string, frame: ImageFrame, width: number) {
   const asset = cloudinaryAsset(src)
   if (!asset) return withoutFrame(src)
   const [w, h] = IMAGE_FRAMES[frame].ratio
-  return `https://res.cloudinary.com/${asset.cloud}/image/upload/c_fill,ar_${w}:${h},g_auto,w_${width}/f_auto,q_auto/${asset.path}`
+  return `https://res.cloudinary.com/${asset.cloud}/image/upload/c_pad,ar_${w}:${h},b_transparent,w_${width}/f_auto,q_auto/${asset.path}`
 }
 
 export type FramedSource = { frame: ImageFrame; src: string; srcSet?: string; sizes: string; width: number; height: number }

@@ -61,8 +61,8 @@ func TestNewsletterImagesUseTheirArticleFrame(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		`width:66%;max-width:100%;height:auto;margin:0 auto" src="https://res.cloudinary.com/my-cloud/image/upload/c_fill,ar_1:1,g_auto,w_1200/f_auto,q_auto/v17/blog/x.jpg"`,
-		`width:100%;max-width:100%;height:auto;margin:0 auto" src="https://example.com/b.png"`,
+		`width:66%;max-width:100%;height:auto;margin:0 auto;padding:24px;box-sizing:border-box" src="https://res.cloudinary.com/my-cloud/image/upload/c_pad,ar_1:1,b_transparent,w_1200/f_auto,q_auto/v17/blog/x.jpg"`,
+		`width:100%;max-width:100%;height:auto;margin:0 auto;padding:24px;box-sizing:border-box" src="https://example.com/b.png"`,
 		`src="https://example.com/c.png"`,
 		`src="https://example.com/d.png"`,
 	} {

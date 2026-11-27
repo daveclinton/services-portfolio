@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 
 export default async function WritingDeskPage({ searchParams }: PageProps<"/admin/writing">) {
   const query = await searchParams
-  redirect(query.login === "failed" ? "/admin/posts?login=failed" : "/admin/posts")
+  redirect(query.login === "failed" ? "/admin/signin?login=failed" : "/admin/posts")
 }

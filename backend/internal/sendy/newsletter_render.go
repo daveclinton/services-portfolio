@@ -53,7 +53,7 @@ func RenderNewsletter(subject, markdown, siteURL string) (string, error) {
 var markup = regexp.MustCompile(`<[^>]*>`)
 
 // The four article frames (lib/image-frames.ts). Email clients cannot crop with
-// CSS, so Cloudinary images arrive already cut to their frame at 1200px; other
+// CSS, so Cloudinary images arrive padded into their frame at 1200px; other
 // images keep their own shape at the frame's width.
 var emailFrames = map[string]struct {
 	ratio string
@@ -77,9 +77,9 @@ func frameEmailImages(body string) string {
 		frame := emailFrames[name]
 		src = imageFrame.ReplaceAllString(src, "")
 		if match := cloudinaryImage.FindStringSubmatch(src); match != nil {
-			src = "https://res.cloudinary.com/" + match[1] + "/image/upload/c_fill,ar_" + frame.ratio + ",g_auto,w_1200/f_auto,q_auto/" + match[2]
+			src = "https://res.cloudinary.com/" + match[1] + "/image/upload/c_pad,ar_" + frame.ratio + ",b_transparent,w_1200/f_auto,q_auto/" + match[2]
 		}
-		return fmt.Sprintf(`<img style="display:block;width:%d%%;max-width:100%%;height:auto;margin:0 auto" src="%s"`, frame.width, src)
+		return fmt.Sprintf(`<img style="display:block;width:%d%%;max-width:100%%;height:auto;margin:0 auto;padding:24px;box-sizing:border-box" src="%s"`, frame.width, src)
 	})
 }
 
