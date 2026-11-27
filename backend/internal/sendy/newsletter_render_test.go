@@ -5,15 +5,19 @@ import (
 	"testing"
 )
 
-func TestNewsletterRendererUsesExistingThemeAndEscapesTemplateExpressions(t *testing.T) {
+func TestNewsletterRendererFollowsTheReadersThemeAndEscapesTemplateExpressions(t *testing.T) {
 	html, err := RenderNewsletter("A & B", "# A heading\n\nHello **reader**. [Read more](/blog).\n\n`{{ contact.SECRET }}`\n\n`{% if contact.SECRET %}`", "https://example.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, part := range []string{"#1557c0", "Georgia", "A &amp; B", "<strong>reader</strong>", `href="https://example.com/blog"`, `href="` + unsubscribePlaceholder + `"`, "&#123;&#123; contact.SECRET"} {
+	for _, part := range []string{`content="light dark"`, "Georgia", "A &amp; B", "<strong>reader</strong>", `href="https://example.com/blog"`, `href="` + unsubscribePlaceholder + `"`, "&#123;&#123; contact.SECRET"} {
 		if !strings.Contains(html, part) {
 			t.Errorf("email missing %s", part)
 		}
+	}
+	// No forced palette: the mail app's light or dark theme decides.
+	if strings.Contains(html, "background-color") || strings.Contains(html, "#1557c0") || strings.Contains(html, "#ffffff") {
+		t.Fatal("email forces its own colours")
 	}
 	if strings.Contains(html, "{{ contact.SECRET }}") || strings.Contains(html, "{%") || strings.Contains(html, "ZgotmplZ") {
 		t.Fatal("unsafe template or invalid link")
@@ -43,7 +47,7 @@ func TestNewsletterPreheaderIsHiddenPlainOpeningText(t *testing.T) {
 		t.Fatal(err)
 	}
 	start := strings.Index(html, `<div style="display:none`)
-	if start < 0 || start > strings.Index(html, "<h1") || !strings.Contains(html[start:], "Hello This is bold &amp; linked text.") {
+	if start < 0 || start > strings.Index(html, "<h2") || !strings.Contains(html[start:], "Hello This is bold &amp; linked text.") {
 		t.Fatal("preheader is not hidden at the top of the email")
 	}
 	if got := Preheader("`{{ contact.SECRET }}` and {% raw %}", "https://example.com"); strings.ContainsAny(got, "{}") {
@@ -72,5 +76,23 @@ func TestNewsletterImagesUseTheirArticleFrame(t *testing.T) {
 	}
 	if strings.Contains(html, "#frame=") {
 		t.Fatal("frame markers leaked into the email")
+	}
+}
+
+func TestNewsletterBodyDoesNotRepeatTheInboxHeader(t *testing.T) {
+	html, err := RenderNewsletter("A distinctive subject line", "Opening paragraph.", "https://example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := html[strings.Index(html, "<body"):]
+	if strings.Contains(body, "A distinctive subject line") || strings.Contains(body, "David Clinton") || strings.Contains(body, "<h1") {
+		t.Fatal("campaign body repeats the sender or subject the inbox already shows")
+	}
+	if !strings.Contains(body, "Opening paragraph.") || !strings.Contains(html, "<title>A distinctive subject line</title>") {
+		t.Fatal("campaign lost its content or document title")
+	}
+	note, _, err := RenderNote(Note{Title: "Confirm your subscription", SiteURL: "https://example.com", Confirmation: true, ConfirmationURL: "https://example.com/c"})
+	if err != nil || !strings.Contains(note, "<h1") || !strings.Contains(note, "David Clinton") {
+		t.Fatal("transactional notes must keep their heading")
 	}
 }
