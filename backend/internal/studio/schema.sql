@@ -7,6 +7,8 @@ ALTER TABLE newsletter_studio_sessions ADD COLUMN IF NOT EXISTS created_at times
 CREATE TABLE IF NOT EXISTS newsletter_studio_oauth (
  state_hash text PRIMARY KEY, verifier text NOT NULL, expires_at timestamptz NOT NULL
 );
+-- Where to send the owner after sign-in, kept server-side with the one-time state.
+ALTER TABLE newsletter_studio_oauth ADD COLUMN IF NOT EXISTS return_to text NOT NULL DEFAULT '';
 CREATE TABLE IF NOT EXISTS newsletter_studio_drafts (
  id uuid PRIMARY KEY, subject text NOT NULL DEFAULT '', markdown text NOT NULL DEFAULT '',
  revision bigint NOT NULL DEFAULT 1, state text NOT NULL DEFAULT 'draft',

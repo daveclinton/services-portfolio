@@ -1,25 +1,27 @@
 <!doctype html>
 <!-- Adapted from Postmark's Plain welcome/comment templates (MIT, Wildbit).
      See LICENSE. Table layout and inline styles work without an email CSS runtime.
-     Email-safe equivalents of the existing portfolio default tone, white ink,
-     Georgia reading fallback, 40rem measure and page gutters; no new palette. -->
+     No background or text colour is set: the reader's mail app shows its own
+     light or dark theme. Georgia reading fallback, 40rem measure and gutters. -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="x-apple-disable-message-reformatting">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="light dark">
+  <meta name="supported-color-schemes" content="light dark">
   <title>[[.Title]]</title>
 </head>
-<body style="margin:0;padding:0;background-color:#1557c0;color:#ffffff;font-family:Georgia,'Times New Roman',serif;-webkit-text-size-adjust:100%">
+<body style="margin:0;padding:0;font-family:Georgia,'Times New Roman',serif;-webkit-text-size-adjust:100%">
   [[if .Preheader]]<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all">[[.Preheader]]&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;</div>[[end]]
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#1557c0;color:#ffffff">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
     <tr><td align="center">
       [[outlookOpen]]
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:640px;margin:0 auto">
         <tr><td style="padding:48px 24px;font-family:Georgia,'Times New Roman',serif;overflow-wrap:anywhere">
-          <p style="margin:0 0 24px;font-size:16px;line-height:1.6"><a href="[[.SiteURL]]" style="color:#ffffff;text-decoration:underline">David Clinton</a></p>
-          <h1 style="margin:0 0 24px;font-size:28px;font-weight:normal;line-height:1.2">[[.Title]]</h1>
+          [[/* A campaign's sender and subject are already in the inbox's From and Subject lines. */]]
+          [[if not .Campaign]]<p style="margin:0 0 24px;font-size:16px;line-height:1.6"><a href="[[.SiteURL]]" style="text-decoration:underline">David Clinton</a></p>
+          <h1 style="margin:0 0 24px;font-size:28px;font-weight:normal;line-height:1.2">[[.Title]]</h1>[[end]]
           [[if .Intro]]<p style="margin:0 0 24px;font-size:16px;line-height:1.6">[[.Intro]]</p>[[end]]
           [[range .Sections]]
           <h2 style="margin:0 0 8px;font-size:16px;line-height:1.4">[[.Label]]</h2>
@@ -27,10 +29,10 @@
           [[end]]
           [[if .Body]]<div style="font-size:16px;line-height:1.6">[[.Body]]</div>[[end]]
           [[if .Confirmation]]
-          <p style="margin:0 0 24px;font-size:16px;line-height:1.6"><a href="[[.ConfirmationURL]]" style="color:#ffffff;font-weight:bold;text-decoration:underline">Confirm my email &rarr;</a></p>
-          <p style="margin:0 0 24px;font-size:14px;line-height:1.45">By confirming, you agree to occasional emails from David. Free to read. Unsubscribe anytime. <a href="[[.SiteURL]]/privacy" style="color:#ffffff">Privacy</a>.</p>
+          <p style="margin:0 0 24px;font-size:16px;line-height:1.6"><a href="[[.ConfirmationURL]]" style="font-weight:bold;text-decoration:underline">Confirm my email &rarr;</a></p>
+          <p style="margin:0 0 24px;font-size:14px;line-height:1.45">By confirming, you agree to occasional emails from David. Free to read. Unsubscribe anytime. <a href="[[.SiteURL]]/privacy">Privacy</a>.</p>
           [[end]]
-          [[if .Campaign]]<p style="margin:0 0 24px;font-size:14px;line-height:1.45"><a href="[[.UnsubscribeURL]]" style="color:#ffffff">Unsubscribe</a> · <a href="[[.SiteURL]]/privacy" style="color:#ffffff">Privacy</a></p>[[end]]
+          [[if .Campaign]]<p style="margin:0 0 24px;font-size:14px;line-height:1.45"><a href="[[.UnsubscribeURL]]">Unsubscribe</a> · <a href="[[.SiteURL]]/privacy">Privacy</a></p>[[end]]
           [[if .Footer]]<p style="margin:0;font-size:14px;line-height:1.45">[[.Footer]]</p>[[end]]
         </td></tr>
       </table>

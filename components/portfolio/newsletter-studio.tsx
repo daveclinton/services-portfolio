@@ -12,6 +12,7 @@ import { DocumentActions } from "@/components/portfolio/document-actions"
 import { TablePager } from "@/components/portfolio/table-pager"
 import { LiveArticle } from "@/components/portfolio/live-article"
 import { SortHeader } from "@/components/portfolio/sort-header"
+import { SendDrawer } from "@/components/portfolio/send-drawer"
 import { EMPTY_QUERY, compareText, leaveDeskQuery, nextSort, readPage, readSort, setDeskQuery, type DeskQuery, type SortDir } from "@/lib/desk-url"
 import { SelectField } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -24,12 +25,10 @@ import {
   type NewsletterDraft, type StudioSession, type StudioMeta, type PublishedStudioPost, type StudioRemoval, type AdminDesk, type StudioContact, type StudioUploadOptions,
 } from "@/lib/newsletter-studio"
 
-type Stage = "loading" | "signin" | "list" | "pick" | "write" | "preview" | "delivery" | "confirm" | "outcome"
+type Stage = "loading" | "signin" | "list" | "pick" | "write" | "preview" | "outcome"
 const loadEditor = () => import("@/components/portfolio/newsletter-editor")
 const PAGE_SIZE = 20
 const NewsletterEditor = dynamic(() => loadEditor().then((module) => module.NewsletterEditor), { loading: () => <div role="status" aria-label="Loading editor" className="flex flex-col gap-4"><Skeleton className="h-12 w-full" /><Skeleton className="h-96 w-full" /></div> })
-const inputClass = "chat-input min-h-8 w-full min-w-0 bg-transparent px-0.5 text-base leading-7 text-foreground outline-none"
-const surfaceClass = "glass-surface rounded-2xl border border-input p-2.5 focus-within:border-ring focus-within:bg-background focus-within:ring-3 focus-within:ring-ring/20"
 
 // Ghost's writing -> email preview/test -> delivery -> confirmation flow.
 // The portfolio's form controls and theme are reused throughout.
@@ -61,12 +60,12 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const [audience, setAudience] = useState<"all" | "selected">("all")
   const [picked, setPicked] = useState<string[]>([])
   const [subscribers, setSubscribers] = useState<StudioContact[] | null>(null)
-  const [pickerQuery, setPickerQuery] = useState("")
   const [meta, setMeta] = useState<StudioMeta | null>(null)
   const [selectedPost, setSelectedPost] = useState<string | null>(initialPost ?? null)
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop")
   const [previewMode, setPreviewMode] = useState<"post" | "email">("post")
   const [later, setLater] = useState(false)
+  const [sending, setSending] = useState(false)
   const [schedule, setSchedule] = useState("")
   const [slug, setSlug] = useState("")
   const [bootAttempt,setBootAttempt]=useState(0)
@@ -183,7 +182,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
     } else if (docParam && open?.id === docParam) {
       if (viewParam === "preview" && section === "posts") setDeskQuery({ view: null })
       else if (viewParam === "preview" && stage === "write") void work(() => previewRef.current(false))
-      else if (!viewParam && ["preview", "delivery", "confirm"].includes(stage) && editable) setStage("write")
+      else if (!viewParam && stage === "preview" && editable) setStage("write")
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- the handlers are read through refs
   }, [ready, docParam, viewParam, stage, section])
@@ -364,24 +363,34 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
     const [email, audience] = await Promise.all([studioPreview(session!.csrf, d), studioMeta()])
     setHTML(email.html); setPreheader(email.preheader); setMeta(audience); setPreviewMode("email")
   }
-  // Delivery opens with the draft's saved choice, so returning never widens it.
+  // Delivery opens with the draft's saved choice, so reopening never widens it.
   function openDelivery() {
     const saved = currentRef.current?.recipients ?? null
-    setLater(false); setAudience(saved ? "selected" : "all"); setPicked(saved ?? []); setPickerQuery("")
-    setStage("delivery")
+    setLater(false); setAudience(saved ? "selected" : "all"); setPicked(saved ?? [])
+    setSending(true)
     if (saved) loadSubscribers()
+  }
+  function chooseLater(next: boolean) {
+    setLater(next)
+    // Ghost suggests a time rather than an empty field: tomorrow at 09:00 in Nairobi.
+    if (next && !schedule) {
+      const tomorrow = new Date(Date.now() + 3 * 60 * 60 * 1000 + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      setSchedule(`${tomorrow}T09:00`)
+    }
   }
   function loadSubscribers() {
     if (subscribers) return
     studioContacts().then((result) => { if (mounted.current) setSubscribers(result.contacts.filter((contact) => contact.status === "subscribed")) }).catch(fail)
   }
-  async function confirmDelivery() {
+  // The confirmed choice is saved on the draft first, then sent once.
+  async function deliver() {
     if (later) nairobiSchedule(schedule)
     const draft = currentRef.current!
     const wanted = audience === "all" ? null : picked
     const saved = draft.recipients ?? null
     if (JSON.stringify(saved) !== JSON.stringify(wanted ? [...wanted].sort() : null)) accept(await studioRecipients(session!.csrf, draft, wanted))
-    setMeta(await studioMeta()); setStage("confirm")
+    await action(later ? "schedule" : "send")
+    setSending(false)
   }
   async function action(kind: "test" | "send" | "schedule" | "cancel" | "refresh") {
     if (!currentRef.current || !session?.csrf) return
@@ -396,7 +405,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const openRef = useRef(open); openRef.current = open
   const previewRef = useRef(preview); previewRef.current = preview
   const closeRef = useRef(closeDocument); closeRef.current = closeDocument
-  const title = { loading: section === "posts" ? "Posts" : "Newsletters", signin: "Sign in", list: section === "posts" ? "Posts" : "Newsletters", pick: "New newsletter", write: subject || "Untitled post", preview: section === "posts" ? "Post preview" : "Newsletter preview", delivery: "Email delivery", confirm: "Review delivery", outcome: current ? newsletterStateLabel(current.state) : "Post" }[stage]
+  const title = { loading: section === "posts" ? "Posts" : "Newsletters", signin: "Sign in", list: section === "posts" ? "Posts" : "Newsletters", pick: "New newsletter", write: subject || "Untitled post", preview: section === "posts" ? "Post preview" : "Newsletter preview", outcome: current ? newsletterStateLabel(current.state) : "Post" }[stage]
   // Ghost's title-derived default URL, editable here until first publication.
   // https://ghost.org/help/post-settings/
   const postSlug = current?.slug || slug || subject.normalize("NFKD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0,160).replace(/-$/,"") || current?.id || ""
@@ -417,7 +426,6 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
   const visibleRows = rows.slice(firstRow, firstRow + PAGE_SIZE)
   const listing = stage === "list" || stage === "loading"
   function turnPage(next: number) { setDeskQuery({ page: next > 0 ? String(next + 1) : null }); if (tableScroll.current) tableScroll.current.scrollTop = 0 }
-  const reach = audience === "all" ? meta?.subscribers ?? 0 : picked.length
   const shortDate = (value: string) => new Intl.DateTimeFormat("en-KE", { dateStyle: "medium", timeZone: value.length === 10 ? "UTC" : "Africa/Nairobi" }).format(new Date(value))
   const scheduleLabel = (value: string) => { try { return formatDate(new Date(`${value}:00+03:00`).toISOString()) } catch { return value } }
   const pickedPost = publishedPosts.find((post) => post.slug === selectedPost)
@@ -426,7 +434,7 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
     <AdminShell section={section} title={title} session={session} loading={stage === "loading"} busy={busy} editing={stage === "write" || listing} compactTitle={!listing && stage !== "signin"} onNavigate={navigate} onLogout={() => void work(logout)} actions={<>
       {stage === "write" && section === "posts" ? <><Button size="sm" variant="outline" disabled={busy || uploads > 0 || !current} onClick={openPreviewTab}><ExternalLink /><span className="max-sm:sr-only">Preview</span><span className="sr-only"> (opens in a new tab)</span></Button><Button size="sm" disabled={busy || uploads > 0 || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(publish)}>{current?.published_revision ? "Update" : "Publish"}</Button></> : null}
       {stage === "write" && section === "newsletters" ? <Button size="sm" disabled={busy || !subject.trim() || !markdown.trim() || new TextEncoder().encode(markdown).length > STUDIO_BODY_LIMIT} onClick={() => void work(preview)}>Preview</Button> : null}
-      {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setStage("write"); leaveDeskQuery({ view: null }) }}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(publish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : meta ? <><Button size="sm" variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}><Send />Send test</Button><Button size="sm" disabled={busy} onClick={openDelivery}>Continue</Button></> : null}</> : null}
+      {stage === "preview" ? <><Button size="sm" variant="ghost" disabled={busy} onClick={() => { setStage("write"); leaveDeskQuery({ view: null }) }}>Write</Button>{section === "posts" ? <Button size="sm" disabled={busy} onClick={() => void work(publish)}>{current?.published_revision ? "Update post" : "Publish"}</Button> : meta ? <><Button size="sm" variant="secondary" disabled={busy || !meta.test_email} onClick={() => void work(() => action("test"))}><Send />Send test</Button><Button size="sm" disabled={busy} onClick={openDelivery}><Send />Send…</Button></> : null}</> : null}
       {!["loading","signin","list"].includes(stage) ? <Tooltip><TooltipTrigger render={<Button variant="ghost" size="icon" disabled={busy} aria-label="Save and close" onClick={() => void work(backToList)} />}><X /></TooltipTrigger><TooltipContent>Save and close</TooltipContent></Tooltip> : null}
       {stage === "list" ? <>{error ? <Button size="sm" variant="ghost" disabled={busy} onClick={() => void work(backToList)}>Reload</Button> : null}<Button size="sm" disabled={busy} onClick={() => void work(section === "posts" ? newPost : newNewsletter)}><Plus />{section === "posts" ? "New post" : "New newsletter"}</Button></> : null}
       {["write", "preview"].includes(stage) && current ? <DocumentActions document={current} busy={busy} onNewsletter={() => void navigate(`/admin/newsletters?post=${encodeURIComponent(current.slug!)}`)} onRemove={(kind) => remove(current, kind)} /> : null}
@@ -516,32 +524,10 @@ export function NewsletterStudio({ section = "posts", initialPost, query = EMPTY
         <div className={device === "mobile" ? "mx-auto w-full max-w-sm" : "w-full"}><iframe title="Newsletter email preview" sandbox="" srcDoc={html} className="h-[70dvh] min-h-96 w-full rounded-lg border border-border" /></div>
         </> : <Button className="w-fit" variant="outline" disabled={busy} onClick={() => void work(previewEmail)}>Retry email preview</Button>}
       </> : null}
-      {stage === "delivery" && meta ? <form className="flex max-w-(--measure) flex-col gap-6" onSubmit={(event) => { event.preventDefault(); void work(confirmDelivery) }}>
-        {/* Ghost's publish settings: recipients, then timing, then a one-line summary. */}
-        <fieldset className="flex flex-col gap-3"><legend className="pb-3 text-body font-medium">Recipients</legend>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Recipients"><Button type="button" variant={audience === "all" ? "secondary" : "ghost"} aria-pressed={audience === "all"} onClick={() => setAudience("all")}>All subscribers · {meta.subscribers}</Button><Button type="button" variant={audience === "selected" ? "secondary" : "ghost"} aria-pressed={audience === "selected"} onClick={() => { setAudience("selected"); loadSubscribers() }}>Selected contacts{audience === "selected" ? ` · ${picked.length}` : ""}</Button></div>
-          {/* The picker opens under its own option, so the choice and its list stay together. */}
-          {audience === "selected" ? <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
-            <div className={surfaceClass}><label htmlFor="recipient-search" className="sr-only">Search subscribers</label><input id="recipient-search" type="search" className={inputClass} placeholder="Search by email" value={pickerQuery} disabled={!subscribers} autoCapitalize="none" autoCorrect="off" spellCheck={false} onChange={(event) => setPickerQuery(event.target.value)} /></div>
-            {subscribers ? <ul className="flex max-h-64 flex-col overflow-y-auto overscroll-contain" aria-label="Subscribers">
-              {subscribers.filter((contact) => contact.email.includes(pickerQuery.trim().toLowerCase())).map((contact) => <li key={contact.email}><label className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-caption hover:bg-muted"><input type="checkbox" className="size-4 accent-primary" checked={picked.includes(contact.email)} disabled={busy} onChange={(event) => setPicked((list) => event.target.checked ? [...list, contact.email] : list.filter((email) => email !== contact.email))} /><span className="min-w-0 break-all">{contact.email}</span></label></li>)}
-              {subscribers.length === 0 ? <li className="px-2 py-2 text-caption text-muted-foreground">No confirmed subscribers yet.</li> : null}
-            </ul> : <div role="status" aria-label="Loading subscribers" className="flex flex-col gap-2"><Skeleton className="h-6 w-full" /><Skeleton className="h-6 w-full" /><Skeleton className="h-6 w-2/3" /></div>}
-          </div> : null}
-          <p className="text-caption text-muted-foreground">Only confirmed subscribers receive it. Anyone who unsubscribes before sending is skipped.</p>
-        </fieldset>
-        <fieldset className="flex flex-col gap-3"><legend className="pb-3 text-body font-medium">When</legend>
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Delivery time"><Button type="button" variant={!later ? "secondary" : "ghost"} aria-pressed={!later} onClick={() => setLater(false)}>Right now</Button><Button type="button" variant={later ? "secondary" : "ghost"} aria-pressed={later} onClick={() => setLater(true)}>Schedule for later</Button></div>
-          {later ? <><label htmlFor="newsletter-schedule" className="text-caption text-muted-foreground">Date and time in Nairobi (EAT)</label><div className={surfaceClass}><input id="newsletter-schedule" className={inputClass} type="datetime-local" required value={schedule} disabled={busy} onChange={(e) => setSchedule(e.target.value)} /></div></> : null}
-        </fieldset>
-        <p className="text-body">{reach < 1 ? (audience === "all" ? "There are no confirmed subscribers yet." : "Choose at least one contact.") : `Goes to ${reach} ${reach === 1 ? "subscriber" : "subscribers"} ${later ? (schedule ? `on ${scheduleLabel(schedule)}` : "at the time you choose") : "right now"}.`}</p>
-        <div className="flex flex-wrap gap-2"><Button disabled={busy || reach < 1} type="submit">Continue</Button><Button disabled={busy} variant="ghost" type="button" onClick={() => setStage("preview")}>Back</Button></div>
-      </form> : null}
-      {stage === "confirm" && meta ? <div className="flex max-w-(--measure) flex-col gap-4">
-        <h2 className="text-title font-semibold">Ready to send?</h2>
-        <p className="text-body">“{subject}” goes to {current?.recipients ? `${current.recipients.length} selected` : `all ${meta.subscribers}`} {(current?.recipients?.length ?? meta.subscribers) === 1 ? "subscriber" : "subscribers"} {later ? `on ${scheduleLabel(schedule)}` : "right now"}. Sent emails can’t be recalled.</p>
-        <div className="flex flex-wrap gap-2"><Button disabled={busy || (current?.recipients?.length ?? meta.subscribers) < 1} onClick={() => void work(() => action(later ? "schedule" : "send"))}>{busy ? <LoaderCircle className="motion-safe:animate-spin" /> : <Send />}{later ? "Schedule email" : "Send email, right now"}</Button><Button disabled={busy} variant="ghost" onClick={() => setStage("delivery")}>Back</Button></div>
-      </div> : null}
+      {section === "newsletters" && meta && current ? <SendDrawer open={sending && stage === "preview"} onOpenChange={setSending} meta={meta} busy={busy}
+        audience={audience} onAudience={(value) => { setAudience(value); if (value === "selected") loadSubscribers() }} subscribers={subscribers} picked={picked} onPicked={setPicked}
+        later={later} onLater={chooseLater} schedule={schedule} onSchedule={setSchedule} scheduleLabel={scheduleLabel}
+        tested={current.tested_revision === current.revision} onSend={() => void work(deliver)} /> : null}
       {stage === "outcome" && current ? <>
         <p className="text-body">{current.subject}</p>
         {current.scheduled_at ? <p className="text-body">{formatDate(current.scheduled_at)}</p> : null}

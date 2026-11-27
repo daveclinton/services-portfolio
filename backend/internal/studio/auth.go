@@ -9,11 +9,29 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/daveclinton/portfolio/backend/internal/httpx"
 	"golang.org/x/oauth2"
 )
+
+// The desk's own pages a sign-in may return to. Anything else, including
+// another site, a protocol-relative "//host" or the sign-in page itself, falls
+// back to the default, so the parameter can never become an open redirect.
+const defaultReturn = "/admin/posts"
+
+func safeReturn(path string) string {
+	if len(path) > 512 || strings.ContainsAny(path, "\\\x00\r\n\t") || !(strings.HasPrefix(path, "/admin/") || strings.HasPrefix(path, "/p/")) || strings.HasPrefix(path, "/admin/signin") {
+		return ""
+	}
+	parsed, err := url.Parse(path)
+	if err != nil || parsed.Scheme != "" || parsed.Host != "" || parsed.User != nil || strings.Contains(parsed.Path, "//") || strings.Contains(parsed.Path, "/../") || strings.HasSuffix(parsed.Path, "/..") {
+		return ""
+	}
+	return parsed.RequestURI()
+}
 
 func randomToken() string {
 	var token [32]byte
@@ -112,7 +130,7 @@ func (s *Service) login(w http.ResponseWriter, r *http.Request) {
 	state, verifier := randomToken(), oauth2.GenerateVerifier()
 	_, err := s.db.Exec(r.Context(), `DELETE FROM newsletter_studio_oauth WHERE expires_at<NOW(); DELETE FROM newsletter_studio_sessions WHERE expires_at<NOW()`)
 	if err == nil {
-		_, err = s.db.Exec(r.Context(), `INSERT INTO newsletter_studio_oauth(state_hash,verifier,expires_at) VALUES($1,$2,NOW()+INTERVAL '10 minutes')`, s.privacy.Hash("studio-oauth:"+state), verifier)
+		_, err = s.db.Exec(r.Context(), `INSERT INTO newsletter_studio_oauth(state_hash,verifier,expires_at,return_to) VALUES($1,$2,NOW()+INTERVAL '10 minutes',$3)`, s.privacy.Hash("studio-oauth:"+state), verifier, safeReturn(r.URL.Query().Get("next")))
 	}
 	if err != nil {
 		httpx.Unavailable(w, "Sign-in is unavailable. Please try again.", 60)
@@ -123,7 +141,15 @@ func (s *Service) login(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Service) callback(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-	failed := func() { http.Redirect(w, r, s.cfg.SiteURL+"/admin/signin?login=failed", http.StatusSeeOther) }
+	// Where this sign-in returns to, once the one-time state has been checked.
+	returnTo := ""
+	failed := func() {
+		target := s.cfg.SiteURL + "/admin/signin?login=failed"
+		if returnTo != "" {
+			target += "&next=" + url.QueryEscape(returnTo)
+		}
+		http.Redirect(w, r, target, http.StatusSeeOther)
+	}
 	if !s.cfg.NewsletterAdminEnabled {
 		http.Error(w, "Dashboard disabled", 403)
 		return
@@ -136,11 +162,12 @@ func (s *Service) callback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var verifier string
-	err = s.db.QueryRow(r.Context(), `DELETE FROM newsletter_studio_oauth WHERE state_hash=$1 AND expires_at>NOW() RETURNING verifier`, s.privacy.Hash("studio-oauth:"+state)).Scan(&verifier)
+	err = s.db.QueryRow(r.Context(), `DELETE FROM newsletter_studio_oauth WHERE state_hash=$1 AND expires_at>NOW() RETURNING verifier, return_to`, s.privacy.Hash("studio-oauth:"+state)).Scan(&verifier, &returnTo)
 	if err != nil {
 		failed()
 		return
 	}
+	returnTo = safeReturn(returnTo)
 	ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 	defer cancel()
 	ctx = context.WithValue(ctx, oauth2.HTTPClient, s.http)
@@ -179,8 +206,11 @@ func (s *Service) callback(w http.ResponseWriter, r *http.Request) {
 	}
 	// The cookie may outlive the idle window; the database decides when it ends.
 	http.SetCookie(w, s.cookie(s.ownerCookie(), session, int(sessionLifetime.Seconds())))
-	// The sign-in page sends the owner on to the page they were trying to open.
-	http.Redirect(w, r, s.cfg.SiteURL+"/admin/signin", http.StatusSeeOther)
+	// Straight back to the page the owner was trying to open.
+	if returnTo == "" {
+		returnTo = defaultReturn
+	}
+	http.Redirect(w, r, s.cfg.SiteURL+returnTo, http.StatusSeeOther)
 }
 
 // Signing out always ends with the browser signed out, even when the session

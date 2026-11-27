@@ -42,7 +42,7 @@ const { NewsletterSignup, NewsletterConfirmation } = require("../components/port
 const { newsletterAvailable, subscribeToNewsletter } = require("../lib/newsletter.ts")
 const { TONE_COLORS, toneScript } = require("../lib/tone.ts")
 const { NewsletterStudio } = require("../components/portfolio/newsletter-studio.tsx")
-const { studioSession, studioSave, studioAction, studioPreview, studioFromPost, studioUpload, studioPublish, nairobiSchedule } = require("../lib/newsletter-studio.ts")
+const { studioSession, studioSave, studioAction, studioPreview, studioFromPost, studioUpload, studioPublish, nairobiSchedule, safeReturnPath, studioSignInHref, studioLoginHref, studioLoginURL } = require("../lib/newsletter-studio.ts")
 const { Signals } = require("../components/portfolio/signals.tsx")
 const { ArticleSections } = require("../components/portfolio/article-sections.tsx")
 const { default: LegacyStudioPage } = require("../app/(desk)/admin/writing/page.tsx")
@@ -247,7 +247,8 @@ test("newsletter begins with one invitation and a start button, without mounting
   assert(confirmation.includes("You’re in."))
   assert(confirmation.includes("Back to reading"))
   const email = readFileSync(new URL("../backend/internal/sendy/templates/note.html", import.meta.url), "utf8")
-  assert(email.includes(TONE_COLORS[0]))
+  // Emails follow the reader's own light or dark mail theme rather than the site's colour.
+  assert(!email.includes(TONE_COLORS[0]) && !email.includes("background-color") && email.includes('content="light dark"'))
   assert(email.includes("Georgia,'Times New Roman',serif"))
 })
 
@@ -673,4 +674,19 @@ test("the live view is the blog's article in the desk's colours, with sections c
   assert(!css.includes("live-tone"), "no blog tone in the desk")
   assert.match(css, /\.admin-live-preview \.live-page \.signals \{\s*font-size: clamp\(1\.125rem, 4\.2cqi, 2\.05rem\);/)
   assert.match(css, /@container write \(min-width: 56rem\)/)
+})
+
+test("sign-in returns only to the desk's own pages, matching the API's check", () => {
+  const cases = {
+    "/admin/posts": "/admin/posts", "/admin/newsletters?doc=abc&view=send": "/admin/newsletters?doc=abc&view=send", "/p/a5cd8282": "/p/a5cd8282",
+    "": "", "/": "", "/blog/post": "", "/admin/signin": "", "/admin/signin?next=/admin/posts": "",
+    "//evil.example/admin/posts": "", "https://evil.example/admin/posts": "", "/admin//evil.example": "", "/admin/%2F%2Fevil.example": "",
+    "/admin/..//evil.example": "", "/admin/../blog": "", "/admin/%2e%2e/blog": "", "/admin/\\evil.example": "", "/admin/posts\r\nSet-Cookie: x=1": "",
+    ["/admin/" + "a".repeat(600)]: "",
+  }
+  for (const [path, want] of Object.entries(cases)) assert.equal(safeReturnPath(path), want, path)
+  assert.equal(studioSignInHref("/admin/newsletters?doc=abc"), "/admin/signin?next=%2Fadmin%2Fnewsletters%3Fdoc%3Dabc")
+  assert.equal(studioSignInHref("https://evil.example"), "/admin/signin")
+  assert.equal(studioLoginHref("/admin/contacts"), `${studioLoginURL}?next=%2Fadmin%2Fcontacts`)
+  assert.equal(studioLoginHref("//evil.example"), studioLoginURL)
 })
