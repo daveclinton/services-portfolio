@@ -7,14 +7,15 @@ import { LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { site } from "@/lib/portfolio-data"
 import { enterAdminTheme } from "@/lib/tone"
-import { studioLoginURL, studioSession, takeSignInReturn } from "@/lib/newsletter-studio"
+import { STUDIO_HOME_PATH, safeReturnPath, studioLoginHref, studioSession } from "@/lib/newsletter-studio"
 
-type State = { status: "checking" } | { status: "ready"; configured: boolean; failed: boolean } | { status: "unreachable"; message: string }
+type State = { status: "checking" } | { status: "ready"; configured: boolean; failed: boolean; next: string } | { status: "unreachable"; message: string }
 
 // Ghost Admin's sign-in screen (apps/admin/src/auth/signin.tsx and auth-layout.tsx):
 // one centred 400px column with the site icon and title, one full-width submit
 // button that spins while it works and offers Retry after a failure, and one
-// message line under it. A signed-in owner is sent straight on.
+// message line under it. A signed-in owner is sent straight on, to ?next if
+// it names one of the desk's pages.
 // https://github.com/TryGhost/Ghost/tree/main/apps/admin/src/auth
 export function AdminSignIn() {
   const router = useRouter()
@@ -25,11 +26,15 @@ export function AdminSignIn() {
 
   useEffect(() => {
     let live = true
+    // Read in the browser so the page stays static. ?next is checked here and
+    // again by the API, so it only ever leads to one of the desk's own pages.
+    const query = new URLSearchParams(window.location.search)
+    const next = safeReturnPath(query.get("next"))
     studioSession().then((session) => {
       if (!live) return
-      if (session.authenticated) router.replace(takeSignInReturn())
-      // Read in the browser so the page stays static.
-      else setState({ status: "ready", configured: session.configured, failed: new URLSearchParams(window.location.search).get("login") === "failed" })
+      // Already signed in: go on without adding this page to history.
+      if (session.authenticated) router.replace(next || STUDIO_HOME_PATH)
+      else setState({ status: "ready", configured: session.configured, failed: query.get("login") === "failed", next })
     }).catch((failure: unknown) => { if (live) setState({ status: "unreachable", message: failure instanceof Error ? failure.message : "Couldn’t reach the writing desk." }) })
     return () => { live = false }
   }, [router, attempt])
@@ -47,6 +52,7 @@ export function AdminSignIn() {
     : failed ? "Sign-in wasn’t completed. Use the GitHub account that owns this site."
     : ""
   const canSignIn = state.status === "ready" && state.configured
+  const loginHref = state.status === "ready" ? studioLoginHref(state.next) : undefined
 
   return <main className="flex min-h-dvh w-full flex-col items-center overflow-y-auto bg-sidebar px-6">
     <div className="my-auto flex w-full max-w-[400px] flex-col gap-8 py-12">
@@ -58,7 +64,7 @@ export function AdminSignIn() {
       {state.status === "unreachable" ? <Button size="lg" className="mt-4 h-11 w-full text-body" onClick={() => { setState({ status: "checking" }); setAttempt((value) => value + 1) }}>Retry</Button>
         : state.status === "ready" && !state.configured ? null
         : <Button size="lg" variant={failed && !leaving ? "destructive" : "default"} className="mt-4 h-11 w-full text-body" disabled={!canSignIn || leaving} nativeButton={false}
-            render={<a href={canSignIn ? studioLoginURL : undefined} aria-disabled={!canSignIn || leaving || undefined} onClick={() => setLeaving(true)} />}>
+            render={<a href={canSignIn ? loginHref : undefined} aria-disabled={!canSignIn || leaving || undefined} onClick={() => setLeaving(true)} />}>
             {state.status === "checking" || leaving ? <><LoaderCircle className="size-5 motion-safe:animate-spin" aria-hidden="true" /><span className="sr-only">{leaving ? "Opening GitHub" : "Checking your sign-in"}</span></>
               : failed ? "Retry" : "Continue with GitHub →"}
           </Button>}

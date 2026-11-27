@@ -7,7 +7,7 @@ import { PublishedPostContent } from "@/components/portfolio/published-post-cont
 import { NewsletterSignup } from "@/components/portfolio/newsletter-signup"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatPostDate } from "@/lib/blog-format"
-import { PREVIEW_CHANNEL, studioDraft, studioSignInHref, STUDIO_SIGNIN_PATH, StudioSignedOutError, type NewsletterDraft } from "@/lib/newsletter-studio"
+import { PREVIEW_CHANNEL, studioDraft, studioSignInHref, previewPath, StudioSignedOutError, type NewsletterDraft } from "@/lib/newsletter-studio"
 
 type State = { status: "loading" } | { status: "ready"; draft: NewsletterDraft } | { status: "failed"; message: string; signIn: boolean }
 const wordsPerMinute = 230
@@ -44,7 +44,7 @@ export function DraftPreview({ id }: { id: string }) {
       {state.status === "loading" ? <div role="status" aria-label="Loading preview" className="flex flex-col gap-4"><Skeleton className="h-10 w-3/4" /><Skeleton className="h-4 w-40" /><Skeleton className="h-64 w-full" /></div> : null}
       {state.status === "failed" ? <div className="flex flex-col gap-4">
         <p role="alert">{state.signIn ? "Sign in to the writing desk to preview drafts." : state.message}</p>
-        {state.signIn ? <Link href={STUDIO_SIGNIN_PATH} onClick={() => studioSignInHref()}>Sign in</Link> : <button type="button" className="w-fit underline" onClick={() => { setState({ status: "loading" }); setAttempt((value) => value + 1) }}>Try again</button>}
+        {state.signIn ? <Link href={studioSignInHref(previewPath(id))}>Sign in</Link> : <button type="button" className="w-fit underline" onClick={() => { setState({ status: "loading" }); setAttempt((value) => value + 1) }}>Try again</button>}
       </div> : null}
       {draft ? <article className="blog-post">
         <header className="signals">
