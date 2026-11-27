@@ -15,28 +15,32 @@ export const STUDIO_IMAGE_ACCEPT = ".avif,.gif,.heic,.heif,.jpeg,.jpg,.png,.webp
 export type StudioUploadOptions = { onProgress?: (progress: number | null) => void; signal?: AbortSignal }
 export const studioLoginURL = `${API_URL}/admin/newsletters/auth/login`
 
-// The owner's own sign-in page. Signed-out desks send the owner here and the
-// page returns them afterwards, as Ghost Admin does with /signin.
+// The owner's own sign-in page. A signed-out desk sends the owner there with
+// ?next=<the page they wanted>; the API keeps that path with the one-time OAuth
+// state and GitHub's callback returns straight to it (Auth0 and Okta's advice:
+// carry the destination server-side, keyed by state, and accept only your own
+// relative paths). The API checks it again, so this is never an open redirect.
 export const STUDIO_SIGNIN_PATH = "/admin/signin"
 export const STUDIO_HOME_PATH = "/admin/posts"
-const SIGNIN_RETURN_KEY = "desk-signin-return"
-const returnable = (path: string | null): path is string => !!path && /^\/(admin|p)\//.test(path) && !path.startsWith(STUDIO_SIGNIN_PATH)
-/** Remembers where a signed-out owner was going; the latest attempt wins. */
-export function rememberSignInReturn(path: string) {
-  try { if (returnable(path)) sessionStorage.setItem(SIGNIN_RETURN_KEY, path) } catch {}
-}
-/** The page to open after signing in, cleared so it is used once. */
-export function takeSignInReturn(): string {
+/** The desk page a sign-in may return to, or "" for anything else. Mirrors safeReturn in backend/internal/studio/auth.go. */
+export function safeReturnPath(path: string | null | undefined): string {
+  if (!path || path.length > 512 || /[\\\u0000-\u001f]/.test(path) || !/^\/(admin|p)\//.test(path) || path.startsWith(STUDIO_SIGNIN_PATH)) return ""
   try {
-    const path = sessionStorage.getItem(SIGNIN_RETURN_KEY)
-    sessionStorage.removeItem(SIGNIN_RETURN_KEY)
-    return returnable(path) ? path : STUDIO_HOME_PATH
-  } catch { return STUDIO_HOME_PATH }
+    if (/(^|\/)\.\.(\/|$)/.test(decodeURIComponent(path.split("?")[0]))) return ""
+    const url = new URL(path, "https://desk.invalid"), decoded = decodeURIComponent(url.pathname)
+    if (url.origin !== "https://desk.invalid" || decoded.includes("//") || !/^\/(admin|p)\//.test(decoded) || decoded.startsWith(STUDIO_SIGNIN_PATH)) return ""
+    return url.pathname + url.search
+  } catch { return "" }
 }
-/** The sign-in page, remembering the current page to come back to. */
-export function studioSignInHref() {
-  if (typeof window !== "undefined") rememberSignInReturn(window.location.pathname + window.location.search)
-  return STUDIO_SIGNIN_PATH
+/** The sign-in page, returning afterwards to `path` (by default, the current page). */
+export function studioSignInHref(path = typeof window === "undefined" ? "" : window.location.pathname + window.location.search) {
+  const next = safeReturnPath(path)
+  return next ? `${STUDIO_SIGNIN_PATH}?next=${encodeURIComponent(next)}` : STUDIO_SIGNIN_PATH
+}
+/** GitHub sign-in through the API, carrying the page to return to. */
+export function studioLoginHref(next: string) {
+  const path = safeReturnPath(next)
+  return path ? `${studioLoginURL}?next=${encodeURIComponent(path)}` : studioLoginURL
 }
 
 /** A request refused because the owner's session has ended. */
@@ -300,7 +304,6 @@ export async function studioAction(csrf: string, current: NewsletterDraft, actio
 export async function studioLogout(): Promise<void> {
   await request("logout", "", {})
   studioForget()
-  takeSignInReturn()
 }
 export function nairobiSchedule(value: string): string {
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value)) throw new Error("Choose a date and time in Nairobi time.")

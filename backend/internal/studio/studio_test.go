@@ -339,7 +339,7 @@ func TestGitHubLoginUsesPKCEOneTimeStateAndOwnerID(t *testing.T) {
 	f.s.identityURL = provider.URL + "/user"
 	login := func() (*http.Cookie, string) {
 		w := httptest.NewRecorder()
-		f.s.login(w, httptest.NewRequest("GET", "/admin/newsletters/auth/login", nil))
+		f.s.login(w, httptest.NewRequest("GET", "/admin/newsletters/auth/login?next="+url.QueryEscape("/admin/newsletters?doc=abc&view=preview"), nil))
 		target, _ := url.Parse(w.Header().Get("Location"))
 		if target.Query().Get("code_challenge_method") != "S256" || target.Query().Get("code_challenge") == "" {
 			t.Fatal("PKCE challenge missing")
@@ -371,8 +371,8 @@ func TestGitHubLoginUsesPKCEOneTimeStateAndOwnerID(t *testing.T) {
 	if !authenticated {
 		t.Fatal("owner identity denied", w.Header())
 	}
-	if w.Header().Get("Location") != f.s.cfg.SiteURL+"/admin/signin" {
-		t.Fatal("sign-in did not return to the sign-in page", w.Header().Get("Location"))
+	if w.Header().Get("Location") != f.s.cfg.SiteURL+"/admin/newsletters?doc=abc&view=preview" {
+		t.Fatal("sign-in did not return to the page the owner wanted", w.Header().Get("Location"))
 	}
 	_ = callback(cookie, state)
 	if exchanges != 1 {
@@ -381,8 +381,8 @@ func TestGitHubLoginUsesPKCEOneTimeStateAndOwnerID(t *testing.T) {
 	identity = 43
 	cookie, state = login()
 	w = callback(cookie, state)
-	if !strings.Contains(w.Header().Get("Location"), "failed") {
-		t.Fatal("another GitHub account became owner")
+	if want := f.s.cfg.SiteURL + "/admin/signin?login=failed&next=" + url.QueryEscape("/admin/newsletters?doc=abc&view=preview"); w.Header().Get("Location") != want {
+		t.Fatal("another GitHub account became owner, or lost the return page", w.Header().Get("Location"))
 	}
 }
 
@@ -554,5 +554,31 @@ func TestLegacyProviderCampaignIDCannotOperateOnLocalCampaign(t *testing.T) {
 	}
 	if f.mail.creates+f.mail.tests+f.mail.sends+f.mail.updates != 0 {
 		t.Fatal("legacy campaign touched provider")
+	}
+}
+
+func TestSignInOnlyReturnsToTheDesksOwnPages(t *testing.T) {
+	for path, want := range map[string]string{
+		"/admin/posts":                         "/admin/posts",
+		"/admin/newsletters?doc=abc&view=send": "/admin/newsletters?doc=abc&view=send",
+		"/p/a5cd8282":                          "/p/a5cd8282",
+		"":                                     "",
+		"/":                                    "",
+		"/blog/post":                           "",
+		"/admin/signin":                        "",
+		"/admin/signin?next=/admin/posts":      "",
+		"//evil.example/admin/posts":           "",
+		"https://evil.example/admin/posts":     "",
+		"/admin//evil.example":                 "",
+		"/admin/%2F%2Fevil.example":            "",
+		"/admin/..//evil.example":              "",
+		"/admin/../blog":                       "",
+		"/admin/\\evil.example":                "",
+		"/admin/posts\r\nSet-Cookie: x=1":      "",
+		"/admin/" + strings.Repeat("a", 600):   "",
+	} {
+		if got := safeReturn(path); got != want {
+			t.Errorf("safeReturn(%q) = %q, want %q", path, got, want)
+		}
 	}
 }
